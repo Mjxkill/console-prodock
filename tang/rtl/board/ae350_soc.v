@@ -52,6 +52,13 @@ module ae350_soc #(
     // Console : UART2 (printf du BSP Gowin)
     output wire        uart2_tx,
     input  wire        uart2_rx,
+    // Native DDR3 graphics reads (gpu_clk = DDR UI clock).
+    output wire gpu_clk,
+    input wire gpu_valid,
+    input wire [28:0] gpu_addr,
+    output wire gpu_ready,
+    output wire [255:0] gpu_data,
+    output wire gpu_data_valid,
     // État
     output wire        ddr_init,      // 1 : calibration DDR3 terminée
     output wire [3:0]  dbg,           // diag E1 : {1'b1, ddr3_stop, ddr3_lock, ae350_rstn}
@@ -97,6 +104,7 @@ module ae350_soc #(
     assign ddr_dq = 32'bz; assign ddr_dqs = 4'bz; assign ddr_dqs_n = 4'bz;
     assign tdo = 1'b0; assign uart2_tx = 1'b1; assign ddr_init = 1'b0; assign dbg = 4'b0; assign ahb_dbg = 8'b0; assign ddr_dbg = 16'b0;
     assign core_wfi_dbg = 1'b0;
+    assign gpu_clk = 0; assign gpu_ready = 0; assign gpu_data = 0; assign gpu_data_valid = 0;
     // mode V3 : au banc, la_top expose ev_*/evin_* directement (ports sim_*) ; ici rien ne passe
     assign ev_ready = 1'b0; assign evin_valid = 1'b0; assign evin_data = 32'd0; assign rr_valid = 1'b0; assign rr_data = 64'd0;
     assign vid_hclk = 1'b0; assign vid_hrstn = 1'b0; assign vid_hsel = 1'b0; assign vid_hwrite = 1'b0; assign vid_haddr = 32'd0; assign vid_hwdata = 32'd0; assign vid_htrans = 2'b00;
@@ -146,6 +154,7 @@ module ae350_soc #(
     localparam [31:0] RING_BASE = 32'h2000_0000;   // E2-f1-d : anneau = moitié haute du Go (512 Mo = 67 M entrées)
     localparam [31:0] RING_SIZE = 32'h2000_0000;   // la moitié basse reste au cœur (test mémoire E1, données)
     wire        wr_clk, wr_done, wr_active, wr_restart_tgl, wr_restart, wr_ring_full;
+    assign gpu_clk = wr_clk;
     wire [31:0] wr_wptr, wr_cycles, wr_seed, wr_rptr, wr_used;
     // FIFO événements (ev_clk → clk_out) et pointeurs de l'anneau
     wire        fi_valid, fi_ready, ev_wr_rst, ev_rd_rst, start_wr;
@@ -177,7 +186,9 @@ module ae350_soc #(
         .wr_rptr(wr_rptr), .wr_ring_full(wr_ring_full), .wr_used(wr_used),
         .rd_clk(ev_clk), .rd_rst_wr(ev_rd_rst), .rd_rst_rd(ev_wr_rst), .rd_valid(rr_valid), .rd_data(rr_data), .rd_ready(rr_ready),
         .rd_lost(rd_lost),
-        .fi_valid(fi_valid), .fi_data(fi_data), .fi_ready(fi_ready), .fi_count(fi_count)
+        .fi_valid(fi_valid), .fi_data(fi_data), .fi_ready(fi_ready), .fi_count(fi_count),
+        .gpu_valid(gpu_valid), .gpu_addr(gpu_addr), .gpu_ready(gpu_ready),
+        .gpu_data(gpu_data), .gpu_data_valid(gpu_data_valid)
     );
     // FIFO événements : écrite par l'acquisition (ev_clk), lue par le writer (clk_out) ; vidée au 'S'
     ddr_dcfifo #(.WIDTH(64), .DEPTH_LOG2(9)) u_evfifo (
@@ -189,6 +200,7 @@ module ae350_soc #(
     assign ahb_dbg = 8'b0;
     assign ddr3_init_ip = ddr3_init_completed;
     end else begin : g_ram
+    assign gpu_ready = 0; assign gpu_data = 0; assign gpu_data_valid = 0;
     // Diag E1 : RAM AHB en fabric à la place de la DDR3 ; le SoC est « initialisé » d'office.
     assign ddr3_init_completed = 1'b1;
     assign ddr_hresp2[1] = 1'b0;
@@ -208,7 +220,8 @@ module ae350_soc #(
         .wr_rptr(wr_rptr), .wr_ring_full(wr_ring_full), .wr_used(wr_used),
         .rd_clk(ev_clk), .rd_rst_wr(ev_rd_rst), .rd_rst_rd(ev_wr_rst), .rd_valid(rr_valid), .rd_data(rr_data), .rd_ready(rr_ready),
         .rd_lost(rd_lost),
-        .fi_valid(1'b0), .fi_data(64'd0), .fi_ready(fi_ready), .fi_count(10'd0)
+        .fi_valid(1'b0), .fi_data(64'd0), .fi_ready(fi_ready), .fi_count(10'd0),
+        .gpu_valid(1'b0), .gpu_addr(29'd0), .gpu_ready(), .gpu_data(), .gpu_data_valid()
     );
     assign ev_ready = 1'b0; assign fi_valid = 1'b0; assign fi_data = 64'd0; assign fi_count = 10'd0;
     assign ev_wr_rst = 1'b0; assign ev_rd_rst = 1'b0; assign start_wr = 1'b0; assign ev_lost = 32'd0; assign ev_wr_count = 10'd0;

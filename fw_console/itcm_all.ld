@@ -1,4 +1,6 @@
-/* Image autonome : code, données et pile en ITCM (0x80000000, 64 Ko).
+/* HISTORIQUE E2 uniquement : cette disposition perd l'état lors du vidage du
+ * D-cache. Utiliser itcm.ld (données ILM, pile DLM) pour les nouveaux builds.
+ * Image autonome : code, données et pile en ITCM (0x80000000, 64 Ko).
  * Le bitstream initialise code et données ; c_startup() vide la BSS.
  * Le vecteur de reset du BSP (.nds_vector, start.S) doit être le premier mot de l'ITCM. */
 ENTRY(_start)

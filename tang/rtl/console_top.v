@@ -45,11 +45,30 @@ module console_top (
     wire lcd_clk_pix;
     Gowin_PLL_LCD u_pll_lcd (.clkout0 (lcd_clk_pix), .clkin (clk));
     wire rst_n = 1'b1;
-    lcd_timing u_lcd (
-        .lcd_clk (lcd_clk_pix), .rst_n (rst_n),
-        .lcd_en (lcd_en), .lcd_hs (lcd_hs), .lcd_vs (lcd_vs),
-        .lcd_r (lcd_r), .lcd_b (lcd_b), .lcd_g (lcd_g)
+    wire vid_hclk, vid_hrstn, vid_hsel, vid_hwrite, vid_hready;
+    wire [31:0] vid_haddr, vid_hwdata, vid_hrdata;
+    wire [1:0] vid_htrans;
+    wire gpu_clk, gpu_valid, gpu_ready, gpu_data_valid;
+    wire [28:0] gpu_addr;
+    wire [255:0] gpu_data;
+`ifdef CONSOLE_GPU
+    gpu_scanout u_gpu (
+        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel), .hwrite(vid_hwrite),
+        .haddr(vid_haddr), .hwdata(vid_hwdata), .htrans(vid_htrans), .hrdata(vid_hrdata), .hready(vid_hready),
+        .pixel_clk(lcd_clk_pix), .mem_clk(gpu_clk),
+        .fetch_valid(gpu_valid), .fetch_addr(gpu_addr), .fetch_ready(gpu_ready),
+        .fetch_data(gpu_data), .fetch_data_valid(gpu_data_valid),
+        .lcd_en(lcd_en), .lcd_hs(lcd_hs), .lcd_vs(lcd_vs), .lcd_r(lcd_r), .lcd_g(lcd_g), .lcd_b(lcd_b)
     );
+`else
+    lcd_timing u_lcd (
+        .lcd_clk(lcd_clk_pix), .rst_n(rst_n), .lcd_en(lcd_en), .lcd_hs(lcd_hs), .lcd_vs(lcd_vs),
+        .lcd_r(lcd_r), .lcd_g(lcd_g), .lcd_b(lcd_b));
+    assign vid_hrdata = 32'd0;
+    assign vid_hready = 1'b1;
+    assign gpu_valid = 1'b0;
+    assign gpu_addr = 29'd0;
+`endif
     assign lcd_bl = rst_n;
     assign lcd_clk = lcd_clk_pix;
 
@@ -242,14 +261,6 @@ module console_top (
     wire [63:0] ev_data_unused; wire ev_ready_unused, evin_valid_unused;
     wire [31:0] evin_data_unused;
     wire [63:0] rr_data_unused; wire rr_valid_unused;
-    wire        vid_hclk_unused, vid_hrstn_unused, vid_hsel_unused, vid_hwrite_unused;
-    wire [31:0] vid_haddr_unused, vid_hwdata_unused;
-    wire [1:0]  vid_htrans_unused;
-    wire [63:0] vid_hrdata_unused;
-    wire        vid_hready_unused;
-
-
-
     // PLL système du AE350 (socle analyseur : lock + init_clk + PLL_INIT) :
     // clkout0 = 80 MHz (bus AHB/APB), clkout1 = core 800 MHz, clkout4 = RTC 10 MHz
     Gowin_PLL_AE350 u_pll_ae350 (
@@ -270,10 +281,7 @@ module console_top (
     wire ae350_por_n = ~ae350_rst_sync[1];
 
     // SoC AE350 + DDR3 standalone + pont Sipeed (socle analyseur, validé V3)
-    wire vid_hsel_w;                 // slave vidéo 0xE9000000 : trace de vie CPU (hors APB)
     wire core_wfi_w;                 // CORE0_WFI_MODE du cœur (preuve de vie sans bus)
-    wire vid_hready_w;
-    wire [31:0] vid_haddr_w;
     ae350_soc u_soc (
         .clk50(clk),
         .rst_key_n(ae350_por_n),
@@ -284,17 +292,18 @@ module console_top (
         .tck(ae350_tck), .tms(ae350_tms), .tdi(ae350_tdi), .tdo(ae350_tdo),
         .uart2_tx(ae350_tx), .uart2_rx(ae350_rx), .ddr_init(ddr_init), .dbg(soc_dbg),
         .ahb_dbg(soc_ahb_dbg), .ddr_dbg(soc_ddr_dbg), .core_wfi_dbg(core_wfi_w),
-        // E2 : les interfaces événement/vidéo du socle ne servent pas encore (figées)
+        // Legacy acquisition inputs are inactive; video uses its own DDR port.
         .ev_clk(clk), .ev_valid(1'b0), .ev_data(64'd0),
         .evin_valid(), .evin_data(), .evin_ready(1'b0),
         .rr_valid(), .rr_data(), .rr_ready(1'b0),
         .acq_v3(1'b0), .acq_start(1'b0), .acq_run(1'b0), .acq_div(8'd0), .acq_mask(16'hFFFF),
         .acq_now(32'd0),
-        .vid_hclk(), .vid_hrstn(), .vid_hsel(vid_hsel_w), .vid_hwrite(),
-        .vid_haddr(vid_haddr_w), .vid_hwdata(), .vid_htrans(),
-        .vid_hrdata(32'd0), .vid_hready(vid_hready_w)
+        .vid_hclk(vid_hclk), .vid_hrstn(vid_hrstn), .vid_hsel(vid_hsel), .vid_hwrite(vid_hwrite),
+        .vid_haddr(vid_haddr), .vid_hwdata(vid_hwdata), .vid_htrans(vid_htrans),
+        .vid_hrdata(vid_hrdata), .vid_hready(vid_hready),
+        .gpu_clk(gpu_clk), .gpu_valid(gpu_valid), .gpu_addr(gpu_addr), .gpu_ready(gpu_ready),
+        .gpu_data(gpu_data), .gpu_data_valid(gpu_data_valid)
     );
-    assign vid_hready_w = 1'b1;
     // LED4 = WFI du cœur : si le CPU exécute la boucle wfi, le signal monte → LED s'allume
     assign led[4] = ~core_wfi_w;
 

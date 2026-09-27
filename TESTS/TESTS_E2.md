@@ -1,5 +1,10 @@
 # E2 — Console AE350 sur USB CDC, Pro Dock FPG676
 
+Note G1 : ce compte rendu décrit le bitstream E2 archivé. Les nouveaux builds
+utilisent `fw_console/itcm.ld` (données ILM, pile DLM), car la disposition tout
+en ITCM d'E2 ne supporte pas correctement la maintenance du cache.
+Voir [TESTS_GPU_G1.md](TESTS_GPU_G1.md).
+
 ## Configuration (27 septembre 2026)
 
 Cœur **800 MHz** sur PLL_R[0]/CLKOUT1, AHB/APB **80 MHz** sur CLKOUT0.

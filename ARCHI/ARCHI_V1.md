@@ -1,5 +1,13 @@
 # ARCHI V1 — Console de jeux Tang Mega 138K Pro Dock (proposition, 2026-09-25, À VALIDER)
 
+> **Document historique, remplacé le 27 septembre 2026 par
+> [ARCHI_V2_CONSOLE_JEUX.md](ARCHI_V2_CONSOLE_JEUX.md).** Michael précise :
+> console de jeux, LCD 800×480, DDR3 uniquement, **16 couches graphiques
+> superposables**, sprites, texte, accélérations et première 3D. Les entrées
+> servent aux boutons/ADS1115/manettes éventuelles, les sorties aux LED et
+> périphériques simples. Les fonctions d'acquisition rapide ci-dessous
+> ne font plus partie du projet.
+
 Demande de Michael (25/09) : une console de jeux originale sur la Tang Mega 138K **Pro** Dock
 (FPGA GW5AST-LV138FPG676AC1/I0, boîtier 676 billes), écran LCD **480×272 RGB**, langage de
 programmation **simple**, carte vidéo performante, DDR3 + cœur RISC-V **AE350**, génération /

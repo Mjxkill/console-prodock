@@ -37,6 +37,12 @@ module ddr_subsys #(
     output wire [1:0]   HRESP,
     output wire [63:0]  HRDATA,
     output wire [15:0]  DBG,               // diag (voir gw_ahb_ddr3)
+    // Graphics uses the native 256-bit interface in the ui_clk domain.
+    input wire gpu_valid,
+    input wire [28:0] gpu_addr,
+    output wire gpu_ready,
+    output wire [255:0] gpu_data,
+    output wire gpu_data_valid,
     // ddr_writer (E2-c : motif ; domaine clk_out de l'IP — le wrapper resynchronise)
     output wire         wr_clk,            // clk_out, pour que le wrapper synchronise ses signaux
     output wire         wr_done,
@@ -101,12 +107,28 @@ module ddr_subsys #(
         .ip_wr_data_en(w_wr_data_en), .ip_wr_data_end(w_wr_data_end), .ip_wr_data(w_wr_data), .ip_wr_data_mask(w_wr_data_mask),
         .ip_wr_data_rdy(w_wr_data_rdy), .ip_rd_data(w_rd_data), .ip_rd_data_valid(w_rd_data_valid), .ip_rd_data_end(w_rd_data_end));
 
+    wire m_cmd_ready, m_cmd_en, m_wr_data_rdy, m_wr_data_en, m_wr_data_end;
+    wire m_rd_data_valid, m_rd_data_end;
+    wire [2:0] m_cmd;
+    wire [28:0] m_addr;
+    wire [255:0] m_wr_data, m_rd_data;
+    wire [31:0] m_wr_data_mask;
+    ddr_gpu_arb u_gpu_arb (
+        .clk(ui_clk), .rst_n(DDR3_INIT),
+        .c_en(w_cmd_en), .c_cmd(w_cmd), .c_addr(w_addr), .c_ready(w_cmd_ready),
+        .c_wr_en(w_wr_data_en), .c_wr_end(w_wr_data_end), .c_wr_data(w_wr_data), .c_wr_mask(w_wr_data_mask),
+        .c_wr_ready(w_wr_data_rdy), .c_rd_data(w_rd_data), .c_rd_valid(w_rd_data_valid), .c_rd_end(w_rd_data_end),
+        .g_valid(gpu_valid), .g_addr(gpu_addr), .g_ready(gpu_ready), .g_data(gpu_data), .g_data_valid(gpu_data_valid),
+        .m_en(m_cmd_en), .m_cmd(m_cmd), .m_addr(m_addr), .m_ready(m_cmd_ready),
+        .m_wr_en(m_wr_data_en), .m_wr_end(m_wr_data_end), .m_wr_data(m_wr_data), .m_wr_mask(m_wr_data_mask),
+        .m_wr_ready(m_wr_data_rdy), .m_rd_data(m_rd_data), .m_rd_valid(m_rd_data_valid), .m_rd_end(m_rd_data_end));
+
     DDR3_Memory_Interface_Top u_ip (
         .clk(DDR3_CLK_IN), .pll_stop(DDR3_STOP), .memory_clk(DDR3_MEMORY_CLK), .pll_lock(DDR3_LOCK), .rst_n(DDR3_RSTN),
-        .cmd_ready(w_cmd_ready), .cmd(w_cmd), .cmd_en(w_cmd_en), .addr(w_addr),
-        .wr_data_rdy(w_wr_data_rdy), .wr_data(w_wr_data), .wr_data_en(w_wr_data_en), .wr_data_end(w_wr_data_end),
-        .wr_data_mask(w_wr_data_mask),
-        .rd_data(w_rd_data), .rd_data_valid(w_rd_data_valid), .rd_data_end(w_rd_data_end),
+        .cmd_ready(m_cmd_ready), .cmd(m_cmd), .cmd_en(m_cmd_en), .addr(m_addr),
+        .wr_data_rdy(m_wr_data_rdy), .wr_data(m_wr_data), .wr_data_en(m_wr_data_en), .wr_data_end(m_wr_data_end),
+        .wr_data_mask(m_wr_data_mask),
+        .rd_data(m_rd_data), .rd_data_valid(m_rd_data_valid), .rd_data_end(m_rd_data_end),
         .sr_req(1'b0), .ref_req(1'b0), .sr_ack(), .ref_ack(),
         .init_calib_complete(DDR3_INIT), .clk_out(ui_clk), .ddr_rst(), .burst(1'b1),
         .O_ddr_addr(DDR3_ADDR), .O_ddr_ba(DDR3_BANK), .O_ddr_cs_n(DDR3_CS_N), .O_ddr_ras_n(DDR3_RAS_N),

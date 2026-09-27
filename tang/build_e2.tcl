@@ -25,6 +25,7 @@ add_file rtl/board/cdc_clear.v
 add_file rtl/board/cdc_word.v
 add_file rtl/board/ahb_exts_bridge.v
 add_file rtl/board/ddr_subsys.v
+add_file rtl/board/ddr_gpu_arb.v
 add_file rtl/board/ddr_arb.v
 add_file rtl/board/ddr_dcfifo.v
 add_file rtl/board/ddr_writer.v

@@ -1,11 +1,11 @@
 include /home/michael/logic_analyser_wifi/ae350/toolchain.mk
 APP   = console_test
 BUILD = build
-LD    = /home/michael/console/fw_console/itcm_all.ld   # TEST : tout en ITCM (pas d'ILM/DLM) — vecteur de reset en premier mot
-# HEAP_END inutile avec itcm.ld : _heap_end fourni par le script (fin de l'ILM)
-SRCS  = main.c $(filter-out $(AE350_SDK)/bsp/lib/read.c,$(BSP_SRCS))
+MAIN ?= main.c
+LD    = /home/michael/console/fw_console/itcm.ld
+SRCS  = $(MAIN) $(filter-out $(AE350_SDK)/bsp/lib/read.c,$(BSP_SRCS))
 OBJS  = $(patsubst %.c,$(BUILD)/%.o,$(notdir $(SRCS))) $(BUILD)/start.o
-CFLAGS += -DCFG_XIP   # .data a la même adresse de chargement et d'exécution (ITCM)
+CFLAGS += -DCFG_XIP   # Le BSP copie les données initialisées de l'ITCM vers l'ILM.
 vpath %.c $(sort $(dir $(SRCS)))   # seulement les .c : sinon make trouve les .o d'un autre dossier build
 all: $(BUILD)/$(APP).bin $(BUILD)/itcm/itcm0
 	$(SIZE) $(BUILD)/$(APP).elf
