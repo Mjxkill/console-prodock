@@ -1,0 +1,266 @@
+// console_e0b.cst — brochage Tang Mega 138K Pro Dock (schéma 4071f rev 1.2).
+// Sources : rgb_screen/480_272_screen.cst (LCD + clk P16), usb_ref.cst (soft USB + LEDs + uart V22).
+// Device : GW5AST-LV138FPG676AC1/I0 (gw5ast138b-007).
+
+// ---------- horloge ----------
+IO_LOC  "clk" P16;
+IO_PORT "clk" PULL_MODE=NONE DRIVE=OFF BANK_VCCIO=3.3;
+
+// ---------- LCD 480×272 (RGB666 SYNC-DE) ----------
+IO_LOC  "lcd_r[0]" K17;
+IO_LOC  "lcd_r[1]" J18;
+IO_LOC  "lcd_r[2]" H18;
+IO_LOC  "lcd_r[3]" G25;
+IO_LOC  "lcd_r[4]" J19;
+IO_LOC  "lcd_r[5]" H19;
+IO_LOC  "lcd_g[0]" G20;
+IO_LOC  "lcd_g[1]" G21;
+IO_LOC  "lcd_g[2]" G22;
+IO_LOC  "lcd_g[3]" F22;
+IO_LOC  "lcd_g[4]" K15;
+IO_LOC  "lcd_g[5]" J16;
+IO_LOC  "lcd_b[0]" M16;
+IO_LOC  "lcd_b[1]" M17;
+IO_LOC  "lcd_b[2]" F18;
+IO_LOC  "lcd_b[3]" F19;
+IO_LOC  "lcd_b[4]" G19;
+IO_LOC  "lcd_b[5]" F20;
+IO_LOC  "lcd_en" A24;
+IO_LOC  "lcd_hs" H22;   // MIPI_DPI.HS  (broche 32 du FPC-40)
+IO_LOC  "lcd_vs" A23;   // MIPI_DPI.VS  (broche 33 du FPC-40)
+IO_LOC  "lcd_bl" F25;   // LCD_BL       (broche 47) : enable du driver de rétroéclairage LP3320
+IO_LOC  "lcd_clk" H21;
+IO_PORT "lcd_en" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_hs" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_vs" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_bl" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_clk" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[0]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[1]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[2]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[3]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[4]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[5]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[0]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[1]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[2]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[3]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[4]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[5]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[0]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[1]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[2]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[3]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[4]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[5]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+// ---------- LEDs utilisateurs ----------
+IO_LOC  "led[0]" J14;   // NOTE carte : LED.0 sur banque 2 (J14)
+IO_LOC  "led[1]" R26;
+IO_LOC  "led[2]" L20;
+IO_LOC  "led[3]" M25;
+IO_LOC  "led[4]" N21;
+IO_LOC  "led[5]" N23;
+IO_PORT "led[0]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[1]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[2]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[3]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[4]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[5]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+// ---------- soft USB (port SOFT-USB) ----------
+IO_LOC  "usb_dxp_io" M21,M22;
+IO_PORT "usb_dxp_io" IO_TYPE=LVPECL33E PULL_MODE=NONE DIFF_RESISTOR=OFF DRIVE=12 BANK_VCCIO=3.3 CTLE=MEDIUM;
+
+IO_LOC  "usb_pullup_en_o" M19;
+IO_PORT "usb_pullup_en_o" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+IO_LOC  "usb_term_dp_io" T19;
+IO_PORT "usb_term_dp_io" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC  "usb_term_dn_io" U19;
+IO_PORT "usb_term_dn_io" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+IO_LOC  "usb_rxdp_i" U21,V21;
+IO_PORT "usb_rxdp_i" IO_TYPE=LVDS25 PULL_MODE=NONE DIFF_RESISTOR=OFF BANK_VCCIO=3.3 CTLE=MEDIUM;
+IO_LOC  "usb_rxdn_i" T20,U20;
+IO_PORT "usb_rxdn_i" IO_TYPE=LVDS25 PULL_MODE=NONE DIFF_RESISTOR=OFF BANK_VCCIO=3.3 CTLE=MEDIUM;
+
+// ---------- UART physique (debug scope, J22 ?) : broche de l'exemple ----------
+// ---------- contraintes de placement des PLL (diagnostic énumération, 2026-09-25) ----------
+// La PLL_USB et la PLL_LCD se disputaient une ressource proche (non mesurable : .p chiffrés, V4 § 1).
+// MUG1030 §2.6.4 : CORE_CLK du cœur AE350 exige CLKOUT1 de PLL_R[0].
+// La PLL USB F occupe R[2] pour laisser cette liaison dédiée au CPU.
+INS_LOC "u_pll_f/PLL_inst" PLL_R[2];
+INS_LOC "u_pll_b/PLL_inst" PLL_R[1];
+INS_LOC "u_pll_lcd/PLL_inst" PLL_L[1];
+INS_LOC "u_pll_ae350/u_pll/PLL_inst" PLL_R[0];
+
+// ---------- DDR3 (pro_ddr_test Sipeed, noms renommés) ----------
+
+// ---------- contraintes horloges (mesuré E1 : sans ça clk_d tombe en LW) ----------
+CLOCK_LOC "clk_d" BUFG[0] = CLK;
+CLOCK_LOC "phy_clk" BUFG[1] = CLK;
+CLOCK_LOC "fclk_960m" BUFG[2] = CLK;
+CLOCK_LOC "clk48" BUFG[3] = CLK;
+CLOCK_LOC "lcd_clk_d" BUFG[4] = CLK;
+CLOCK_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk" BUFG[7] = CLK;
+// bus80/core : sorties PLL CLKOUT : le PnR les route sur les SPINEs de la PLL elle-même
+
+// ---------- placement PLL : USB à droite (côté du pin 50 MHz), LCD à gauche ----------
+
+// ---------- DDR3 : DDL et fclkdiv côté gauche (Sipeed pro.cst) ----------
+
+
+
+IO_LOC "ddr_bank[2]" K3;
+IO_PORT "ddr_bank[2]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_bank[1]" L5;
+IO_PORT "ddr_bank[1]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_bank[0]" M4;
+IO_PORT "ddr_bank[0]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+//IO_LOC "ddr_addr[15]" M6;
+//IO_PORT "ddr_addr[15]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[14]" U5;
+IO_PORT "ddr_addr[14]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[13]" U2;
+IO_PORT "ddr_addr[13]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[12]" N3;
+IO_PORT "ddr_addr[12]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[11]" P4;
+IO_PORT "ddr_addr[11]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[10]" M1;
+IO_PORT "ddr_addr[10]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[9]" T3;
+IO_PORT "ddr_addr[9]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[8]" T4;
+IO_PORT "ddr_addr[8]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[7]" U1;
+IO_PORT "ddr_addr[7]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[6]" N4;
+IO_PORT "ddr_addr[6]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[5]" T2;
+IO_PORT "ddr_addr[5]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[4]" P1;
+IO_PORT "ddr_addr[4]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[3]" N2;
+IO_PORT "ddr_addr[3]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[2]" R2;
+IO_PORT "ddr_addr[2]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[1]" R1;
+IO_PORT "ddr_addr[1]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[0]" N1;
+IO_PORT "ddr_addr[0]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_odt" J1;
+IO_PORT "ddr_odt" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_cke" L3;
+IO_PORT "ddr_cke" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=4 BANK_VCCIO=1.5;
+IO_LOC "ddr_we" J3;
+IO_PORT "ddr_we" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_cas" H1;
+IO_PORT "ddr_cas" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_ras" H2;
+IO_PORT "ddr_ras" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_cs" L4;
+IO_PORT "ddr_cs" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_reset_n" N8;
+IO_PORT "ddr_reset_n" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_ck" M2,L2;
+IO_PORT "ddr_ck" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+IO_LOC "ddr_dm[3]" A3;
+IO_PORT "ddr_dm[3]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dm[2]" E3;
+IO_PORT "ddr_dm[2]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dm[1]" H9;
+IO_PORT "ddr_dm[1]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dm[0]" F4;
+IO_PORT "ddr_dm[0]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[31]" D1;
+IO_PORT "ddr_dq[31]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[30]" G1;
+IO_PORT "ddr_dq[30]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[29]" E2;
+IO_PORT "ddr_dq[29]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[28]" F2;
+IO_PORT "ddr_dq[28]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[27]" C2;
+IO_PORT "ddr_dq[27]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[26]" G2;
+IO_PORT "ddr_dq[26]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[25]" A2;
+IO_PORT "ddr_dq[25]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[24]" E1;
+IO_PORT "ddr_dq[24]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[23]" D4;
+IO_PORT "ddr_dq[23]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[22]" A4;
+IO_PORT "ddr_dq[22]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[21]" D5;
+IO_PORT "ddr_dq[21]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[20]" D3;
+IO_PORT "ddr_dq[20]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[19]" E5;
+IO_PORT "ddr_dq[19]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[18]" B4;
+IO_PORT "ddr_dq[18]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[17]" F3;
+IO_PORT "ddr_dq[17]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[16]" C4;
+IO_PORT "ddr_dq[16]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[15]" F7;
+IO_PORT "ddr_dq[15]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[14]" G6;
+IO_PORT "ddr_dq[14]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[13]" F8;
+IO_PORT "ddr_dq[13]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[12]" D6;
+IO_PORT "ddr_dq[12]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[11]" G8;
+IO_PORT "ddr_dq[11]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[10]" H6;
+IO_PORT "ddr_dq[10]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[9]" H8;
+IO_PORT "ddr_dq[9]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[8]" E6;
+IO_PORT "ddr_dq[8]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[7]" K6;
+IO_PORT "ddr_dq[7]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[6]" K8;
+IO_PORT "ddr_dq[6]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[5]" J5;
+IO_PORT "ddr_dq[5]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[4]" K7;
+IO_PORT "ddr_dq[4]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[3]" G5;
+IO_PORT "ddr_dq[3]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[2]" L8;
+IO_PORT "ddr_dq[2]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[1]" J6;
+IO_PORT "ddr_dq[1]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[0]" G4;
+IO_PORT "ddr_dq[0]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dqs[3]" C1,B1;
+IO_PORT "ddr_dqs[3]" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+IO_LOC "ddr_dqs[2]" B5,A5;
+IO_PORT "ddr_dqs[2]" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+IO_LOC "ddr_dqs[1]" H7,G7;
+IO_PORT "ddr_dqs[1]" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+IO_LOC "ddr_dqs[0]" J4,H4;
+IO_PORT "ddr_dqs[0]" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+// ---------- E2 : JTAG du AE350 sur PMOD1 (J7), câblage J-Link de Michael (session E0) ----------
+IO_LOC "ae350_tms" E25;  IO_PORT "ae350_tms" IO_TYPE=LVCMOS33 PULL_MODE=UP;    // J7 IO1 (J-Link TMS)
+IO_LOC "ae350_tck" C24;  IO_PORT "ae350_tck" IO_TYPE=LVCMOS33 PULL_MODE=DOWN;  // J7 IO0 (J-Link TCK)
+IO_LOC "ae350_tdo" H14;  IO_PORT "ae350_tdo" IO_TYPE=LVCMOS33 DRIVE=8;         // J7 IO3 (J-Link TDO)
+IO_LOC "ae350_tdi" L18;  IO_PORT "ae350_tdi" IO_TYPE=LVCMOS33 PULL_MODE=UP;    // J7 IO6 (J-Link TDI)
+IO_LOC "ae350_tx_pin" H15;  IO_PORT "ae350_tx_pin" IO_TYPE=LVCMOS33 DRIVE=8;   // J7 IO7 : espion UART2 TX (mesurable)
+
+// ---------- E2 : CLOCK_LOC du socle analyseur (la16.cst V3, adapté : u_soc) ----------
+CLOCK_LOC "u_soc/hrst_sync[1]" LOCAL_CLOCK;
+CLOCK_LOC "u_soc/exts_hrstn" LOCAL_CLOCK;   // reset du pont EXTS : figé à 0 sur LW sinon (la16.cst)
+CLOCK_LOC "u_soc/ddr3_init_completed" LOCAL_CLOCK;
+// exts_hrstn : optimisé hors synthèse dans ce design (pas de CLOCK_LOC possible)
+CLOCK_LOC "rtc_clk" LOCAL_CLOCK;
+// ---------- E2 : PLL DDR3 (socle analyseur) à gauche, près du PHY DDR3 ----------
+INS_LOC "u_soc/u_pll_ddr3/u_pll/PLL_inst" PLL_L[0];
+// ---------- E2 : u_dll/fclkdiv du PHY DDR3 standalone (chemins la16.cst, adapté) ----------
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_dll" DDRDLLM_BL;
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv" LEFTSIDE[4];

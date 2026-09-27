@@ -1546,7 +1546,8 @@ assign c_fifo_wr_data = pkt_fifo_rd_data;
             c_fifo_dval <= 1'b0;
         end
         else begin
-            if (c_fifo_rd & (!c_fifo_empty)) begin
+            // Valid doit correspondre au même transfert que RdEn.
+            if (c_fifo_rd & i_ep_rx_rdy & (!c_fifo_empty)) begin
                 c_fifo_dval <= 1'b1;
             end
             //else if (!i_ep_rx_rdy) begin
