@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise G0/G1 diagnostic firmware over the MegaPro USB CDC port."""
+"""Exercise G0/G1/G2 diagnostic firmware over the MegaPro USB CDC port."""
 import argparse
 import re
 import struct
@@ -11,10 +11,17 @@ from serial.tools import list_ports
 
 def response(dev, prefix, timeout=15):
     deadline = time.monotonic() + timeout
+    pending = bytearray()
     while time.monotonic() < deadline:
-        line = dev.read_until(b'\n\r').strip()
-        if not line:
+        pending.extend(dev.read_until(b'\n\r'))
+        if b'TRAP' in pending:
+            raise SystemExit(f'CPU exception: {pending!r}')
+        # read_until can return a fragment when the serial timeout expires.
+        # Keep it until the complete BSP LF/CR terminator has arrived.
+        if not pending.endswith(b'\n\r'):
             continue
+        line = bytes(pending).strip()
+        pending.clear()
         print(line.decode('ascii', errors='replace'), flush=True)
         if b'FAIL' in line or b'TRAP' in line:
             raise SystemExit('GPU diagnostic failed')
@@ -52,6 +59,33 @@ def test_gpu(dev):
             raise SystemExit('LCD frame counter stopped')
         previous_frames = frames
     print('G1 PASS: DDR framebuffer, palette, 4 page flips, concurrent CPU DDR, zero underflows', flush=True)
+
+
+def test_blitter(dev):
+    previous_frames = None
+    for run in range(3):
+        dev.write(b'B')
+        line = response(dev, b'BLIT END', timeout=60)
+        fields = dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)', line))
+        if fields.get(b'errors') != b'0' or int(fields.get(b'commands', b'0')) < 50:
+            raise SystemExit('Hardware blitter pixel comparison failed')
+        expected_sum = int(fields[b'sum'], 16)
+        time.sleep(.12)
+        dev.write(b'M')
+        if response(dev, b'SHARED END', timeout=90) != b'SHARED END errors=0':
+            raise SystemExit('Concurrent DDR test failed after blit')
+        dev.write(b'S')
+        line = response(dev, b'GPU base=')
+        status = dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)', line))
+        frames = int(status[b'frames'])
+        if (int(status[b'base'], 16) != 0x900000 or status[b'enable'] != b'1'
+                or status[b'busy'] != b'0' or status[b'underflows'] != b'0'
+                or int(status[b'sum'], 16) != expected_sum
+                or (previous_frames is not None and frames <= previous_frames)):
+            raise SystemExit('Blitter framebuffer scanout mismatch')
+        previous_frames = frames
+        print(f'G2 pass {run+1}: CPU pixel comparison, guard bytes and LCD checksum exact', flush=True)
+    print('G2 PASS: shapes, gradients, overlapping copies, text x1/x2, programmable font', flush=True)
 
 
 def main():
@@ -102,8 +136,10 @@ def main():
                     if line != b'DDR END errors=0' or failures:
                         raise SystemExit('DDR verification failed')
                     print('G0 PASS', flush=True)
-                    if b'GPU G1 ' in identity:
+                    if b'GPU G1 ' in identity or b'GPU G2 ' in identity:
                         test_gpu(dev)
+                    if b'GPU G2 ' in identity:
+                        test_blitter(dev)
                     return
         raise SystemExit(f'DDR timeout; pending={pending!r}')
 

@@ -1,4 +1,4 @@
-// G0/G1 diagnostic console. Code in ITCM, writable data in ILM, stack in DLM.
+// G0/G1/G2 diagnostic console. Code in ITCM, writable data in ILM, stack in DLM.
 // Commands: ? identification, D destructive DDR test, E + uint16 LE + data echo.
 #include <stdio.h>
 #include <stdint.h>
@@ -70,6 +70,7 @@ static void gpu_demo(void)
     if (!gpu_commit(0)) { printf("GPU FAIL COMMIT\r\n"); return; }
     printf("GPU READY sum0=%08x sum1=%08x\r\n", page_sums[0], page_sums[1]);
 }
+#include "gpu_demo.h"
 #endif
 
 static unsigned char get_byte(void)
@@ -195,7 +196,7 @@ int main(void)
         switch (get_byte()) {
         case '?':
 #ifdef CONSOLE_GPU
-            printf("MegaPro GPU G1 core=800MHz bus=80MHz\r\n");
+            printf("MegaPro GPU G2 core=800MHz bus=80MHz\r\n");
 #else
             printf("MegaPro GPU G0 core=800MHz bus=80MHz\r\n");
 #endif
@@ -204,6 +205,12 @@ int main(void)
         case 'V': gpu_demo(); break;
         case 'S': gpu_status(); break;
         case 'M': test_shared_ddr(); break;
+        case 'B':
+            // Return to the front page before modifying the back page.
+            if (!GPU[5]) gpu_demo();
+            if (!gpu_commit(0)) printf("BLIT FAIL COMMIT\r\n");
+            else { displayed_page=0; gpu_accel_demo(); }
+            break;
         case 'F':
             displayed_page ^= 1;
             if (!gpu_commit(displayed_page)) printf("GPU FAIL COMMIT\r\n");

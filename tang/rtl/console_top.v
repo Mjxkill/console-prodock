@@ -51,15 +51,34 @@ module console_top (
     wire gpu_clk, gpu_valid, gpu_ready, gpu_data_valid;
     wire [28:0] gpu_addr;
     wire [255:0] gpu_data;
+    wire blit_valid, blit_write, blit_ready, blit_rd_valid;
+    wire [28:0] blit_addr;
+    wire [255:0] blit_wr_data, blit_rd_data;
+    wire [31:0] blit_wr_mask;
 `ifdef CONSOLE_GPU
+    wire [31:0] scan_hrdata, blit_hrdata;
+    wire scan_hready, blit_hready;
+    reg blit_selected;
+    always @(posedge vid_hclk) begin
+        if (!vid_hrstn) blit_selected <= 1'b0;
+        else if (vid_hready) blit_selected <= vid_haddr[12];
+    end
+    assign vid_hrdata = blit_selected ? blit_hrdata : scan_hrdata;
+    assign vid_hready = blit_selected ? blit_hready : scan_hready;
     gpu_scanout u_gpu (
-        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel), .hwrite(vid_hwrite),
-        .haddr(vid_haddr), .hwdata(vid_hwdata), .htrans(vid_htrans), .hrdata(vid_hrdata), .hready(vid_hready),
+        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel && !vid_haddr[12] && vid_hready), .hwrite(vid_hwrite),
+        .haddr(vid_haddr), .hwdata(vid_hwdata), .htrans(vid_htrans), .hrdata(scan_hrdata), .hready(scan_hready),
         .pixel_clk(lcd_clk_pix), .mem_clk(gpu_clk),
         .fetch_valid(gpu_valid), .fetch_addr(gpu_addr), .fetch_ready(gpu_ready),
         .fetch_data(gpu_data), .fetch_data_valid(gpu_data_valid),
         .lcd_en(lcd_en), .lcd_hs(lcd_hs), .lcd_vs(lcd_vs), .lcd_r(lcd_r), .lcd_g(lcd_g), .lcd_b(lcd_b)
     );
+    gpu_accel u_accel (
+        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel && vid_haddr[12] && vid_hready), .hwrite(vid_hwrite),
+        .haddr(vid_haddr), .hwdata(vid_hwdata), .htrans(vid_htrans), .hrdata(blit_hrdata), .hready(blit_hready),
+        .mem_clk(gpu_clk), .valid(blit_valid), .write(blit_write), .addr(blit_addr),
+        .wr_data(blit_wr_data), .wr_mask(blit_wr_mask), .ready(blit_ready),
+        .rd_data(blit_rd_data), .rd_valid(blit_rd_valid));
 `else
     lcd_timing u_lcd (
         .lcd_clk(lcd_clk_pix), .rst_n(rst_n), .lcd_en(lcd_en), .lcd_hs(lcd_hs), .lcd_vs(lcd_vs),
@@ -68,6 +87,8 @@ module console_top (
     assign vid_hready = 1'b1;
     assign gpu_valid = 1'b0;
     assign gpu_addr = 29'd0;
+    assign blit_valid = 0; assign blit_write = 0; assign blit_addr = 0;
+    assign blit_wr_data = 0; assign blit_wr_mask = 32'hffffffff;
 `endif
     assign lcd_bl = rst_n;
     assign lcd_clk = lcd_clk_pix;
@@ -302,7 +323,10 @@ module console_top (
         .vid_haddr(vid_haddr), .vid_hwdata(vid_hwdata), .vid_htrans(vid_htrans),
         .vid_hrdata(vid_hrdata), .vid_hready(vid_hready),
         .gpu_clk(gpu_clk), .gpu_valid(gpu_valid), .gpu_addr(gpu_addr), .gpu_ready(gpu_ready),
-        .gpu_data(gpu_data), .gpu_data_valid(gpu_data_valid)
+        .gpu_data(gpu_data), .gpu_data_valid(gpu_data_valid),
+        .blit_valid(blit_valid), .blit_write(blit_write), .blit_addr(blit_addr),
+        .blit_wr_data(blit_wr_data), .blit_wr_mask(blit_wr_mask), .blit_ready(blit_ready),
+        .blit_rd_data(blit_rd_data), .blit_rd_valid(blit_rd_valid)
     );
     // LED4 = WFI du cœur : si le CPU exécute la boucle wfi, le signal monte → LED s'allume
     assign led[4] = ~core_wfi_w;

@@ -38,6 +38,8 @@ module gpu_scanout_tb #(
         .clk(mc),.rst_n(rst),.c_en(cr && !cpu_pending),.c_cmd(3'b001),.c_addr(cpu_addr),.c_ready(cr),
         .c_wr_en(1'b0),.c_wr_end(1'b0),.c_wr_data(256'b0),.c_wr_mask(32'b0),.c_wr_ready(cwr),
         .c_rd_data(cd),.c_rd_valid(cv),.c_rd_end(ce),.g_valid(fv),.g_addr(fa),.g_ready(fr),.g_data(fd),.g_data_valid(fdv),
+        .b_valid(1'b0),.b_write(1'b0),.b_addr(29'd0),.b_wr_data(256'd0),.b_wr_mask(32'hffffffff),
+        .b_ready(),.b_rd_data(),.b_rd_valid(),
         .m_en(cmd_en),.m_cmd(cmd),.m_addr(mem_addr),.m_ready(mem_ready),
         .m_wr_en(wr_en),.m_wr_end(wr_end),.m_wr_data(wd),.m_wr_mask(wm),.m_wr_ready(mem_ready),
         .m_rd_data(rd_data),.m_rd_valid(rd_valid),.m_rd_end(rd_valid));

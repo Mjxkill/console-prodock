@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a reproducible G1 image (firmware, embedded AE350 IP, FPGA, timing)."""
+"""Build a reproducible GPU image (firmware, embedded AE350 IP, FPGA, timing)."""
 import argparse
 import hashlib
 import json
@@ -24,7 +24,7 @@ def run(argv, cwd, logfile, env=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--name', default='gpu_g1')
+    parser.add_argument('--name', default='gpu_g2')
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]+', args.name):
         parser.error('name must contain only letters, digits, underscores and hyphens')
@@ -64,8 +64,15 @@ def main():
             line = f'set_option -include_path {{{stage / "source/tang/rtl"}}}'
         lines.append(line)
     (stage / 'build.tcl').write_text('\n'.join(lines) + '\n')
-    for name in ('gpu_diag.c', 'itcm.ld', 'Makefile', 'build/console_test.elf', 'build/console_test.bin'):
+    for name in ('gpu_diag.c', 'gpu_demo.h', 'gpu.c', 'gpu.h', 'build/gpu_font.h',
+                 'itcm.ld', 'Makefile', 'build/console_test.elf', 'build/console_test.bin'):
         snapshot(ROOT / 'fw_console' / name)
+    # $readmemh paths are resolved relative to the Gowin working directory.
+    font = snapshot(ROOT / 'tang/rtl/video/font8x16.hex')
+    font_dest = stage / 'rtl/video/font8x16.hex'
+    font_dest.parent.mkdir(parents=True)
+    shutil.copy2(font, font_dest)
+    snapshot(ROOT / 'tools/gen_gpu_font.py')
     snapshot(ROOT / 'tang/build_gpu.tcl')
     snapshot(ROOT / 'tang/rtl/console_top.v')
     (stage / 'sources.json').write_text(json.dumps(manifest, indent=2) + '\n')

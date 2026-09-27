@@ -36,7 +36,14 @@ Référence console : commit `5773f10`, `TESTS/TESTS_E2.md`.
 - G1 : première surface indexée, palette, lecture DDR3 native 256 bits,
   double tampon de ligne et permutation des pages au retour vertical.
   Tests mémoire CPU concurrents sans ligne manquante ; image confirmée par Michael.
-- Les 16 couches, le blitter, les sprites, le chargeur et l'interpréteur ne sont pas encore
+- G2 : blitter 2D et texte en DDR3, testés sur carte le 28 septembre 2026.
+  Remplissages, dégradés, lignes, cercles/disques, copies superposées,
+  texte ×1/×2 et police programmable. Comparaison CPU exacte des pixels et
+  gardes mémoire, affichage sans débordement. Michael confirme le 28 septembre
+  que l'écran correspond exactement au rendu de référence. Les dégradés d'indices
+  avec la palette RGB332 produisent des bandes ; des rampes de couleur adaptées
+  restent à préparer pour obtenir des dégradés doux.
+- Les 16 couches, les sprites, le chargeur et l'interpréteur ne sont pas encore
   implémentés dans la console.
 
 La cadence de 60 images/s est un objectif de dimensionnement. La validation
@@ -184,7 +191,9 @@ ou pipeliné pour traiter les 16 niveaux à la cadence des pixels.
 Cohérence CPU/GPU G1 : vidage/invalidation explicite du cache de la page puis
 barrière mémoire avant validation au retour vertical. Les sommes des pages
 lues par le GPU concordent sur carte avec celles du CPU. La cohérence des
-écritures du futur blitter sera testée séparément en G2.
+écritures du blitter est également testée en G2 : publication des surfaces CPU,
+attente du compteur de commandes terminées puis invalidation avant lecture CPU.
+Voir `GPU_G2_REGISTRES.md` et `../TESTS/TESTS_GPU_G2.md`.
 
 Le build E2 utilise déjà **8/8 horloges globales PRIMARY**. Les blocs GPU sont
 répartis sur les domaines existants (bus 80 MHz, DDR UI 75 MHz, LCD 35 MHz),
@@ -212,9 +221,9 @@ erreurs du langage et persistance flash restent à développer.
 
 | Étape | Livrable et preuve attendue |
 |---|---|
-| G0 | CPU ↔ DDR3 validé (adresses, masques, motifs) ; lecture graphique 256 bits validée en G1, écriture native GPU à tester en G2. |
+| G0 | CPU ↔ DDR3 validé (adresses, masques, motifs) ; lecture graphique 256 bits validée en G1, écriture native GPU validée en G2. |
 | G1 | Validé : page DDR3, palette, échange au retour vertical, simulation pixel à pixel, tests sur carte et confirmation visuelle de Michael. |
-| G2 | Blitter et texte portés ; comparaison pixel à pixel puis démonstration de dessin pilotée par le CPU. |
+| G2 | Blitter et texte validés pixel à pixel en simulation et sur carte ; rendu confirmé visuellement par Michael. Palette des dégradés doux à corriger. |
 | G3 | Table de 16 couches, composition, déplacements/parallaxe et mises à jour atomiques ; démonstration des 16 couches actives. |
 | G4 | 64 sprites, priorités entre couches, transparence, flip et animation ; charge maximale et défauts mesurés. |
 | G5 | Triangles puis démonstration 3D fil de fer/solide, avec coût CPU/GPU et cadence mesurés. |

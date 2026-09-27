@@ -43,6 +43,13 @@ module ddr_subsys #(
     output wire gpu_ready,
     output wire [255:0] gpu_data,
     output wire gpu_data_valid,
+    input wire blit_valid, blit_write,
+    input wire [28:0] blit_addr,
+    input wire [255:0] blit_wr_data,
+    input wire [31:0] blit_wr_mask,
+    output wire blit_ready,
+    output wire [255:0] blit_rd_data,
+    output wire blit_rd_valid,
     // ddr_writer (E2-c : motif ; domaine clk_out de l'IP — le wrapper resynchronise)
     output wire         wr_clk,            // clk_out, pour que le wrapper synchronise ses signaux
     output wire         wr_done,
@@ -119,6 +126,8 @@ module ddr_subsys #(
         .c_wr_en(w_wr_data_en), .c_wr_end(w_wr_data_end), .c_wr_data(w_wr_data), .c_wr_mask(w_wr_data_mask),
         .c_wr_ready(w_wr_data_rdy), .c_rd_data(w_rd_data), .c_rd_valid(w_rd_data_valid), .c_rd_end(w_rd_data_end),
         .g_valid(gpu_valid), .g_addr(gpu_addr), .g_ready(gpu_ready), .g_data(gpu_data), .g_data_valid(gpu_data_valid),
+        .b_valid(blit_valid), .b_write(blit_write), .b_addr(blit_addr), .b_wr_data(blit_wr_data),
+        .b_wr_mask(blit_wr_mask), .b_ready(blit_ready), .b_rd_data(blit_rd_data), .b_rd_valid(blit_rd_valid),
         .m_en(m_cmd_en), .m_cmd(m_cmd), .m_addr(m_addr), .m_ready(m_cmd_ready),
         .m_wr_en(m_wr_data_en), .m_wr_end(m_wr_data_end), .m_wr_data(m_wr_data), .m_wr_mask(m_wr_data_mask),
         .m_wr_ready(m_wr_data_rdy), .m_rd_data(m_rd_data), .m_rd_valid(m_rd_data_valid), .m_rd_end(m_rd_data_end));
