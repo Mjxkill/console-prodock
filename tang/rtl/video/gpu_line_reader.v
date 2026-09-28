@@ -49,6 +49,10 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     reg [31:0] row_offset;
     reg [32:0] byte_address;
     reg [10:0] visible_width;
+    // A clipped row is at most 1024 bytes. Only the final KiB can cross
+    // the 1-GiB DDR limit; avoid a 33-bit add/compare on request enables.
+    wire row_crosses_ddr_end=byte_address[29:10]==20'hfffff &&
+        ({1'b0,byte_address[9:0]}+visible_width)>11'd1024;
     reg [5:0] issued,received,burst_count;
     reg [5:0] buffered;
     reg [4:0] outstanding;
@@ -226,7 +230,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
                 MUL: begin row_offset<=source_y*stride;state<=ADDRESS;end
                 ADDRESS: begin byte_address<={1'b0,surface_base}+{1'b0,row_offset}+{17'b0,source_x};state<=PREPARE;end
                 PREPARE: begin
-                    if(byte_address[32:30]!=0 || byte_address+visible_width>33'h040000000) begin
+                    if(byte_address[32:30]!=0 || row_crosses_ddr_end) begin
                         invalid_layers<=invalid_layers+1'b1;state<=NEXT;
                     end else begin
                         fetch_addr<={byte_address[30:5],3'b0};

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the G2 AHB->blitter->256-bit DDR path against byte-level rasterization."""
+"""Compare the G2/G5 AHB->blitter->256-bit DDR path against byte-level rasterization."""
 from pathlib import Path
 import random
 import shutil
@@ -8,6 +8,24 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 OUT = Path('/tmp/console_gpu_accel_test')
 W, H, SLOT = 800, 480, 1 << 20
+
+
+def triangle_pixels(x,y,a,b,sx,sy):
+    """Independent half-plane reference, sampled at pixel centres."""
+    points=[(x,y),(a,b),(sx,sy)]
+    area=(a-x)*(sy-y)-(b-y)*(sx-x)
+    if not area:return
+    if area<0:points[1],points[2]=points[2],points[1]
+    edges=list(zip(points,points[1:]+points[:1]))
+    for yy in range(max(0,min(y,b,sy)),min(H-1,max(y,b,sy))+1):
+        for xx in range(max(0,min(x,a,sx)),min(W-1,max(x,a,sx))+1):
+            covered=True
+            for (ax,ay),(bx,by) in edges:
+                dx,dy=bx-ax,by-ay
+                e=dx*(2*yy+1-2*ay)-dy*(2*xx+1-2*ax)
+                if e<0 or (e==0 and not (dy<0 or (dy==0 and dx>0))):
+                    covered=False;break
+            if covered:yield xx,yy
 
 
 def main():
@@ -69,6 +87,8 @@ def main():
                 for xx in range(max(0,x),min(W,x+a)):
                     qx,qy=sx+xx-x,sy+yy-y
                     if 0<=qx<W and 0<=qy<H:plot(page,xx,yy,before[qy*W+qx])
+        elif op==10:
+            for xx,yy in triangle_pixels(x,y,a,b,sx,sy):plot(page,xx,yy,c)
         elif op==9:
             scale=2 if b==2 else 1
             for i,ch in enumerate(text[:16]):
@@ -115,11 +135,27 @@ def main():
                            (400,300,b'0123456789ABCDEF',2,0),(400,400,b'\x80\x81\x82',1,0)):
         emit(9,x=x,y=y,a=len(t),b=scale,c=255,d=bg,text=t)
     emit(9,x=10,y=20,a=0,b=1,c=255,text=b'')
+    # G5: winding, flat edges, clipping, subpixel edge ownership, degeneracy,
+    # extreme signed vertices and native DDR byte masks on page 15 as well.
+    triangles=[(-32768,-32768,32767,-32768,0,32767),
+        (0,0,800,0,800,480),(0,0,800,480,0,480),
+        (-5,100,105,101,51,250),(20,20,20,20,20,20),
+        (-32768,4,32767,4,0,4),(0,0,1,0,0,1),
+        (799,479,800,479,800,480),(800,480,800,479,799,479),
+        (32760,32760,32767,32760,32760,32767)]
+    for i in range(32):
+        triangles.append((32+i,150,110+i,152+i%3,58+i,210))
+    for i in range(28):
+        triangles.append(tuple(rng.randrange(-80,880) if j%2==0 else rng.randrange(-60,540) for j in range(6)))
+    for i,t in enumerate(triangles):
+        x,y,a,b,sx,sy=t
+        if i%2:a,b,sx,sy=sx,sy,a,b
+        emit(10,x=x,y=y,a=a,b=b,sx=sx,sy=sy,c=80+i,page=(0,1,15)[i%3])
     emit(255)  # unknown opcode must complete and increment BAD, without writes
     (OUT/'commands.hex').write_text(''.join(f'{w:08x}\n' for w in commands))
     (OUT/'expected.hex').write_text(''.join(f'{v:02x}\n' for v in memory))
     sources=['TESTS/rtl/gpu_accel_tb.sv','tang/rtl/video/gpu_accel.v','tang/rtl/video/blitter.v',
-             'tang/rtl/video/gpu_blit_dma.v','tang/rtl/video/font_ram.v',
+             'tang/rtl/video/gpu_blit_dma.v','tang/rtl/video/font_ram.v','tang/rtl/video/gpu_triangle.v',
              'tang/rtl/board/ddr_dcfifo.v','tang/rtl/board/cdc_word.v','tang/rtl/board/ddr_gpu_arb.v']
     with (OUT/'build.log').open('w') as log:
         subprocess.run(['verilator','--binary','--timing','-Wno-fatal','--top-module','gpu_accel_tb',

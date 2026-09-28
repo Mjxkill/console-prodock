@@ -23,16 +23,21 @@ module gpu_accel #(
     always @(posedge mem_clk or negedge hresetn)
         if (!hresetn) mrst <= 0; else mrst <= {mrst[0], 1'b1};
     reg [7:0] bus_addr;
-    reg bus_write;
-    wire queue_ready;
-    assign hready = !(bus_write && bus_addr == 8'h10 && !queue_ready);
+    reg bus_write,bus_command;
+    wire queue_ready,queue_full;
+    // Register command-port decode during the AHB address phase, keeping
+    // the address comparator off the CPU's HREADY feedback path.
+    // AHB master and this FIFO share reset. Use registered fullness here:
+    // the generic FIFO's reset-gated READY must not enter CPU feedback.
+    assign hready = !(bus_command && queue_full);
     wire write_fire = bus_write && hready && hresetn;
     reg [11:0] font_write_addr;
     always @(posedge hclk) begin
-        if (!hresetn) begin bus_addr <= 0; bus_write <= 0; font_write_addr <= 0; end
+        if (!hresetn) begin bus_addr <= 0; bus_write <= 0; bus_command<=0; font_write_addr <= 0; end
         else begin
             if (hready) begin
                 bus_addr <= haddr[7:0]; bus_write <= hsel && htrans[1] && hwrite;
+                bus_command<=hsel && htrans[1] && hwrite && haddr[7:0]==8'h10;
             end
             if (write_fire && bus_addr == 8'h14) font_write_addr <= hwdata[11:0];
             if (write_fire && bus_addr == 8'h18) font_write_addr <= font_write_addr + 1'b1;
@@ -42,8 +47,8 @@ module gpu_accel #(
     wire [31:0] queue_data, queue_lost;
     wire [7:0] queue_count, queue_rd_count;
     ddr_dcfifo #(.WIDTH(32), .DEPTH_LOG2(7)) u_commands (
-        .wr_clk(hclk), .wr_rst(!hresetn), .wr_valid(write_fire && bus_addr == 8'h10),
-        .wr_data(hwdata), .wr_ready(queue_ready), .wr_lost(queue_lost), .wr_count(queue_count),
+        .wr_clk(hclk), .wr_rst(!hresetn), .wr_valid(bus_command && !queue_full),
+        .wr_data(hwdata), .wr_ready(queue_ready), .wr_full(queue_full), .wr_lost(queue_lost), .wr_count(queue_count),
         .rd_clk(mem_clk), .rd_rst(!mrst[1]), .rd_valid(queue_valid), .rd_data(queue_data),
         .rd_ready(queue_pop), .rd_count(queue_rd_count));
     wire command_full, blitter_busy;

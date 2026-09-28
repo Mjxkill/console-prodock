@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise G0/G1/G2/G3/G4 diagnostic firmware over the MegaPro USB CDC port."""
+"""Exercise G0/G1/G2/G3/G4/G5 diagnostic firmware over the MegaPro USB CDC port."""
 import argparse
 import re
 import struct
@@ -148,6 +148,53 @@ def test_sprites(dev):
     print('G4 PASS: 64 cached DDR sprites, size 8/16/32, flip XY, transparency, layer priorities, image animation, 6 atomic swaps, CPU DDR, zero underflows',flush=True)
 
 
+def test_3d(dev):
+    dev.write(b'T')
+    line=response(dev,b'THREED READY',timeout=180)
+    fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',line))
+    if fields.get(b'poses')!=b'4' or fields.get(b'underflows')!=b'0':
+        raise SystemExit('3D initialization failed')
+    for pose in (1,2,3,0):
+        dev.write(b'J')
+        fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'THREED POSE',timeout=90)))
+        if (int(fields.get(b'triangles',b'0'))==0 or fields.get(b'underflows')!=b'0'
+                or (pose==3 and int(fields.get(b'clipped',b'0'))==0)):
+            raise SystemExit('3D triangle/clipping coverage missing')
+        if response(dev,b'THREED MOVED')!=f'THREED MOVED pose={pose}'.encode():
+            raise SystemExit('Wrong 3D pose acknowledgement')
+        dev.write(b'M')
+        if response(dev,b'SHARED END',timeout=90)!=b'SHARED END errors=0':
+            raise SystemExit('CPU DDR corruption with 3D active')
+        dev.write(b'S')
+        status=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+        if (status.get(b'layers')!=b'1' or status.get(b'sprites')!=b'0'
+                or status.get(b'underflows')!=b'0' or status.get(b'busy')!=b'0'
+                or status.get(b'invalid')!=b'0' or status.get(b'sum')!=fields[b'hash']):
+            raise SystemExit('3D composed frame mismatch')
+    dev.write(b'A')
+    response(dev,b'THREED ANIMATION started')
+    dev.write(b'M')
+    if response(dev,b'SHARED END',timeout=90)!=b'SHARED END errors=0':
+        raise SystemExit('CPU DDR corruption during 3D demo')
+    fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'THREED BENCH',timeout=90)))
+    if (fields.get(b'frames')!=b'120' or fields.get(b'underflows')!=b'0'
+            or any(int(fields.get(k,b'0'))==0 for k in (b'cpu_avg',b'gpu_avg',b'frame_avg',b'fps_x100'))):
+        raise SystemExit('3D animation benchmark failed')
+    dev.write(b'X')
+    response(dev,b'THREED PAUSED')
+    time.sleep(.12)  # Let the last committed page finish scanning before hashing.
+    dev.write(b'S')
+    a=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+    time.sleep(.15)
+    dev.write(b'S')
+    b=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+    if a[b'sum']!=b[b'sum'] or int(b[b'frames'])<=int(a[b'frames']) or b[b'underflows']!=b'0':
+        raise SystemExit('3D pause/display continuity failed')
+    print('G5 PASS: triangle pixels+guards, 4 reference poses, near clipping, 2 composed layers, atomic double buffering, 120 animated frames, CPU/GPU timing, USB pause, zero underflows',flush=True)
+    dev.write(b'A')  # Leave both cubes rotating for the visual check.
+    response(dev,b'THREED ANIMATION started')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--wait', type=float, default=15)
@@ -164,9 +211,8 @@ def main():
         print(f'PORT {ports[0].device}', flush=True)
         time.sleep(.3)
         dev.reset_input_buffer()
-        dev.write(b'?')
-        identity = dev.read_until(b'\n\r')  # BSP appends CR after each LF.
-        print(identity.decode('ascii', errors='replace').strip(), flush=True)
+        dev.write(b'X?')  # Stop a running G5 animation before destructive tests.
+        identity = response(dev,b'MegaPro GPU')
         if b'MegaPro GPU G' not in identity or b'core=800MHz' not in identity:
             raise SystemExit('Wrong firmware or no response')
         for n in (1, 64, 256, 1024, 4096):
@@ -196,14 +242,16 @@ def main():
                     if line != b'DDR END errors=0' or failures:
                         raise SystemExit('DDR verification failed')
                     print('G0 PASS', flush=True)
-                    if re.search(rb'GPU G[1234] ',identity):
+                    if re.search(rb'GPU G[12345] ',identity):
                         test_gpu(dev)
-                    if re.search(rb'GPU G[234] ',identity):
+                    if re.search(rb'GPU G[2345] ',identity):
                         test_blitter(dev)
-                    if re.search(rb'GPU G[34] ',identity):
+                    if re.search(rb'GPU G[345] ',identity):
                         test_layers(dev)
-                    if b'GPU G4 ' in identity:
+                    if re.search(rb'GPU G[45] ',identity):
                         test_sprites(dev)
+                    if b'GPU G5 ' in identity:
+                        test_3d(dev)
                     return
         raise SystemExit(f'DDR timeout; pending={pending!r}')
 

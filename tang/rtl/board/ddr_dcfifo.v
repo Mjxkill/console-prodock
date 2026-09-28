@@ -17,6 +17,7 @@ module ddr_dcfifo #(
     input  wire             wr_valid,
     input  wire [WIDTH-1:0] wr_data,
     output wire             wr_ready,     // = pas pleine
+    output wire             wr_full,      // registered fullness, independent of reset
     output reg  [31:0]      wr_lost,      // mots refusés (pleine), jamais remis à zéro sauf reset
     output wire [DEPTH_LOG2:0] wr_count,  // remplissage vu du côté écriture (pessimiste)
     // lecture
@@ -56,6 +57,7 @@ module ddr_dcfifo #(
     // acceptée puis effacée par la remise à zéro du pointeur — la première entrée de chaque capture V3 (état initial,
     // t = 0) disparaissait ; l'amont (out_slice / raw_fifo) retient tant que wr_ready = 0, rien n'est perdu.
     assign wr_ready = !full && !wr_rst;
+    assign wr_full = full;
     assign wr_count = wr_count_r;
 
     always @(posedge wr_clk) begin

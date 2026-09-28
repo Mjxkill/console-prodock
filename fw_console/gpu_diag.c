@@ -1,4 +1,4 @@
-// G0/G1/G2/G3/G4 diagnostic console. Code in ITCM, writable data in ILM, stack in DLM.
+// G0/G1/G2/G3/G4/G5 diagnostic console. Code in ITCM, writable data in ILM, stack in DLM.
 // Commands: ? identification, D destructive DDR test, E + uint16 LE + data echo.
 #include <stdio.h>
 #include <stdint.h>
@@ -77,6 +77,7 @@ static void gpu_demo(void)
 #include "gpu_demo.h"
 #include "gpu_layers_demo.h"
 #include "gpu_sprites_demo.h"
+#include "gpu_3d_demo.h"
 #endif
 
 static unsigned char get_byte(void)
@@ -199,15 +200,27 @@ int main(void)
     AE350_UART2->LCR = 3;
     AE350_UART2->FCR = 7;
     for (;;) {
-        switch (get_byte()) {
+#ifdef CONSOLE_GPU
+        if(demo3d_animate && !(AE350_UART2->LSR&1U)){demo3d_tick();continue;}
+#endif
+        unsigned char command=get_byte();
+#ifdef CONSOLE_GPU
+        if(command!='?' && command!='S' && command!='A' && command!='X' && command!='E' && command!='M')demo3d_animate=0;
+        if(command=='V' || command=='B' || command=='L' || command=='O' || command=='D')demo3d_initialized=0;
+#endif
+        switch (command) {
         case '?':
 #ifdef CONSOLE_GPU
-            printf("MegaPro GPU G4 core=800MHz bus=80MHz\r\n");
+            printf("MegaPro GPU G5 core=800MHz bus=80MHz\r\n");
 #else
             printf("MegaPro GPU G0 core=800MHz bus=80MHz\r\n");
 #endif
             break;
 #ifdef CONSOLE_GPU
+        case 'T': demo3d_test(); break;
+        case 'J': demo3d_next(); break;
+        case 'A': demo3d_start(); break;
+        case 'X': demo3d_animate=0;printf("THREED PAUSED\r\n");break;
         case 'V': gpu_demo(); break;
         case 'S': gpu_status(); break;
         case 'M': test_shared_ddr(); break;

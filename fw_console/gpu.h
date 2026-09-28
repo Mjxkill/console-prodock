@@ -7,7 +7,7 @@
 #define GPU_PAGE_BYTES 1048576UL
 #define GPU_PAGE_ADDR(p) (0x00800000UL + (unsigned)(p) * GPU_PAGE_BYTES)
 enum gpu_opcode { GPU_FILL=1, GPU_GRAD_H, GPU_GRAD_V, GPU_GRAD_D,
-                  GPU_LINE, GPU_CIRCLE, GPU_DISK, GPU_COPY, GPU_TEXT };
+                  GPU_LINE, GPU_CIRCLE, GPU_DISK, GPU_COPY, GPU_TEXT, GPU_TRIANGLE };
 typedef struct { uint32_t words[8]; } gpu_command;
 
 // One producer. Flush CPU-written surfaces before submitting GPU work;
@@ -17,6 +17,10 @@ int gpu_blit_init(void);
 gpu_command gpu_make_command(unsigned op, unsigned dst, unsigned src,
     int x, int y, int a, int b, int sx, int sy, unsigned fg, unsigned bg);
 void gpu_submit(const gpu_command *cmd);
+// Filled: pixel centres, top-left rule, either winding, zero area draws nothing.
+// Outline: three accelerated Bresenham lines. Coordinates are signed 16-bit.
+void gpu_triangle(unsigned page,int x0,int y0,int x1,int y1,int x2,int y2,
+                  unsigned color,int filled);
 int gpu_wait(void);
 void gpu_text(unsigned page, int x, int y, unsigned fg, unsigned bg,
               unsigned scale, const char *text);

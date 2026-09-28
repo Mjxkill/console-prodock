@@ -102,7 +102,8 @@ module blitter #(
                      M_CIRC = 17, M_CIRC_PTS = 18, M_CFILL = 19, M_CFILL_NEXT = 20, M_CIRC_STEP = 21,
                      M_COPY_RD = 22, M_COPY_SEG = 23, M_COPY_WAIT = 24, M_DONE = 25, M_CFILL_CALC = 26, M_CFILL_GO = 27,
                      M_F4 = 28, M_F5 = 29, M_F6 = 30, M_F7 = 31, M_TXT_INIT = 32, M_TXT_START = 33, M_TXT_ROW = 34, M_TXT_FONT = 35, M_TXT_BITS = 36, M_TXT_NEXT = 37,
-                     M_CLIP = 38, M_LINE_INIT = 39, M_LINE_X = 40, M_LINE_Y = 41, M_COPY_COUNT = 42, M_COPY_CLIP = 43;
+                     M_CLIP = 38, M_LINE_INIT = 39, M_LINE_X = 40, M_LINE_Y = 41, M_COPY_COUNT = 42, M_COPY_CLIP = 43,
+                     M_TRI_START = 44, M_TRI_WAIT = 45;
     reg  [5:0]  st, ret;                         // état courant, état de retour des sous-programmes (ligne / pixel)
     assign busy = (st != M_IDLE) || cmd_avail;
     reg signed [16:0] ldx, ldy;
@@ -130,7 +131,7 @@ module blitter #(
     // valeur de pixel du générateur : constante (FILL, disque) ou dégradé
     wire [25:0] prod = {18'd0, dabs} * {8'd0, t_acc};
     wire [7:0]  q = (prod[25:16] > 10'd255) ? 8'd255 : prod[23:16];
-    wire [7:0]  gen_pix = (op == 8'd1 || op == 8'd7) ? c0 : (dneg ? c0 - q : c0 + q);
+    wire [7:0]  gen_pix = (op == 8'd1 || op == 8'd7 || op == 8'd10) ? c0 : (dneg ? c0 - q : c0 + q);
     wire [10:0] gpos = gi + {10'd0, rx[0]};                           // position du pixel gi dans la mémoire de ligne
     reg [15:0] offx, offy;
     reg copy_reverse;
@@ -138,6 +139,14 @@ module blitter #(
     wire signed [31:0] source_top = $signed(y0) - $signed(ys);
     wire signed [31:0] source_right = source_left + WIDTH - 1;
     wire signed [31:0] source_bottom = source_top + HEIGHT - 1;
+    wire triangle_busy,triangle_valid;
+    wire [10:0] triangle_x,triangle_width;
+    wire [9:0] triangle_y;
+    gpu_triangle #(.WIDTH(WIDTH),.HEIGHT(HEIGHT)) u_triangle (
+        .clk(clk),.rst(rst),.start(st==M_TRI_START),
+        .x0(x0),.y0(y0),.x1(x1),.y1(y1),.x2(xs),.y2(ys),
+        .busy(triangle_busy),.valid(triangle_valid),.ready(st==M_TRI_WAIT),
+        .span_x(triangle_x),.span_width(triangle_width),.span_y(triangle_y));
     always @(posedge clk) begin
         if (rst) begin
             offx <= 16'd0; offy <= 16'd0; copy_reverse <= 1'b0; line_negative_dy <= 17'sd0; line_step_x <= 1'b0; line_step_y <= 1'b0;
@@ -190,6 +199,7 @@ module blitter #(
                         8'd6, 8'd7: begin                                          // cercle : rayon x1 ≥ 0
                             ccx <= x0; ccy <= y0; cxv <= x1; cyv <= 16'sd0; cerr <= 16'sd1 - x1; cpt <= 3'd0; st <= (x1 < 0) ? M_DONE : M_CIRC;
                         end
+                        8'd10: st<=M_TRI_START;
                         default: begin err_cmd_bad <= err_cmd_bad + 16'd1; st <= M_DONE; end
                     endcase
                 end
@@ -245,6 +255,13 @@ module blitter #(
                 M_ROW_ADV: begin                                                 // ligne suivante du rectangle
                     rows_left <= rows_left - 10'd1; ry <= copy_reverse ? ry - 10'd1 : ry + 10'd1; t_start <= t_start + t_row;
                     st <= (rows_left == 10'd1) ? M_DONE : M_ROW_START;
+                end
+                M_TRI_START: st<=M_TRI_WAIT;
+                M_TRI_WAIT: begin
+                    rx<=triangle_x;ry<=triangle_y;rw<=triangle_width;
+                    gi<=0;t_acc<=0;ret<=M_TRI_WAIT;
+                    if(triangle_valid) st<=M_ROW_GEN;
+                    else if(!triangle_busy) st<=M_DONE;
                 end
                 // ---------------- ligne : Bresenham, un pixel par M_PIX ----------------
                 M_LINE: begin px <= lx; py <= ly; ret <= (lx == x1 && ly == y1) ? M_DONE : M_LINE_STEP; st <= M_PIX; end

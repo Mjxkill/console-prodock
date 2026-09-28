@@ -1,4 +1,4 @@
-# G4 game console: AE350 800 MHz + USB CDC + 16 DDR3 layers + 64 sprites + blitter.
+# G5 game console: AE350 800 MHz + DDR3 layers/sprites + triangle accelerator.
 set_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0
 add_file rtl/console_gpu.v
 add_file rtl/video/gpu_scanout.v
@@ -7,6 +7,7 @@ add_file rtl/video/gpu_sprite_cache.v
 add_file rtl/video/gpu_accel.v
 add_file rtl/video/gpu_blit_dma.v
 add_file rtl/video/blitter.v
+add_file rtl/video/gpu_triangle.v
 add_file rtl/video/font_ram.v
 add_file rtl/board/ddr_gpu_arb.v
 add_file rtl/video/gowin_pll_lcd.v

@@ -33,6 +33,17 @@ int gpu_wait(void)
     __asm__ volatile ("fence iorw, iorw" ::: "memory");
     return timeout && !gpu_errors();
 }
+void gpu_triangle(unsigned page,int x0,int y0,int x1,int y1,int x2,int y2,
+                  unsigned color,int filled)
+{
+    gpu_command c=gpu_make_command(filled ? GPU_TRIANGLE:GPU_LINE,page,0,
+        x0,y0,x1,y1,x2,y2,color,0);
+    gpu_submit(&c);
+    if(!filled) {
+        c=gpu_make_command(GPU_LINE,page,0,x1,y1,x2,y2,0,0,color,0);gpu_submit(&c);
+        c=gpu_make_command(GPU_LINE,page,0,x2,y2,x0,y0,0,0,color,0);gpu_submit(&c);
+    }
+}
 unsigned gpu_completed(void) { return BLT[2]; }
 unsigned gpu_errors(void) { return BLT[3] | BLT[7]; }
 void gpu_text(unsigned page, int x, int y, unsigned fg, unsigned bg,

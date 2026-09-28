@@ -38,6 +38,7 @@ avec ceux d'une autre commande. Chaque commande contient **huit mots** :
 | 6, 7 | Cercle / disque, rayon positif ou nul |
 | 8 | Copie de rectangle, dimensions dans le mot 2 |
 | 9 | Texte, 0 à 16 caractères, échelle 1 ou 2 |
+| 10 (G5) | Triangle plein ; sommets dans les mots 1, 2, 3 ; voir [G5](GPU_G5_TRIANGLES_3D.md) |
 
 Les pages ont 800×480 octets indexés. Page `p` :
 `0x00800000 + p × 0x00100000`, `p` de 0 à 15, pas de ligne 800 octets.

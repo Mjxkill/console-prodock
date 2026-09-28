@@ -54,6 +54,11 @@ Référence console : commit `5773f10`, `TESTS/TESTS_E2.md`.
   six permutations et accès DDR CPU concurrents : empreintes exactes, zéro
   ligne manquante. Rendu LCD confirmé par Michael le 28 septembre 2026.
   Voir `../TESTS/TESTS_GPU_G4.md`.
+- G5 : triangles matériels et première démonstration 3D validés en simulation
+  et sur carte, animation confirmée par Michael. Quatre poses exactes, clipping
+  proche, deux pages alternées et couche de texte ; 54,91 images/s sur 120 images,
+  zéro ligne manquante. Voir
+  `GPU_G5_TRIANGLES_3D.md` et `../TESTS/TESTS_GPU_G5.md`.
 - Le chargeur et l'interpréteur restent à implémenter.
 
 La cadence de 60 images/s est un objectif de dimensionnement. Le générateur
@@ -244,7 +249,7 @@ erreurs du langage et persistance flash restent à développer.
 | G2 | Blitter et texte validés pixel à pixel en simulation et sur carte ; rendu initial confirmé visuellement par Michael. Rampes de palette corrigées et testées sur carte. |
 | G3 | Validé en simulation et sur carte, rendu LCD confirmé par Michael : 16 surfaces, déplacements/défilement, transparence zéro, priorités et mises à jour atomiques ; trois scènes, six permutations avec accès CPU concurrents, zéro sous-alimentation LCD. |
 | G4 | Validé en simulation et sur carte, rendu LCD confirmé par Michael. 64 sprites en cache, priorités entre couches, transparence, flips et animation par changement d'image ; trois scènes, six permutations sous trafic CPU, zéro ligne manquante. |
-| G5 | Triangles puis démonstration 3D fil de fer/solide, avec coût CPU/GPU et cadence mesurés. |
+| G5 | Validé en simulation, sur carte et visuellement : triangles matériels, cubes en fil de fer/solide, clipping proche, deux pages et couche de texte. Quatre poses exactes, animation à 54,91 images/s sur 120 images, coût CPU/GPU mesuré et zéro ligne manquante. |
 | G6 | Boutons, LED, ADS1115 et manette si son interface est choisie ; premiers jeux interactifs. |
 | G7 | Chargeur, interpréteur et jeux de démonstration utilisant les accélérations ; stockage persistant ensuite. |
 
