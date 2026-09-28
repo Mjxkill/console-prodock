@@ -1,8 +1,9 @@
-# G3 game console: AE350 800 MHz + USB CDC + 16 DDR3 layers + 2D blitter.
+# G4 game console: AE350 800 MHz + USB CDC + 16 DDR3 layers + 64 sprites + blitter.
 set_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0
 add_file rtl/console_gpu.v
 add_file rtl/video/gpu_scanout.v
 add_file rtl/video/gpu_line_reader.v
+add_file rtl/video/gpu_sprite_cache.v
 add_file rtl/video/gpu_accel.v
 add_file rtl/video/gpu_blit_dma.v
 add_file rtl/video/blitter.v
@@ -60,4 +61,5 @@ set_option -output_base_name console_gpu
 set_option -verilog_std v2001
 set_option -use_cpu_as_gpio 1
 set_option -gen_text_timing_rpt 1
+set_option -route_option 1
 run all

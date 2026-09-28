@@ -90,7 +90,27 @@ int gpu_layers_submit(const gpu_layer table[16])
     for(unsigned l=0;l<16;++l)
         for(unsigned w=0;w<8;++w) DISPLAY[0x800/4+l*8+w]=table[l].words[w];
     DISPLAY[0x30/4]=1;
+    DISPLAY[0x40/4]=0;
     DISPLAY[2]=1;
+    __asm__ volatile ("fence iorw, iorw" ::: "memory");
+    DISPLAY[3]=1;
+    return 1;
+}
+gpu_sprite gpu_make_sprite(unsigned long base,int x,int y,unsigned width,unsigned height,
+    unsigned priority,unsigned flags)
+{
+    gpu_sprite sprite={{base,((uint32_t)(uint16_t)y<<16)|(uint16_t)x,
+        (width&255)|((height&255)<<8)|((flags&7)<<16)|((priority&15)<<20),0}};
+    return sprite;
+}
+int gpu_scene_submit(const gpu_layer layers[16],const gpu_sprite sprites[64])
+{
+    if(DISPLAY[0x3c/4]!=64 || !gpu_display_wait()) return 0;
+    for(unsigned l=0;l<16;++l)
+        for(unsigned w=0;w<8;++w) DISPLAY[0x800/4+l*8+w]=layers[l].words[w];
+    for(unsigned s=0;s<64;++s)
+        for(unsigned w=0;w<4;++w) DISPLAY[0xc00/4+s*4+w]=sprites[s].words[w];
+    DISPLAY[0x30/4]=1;DISPLAY[0x40/4]=1;DISPLAY[2]=1;
     __asm__ volatile ("fence iorw, iorw" ::: "memory");
     DISPLAY[3]=1;
     return 1;

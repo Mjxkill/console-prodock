@@ -3,6 +3,7 @@
 // CPU upstream issues command+data pulses only when ready; capture them in a
 // one-entry buffer to break the ready chain through the legacy CPU adapter.
 // Scanout has priority for bounded line fetches; CPU/blitter alternate otherwise.
+// Their grant is registered, so changing clients may insert an idle cycle.
 `default_nettype none
 module ddr_gpu_arb (
     input wire clk, rst_n,
@@ -50,7 +51,7 @@ module ddr_gpu_arb (
     reg [255:0] cpu_data;
     reg [31:0] cpu_mask;
     reg prefer_blitter = 1;
-    wire take_blitter = b_valid && (prefer_blitter || !cpu_pending);
+    reg take_blitter = 0;
     assign g_ready = issue && m_ready;
     assign b_ready = issue && !g_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
     assign c_ready = rst_n && !cpu_pending;
@@ -70,9 +71,15 @@ module ddr_gpu_arb (
     always @(posedge clk) begin
         if (!rst_n) begin
             wp <= 0; rp <= 0; full <= 0; prefer_blitter <= 1;
+            take_blitter<=0;
             cpu_pending <= 0; cpu_cmd <= 0; cpu_addr <= 0; cpu_data <= 0; cpu_mask <= 32'hffffffff;
         end
         else begin
+            // Cut the valid -> arbitration -> ready round trip. A stale grant
+            // can only insert a bubble: native commands still require valid.
+            // Acknowledgement remains the actual DDR command/data acceptance.
+            if(b_valid && b_ready) take_blitter<=0;
+            else take_blitter<=b_valid && (prefer_blitter || !cpu_pending);
             if (c_en && c_ready) begin
                 cpu_pending <= 1; cpu_cmd <= c_cmd; cpu_addr <= c_addr;
                 cpu_data <= c_wr_data; cpu_mask <= c_wr_mask;

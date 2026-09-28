@@ -1,4 +1,4 @@
-// G3: indexed framebuffer or 16 layers, native DDR3 reads, two display lines.
+// G4: framebuffer or 16 layers + 64 cached sprites, two display lines.
 // Three existing clocks only: AHB 80 MHz, DDR UI 75 MHz, LCD 35 MHz.
 // Mailboxes hold multi-bit data stable until a synchronized acknowledgement.
 `default_nettype none
@@ -33,33 +33,46 @@ module gpu_scanout #(
     reg [31:0] shadow_base, mailbox_base;
     reg shadow_enable, mailbox_enable, commit_toggle;
     reg shadow_layers,mailbox_layers,mailbox_bank,write_bank;
+    reg shadow_sprites,mailbox_sprites;
     reg applied_toggle = 0;
     reg [1:0] applied_sync;
     reg [11:0] bus_addr;
-    reg bus_write;
+    reg bus_write,bus_guarded;
     wire busy = commit_toggle != applied_sync[1];
-    wire table_access=bus_addr[11:9]==3'b100;
-    assign hready = !(bus_write && busy && (bus_addr == 12'h00c || table_access));
+    wire layer_table_access=bus_addr[11:9]==3'b100;
+    wire sprite_table_access=bus_addr[11:10]==2'b11;
+    wire table_access=layer_table_access || sprite_table_access;
+    // Decode the addresses that wait for a commit during the address phase.
+    // HREADY then avoids a full address comparator on the CPU return path.
+    assign hready = !(bus_write && busy && bus_guarded);
     wire write_fire = bus_write && hready;
     reg [17:0] palette [0:255];
     reg [31:0] descriptors [0:255];
+    reg [31:0] sprite_descriptors [0:511];
+    wire [8:0] sprite_config_address;
+    reg [31:0] sprite_config_data;
     wire [7:0] config_address;
     reg [31:0] config_data;
     always @(posedge hclk)
-        if(hresetn && write_fire && table_access) descriptors[{write_bank,bus_addr[8:2]}]<=hwdata;
+        if(hresetn && write_fire && layer_table_access) descriptors[{write_bank,bus_addr[8:2]}]<=hwdata;
     always @(posedge mem_clk) config_data<=descriptors[config_address];
+    always @(posedge hclk)
+        if(hresetn && write_fire && sprite_table_access) sprite_descriptors[{write_bank,bus_addr[9:2]}]<=hwdata;
+    always @(posedge mem_clk) sprite_config_data<=sprite_descriptors[sprite_config_address];
     always @(posedge hclk) begin
         if (!hresetn) begin
             shadow_base <= 0; shadow_enable <= 0;
             mailbox_base <= 0; mailbox_enable <= 0;
             commit_toggle <= 0; applied_sync <= 0;
             shadow_layers<=0;mailbox_layers<=0;mailbox_bank<=0;write_bank<=1;
-            bus_addr <= 0; bus_write <= 0;
+            shadow_sprites<=0;mailbox_sprites<=0;
+            bus_addr <= 0; bus_write <= 0;bus_guarded<=0;
         end else begin
             applied_sync <= {applied_sync[0], applied_toggle};
             if (hready) begin
                 bus_addr <= haddr[11:0];
                 bus_write <= hsel && htrans[1] && hwrite;
+                bus_guarded <= haddr[11:0]==12'h00c || haddr[11:9]==3'b100 || haddr[11:10]==2'b11;
             end
             if (write_fire) case (bus_addr)
                 12'h004: shadow_base <= {2'b0, hwdata[29:5], 5'b0};
@@ -68,10 +81,12 @@ module gpu_scanout #(
                     mailbox_base <= shadow_base;
                     mailbox_enable <= shadow_enable;
                     mailbox_layers<=shadow_layers;mailbox_bank<=write_bank;
+                    mailbox_sprites<=shadow_sprites;
                     if(shadow_layers) write_bank<=~write_bank;
                     commit_toggle <= ~commit_toggle;
                 end
                 12'h030: shadow_layers<=hwdata[0];
+                12'h040: shadow_sprites<=hwdata[0];
                 default: begin end
             endcase
         end
@@ -84,9 +99,17 @@ module gpu_scanout #(
     reg [31:0] active_base = 0, frames = 0, underflows = 0;
     reg active_enable = 0;
     reg active_layers=0,active_bank=0;
+    reg active_sprites=0;
     wire [31:0] r_base, r_frames, r_underflows, r_checksum, r_fetch_frames;
     reg [31:0] frame_checksum = 0, fetch_frames = 0;
     wire [31:0] max_cycles,invalid_layers,r_max_cycles,r_invalid_layers;
+    wire [31:0] invalid_sprites,cache_cycles,cache_loads,max_sprites,max_sprite_pixels;
+    wire [31:0] r_invalid_sprites,r_cache_cycles,r_cache_loads,r_max_sprites,r_max_sprite_pixels;
+    cdc_word u_invalid_sprites (.src_clk(mem_clk),.src_data(invalid_sprites),.dst_clk(hclk),.dst_data(r_invalid_sprites));
+    cdc_word u_cache_cycles (.src_clk(mem_clk),.src_data(cache_cycles),.dst_clk(hclk),.dst_data(r_cache_cycles));
+    cdc_word u_cache_loads (.src_clk(mem_clk),.src_data(cache_loads),.dst_clk(hclk),.dst_data(r_cache_loads));
+    cdc_word u_max_sprites (.src_clk(mem_clk),.src_data(max_sprites),.dst_clk(hclk),.dst_data(r_max_sprites));
+    cdc_word u_max_sprite_pixels (.src_clk(mem_clk),.src_data(max_sprite_pixels),.dst_clk(hclk),.dst_data(r_max_sprite_pixels));
     cdc_word u_max_cycles (.src_clk(mem_clk),.src_data(max_cycles),.dst_clk(hclk),.dst_data(r_max_cycles));
     cdc_word u_invalid_layers (.src_clk(mem_clk),.src_data(invalid_layers),.dst_clk(hclk),.dst_data(r_invalid_layers));
     cdc_word u_base (.src_clk(pixel_clk), .src_data(active_base), .dst_clk(hclk), .dst_data(r_base));
@@ -96,9 +119,10 @@ module gpu_scanout #(
     cdc_word u_fetch_frames (.src_clk(mem_clk), .src_data(fetch_frames), .dst_clk(hclk), .dst_data(r_fetch_frames));
     reg [1:0] enabled_sync;
     reg [1:0] layers_sync;
+    reg [1:0] sprites_sync;
     always @(posedge hclk) begin
-        if (!hresetn) begin enabled_sync <= 0;layers_sync<=0;end
-        else begin enabled_sync <= {enabled_sync[0], active_enable};layers_sync<={layers_sync[0],active_layers};end
+        if (!hresetn) begin enabled_sync <= 0;layers_sync<=0;sprites_sync<=0;end
+        else begin enabled_sync <= {enabled_sync[0], active_enable};layers_sync<={layers_sync[0],active_layers};sprites_sync<={sprites_sync[0],active_sprites};end
     end
     always @* begin
         case (bus_addr)
@@ -117,6 +141,14 @@ module gpu_scanout #(
             12'h030: hrdata = {31'b0,shadow_layers};
             12'h034: hrdata = {31'b0,layers_sync[1]};
             12'h038: hrdata = r_invalid_layers;
+            12'h03c: hrdata = 64;
+            12'h040: hrdata = {31'b0,shadow_sprites};
+            12'h044: hrdata = {31'b0,sprites_sync[1]};
+            12'h048: hrdata = r_invalid_sprites;
+            12'h04c: hrdata = r_max_sprites;
+            12'h050: hrdata = r_cache_cycles;
+            12'h054: hrdata = r_max_sprite_pixels;
+            12'h058: hrdata = r_cache_loads;
             default: hrdata = 0;
         endcase
     end
@@ -133,6 +165,7 @@ module gpu_scanout #(
     reg request_toggle = 0, acknowledge = 0, ack_seen = 0;
     reg [31:0] request_base = 0;
     reg request_layers=0,request_bank=0;
+    reg request_sprites=0;
     reg [40:0] request_tag = 0;
     reg [40:0] ready_tag [0:1];
     reg [1:0] ready_valid = 0;
@@ -143,6 +176,7 @@ module gpu_scanout #(
     wire next_enable = commit_pending ? mailbox_enable : active_enable;
     wire next_layers = commit_pending ? mailbox_layers : active_layers;
     wire next_bank = commit_pending ? mailbox_bank : active_bank;
+    wire next_sprites = commit_pending ? mailbox_sprites : active_sprites;
     wire [31:0] next_frame = frames + 1'b1;
     always @(posedge pixel_clk) begin
         if (!prst[1]) begin
@@ -150,6 +184,7 @@ module gpu_scanout #(
             commit_sync <= 0; applied_toggle <= 0;
             active_base <= 0; active_enable <= 0;
             active_layers<=0;active_bank<=0;request_layers<=0;request_bank<=0;
+            active_sprites<=0;request_sprites<=0;
             request_toggle <= 0; request_base <= 0; request_tag <= 0;
             ack_sync <= 0; ack_seen <= 0; ready_valid <= 0; line_good <= 0;
         end else begin
@@ -171,11 +206,13 @@ module gpu_scanout #(
                 if (commit_pending && request_idle) begin
                     active_base <= mailbox_base; active_enable <= mailbox_enable;
                     active_layers<=mailbox_layers;active_bank<=mailbox_bank;
+                    active_sprites<=mailbox_sprites;
                     applied_toggle <= commit_sync[1];
                 end
                 if (next_enable && request_idle) begin
                     request_base <= next_base;
                     request_layers<=next_layers;request_bank<=next_bank;
+                    request_sprites<=next_sprites;
                     request_tag <= {next_frame, 9'd0};
                     request_toggle <= ~request_toggle;
                 end
@@ -187,6 +224,7 @@ module gpu_scanout #(
                 if (active_enable && y < HEIGHT - 1 && request_idle) begin
                     request_base <= active_base + ({23'b0, y} + 32'd1) * WIDTH;
                     request_layers<=active_layers;request_bank<=active_bank;
+                    request_sprites<=active_sprites;
                     request_tag <= {frames, y + 9'd1};
                     request_toggle <= ~request_toggle;
                 end
@@ -199,6 +237,17 @@ module gpu_scanout #(
     reg [1:0] request_sync = 0;
     reg [40:0] tag = 0;
     reg reader_start=0,current_layers=0,done_pending=0;
+    reg cache_start=0,prefetch_active=0,line_pending=0;
+    wire cache_done,cache_busy,cache_fetch_valid,reader_fetch_valid;
+    wire [28:0] cache_fetch_addr,reader_fetch_addr;
+    wire [3:0] sprite_head_layer;
+    wire [6:0] sprite_head_index;
+    wire [5:0] sprite_index;
+    wire [63:0] sprite_metadata;
+    wire [10:0] sprite_row_address;
+    wire [255:0] sprite_row_data;
+    assign fetch_valid=prefetch_active ? cache_fetch_valid : reader_fetch_valid;
+    assign fetch_addr=prefetch_active ? cache_fetch_addr : reader_fetch_addr;
     wire reader_busy,reader_done,block_valid;
     wire [4:0] block_index;
     wire [255:0] block_data;
@@ -212,10 +261,20 @@ module gpu_scanout #(
     end
     gpu_line_reader #(.WIDTH(WIDTH),.HEIGHT(HEIGHT)) u_reader (
         .clk(mem_clk),.resetn(mrst[1]),.start(reader_start),.layers(request_layers),.config_bank(request_bank),
+        .sprites(request_sprites && request_layers),
         .base(request_base),.line_y(request_tag[8:0]),.busy(reader_busy),.done(reader_done),
         .config_address(config_address),.config_data(config_data),
-        .fetch_valid(fetch_valid),.fetch_addr(fetch_addr),.fetch_ready(fetch_ready),.fetch_data(returned_data),.fetch_data_valid(returned_valid),
-        .block_valid(block_valid),.block_index(block_index),.block_data(block_data),.max_cycles(max_cycles),.invalid_layers(invalid_layers));
+        .fetch_valid(reader_fetch_valid),.fetch_addr(reader_fetch_addr),.fetch_ready(fetch_ready && !prefetch_active),.fetch_data(returned_data),.fetch_data_valid(returned_valid && !prefetch_active),
+        .block_valid(block_valid),.block_index(block_index),.block_data(block_data),.max_cycles(max_cycles),.invalid_layers(invalid_layers),
+        .sprite_head_layer(sprite_head_layer),.sprite_head_index(sprite_head_index),.sprite_index(sprite_index),.sprite_metadata(sprite_metadata),
+        .sprite_row_address(sprite_row_address),.sprite_row_data(sprite_row_data),.max_sprites(max_sprites),.max_sprite_pixels(max_sprite_pixels));
+    gpu_sprite_cache u_sprites (
+        .clk(mem_clk),.resetn(mrst[1]),.start(cache_start),.config_bank(request_bank),.busy(cache_busy),.done(cache_done),
+        .config_address(sprite_config_address),.config_data(sprite_config_data),
+        .fetch_valid(cache_fetch_valid),.fetch_addr(cache_fetch_addr),.fetch_ready(fetch_ready && prefetch_active),
+        .fetch_data(returned_data),.fetch_data_valid(returned_valid && prefetch_active),
+        .head_layer(sprite_head_layer),.head_index(sprite_head_index),.meta_index(sprite_index),.meta_data(sprite_metadata),
+        .row_address(sprite_row_address),.row_data(sprite_row_data),.invalid_sprites(invalid_sprites),.max_cycles(cache_cycles),.loads(cache_loads));
     reg [31:0] checksum = 0;
     function [31:0] rotate; input [31:0] v;input integer n;
         rotate=(v<<n)|(v>>(32-n));
@@ -235,16 +294,21 @@ module gpu_scanout #(
     always @(posedge mem_clk) begin
         if (!mrst[1]) begin
             request_sync <= 0; acknowledge <= 0;reader_start<=0;current_layers<=0;done_pending<=0;tag <= 0;
+            cache_start<=0;prefetch_active<=0;line_pending<=0;
             checksum <= 0; frame_checksum <= 0; fetch_frames <= 0;
         end else begin
             request_sync <= {request_sync[0], request_toggle};
-            reader_start<=0;
+            reader_start<=0;cache_start<=0;
+            if(cache_done) begin prefetch_active<=0;reader_start<=1;end
             done_pending<=reader_done;
             if (done_pending) begin
                 acknowledge<=request_sync[1];
+                line_pending<=0;
                 if(tag[8:0]==HEIGHT-1) begin frame_checksum<=checksum;fetch_frames<=fetch_frames+1'b1;end
-            end else if(!reader_done && request_sync[1]!=acknowledge && !reader_busy && !reader_start) begin
-                tag<=request_tag;current_layers<=request_layers;reader_start<=1;
+            end else if(!line_pending && request_sync[1]!=acknowledge) begin
+                tag<=request_tag;current_layers<=request_layers;line_pending<=1;
+                if(request_layers && request_sprites && request_tag[8:0]==0) begin cache_start<=1;prefetch_active<=1;end
+                else reader_start<=1;
                 if(request_tag[8:0]==0) checksum<=0;
             end
             if(check_valid2) checksum<=current_layers ? rotate(checksum,5)^burst_hash : checksum+burst_sum;

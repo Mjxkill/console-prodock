@@ -37,7 +37,8 @@ Résultat 800×480 dans [gpu_g3_simulation.txt](gpu_g3_simulation.txt) :
 verilator --binary --timing -Wno-fatal --top-module gpu_layers_tb \
   -GW=800 -GH=480 -GVT=533 --Mdir /tmp/console_gpu_layers_full \
   TESTS/rtl/gpu_layers_tb.sv tang/rtl/video/gpu_scanout.v \
-  tang/rtl/video/gpu_line_reader.v tang/rtl/board/ddr_gpu_arb.v \
+  tang/rtl/video/gpu_line_reader.v tang/rtl/video/gpu_sprite_cache.v \
+  tang/rtl/board/ddr_gpu_arb.v \
   tang/rtl/board/cdc_word.v
 /tmp/console_gpu_layers_full/Vgpu_layers_tb
 ```

@@ -33,4 +33,12 @@ gpu_layer gpu_make_layer(unsigned long base,unsigned stride,unsigned width,unsig
 // Priority is the table index: layer 0 behind, layer 15 in front.
 int gpu_layers_submit(const gpu_layer table[16]);
 int gpu_display_wait(void);
+typedef struct { uint32_t words[4]; } gpu_sprite;
+enum { GPU_SPRITE_ENABLE=1, GPU_SPRITE_FLIP_X=2, GPU_SPRITE_FLIP_Y=4 };
+// Indexed pixels, 32-byte aligned base and fixed 32-byte pitch, size 1..32.
+// Sprites at priority p appear above layer p and below layer p+1. A higher
+// sprite table index wins ties. Index zero is always transparent.
+gpu_sprite gpu_make_sprite(unsigned long base,int x,int y,unsigned width,unsigned height,
+    unsigned priority,unsigned flags);
+int gpu_scene_submit(const gpu_layer layers[16],const gpu_sprite sprites[64]);
 #endif

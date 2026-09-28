@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise G0/G1/G2/G3 diagnostic firmware over the MegaPro USB CDC port."""
+"""Exercise G0/G1/G2/G3/G4 diagnostic firmware over the MegaPro USB CDC port."""
 import argparse
 import re
 import struct
@@ -118,6 +118,36 @@ def test_layers(dev):
     print('G3 PASS: 16 full surfaces, 3 poses, positions/scroll/priority, 6 atomic swaps, concurrent CPU DDR, zero underflows',flush=True)
 
 
+def test_sprites(dev):
+    dev.write(b'O')
+    line=response(dev,b'SPRITES READY',timeout=180)
+    fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',line))
+    if fields.get(b'count')!=b'64' or fields.get(b'poses')!=b'3' or fields.get(b'underflows')!=b'0':
+        raise SystemExit('64-sprite initialization failed')
+    previous_frames=None
+    for pose in (1,2,0,1,2,0):
+        dev.write(b'N')
+        line=response(dev,b'SPRITES POSE',timeout=90)
+        fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',line))
+        expected_hash=int(fields[b'hash'],16)
+        if response(dev,b'SPRITES MOVED')!=f'SPRITES MOVED pose={pose}'.encode():
+            raise SystemExit('Sprite pose acknowledgement mismatch')
+        dev.write(b'M')
+        if response(dev,b'SHARED END',timeout=90)!=b'SHARED END errors=0':
+            raise SystemExit('CPU DDR corruption with sprites active')
+        dev.write(b'S')
+        line=response(dev,b'GPU base=')
+        status=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',line))
+        frames=int(status[b'frames'])
+        if (status[b'enable']!=b'1' or status[b'busy']!=b'0' or status[b'underflows']!=b'0'
+                or status.get(b'sprites')!=b'1' or status.get(b'invalid_sprites')!=b'0'
+                or status.get(b'max_sprites')!=b'64' or int(status[b'sum'],16)!=expected_hash
+                or (previous_frames is not None and frames<=previous_frames)):
+            raise SystemExit('Sprite frame hash/status mismatch')
+        previous_frames=frames
+    print('G4 PASS: 64 cached DDR sprites, size 8/16/32, flip XY, transparency, layer priorities, image animation, 6 atomic swaps, CPU DDR, zero underflows',flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--wait', type=float, default=15)
@@ -166,12 +196,14 @@ def main():
                     if line != b'DDR END errors=0' or failures:
                         raise SystemExit('DDR verification failed')
                     print('G0 PASS', flush=True)
-                    if re.search(rb'GPU G[123] ',identity):
+                    if re.search(rb'GPU G[1234] ',identity):
                         test_gpu(dev)
-                    if re.search(rb'GPU G[23] ',identity):
+                    if re.search(rb'GPU G[234] ',identity):
                         test_blitter(dev)
-                    if b'GPU G3 ' in identity:
+                    if re.search(rb'GPU G[34] ',identity):
                         test_layers(dev)
+                    if b'GPU G4 ' in identity:
+                        test_sprites(dev)
                     return
         raise SystemExit(f'DDR timeout; pending={pending!r}')
 

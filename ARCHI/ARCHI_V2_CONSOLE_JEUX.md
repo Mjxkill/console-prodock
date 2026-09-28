@@ -48,12 +48,19 @@ Référence console : commit `5773f10`, `TESTS/TESTS_E2.md`.
   Trois scènes et six changements sous accès DDR concurrents du CPU : empreintes
   exactes, zéro ligne manquante. Rendu LCD confirmé par Michael le 28 septembre
   2026. Voir `../TESTS/TESTS_GPU_G3.md`.
-- Les sprites, le chargeur et l'interpréteur restent à implémenter.
+- G4 : 64 sprites matériels validés en simulation et sur carte : cache
+  DDR3 vers BSRAM, transparence, retournements X/Y, tailles jusqu'à 32×32,
+  priorités entre les 16 couches et changement d'image atomique. Trois scènes,
+  six permutations et accès DDR CPU concurrents : empreintes exactes, zéro
+  ligne manquante. Rendu LCD confirmé par Michael le 28 septembre 2026.
+  Voir `../TESTS/TESTS_GPU_G4.md`.
+- Le chargeur et l'interpréteur restent à implémenter.
 
-La cadence de 60 images/s est un objectif de dimensionnement. La validation
-visuelle de la mire ne mesure pas sa fréquence de trame. Les compteurs et
-fenêtres actives du générateur LCD seront vérifiés lors de l'ajout des pixels
-externes, en conservant le fonctionnement électrique validé du panneau.
+La cadence de 60 images/s est un objectif de dimensionnement. Le générateur
+conservé utilise 1 193 pixels par ligne et 533 lignes par trame à 35 MHz,
+soit environ 55,04 images/s calculées ; la fréquence physique du panneau
+n'a pas été mesurée. Les fenêtres actives 800×480 sont vérifiées pixel par
+pixel en simulation et les empreintes des trames sont contrôlées sur carte.
 
 ## 3. Réemploi de la carte graphique de logic_analyser_wifi
 
@@ -119,6 +126,10 @@ Les tailles 8/16/32 pixels prévues sont à prendre en charge ; conserver autant
 que possible la souplesse des objets images de la référence pour les menus et
 grands éléments graphiques.
 
+G4 implémente 64 objets de 1 à 32 pixels sur chaque axe, images à pas fixe
+de 32 octets et cache complet de 64 Kio rechargé au retour vertical. Les
+objets plus grands se construisent avec plusieurs sprites ou une couche.
+
 ### 4.3 Accélérations 2D et texte
 
 - Effacement/remplissage de page et de rectangle, copies de blocs/pages.
@@ -161,15 +172,17 @@ flowchart LR
     CPU --> ARB[Arbitre DDR3]
     DRAW --> ARB
     ARB <--> DDR[DDR3 : programmes, pages, images]
-    ARB --> LINES[Tampons de ligne couches et sprites]
-    LINES --> COMP[Composition des 16 couches]
+    ARB --> LINES[Tampon source des couches]
+    ARB --> SPR[Cache des 64 sprites : chargement au retour vertical]
+    LINES --> COMP[Composition des 16 couches et sprites]
+    SPR --> COMP
     COMP --> LCD[LCD 800 x 480]
 ```
 
 Le contrôleur DDR3 32 bits existe et expose des rafales de **256 bits**.
 Le chemin hérité de l'analyseur utilise un adaptateur 128 bits qui sélectionne
-une moitié de rafale. Il peut servir au CPU lors du démarrage du portage,
-mais le chemin graphique devra exploiter les rafales complètes de 32 octets.
+une moitié de rafale. Cet adaptateur sert au CPU ; le chemin graphique G1
+à G4 exploite les rafales complètes de 32 octets.
 Les interfaces 16 bits S/W/C de la référence ne sont donc pas recâblées
 directement sur l'IP DDR3.
 
@@ -187,10 +200,11 @@ la capacité maximale. La cible reste 16 couches superposables ; les limites
 éventuelles devront être explicites, jamais remplacées silencieusement par
 une simple sélection parmi 16 pages.
 
-Deux lignes par couche en 8 bits représentent 25600 octets pour 16 couches,
-auxquels s'ajoutent palettes, sprites et buffers du blitter. Les images
-complètes restent en DDR3. Le compositeur devra être suffisamment parallèle
-ou pipeliné pour traiter les 16 niveaux à la cadence des pixels.
+G3/G4 réutilisent un tampon source et une ligne de composition pour les
+16 couches, puis deux lignes d'affichage : 4 Kio alloués au total, hors
+palette et descripteurs. G4 ajoute 64 Kio de cache d'images de sprites.
+Les surfaces complètes restent en DDR3. Le compositeur fusionne 32 pixels
+par cycle et chevauche les lectures DDR avec cette fusion.
 
 Cohérence CPU/GPU G1 : vidage/invalidation explicite du cache de la page puis
 barrière mémoire avant validation au retour vertical. Les sommes des pages
@@ -229,7 +243,7 @@ erreurs du langage et persistance flash restent à développer.
 | G1 | Validé : page DDR3, palette, échange au retour vertical, simulation pixel à pixel, tests sur carte et confirmation visuelle de Michael. |
 | G2 | Blitter et texte validés pixel à pixel en simulation et sur carte ; rendu initial confirmé visuellement par Michael. Rampes de palette corrigées et testées sur carte. |
 | G3 | Validé en simulation et sur carte, rendu LCD confirmé par Michael : 16 surfaces, déplacements/défilement, transparence zéro, priorités et mises à jour atomiques ; trois scènes, six permutations avec accès CPU concurrents, zéro sous-alimentation LCD. |
-| G4 | 64 sprites, priorités entre couches, transparence, flip et animation ; charge maximale et défauts mesurés. |
+| G4 | Validé en simulation et sur carte, rendu LCD confirmé par Michael. 64 sprites en cache, priorités entre couches, transparence, flips et animation par changement d'image ; trois scènes, six permutations sous trafic CPU, zéro ligne manquante. |
 | G5 | Triangles puis démonstration 3D fil de fer/solide, avec coût CPU/GPU et cadence mesurés. |
 | G6 | Boutons, LED, ADS1115 et manette si son interface est choisie ; premiers jeux interactifs. |
 | G7 | Chargeur, interpréteur et jeux de démonstration utilisant les accélérations ; stockage persistant ensuite. |

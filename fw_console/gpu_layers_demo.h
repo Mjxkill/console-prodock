@@ -8,7 +8,7 @@ static uint32_t rotate32(uint32_t value,unsigned n)
 {
     return (value<<(n&31))|(value>>((32-n)&31));
 }
-static unsigned gpu_layers_reference_hash(const gpu_layer table[16])
+static unsigned gpu_scene_reference_hash(const gpu_layer table[16],const gpu_sprite sprites[64])
 {
     uint32_t hash=0;
     for(int y=0;y<GPU_HEIGHT;++y) {
@@ -19,12 +19,26 @@ static unsigned gpu_layers_reference_hash(const gpu_layer table[16])
             int px=(int16_t)d[2],py=(int16_t)(d[2]>>16);
             int sw=d[1]&65535,sh=d[1]>>16,vw=d[3]&65535,vh=d[3]>>16;
             int sx=d[4]&65535,sy=d[4]>>16,dy=y-py;
-            if(!(flags&GPU_LAYER_ENABLE) || dy<0 || dy>=vh || sy+dy>=sh) continue;
-            int left=max_int(0,px),right=min_int(GPU_WIDTH,min_int(px+vw,px+sw-sx));
-            const uint8_t *source=(const uint8_t *)d[0]+(sy+dy)*(d[5]&65535);
-            for(int x=left;x<right;++x) {
-                unsigned p=source[sx+x-px];
-                if(!(flags&GPU_LAYER_KEY_ZERO) || p) layer_reference_row[x]=p;
+            if((flags&GPU_LAYER_ENABLE) && dy>=0 && dy<vh && sy+dy<sh) {
+                int left=max_int(0,px),right=min_int(GPU_WIDTH,min_int(px+vw,px+sw-sx));
+                const uint8_t *source=(const uint8_t *)d[0]+(sy+dy)*(d[5]&65535);
+                for(int x=left;x<right;++x) {
+                    unsigned p=source[sx+x-px];
+                    if(!(flags&GPU_LAYER_KEY_ZERO) || p) layer_reference_row[x]=p;
+                }
+            }
+            if(sprites) for(unsigned s=0;s<64;++s) {
+                const uint32_t *sp=sprites[s].words;
+                unsigned prop=sp[2],w=prop&255,h=(prop>>8)&255;
+                int x0=(int16_t)sp[1],y0=(int16_t)(sp[1]>>16),row=y-y0;
+                if(!(prop&(GPU_SPRITE_ENABLE<<16)) || ((prop>>20)&15)!=l || row<0 || row>=(int)h) continue;
+                if(prop&(GPU_SPRITE_FLIP_Y<<16)) row=h-1-row;
+                const uint8_t *source=(const uint8_t *)sp[0]+row*32;
+                for(int x=max_int(0,x0);x<min_int(GPU_WIDTH,x0+(int)w);++x) {
+                    unsigned column=x-x0;
+                    if(prop&(GPU_SPRITE_FLIP_X<<16)) column=w-1-column;
+                    unsigned p=source[column];if(p) layer_reference_row[x]=p;
+                }
             }
         }
         for(unsigned x=0;x<GPU_WIDTH;x+=32) {
@@ -37,6 +51,10 @@ static unsigned gpu_layers_reference_hash(const gpu_layer table[16])
         }
     }
     return hash;
+}
+static unsigned gpu_layers_reference_hash(const gpu_layer table[16])
+{
+    return gpu_scene_reference_hash(table,0);
 }
 static void gpu_layers_make_pose(unsigned pose)
 {

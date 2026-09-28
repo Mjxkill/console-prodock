@@ -118,7 +118,7 @@ verilator --binary --timing -Wno-fatal --top-module ddr_gpu_arb_tb \
 verilator --binary --timing -Wno-fatal --top-module gpu_scanout_tb \
   -GW=800 -GH=480 -GHT=1193 -GVT=533 -GHSTART=182 -GVSTART=8 -GHSYNC=210 -GVSYNC=45 \
   --Mdir /tmp/console_gpu_full_tb TESTS/rtl/gpu_scanout_tb.sv \
-  tang/rtl/video/gpu_scanout.v tang/rtl/video/gpu_line_reader.v \
+  tang/rtl/video/gpu_scanout.v tang/rtl/video/gpu_line_reader.v tang/rtl/video/gpu_sprite_cache.v \
   tang/rtl/board/ddr_gpu_arb.v tang/rtl/board/cdc_word.v
 /tmp/console_gpu_full_tb/Vgpu_scanout_tb
 ```

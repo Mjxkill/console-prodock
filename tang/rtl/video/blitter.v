@@ -341,8 +341,12 @@ module blitter #(
                 // ---------------- texte : une rangée de glyphe (× échelle) à la fois, par la mémoire de ligne et le port W ----------------
                 M_TXT_START: begin trow <= 4'd0; tsub <= 1'b0; st <= (cy0 > cy1 || cx0 > cx1 || tn == 5'd0) ? M_DONE : M_TXT_ROW; end
                 M_TXT_ROW: begin                                                 // rangée visible ? (cy0/cy1 découpés)
+                    // These values are unused on a clipped row. Load them
+                    // unconditionally to keep Y addition/comparison off the
+                    // enable paths of the shared rectangle registers.
+                    ry <= ty[9:0]; rx <= cx0[10:0]; rw <= cx1[10:0] - cx0[10:0] + 11'd1; tci <= 5'd0; tpix <= 9'd0;
                     if (ty < cy0 || ty > cy1) st <= M_TXT_NEXT;
-                    else begin ry <= ty[9:0]; rx <= cx0[10:0]; rw <= cx1[10:0] - cx0[10:0] + 11'd1; tci <= 5'd0; tpix <= 9'd0; st <= M_TXT_FONT; end
+                    else st <= M_TXT_FONT;
                 end
                 M_TXT_FONT: begin tbit <= 3'd0; tdup <= 1'b0; st <= M_TXT_BITS; end   // font_q valide au cycle suivant (adresse = {caractère, rangée})
                 M_TXT_BITS: begin : tb                                           // 8 pixels (× échelle) du glyphe, découpés à gauche (offx) et à droite (rw)

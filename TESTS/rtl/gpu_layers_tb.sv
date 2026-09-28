@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LATENCY=32);
+module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LATENCY=32,SPRITES=0);
     reg hc=0,pc=0,mc=0,rst=0;
     always #6.25 hc=~hc;
     always #14.285 pc=~pc;
@@ -23,7 +23,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         x=pose==1 ? layer*5-37 : 0;y=pose==1 ? layer%5-2 : 0;
         sx=pose==1 ? 31-layer : 0;sy=pose==1 ? layer%4 : 0;
         vw=pose==1 ? W+15-layer*2 : W;vh=pose==1 ? H+4-layer%7 : H;
-        flags=pose==2 ? 0 : layer==0 || (pose==1 && layer%5==0) ? 1 : 3;
+        flags=(pose==2 || pose==4 || pose==5) ? 0 : layer==0 || (pose==1 && layer%5==0) ? 1 : 3;
         // Both source and destination clipping; all 16 source alignments vary.
         case(word)
             0:return 'h800000+(page<<20)+page*2+1;
@@ -36,8 +36,39 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
             default:return 0;
         endcase
     endfunction
+    function automatic [31:0] sprite_descriptor(input integer pose,input integer slot,input integer word);
+        integer x,y,w,h,flags,priority_layer,base;
+        w=(pose==4 || pose==6) ? 32 : (slot%3==0 ? 8 : slot%3==1 ? 16 : 32);h=w;
+        if(pose==1) case(slot%8)
+            0:begin w=1;h=31;end
+            1:begin w=17;h=7;end
+            2:begin w=31;h=1;end
+            3:begin w=9;h=23;end
+        endcase
+        x=(pose==4 || pose==6) ? (slot%16)*(W/16)-3 : (slot%8)*(W/8)+(slot%2 ? -7 : 5);
+        y=(pose==4 || pose==6) ? 16 : (slot/8)*(H/8)-4;
+        if(slot==63 && pose!=4 && pose!=6) x=W-4;
+        if(pose==1) begin x-=3;y+=2;end
+        flags=1|((slot+pose)%4<<1);priority_layer=(slot*7+pose*3)%16;
+        base='h2000000+slot*1024+(pose==1 ? 65536 : 0);
+        if(pose==2 || pose==3 || (pose==5 && slot>=5)) flags=0;
+        if(pose==5) case(slot)
+            0:base+=1;
+            1:w=33;
+            2:h=0;
+            3:base='h40000000;
+            4:begin base='h3fffffe0;h=2;end
+        endcase
+        case(word)
+            0:return base;
+            1:return ((y&65535)<<16)|(x&65535);
+            2:return w|(h<<8)|(flags<<16)|(priority_layer<<20);
+            default:return 0;
+        endcase
+    endfunction
     function automatic [7:0] pixel(input integer address);
         integer page,offset,x,y;
+        if(address>='h2000000 && address<'h2020000) return (address%7==0 || address%11==0) ? 0 : 8'(1+(address*13+(address>>10)*19+(address>>16))%255);
         if(address<'h800000) return 8'((address*73)^(address>>7));
         page=(address>>20)-8;offset=(address&'hfffff)-(page*2+1);
         if(page<0 || page>15) $fatal(1,"Read outside surface slots @%h",address);
@@ -50,24 +81,41 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         for(integer i=0;i<32;i++) v[i*8+:8]=pixel(a+i);
         return v;
     endfunction
-    function automatic [7:0] composed_pixel(input integer pose,input integer x,input integer y);
-        integer dx,dy,sx,sy,vw,vh,sw,sh,flags,a,stride;
-        reg [7:0] p,v;
-        if(pose==3) return pixel('h800000+y*W+x);
-        v=0;
+    reg [7:0] expected_image[0:6][0:H-1][0:W-1];
+    // Independent software painter: visit each layer, then the bounded sprite
+    // rectangles above it. No cache, burst alignment or linked-list machinery.
+    task automatic reference_scene(input integer pose);
+        integer dx,dy,sx,sy,vw,vh,sw,sh,flags,a,stride,prop,xx,yy,ww,hh,x0,y0;
+        reg [7:0] value;
+        for(integer y=0;y<H;y++) for(integer x=0;x<W;x++)
+            expected_image[pose][y][x]=pose==3 ? pixel('h800000+y*W+x) : 0;
+        if(pose==3) return;
         for(integer l=0;l<16;l++) begin
             a=descriptor(pose,l,0);stride=descriptor(pose,l,5);flags=descriptor(pose,l,6);
-            dx=x-int'(shortint'(descriptor(pose,l,2)));dy=y-int'(shortint'(descriptor(pose,l,2)>>16));
-            sx=(descriptor(pose,l,4)&65535)+dx;sy=(descriptor(pose,l,4)>>16)+dy;
+            x0=int'(shortint'(descriptor(pose,l,2)));y0=int'(shortint'(descriptor(pose,l,2)>>16));
             vw=descriptor(pose,l,3)&65535;vh=descriptor(pose,l,3)>>16;
             sw=descriptor(pose,l,1)&65535;sh=descriptor(pose,l,1)>>16;
-            if((flags&1) && dx>=0 && dy>=0 && dx<vw && dy<vh && sx>=0 && sy>=0 && sx<sw && sy<sh) begin
-                p=pixel(a+sy*stride+sx);
-                if(!(flags&2) || p!=0) v=p;
+            if(flags&1) for(integer y=0;y<H;y++) for(integer x=0;x<W;x++) begin
+                dx=x-x0;dy=y-y0;
+                sx=(descriptor(pose,l,4)&65535)+dx;sy=(descriptor(pose,l,4)>>16)+dy;
+                if(dx>=0 && dy>=0 && dx<vw && dy<vh && sx>=0 && sy>=0 && sx<sw && sy<sh) begin
+                    value=pixel(a+sy*stride+sx);
+                    if(!(flags&2) || value!=0) expected_image[pose][y][x]=value;
+                end
+            end
+            if(SPRITES && pose!=5) for(integer sp=0;sp<64;sp++) begin
+                prop=sprite_descriptor(pose,sp,2);ww=prop&255;hh=(prop>>8)&255;
+                x0=int'(shortint'(sprite_descriptor(pose,sp,1)));y0=int'(shortint'(sprite_descriptor(pose,sp,1)>>16));
+                if((prop&65536) && ((prop>>20)&15)==l) for(integer y=0;y<hh;y++) for(integer x=0;x<ww;x++) begin
+                    xx=(prop&131072) ? ww-1-x : x;yy=(prop&262144) ? hh-1-y : y;
+                    value=pixel(sprite_descriptor(pose,sp,0)+yy*32+xx);
+                    if(x+x0>=0 && x+x0<W && y+y0>=0 && y+y0<H && value!=0)
+                        expected_image[pose][y+y0][x+x0]=value;
+                end
             end
         end
-        return v;
-    endfunction
+    endtask
+    initial for(integer pose=0;pose<7;pose++) reference_scene(pose);
     function automatic [17:0] color(input [7:0] p);
         return {p[5:0],p[7:2],p[5:0]^6'h15};
     endfunction
@@ -80,7 +128,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         for(integer yy=0;yy<H;yy++) for(integer xx=0;xx<W;xx+=32) begin
             block_hash=0;
             for(integer w=0;w<8;w++) begin
-                for(integer lane=0;lane<4;lane++) word[lane*8+:8]=composed_pixel(pose,xx+w*4+lane,yy);
+                for(integer lane=0;lane<4;lane++) word[lane*8+:8]=expected_image[pose][yy][xx+w*4+lane];
                 block_hash^=rot(word,w*4);
             end
             hash=rot(hash,5)^block_hash;
@@ -118,7 +166,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
             if(cmd!=1 || ma[2:0]!=0) $fatal(1,"Invalid read");
             addresses.push_back(int'(ma)*4);
             last_due=cycle+LATENCY+cycle%11>last_due ? cycle+LATENCY+cycle%11 : last_due+1;due.push_back(last_due);
-            if(int'(ma)*4>='h800000) read_counts[((int'(ma)*4)>>20)-8]++;
+            if(int'(ma)*4>='h800000 && int'(ma)*4<'h1800000) read_counts[((int'(ma)*4)>>20)-8]++;
         end
         if(cr && !cpu_pending) cpu_pending<=1;
         if(cv) begin
@@ -148,8 +196,8 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
             if(check_pixels) checked_frames++;
         end
         if(de && check_pixels) begin
-            if({r,g,b}!==color(composed_pixel(selected_pose,col,row)))
-                $fatal(1,"Pose%0d pixel %0d,%0d got=%h expected=%h",selected_pose,col,row,{r,g,b},color(composed_pixel(selected_pose,col,row)));
+            if({r,g,b}!==color(expected_image[selected_pose][row][col]))
+                $fatal(1,"Pose%0d pixel %0d,%0d got=%h expected=%h",selected_pose,col,row,{r,g,b},color(expected_image[selected_pose][row][col]));
             col++;
         end
         if(!de && prev_de) begin
@@ -160,12 +208,14 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
     end
     task automatic submit_pose(input integer pose);
         for(integer l=0;l<16;l++) for(integer w=0;w<8;w++) write_reg('h800+l*32+w*4,descriptor(pose,l,w));
+        if(SPRITES) for(integer sp=0;sp<64;sp++) for(integer w=0;w<4;w++) write_reg('hc00+sp*16+w*4,sprite_descriptor(pose,sp,w));
+        write_reg('h40,SPRITES && pose!=2);
         write_reg('h30,1);write_reg(8,1);write_reg(12,1);
         do read_reg(12,value);while(value!=0);
         expected_pose=pose;
     endtask
     reg [31:0] value;
-    integer goal_frames;
+    integer goal_frames,underflow_before;
     initial begin
         #200;rst=1;
         read_reg('h28,value);if(value!=16) $fatal(1,"Missing 16-layer capability");
@@ -181,14 +231,49 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         wait(checked_frames>=goal_frames);@(negedge vs);
         read_reg('h20,value);if(value!=frame_hash(1)) $fatal(1,"Clipped/shifted frame hash");
         read_reg('h38,value);if(value!=0) $fatal(1,"Unexpected invalid descriptors");
+        if(SPRITES) begin
+            read_reg('h48,value);if(value!=0) $fatal(1,"Valid sprites rejected");
+            read_reg('h4c,value);if(value==0) $fatal(1,"No sprites composed");
+            read_reg('h50,value);$display("Sprite cache: max prefetch %0d DDR cycles",value);
+            submit_pose(4);goal_frames=checked_frames+3;
+            wait(checked_frames>=goal_frames);@(negedge vs);
+            read_reg('h20,value);if(value!=frame_hash(4)) $fatal(1,"64 sprites frame hash");
+            read_reg('h4c,value);if(value!=64) $fatal(1,"64 sprites on the same line not supported");
+            read_reg('h1c,value);if(value!=0) $fatal(1,"Sprites underflowed");
+            read_reg('h2c,value);$display("G4 max line %0d/%0d DDR cycles",value,HT*75/35);
+            submit_pose(5);goal_frames=checked_frames+3;
+            wait(checked_frames>=goal_frames);@(negedge vs);
+            read_reg('h20,value);if(value!=0) $fatal(1,"Invalid sprites produced pixels");
+            read_reg('h48,value);if(value<5) $fatal(1,"Invalid sprites not reported");
+            if(W==800) begin
+                // Deliberate overload: 16 full layers AND 64 sprites on one
+                // line. Capacity is 64; the finite line deadline still applies.
+                skip_pixels=1;read_reg('h1c,underflow_before);submit_pose(6);
+                repeat(3) @(negedge vs);
+                read_reg('h1c,value);if(value<=underflow_before) $fatal(1,"Missing sprite overload report");
+                read_reg('h2c,value);$display("Deliberate 16-layer + 64-sprite overload: %0d/%0d DDR cycles, reported",value,HT*75/35);
+            end
+            submit_pose(1);repeat(2) @(negedge vs);skip_pixels=0;
+            goal_frames=checked_frames+3;wait(checked_frames>=goal_frames);@(negedge vs);
+        end
         // Defer a table commit while the old memory request is still blocked.
-        skip_pixels=1;@(negedge vs);wait(fv);stalled=1;
+        skip_pixels=1;@(negedge vs);read_reg('h1c,underflow_before);wait(fv);stalled=1;
         for(integer l=0;l<16;l++) for(integer w=0;w<8;w++) write_reg('h800+l*32+w*4,descriptor(2,l,w));
-        write_reg(12,1);
+        write_reg('h40,0);write_reg(12,1);
         repeat(2) @(negedge vs);
         read_reg(12,value);if(value!=1) $fatal(1,"Recycled a descriptor bank while still in use");
-        read_reg('h1c,value);if(value==0) $fatal(1,"Missing underflow report");
-        stalled=0;
+        read_reg('h1c,value);if(value<=underflow_before) $fatal(1,"Missing underflow report");
+        // An attempted write to the bank being recycled must also wait for
+        // the old DDR transaction. Exercise the new sprite table decode.
+        fork
+            begin write_reg(SPRITES ? 'hc00 : 'h800,'h2000000);end
+            begin
+                repeat(20) @(posedge hc);
+                if(ready) $fatal(1,"Descriptor write was not held during BUSY");
+                stalled=0;
+            end
+        join
+        if(ahb_stalls<18) $fatal(1,"Missing AHB table backpressure");
         do read_reg(12,value);while(value!=0);
         expected_pose=2;repeat(2) @(negedge vs);skip_pixels=0;
         goal_frames=checked_frames+3;wait(checked_frames>=goal_frames);@(negedge vs);
@@ -198,8 +283,9 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         expected_pose=3;goal_frames=checked_frames+3;
         wait(checked_frames>=goal_frames);@(negedge vs);
         if(cpureads<100) $fatal(1,"CPU starved");
+        if(SPRITES) $display("G4 PASS: 64 DDR sprites, sizes 8/16/32, flip X/Y, key zero, clipping, layer/object priorities, image animation, invalid descriptors, cache refresh");
         $display("PASS: 16 layers, clipping, scroll, priority, alpha key, arbitrary byte alignment/stride, atomic commit, DDR stalls/recovery, legacy mode; CPU reads=%0d",cpureads);
         $finish;
     end
-    initial begin #(HT*VT*28.57*40);$fatal(1,"Timeout");end
+    initial begin #(HT*VT*28.57*64);$fatal(1,"Timeout");end
 endmodule

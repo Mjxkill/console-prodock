@@ -1,4 +1,4 @@
-// G0/G1/G2/G3 diagnostic console. Code in ITCM, writable data in ILM, stack in DLM.
+// G0/G1/G2/G3/G4 diagnostic console. Code in ITCM, writable data in ILM, stack in DLM.
 // Commands: ? identification, D destructive DDR test, E + uint16 LE + data echo.
 #include <stdio.h>
 #include <stdint.h>
@@ -14,10 +14,11 @@ static unsigned page_sums[2];
 
 static void gpu_status(void)
 {
-    printf("GPU base=%08x enable=%u frames=%u underflows=%u sum=%08x fetched=%u busy=%u layers=%u max_cycles=%u invalid=%u\r\n",
+    printf("GPU base=%08x enable=%u frames=%u underflows=%u sum=%08x fetched=%u busy=%u layers=%u max_cycles=%u invalid=%u sprites=%u invalid_sprites=%u max_sprites=%u cache_cycles=%u max_sprite_pixels=%u cache_loads=%u\r\n",
            (unsigned)GPU[4], (unsigned)GPU[5], (unsigned)GPU[6], (unsigned)GPU[7],
            (unsigned)GPU[8], (unsigned)GPU[9], (unsigned)GPU[3],
-           (unsigned)GPU[0x34/4],(unsigned)GPU[0x2c/4],(unsigned)GPU[0x38/4]);
+           (unsigned)GPU[0x34/4],(unsigned)GPU[0x2c/4],(unsigned)GPU[0x38/4],
+           (unsigned)GPU[0x44/4],(unsigned)GPU[0x48/4],(unsigned)GPU[0x4c/4],(unsigned)GPU[0x50/4],(unsigned)GPU[0x54/4],(unsigned)GPU[0x58/4]);
 }
 
 static unsigned demo_pixel(unsigned x, unsigned y, unsigned page)
@@ -37,6 +38,7 @@ static int gpu_commit(unsigned page)
     GPU[1] = page ? PAGE1 : PAGE0;
     GPU[2] = 1;
     GPU[0x30/4]=0; // Legacy framebuffer mode, including after a G3 demo.
+    GPU[0x40/4]=0;
     __asm__ volatile ("fence iorw, iorw" ::: "memory");
     GPU[3] = 1;
     timeout = 1000000;
@@ -74,6 +76,7 @@ static void gpu_demo(void)
 }
 #include "gpu_demo.h"
 #include "gpu_layers_demo.h"
+#include "gpu_sprites_demo.h"
 #endif
 
 static unsigned char get_byte(void)
@@ -199,7 +202,7 @@ int main(void)
         switch (get_byte()) {
         case '?':
 #ifdef CONSOLE_GPU
-            printf("MegaPro GPU G3 core=800MHz bus=80MHz\r\n");
+            printf("MegaPro GPU G4 core=800MHz bus=80MHz\r\n");
 #else
             printf("MegaPro GPU G0 core=800MHz bus=80MHz\r\n");
 #endif
@@ -210,6 +213,8 @@ int main(void)
         case 'M': test_shared_ddr(); break;
         case 'L': gpu_layers_demo(); break;
         case 'P': gpu_layers_next(); break;
+        case 'O': gpu_sprites_demo(); break;
+        case 'N': gpu_sprites_next(); break;
         case 'B':
             // Return to the front page before modifying the back page.
             if (!GPU[5]) gpu_demo();

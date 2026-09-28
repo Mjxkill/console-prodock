@@ -24,7 +24,7 @@ def run(argv, cwd, logfile, env=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--name', default='gpu_g3')
+    parser.add_argument('--name', default='gpu_g4')
     args = parser.parse_args()
     if not re.fullmatch(r'[A-Za-z0-9_-]+', args.name):
         parser.error('name must contain only letters, digits, underscores and hyphens')
@@ -64,7 +64,7 @@ def main():
             line = f'set_option -include_path {{{stage / "source/tang/rtl"}}}'
         lines.append(line)
     (stage / 'build.tcl').write_text('\n'.join(lines) + '\n')
-    for name in ('gpu_diag.c', 'gpu_demo.h', 'gpu.c', 'gpu.h', 'gpu_palette.h', 'gpu_layers_demo.h', 'build/gpu_font.h',
+    for name in ('gpu_diag.c', 'gpu_demo.h', 'gpu.c', 'gpu.h', 'gpu_palette.h', 'gpu_layers_demo.h', 'gpu_sprites_demo.h', 'build/gpu_font.h',
                  'itcm.ld', 'Makefile', 'build/console_test.elf', 'build/console_test.bin'):
         snapshot(ROOT / 'fw_console' / name)
     # $readmemh paths are resolved relative to the Gowin working directory.
