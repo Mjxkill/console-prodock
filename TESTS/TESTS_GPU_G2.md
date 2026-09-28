@@ -111,9 +111,28 @@ Les tests précédents vérifient les indices écrits et lus ; ils ne prouvent
 pas une interpolation douce des couleurs. Il faudra utiliser des rampes
 de palette adaptées ou ajouter une interpolation des composantes couleur.
 
-Le [rendu attendu en 800×480](images/gpu_g2_expected.png) est généré par
-`python3 tools/render_gpu_demo.py`, qui exécute sur l'hôte le rasteriseur
+Le [rendu initial en 800×480](images/gpu_g2_expected.png) a été généré par
+`tools/render_gpu_demo.py` au commit `e30cccd`, qui exécute sur l'hôte le rasteriseur
 de référence C, les commandes et l'initialisation de palette du firmware.
 Sa somme framebuffer `c4002a6c` correspond aux trois essais matériels.
 L'image représente les valeurs RGB envoyées au LCD, sans simuler sa
 luminosité ou sa réponse colorimétrique physique.
+
+## Correction de la palette — 28 septembre 2026
+
+La démonstration utilise maintenant trois rampes de 64 couleurs RGB666 :
+gris, bleu vers cyan et rouge vers jaune. Les couleurs des primitives et du
+texte sont réservées séparément. Le format mémoire reste indexé sur 8 bits.
+La correction supprime les transitions entre composantes de la palette RGB332 ;
+elle conserve la quantification propre aux 6 bits par composante du LCD.
+
+Le [rendu corrigé](images/gpu_g2_ramps_expected.png) est reproductible avec
+`python3 tools/render_gpu_demo.py --hardware-log TESTS/gpu_g2_ramps_uart.txt`.
+Le [journal matériel](gpu_g2_ramps_uart.txt) valide G0, G1 et trois dessins G2 :
+56 commandes par dessin, zéro erreur pixel/cache/garde, somme `da3c6a80`,
+zéro sous-alimentation LCD. La validation visuelle précédente concernait
+l'image initiale ; la correction est ici vérifiée par les mesures matérielles.
+
+Build `gpu_g2_ramps`, timing positif (minimum +0,002 ns), cœur 800 MHz.
+Bitstream : [console_gpu_g2_ramps_800.fs](../bitstreams/console_gpu_g2_ramps_800.fs).
+SHA-256 : `a997db26c31c0bfe00f85dac1e1f0f819a85b0bd7db347b4dfa6bf3b9af0735d`.

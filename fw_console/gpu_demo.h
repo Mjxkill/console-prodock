@@ -1,6 +1,7 @@
 // Hardware diagnostic: draw off-screen, then compare every byte with a CPU image.
 // Included only by gpu_diag.c; the application-facing driver is gpu.h/gpu.c.
 #include "gpu.h"
+#include "gpu_palette.h"
 #include "build/gpu_font.h"
 #include <string.h>
 static gpu_command demo_commands[128];
@@ -100,6 +101,7 @@ static int gpu_accel_demo(void)
 {
     if (!gpu_blit_init()) {printf("BLIT FAIL ID\r\n");return 0;}
     if (!gpu_wait()) {printf("BLIT FAIL INITIAL FENCE\r\n");return 0;}
+    for(unsigned i=0;i<256;++i) GPU[0x100+i]=gpu_demo_palette_color(i);
     // A spare source surface with a nonuniform byte pattern exercises copy lanes.
     uint8_t *target=(uint8_t *)GPU_PAGE_ADDR(1), *ref=(uint8_t *)GPU_PAGE_ADDR(2);
     uint8_t *source=(uint8_t *)GPU_PAGE_ADDR(3);
@@ -111,14 +113,14 @@ static int gpu_accel_demo(void)
     for(unsigned row=0;row<16;++row) custom_glyph[row]=(row&1)?0xa5:0x5a;
     gpu_font_write(0x800,custom_glyph,16);
     demo_count=0;
-    demo_add(GPU_FILL,0,0,800,480,0x01,0,0,0,0);
-    demo_add(GPU_GRAD_H,20,90,256,60,0,255,0,0,0);
-    demo_add(GPU_GRAD_V,290,90,90,260,0x03,0xfc,0,0,0);
-    demo_add(GPU_GRAD_D,395,90,200,130,0x20,0xff,0,0,0);
-    demo_add(GPU_DISK,680,155,60,0,0xe0,0,0,0,0);
-    demo_add(GPU_CIRCLE,680,155,70,0,0xff,0,0,0,0);
-    demo_add(GPU_LINE,10,470,790,230,0xfc,0,0,0,0);
-    demo_add(GPU_LINE,10,230,790,470,0x1f,0,0,0,0);
+    demo_add(GPU_FILL,0,0,800,480,DEMO_BACKGROUND,0,0,0,0);
+    demo_add(GPU_GRAD_H,20,90,256,60,DEMO_GRAY_FIRST,DEMO_GRAY_LAST,0,0,0);
+    demo_add(GPU_GRAD_V,290,90,90,260,DEMO_COOL_FIRST,DEMO_COOL_LAST,0,0,0);
+    demo_add(GPU_GRAD_D,395,90,200,130,DEMO_WARM_FIRST,DEMO_WARM_LAST,0,0,0);
+    demo_add(GPU_DISK,680,155,60,0,DEMO_RED,0,0,0,0);
+    demo_add(GPU_CIRCLE,680,155,70,0,DEMO_WHITE,0,0,0,0);
+    demo_add(GPU_LINE,10,470,790,230,DEMO_YELLOW,0,0,0,0);
+    demo_add(GPU_LINE,10,230,790,470,DEMO_CYAN,0,0,0,0);
     for(unsigned i=0;i<32;++i)
         demo_add(GPU_COPY,20+i,180+i*2,96-i,1,0,0,31-i,100+i,3);
     demo_add(GPU_COPY,145,175,110,75,0,0,12,178,1);
@@ -127,16 +129,16 @@ static int gpu_accel_demo(void)
     demo_add(GPU_COPY,-5,300,40,25,0,0,-10,470,3);
     demo_add(GPU_FILL,32760,50,100,10,0xff,0,0,0,0);
     demo_add(GPU_FILL,10,10,0,1,0xff,0,0,0,0);
-    demo_add(GPU_LINE,-32768,479,32767,478,0x87,0,0,0,0);
+    demo_add(GPU_LINE,-32768,479,32767,478,DEMO_CYAN,0,0,0,0);
     demo_add(GPU_CIRCLE,32760,50,100,0,0xff,0,0,0,0);
-    demo_add(GPU_GRAD_H,-32700,476,32767,2,3,240,0,0,0);
-    demo_text(24,20,2,255,0,"MEGA PRO CONSOLE");
-    demo_text(24,58,1,0xfc,0,"G2 - DDR3 - 2D");
-    demo_text(420,260,2,255,0,"BLITTER + TEXTE");
-    demo_text(420,303,1,0x1f,0,"AE350 : 800 MHz");
-    demo_text(420,332,1,0xfc,0x24,"COPIES / FORMES");
-    demo_text(420,361,1,255,0,"POLICE : \x80\x80\x80");
-    demo_text(540,437,2,255,0,"0123456789ABCDEF");
+    demo_add(GPU_GRAD_H,-32700,476,32767,2,DEMO_GRAY_FIRST,DEMO_GRAY_LAST,0,0,0);
+    demo_text(24,20,2,DEMO_WHITE,0,"MEGA PRO CONSOLE");
+    demo_text(24,58,1,DEMO_YELLOW,0,"G2 - DDR3 - 2D");
+    demo_text(420,260,2,DEMO_WHITE,0,"BLITTER + TEXTE");
+    demo_text(420,303,1,DEMO_CYAN,0,"AE350 : 800 MHz");
+    demo_text(420,332,1,DEMO_YELLOW,DEMO_TEXT_BACKGROUND,"COPIES / FORMES");
+    demo_text(420,361,1,DEMO_WHITE,0,"POLICE : \x80\x80\x80");
+    demo_text(540,437,2,DEMO_WHITE,0,"0123456789ABCDEF");
     unsigned before=gpu_completed();
     unsigned cycles=read_csr(NDS_MCYCLE);
     for(unsigned i=0;i<demo_count;++i) gpu_submit(&demo_commands[i]);

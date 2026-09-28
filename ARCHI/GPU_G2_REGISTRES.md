@@ -41,7 +41,8 @@ avec ceux d'une autre commande. Chaque commande contient **huit mots** :
 
 Les pages ont 800×480 octets indexés. Page `p` :
 `0x00800000 + p × 0x00100000`, `p` de 0 à 15, pas de ligne 800 octets.
-Ces **16 emplacements mémoire ne sont pas les 16 couches** du futur G3.
+Ces **16 emplacements mémoire sont distincts des 16 couches** de
+[G3](GPU_G3_REGISTRES.md) : chaque couche peut référencer une surface DDR.
 Les pages 0 et 1 servent aux échanges d'affichage du diagnostic, la page 2
 à sa référence CPU et la page 3 aux pixels source de ses copies.
 

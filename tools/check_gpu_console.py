@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise G0/G1/G2 diagnostic firmware over the MegaPro USB CDC port."""
+"""Exercise G0/G1/G2/G3 diagnostic firmware over the MegaPro USB CDC port."""
 import argparse
 import re
 import struct
@@ -88,6 +88,36 @@ def test_blitter(dev):
     print('G2 PASS: shapes, gradients, overlapping copies, text x1/x2, programmable font', flush=True)
 
 
+def test_layers(dev):
+    dev.write(b'L')
+    line=response(dev,b'LAYERS READY',timeout=180)
+    fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',line))
+    if fields.get(b'poses')!=b'3' or fields.get(b'underflows')!=b'0':
+        raise SystemExit('16-layer initialization failed')
+    previous_frames=None
+    for pose in (1,2,0,1,2,0):
+        dev.write(b'P')
+        line=response(dev,b'LAYERS POSE',timeout=90)
+        fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',line))
+        expected_hash=int(fields[b'hash'],16)
+        if response(dev,b'LAYERS MOVED')!=f'LAYERS MOVED pose={pose}'.encode():
+            raise SystemExit('Layer pose acknowledgement mismatch')
+        dev.write(b'M')
+        if response(dev,b'SHARED END',timeout=90)!=b'SHARED END errors=0':
+            raise SystemExit('CPU DDR corruption with 16 layers active')
+        dev.write(b'S')
+        line=response(dev,b'GPU base=')
+        status=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',line))
+        frames=int(status[b'frames'])
+        if (status[b'enable']!=b'1' or status[b'busy']!=b'0' or status[b'underflows']!=b'0'
+                or status.get(b'layers')!=b'1' or status.get(b'invalid')!=b'0'
+                or int(status[b'sum'],16)!=expected_hash
+                or (previous_frames is not None and frames<=previous_frames)):
+            raise SystemExit('16-layer frame hash/status mismatch')
+        previous_frames=frames
+    print('G3 PASS: 16 full surfaces, 3 poses, positions/scroll/priority, 6 atomic swaps, concurrent CPU DDR, zero underflows',flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--wait', type=float, default=15)
@@ -136,10 +166,12 @@ def main():
                     if line != b'DDR END errors=0' or failures:
                         raise SystemExit('DDR verification failed')
                     print('G0 PASS', flush=True)
-                    if b'GPU G1 ' in identity or b'GPU G2 ' in identity:
+                    if re.search(rb'GPU G[123] ',identity):
                         test_gpu(dev)
-                    if b'GPU G2 ' in identity:
+                    if re.search(rb'GPU G[23] ',identity):
                         test_blitter(dev)
+                    if b'GPU G3 ' in identity:
+                        test_layers(dev)
                     return
         raise SystemExit(f'DDR timeout; pending={pending!r}')
 

@@ -1,6 +1,7 @@
 #include "gpu.h"
 #include "cache.h"
 #define BLT ((volatile uint32_t *)0xe9001000UL)
+#define DISPLAY ((volatile uint32_t *)0xe9000000UL)
 static uint16_t submitted;
 
 int gpu_blit_init(void)
@@ -66,4 +67,31 @@ void gpu_publish_surface(unsigned long address, unsigned long bytes)
     // master can read this surface. Do not modify it again until the GPU fence.
     (void)*(volatile uint8_t *)(address+bytes-1);
     __asm__ volatile ("fence iorw, iorw" ::: "memory");
+}
+gpu_layer gpu_make_layer(unsigned long base,unsigned stride,unsigned width,unsigned height,
+    int x,int y,unsigned view_width,unsigned view_height,unsigned scroll_x,unsigned scroll_y,unsigned flags)
+{
+    gpu_layer layer={{base,((height&65535)<<16)|(width&65535),
+        ((uint32_t)(uint16_t)y<<16)|(uint16_t)x,
+        ((view_height&65535)<<16)|(view_width&65535),
+        ((scroll_y&65535)<<16)|(scroll_x&65535),stride&65535,flags&3,0}};
+    return layer;
+}
+int gpu_display_wait(void)
+{
+    unsigned timeout=1000000;
+    while((DISPLAY[3]&1) && --timeout) {}
+    __asm__ volatile ("fence iorw, iorw" ::: "memory");
+    return timeout!=0;
+}
+int gpu_layers_submit(const gpu_layer table[16])
+{
+    if(DISPLAY[0x28/4]!=16 || !gpu_display_wait()) return 0;
+    for(unsigned l=0;l<16;++l)
+        for(unsigned w=0;w<8;++w) DISPLAY[0x800/4+l*8+w]=table[l].words[w];
+    DISPLAY[0x30/4]=1;
+    DISPLAY[2]=1;
+    __asm__ volatile ("fence iorw, iorw" ::: "memory");
+    DISPLAY[3]=1;
+    return 1;
 }

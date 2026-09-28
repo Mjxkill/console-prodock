@@ -24,4 +24,13 @@ void gpu_font_write(unsigned address, const uint8_t *bytes, unsigned count);
 void gpu_publish_surface(unsigned long address, unsigned long bytes);
 unsigned gpu_completed(void);
 unsigned gpu_errors(void);
+
+typedef struct { uint32_t words[8]; } gpu_layer;
+enum { GPU_LAYER_ENABLE=1, GPU_LAYER_KEY_ZERO=2 };
+gpu_layer gpu_make_layer(unsigned long base,unsigned stride,unsigned width,unsigned height,
+    int x,int y,unsigned view_width,unsigned view_height,unsigned scroll_x,unsigned scroll_y,unsigned flags);
+// Upload all 16 descriptors to the inactive bank, then request a vblank swap.
+// Priority is the table index: layer 0 behind, layer 15 in front.
+int gpu_layers_submit(const gpu_layer table[16]);
+int gpu_display_wait(void);
 #endif

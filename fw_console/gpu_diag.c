@@ -1,4 +1,4 @@
-// G0/G1/G2 diagnostic console. Code in ITCM, writable data in ILM, stack in DLM.
+// G0/G1/G2/G3 diagnostic console. Code in ITCM, writable data in ILM, stack in DLM.
 // Commands: ? identification, D destructive DDR test, E + uint16 LE + data echo.
 #include <stdio.h>
 #include <stdint.h>
@@ -14,9 +14,10 @@ static unsigned page_sums[2];
 
 static void gpu_status(void)
 {
-    printf("GPU base=%08x enable=%u frames=%u underflows=%u sum=%08x fetched=%u busy=%u\r\n",
+    printf("GPU base=%08x enable=%u frames=%u underflows=%u sum=%08x fetched=%u busy=%u layers=%u max_cycles=%u invalid=%u\r\n",
            (unsigned)GPU[4], (unsigned)GPU[5], (unsigned)GPU[6], (unsigned)GPU[7],
-           (unsigned)GPU[8], (unsigned)GPU[9], (unsigned)GPU[3]);
+           (unsigned)GPU[8], (unsigned)GPU[9], (unsigned)GPU[3],
+           (unsigned)GPU[0x34/4],(unsigned)GPU[0x2c/4],(unsigned)GPU[0x38/4]);
 }
 
 static unsigned demo_pixel(unsigned x, unsigned y, unsigned page)
@@ -35,6 +36,7 @@ static int gpu_commit(unsigned page)
     if (!timeout) return 0;
     GPU[1] = page ? PAGE1 : PAGE0;
     GPU[2] = 1;
+    GPU[0x30/4]=0; // Legacy framebuffer mode, including after a G3 demo.
     __asm__ volatile ("fence iorw, iorw" ::: "memory");
     GPU[3] = 1;
     timeout = 1000000;
@@ -71,6 +73,7 @@ static void gpu_demo(void)
     printf("GPU READY sum0=%08x sum1=%08x\r\n", page_sums[0], page_sums[1]);
 }
 #include "gpu_demo.h"
+#include "gpu_layers_demo.h"
 #endif
 
 static unsigned char get_byte(void)
@@ -196,7 +199,7 @@ int main(void)
         switch (get_byte()) {
         case '?':
 #ifdef CONSOLE_GPU
-            printf("MegaPro GPU G2 core=800MHz bus=80MHz\r\n");
+            printf("MegaPro GPU G3 core=800MHz bus=80MHz\r\n");
 #else
             printf("MegaPro GPU G0 core=800MHz bus=80MHz\r\n");
 #endif
@@ -205,6 +208,8 @@ int main(void)
         case 'V': gpu_demo(); break;
         case 'S': gpu_status(); break;
         case 'M': test_shared_ddr(); break;
+        case 'L': gpu_layers_demo(); break;
+        case 'P': gpu_layers_next(); break;
         case 'B':
             // Return to the front page before modifying the back page.
             if (!GPU[5]) gpu_demo();

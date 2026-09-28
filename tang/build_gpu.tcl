@@ -1,7 +1,8 @@
-# G2 game console: AE350 800 MHz + USB CDC + DDR3 framebuffer + 2D blitter.
+# G3 game console: AE350 800 MHz + USB CDC + 16 DDR3 layers + 2D blitter.
 set_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0
 add_file rtl/console_gpu.v
 add_file rtl/video/gpu_scanout.v
+add_file rtl/video/gpu_line_reader.v
 add_file rtl/video/gpu_accel.v
 add_file rtl/video/gpu_blit_dma.v
 add_file rtl/video/blitter.v
@@ -51,7 +52,7 @@ add_file rtl/board/riscv_ae350_soc_ext/cfg/gw_itcm_config.v
 add_file rtl/board/riscv_ae350_soc_ext/cfg/gw_dtcm_config.v
 add_file rtl/board/riscv_ae350_soc_ext/cfg/gwmc_param.v
 add_file rtl/board/sipeed/gw_ahb_ddr3.v
-add_file constr/ae350_e2.cst
+add_file constr/gpu.cst
 add_file constr/gpu.sdc
 set_option -include_path rtl
 set_option -top_module console_top

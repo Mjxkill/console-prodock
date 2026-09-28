@@ -1,4 +1,4 @@
-// G1: one 800x480 indexed framebuffer, native DDR3 reads, two line buffers.
+// G3: indexed framebuffer or 16 layers, native DDR3 reads, two display lines.
 // Three existing clocks only: AHB 80 MHz, DDR UI 75 MHz, LCD 35 MHz.
 // Mailboxes hold multi-bit data stable until a synchronized acknowledgement.
 `default_nettype none
@@ -32,19 +32,28 @@ module gpu_scanout #(
 
     reg [31:0] shadow_base, mailbox_base;
     reg shadow_enable, mailbox_enable, commit_toggle;
+    reg shadow_layers,mailbox_layers,mailbox_bank,write_bank;
     reg applied_toggle = 0;
     reg [1:0] applied_sync;
     reg [11:0] bus_addr;
     reg bus_write;
     wire busy = commit_toggle != applied_sync[1];
-    assign hready = !(bus_write && bus_addr == 12'h00c && busy);
+    wire table_access=bus_addr[11:9]==3'b100;
+    assign hready = !(bus_write && busy && (bus_addr == 12'h00c || table_access));
     wire write_fire = bus_write && hready;
     reg [17:0] palette [0:255];
+    reg [31:0] descriptors [0:255];
+    wire [7:0] config_address;
+    reg [31:0] config_data;
+    always @(posedge hclk)
+        if(hresetn && write_fire && table_access) descriptors[{write_bank,bus_addr[8:2]}]<=hwdata;
+    always @(posedge mem_clk) config_data<=descriptors[config_address];
     always @(posedge hclk) begin
         if (!hresetn) begin
             shadow_base <= 0; shadow_enable <= 0;
             mailbox_base <= 0; mailbox_enable <= 0;
             commit_toggle <= 0; applied_sync <= 0;
+            shadow_layers<=0;mailbox_layers<=0;mailbox_bank<=0;write_bank<=1;
             bus_addr <= 0; bus_write <= 0;
         end else begin
             applied_sync <= {applied_sync[0], applied_toggle};
@@ -58,8 +67,11 @@ module gpu_scanout #(
                 12'h00c: if (hwdata[0]) begin
                     mailbox_base <= shadow_base;
                     mailbox_enable <= shadow_enable;
+                    mailbox_layers<=shadow_layers;mailbox_bank<=write_bank;
+                    if(shadow_layers) write_bank<=~write_bank;
                     commit_toggle <= ~commit_toggle;
                 end
+                12'h030: shadow_layers<=hwdata[0];
                 default: begin end
             endcase
         end
@@ -71,17 +83,22 @@ module gpu_scanout #(
 
     reg [31:0] active_base = 0, frames = 0, underflows = 0;
     reg active_enable = 0;
+    reg active_layers=0,active_bank=0;
     wire [31:0] r_base, r_frames, r_underflows, r_checksum, r_fetch_frames;
     reg [31:0] frame_checksum = 0, fetch_frames = 0;
+    wire [31:0] max_cycles,invalid_layers,r_max_cycles,r_invalid_layers;
+    cdc_word u_max_cycles (.src_clk(mem_clk),.src_data(max_cycles),.dst_clk(hclk),.dst_data(r_max_cycles));
+    cdc_word u_invalid_layers (.src_clk(mem_clk),.src_data(invalid_layers),.dst_clk(hclk),.dst_data(r_invalid_layers));
     cdc_word u_base (.src_clk(pixel_clk), .src_data(active_base), .dst_clk(hclk), .dst_data(r_base));
     cdc_word u_frames (.src_clk(pixel_clk), .src_data(frames), .dst_clk(hclk), .dst_data(r_frames));
     cdc_word u_underflows (.src_clk(pixel_clk), .src_data(underflows), .dst_clk(hclk), .dst_data(r_underflows));
     cdc_word u_checksum (.src_clk(mem_clk), .src_data(frame_checksum), .dst_clk(hclk), .dst_data(r_checksum));
     cdc_word u_fetch_frames (.src_clk(mem_clk), .src_data(fetch_frames), .dst_clk(hclk), .dst_data(r_fetch_frames));
     reg [1:0] enabled_sync;
+    reg [1:0] layers_sync;
     always @(posedge hclk) begin
-        if (!hresetn) enabled_sync <= 0;
-        else enabled_sync <= {enabled_sync[0], active_enable};
+        if (!hresetn) begin enabled_sync <= 0;layers_sync<=0;end
+        else begin enabled_sync <= {enabled_sync[0], active_enable};layers_sync<={layers_sync[0],active_layers};end
     end
     always @* begin
         case (bus_addr)
@@ -95,6 +112,11 @@ module gpu_scanout #(
             12'h01c: hrdata = r_underflows;
             12'h020: hrdata = r_checksum;
             12'h024: hrdata = r_fetch_frames;
+            12'h028: hrdata = 16;
+            12'h02c: hrdata = r_max_cycles;
+            12'h030: hrdata = {31'b0,shadow_layers};
+            12'h034: hrdata = {31'b0,layers_sync[1]};
+            12'h038: hrdata = r_invalid_layers;
             default: hrdata = 0;
         endcase
     end
@@ -110,6 +132,7 @@ module gpu_scanout #(
     reg [1:0] commit_sync = 0, ack_sync = 0;
     reg request_toggle = 0, acknowledge = 0, ack_seen = 0;
     reg [31:0] request_base = 0;
+    reg request_layers=0,request_bank=0;
     reg [40:0] request_tag = 0;
     reg [40:0] ready_tag [0:1];
     reg [1:0] ready_valid = 0;
@@ -118,12 +141,15 @@ module gpu_scanout #(
     wire commit_pending = commit_sync[1] != applied_toggle;
     wire [31:0] next_base = commit_pending ? mailbox_base : active_base;
     wire next_enable = commit_pending ? mailbox_enable : active_enable;
+    wire next_layers = commit_pending ? mailbox_layers : active_layers;
+    wire next_bank = commit_pending ? mailbox_bank : active_bank;
     wire [31:0] next_frame = frames + 1'b1;
     always @(posedge pixel_clk) begin
         if (!prst[1]) begin
             hx <= 0; vy <= 0; frames <= 0; underflows <= 0;
             commit_sync <= 0; applied_toggle <= 0;
             active_base <= 0; active_enable <= 0;
+            active_layers<=0;active_bank<=0;request_layers<=0;request_bank<=0;
             request_toggle <= 0; request_base <= 0; request_tag <= 0;
             ack_sync <= 0; ack_seen <= 0; ready_valid <= 0; line_good <= 0;
         end else begin
@@ -141,12 +167,15 @@ module gpu_scanout #(
             if (vblank_start) begin
                 frames <= frames + 1'b1;
                 ready_valid <= 0;
-                if (commit_pending) begin
+                // Wait for old work before recycling its descriptor bank.
+                if (commit_pending && request_idle) begin
                     active_base <= mailbox_base; active_enable <= mailbox_enable;
+                    active_layers<=mailbox_layers;active_bank<=mailbox_bank;
                     applied_toggle <= commit_sync[1];
                 end
                 if (next_enable && request_idle) begin
                     request_base <= next_base;
+                    request_layers<=next_layers;request_bank<=next_bank;
                     request_tag <= {next_frame, 9'd0};
                     request_toggle <= ~request_toggle;
                 end
@@ -157,6 +186,7 @@ module gpu_scanout #(
                     underflows <= underflows + 1'b1;
                 if (active_enable && y < HEIGHT - 1 && request_idle) begin
                     request_base <= active_base + ({23'b0, y} + 32'd1) * WIDTH;
+                    request_layers<=active_layers;request_bank<=active_bank;
                     request_tag <= {frames, y + 9'd1};
                     request_toggle <= ~request_toggle;
                 end
@@ -164,53 +194,64 @@ module gpu_scanout #(
         end
     end
 
-    // Memory domain: one outstanding read suffices for G1. Each response writes
-    // 32 pixels at once. Bank bit is Y[0]; no concurrent writer to a displayed line.
+    // Memory domain: whole lines are composed before becoming visible.
     reg [255:0] lines [0:63];
     reg [1:0] request_sync = 0;
-    reg [1:0] state = 0;
-    reg [4:0] burst_index = 0;
-    reg [28:0] address = 0;
     reg [40:0] tag = 0;
+    reg reader_start=0,current_layers=0,done_pending=0;
+    wire reader_busy,reader_done,block_valid;
+    wire [4:0] block_index;
+    wire [255:0] block_data;
+    // Cut the DDR arbiter's tag decode from the high-fanout line RAM enables.
+    // Data runs continuously so the tag decode only drives one valid register.
+    reg [255:0] returned_data;
+    reg returned_valid=0;
+    always @(posedge mem_clk) begin
+        returned_data<=fetch_data;
+        returned_valid<=mrst[1] && fetch_data_valid;
+    end
+    gpu_line_reader #(.WIDTH(WIDTH),.HEIGHT(HEIGHT)) u_reader (
+        .clk(mem_clk),.resetn(mrst[1]),.start(reader_start),.layers(request_layers),.config_bank(request_bank),
+        .base(request_base),.line_y(request_tag[8:0]),.busy(reader_busy),.done(reader_done),
+        .config_address(config_address),.config_data(config_data),
+        .fetch_valid(fetch_valid),.fetch_addr(fetch_addr),.fetch_ready(fetch_ready),.fetch_data(returned_data),.fetch_data_valid(returned_valid),
+        .block_valid(block_valid),.block_index(block_index),.block_data(block_data),.max_cycles(max_cycles),.invalid_layers(invalid_layers));
     reg [31:0] checksum = 0;
-    wire [31:0] burst_sum = fetch_data[31:0] + fetch_data[63:32] + fetch_data[95:64] + fetch_data[127:96]
-                         + fetch_data[159:128] + fetch_data[191:160] + fetch_data[223:192] + fetch_data[255:224];
-    assign fetch_valid = state == 1 && mrst[1];
-    assign fetch_addr = address;
+    function [31:0] rotate; input [31:0] v;input integer n;
+        rotate=(v<<n)|(v>>(32-n));
+    endfunction
+    reg [31:0] pair0,pair1,pair2,pair3,hash0,hash1,burst_sum,burst_hash;
+    reg check_valid1=0,check_valid2=0;
+    always @(posedge mem_clk) begin
+        check_valid1<=mrst[1] && block_valid;check_valid2<=mrst[1] && check_valid1;
+        if(block_valid) begin
+            pair0<=block_data[31:0]+block_data[63:32];pair1<=block_data[95:64]+block_data[127:96];
+            pair2<=block_data[159:128]+block_data[191:160];pair3<=block_data[223:192]+block_data[255:224];
+            hash0<=block_data[31:0]^rotate(block_data[63:32],4)^rotate(block_data[95:64],8)^rotate(block_data[127:96],12);
+            hash1<=rotate(block_data[159:128],16)^rotate(block_data[191:160],20)^rotate(block_data[223:192],24)^rotate(block_data[255:224],28);
+        end
+        if(check_valid1) begin burst_sum<=pair0+pair1+pair2+pair3;burst_hash<=hash0^hash1;end
+    end
     always @(posedge mem_clk) begin
         if (!mrst[1]) begin
-            request_sync <= 0; acknowledge <= 0; state <= 0;
-            burst_index <= 0; address <= 0; tag <= 0;
+            request_sync <= 0; acknowledge <= 0;reader_start<=0;current_layers<=0;done_pending<=0;tag <= 0;
             checksum <= 0; frame_checksum <= 0; fetch_frames <= 0;
         end else begin
             request_sync <= {request_sync[0], request_toggle};
-            case (state)
-                0: if (request_sync[1] != acknowledge) begin
-                    address <= request_base[30:2]; tag <= request_tag; burst_index <= 0;
-                    if (request_tag[8:0] == 0) checksum <= 0;
-                    state <= 1;
-                end
-                1: if (fetch_ready) state <= 2;
-                2: if (fetch_data_valid) begin
-                    checksum <= checksum + burst_sum;
-                    if ({27'b0, burst_index} == BURSTS - 1) begin
-                        acknowledge <= request_sync[1]; state <= 0;
-                        if (tag[8:0] == HEIGHT - 1) begin
-                            frame_checksum <= checksum + burst_sum;
-                            fetch_frames <= fetch_frames + 1'b1;
-                        end
-                    end else begin
-                        burst_index <= burst_index + 1'b1; address <= address + 29'd8;
-                        state <= 1;
-                    end
-                end
-                default: state <= 0;
-            endcase
+            reader_start<=0;
+            done_pending<=reader_done;
+            if (done_pending) begin
+                acknowledge<=request_sync[1];
+                if(tag[8:0]==HEIGHT-1) begin frame_checksum<=checksum;fetch_frames<=fetch_frames+1'b1;end
+            end else if(!reader_done && request_sync[1]!=acknowledge && !reader_busy && !reader_start) begin
+                tag<=request_tag;current_layers<=request_layers;reader_start<=1;
+                if(request_tag[8:0]==0) checksum<=0;
+            end
+            if(check_valid2) checksum<=current_layers ? rotate(checksum,5)^burst_hash : checksum+burst_sum;
         end
     end
     always @(posedge mem_clk)
-        if (mrst[1] && state == 2 && fetch_data_valid)
-            lines[{tag[0], burst_index}] <= fetch_data;
+        if (mrst[1] && block_valid) lines[{tag[0], block_index}] <= block_data;
 
     // Synchronous line RAM -> byte selection -> synchronous palette RAM.
     // Control signals take the same two cycles as RGB. DE stays stable across

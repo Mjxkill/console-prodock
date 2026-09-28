@@ -126,6 +126,7 @@ module blitter #(
     wire [10:0] row_last = rx + rw - 11'd1;                                    // dernier pixel de la ligne
     wire [10:0] row_words = {1'b0, row_last[10:1]} - {1'b0, rx[10:1]} + 11'd1;   // mots couverts
     reg  [9:0]  cn; reg [10:0] copy_left; reg signed [15:0] sxx;             // copie : mot source n, mots restants, colonne source découpée
+    reg [9:0] source_row;
     // valeur de pixel du générateur : constante (FILL, disque) ou dégradé
     wire [25:0] prod = {18'd0, dabs} * {8'd0, t_acc};
     wire [7:0]  q = (prod[25:16] > 10'd255) ? 8'd255 : prod[23:16];
@@ -148,7 +149,7 @@ module blitter #(
             recip <= 17'd0; t_start <= 18'd0; t_acc <= 18'd0; t_step <= 18'd0; t_row <= 18'd0; dq <= 17'd0; drem <= 28'd0; dcnt <= 5'd0; dn <= 17'd1;
             ldx <= 0; ldy <= 0; lerr <= 0; lx <= 0; ly <= 0; lsx <= 0; lsy <= 0; ccx <= 0; ccy <= 0; cxv <= 0; cyv <= 0; cerr <= 0; cpt <= 3'd0; px <= 0; py <= 0; sp_y <= 0; sp_xa <= 0; sp_xb <= 0; sp_vis <= 1'b0;
             txt <= 128'd0; tn <= 5'd0; tci <= 5'd0; tscale <= 1'b0; tsub <= 1'b0; tdup <= 1'b0; trow <= 4'd0; tbit <= 3'd0; tpix <= 9'd0; b0_m <= 1'b1; b1_m <= 1'b1;
-            wleft <= 11'd0; waddr <= 24'd0; gi <= 11'd0; m_first <= 2'b11; m_last <= 2'b11; wj_end <= 10'd0; cn <= 10'd0; copy_left <= 11'd0; sxx <= 0;
+            wleft <= 11'd0; waddr <= 24'd0; gi <= 11'd0; m_first <= 2'b11; m_last <= 2'b11; wj_end <= 10'd0; cn <= 10'd0; copy_left <= 11'd0; sxx <= 0; source_row <= 0;
         end else begin
             s_req <= 1'b0; w_req <= 1'b0; c_req <= 1'b0; b0_we <= 1'b0; b1_we <= 1'b0;
             if (w_ready) rj <= rj + 10'd1;
@@ -303,10 +304,12 @@ module blitter #(
                 // ---------------- copie : ligne source lue par S dans la mémoire de ligne, alignée sur la phase cible ----------------
                 M_COPY_RD: begin : cp
                     reg signed [15:0] sx_, sy_; sx_ = xs + (cx0 - x0); sy_ = ys + ($signed({6'd0, ry}) - y0);   // source décalée comme la cible découpée
-                    sxx <= sx_; s_addr <= row_addr(sbase, sy_[9:0], sx_[10:0]);
+                    sxx <= sx_; source_row <= sy_[9:0];
                     cn <= 10'd0; st <= M_COPY_COUNT;
                 end
                 M_COPY_COUNT: begin
+                    // Keep coordinate translation out of the row-address path.
+                    s_addr <= row_addr(sbase, source_row, sxx[10:0]);
                     copy_left <= {1'b0, (sxx[10:0] + rw - 11'd1) >> 1} - {1'b0, sxx[10:1]} + 11'd1;
                     st <= M_COPY_SEG;
                 end
