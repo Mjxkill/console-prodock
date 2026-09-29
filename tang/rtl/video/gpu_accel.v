@@ -83,6 +83,10 @@ module gpu_accel #(
     font_ram #(.FONT_FILE(FONT_FILE)) u_font (
         .wclk(hclk), .rclk(mem_clk), .we(write_fire && bus_addr == 8'h18),
         .waddr(font_write_addr), .wdata(hwdata[7:0]), .raddr(font_addr), .q(font_q));
+    wire f_req,f_done;
+    wire [24:0] f_addr;
+    wire [10:0] f_len;
+    wire [7:0] f_color;
     wire s_req, s_valid, s_done, w_req, w_ready, w_done, c_req, c_ack;
     wire [23:0] s_addr, w_addr, c_addr;
     wire [9:0] s_len, w_len;
@@ -93,12 +97,14 @@ module gpu_accel #(
         .err_cmd_lost(command_lost), .err_cmd_bad(command_bad), .cmd_done(done_count), .busy(blitter_busy),
         .s_req(s_req), .s_addr(s_addr), .s_len(s_len), .s_valid(s_valid), .s_data(s_data), .s_done(s_done),
         .w_req(w_req), .w_addr(w_addr), .w_len(w_len), .w_data(w_data), .w_mask(w_mask), .w_ready(w_ready), .w_done(w_done),
+        .f_req(f_req),.f_addr(f_addr),.f_len(f_len),.f_color(f_color),.f_done(f_done),
         .c_req(c_req), .c_addr(c_addr), .c_wdata(c_data), .c_wmask(c_mask), .c_ack(c_ack),
         .font_addr(font_addr), .font_q(font_q));
     gpu_blit_dma u_dma (
         .clk(mem_clk), .rst(!mrst[1]),
         .s_req(s_req), .s_addr(s_addr), .s_len(s_len), .s_valid(s_valid), .s_data(s_data), .s_done(s_done),
         .w_req(w_req), .w_addr(w_addr), .w_len(w_len), .w_data(w_data), .w_mask(w_mask), .w_ready(w_ready), .w_done(w_done),
+        .f_req(f_req),.f_addr(f_addr),.f_len(f_len),.f_color(f_color),.f_done(f_done),
         .c_req(c_req), .c_addr(c_addr), .c_wdata(c_data), .c_wmask(c_mask), .c_ack(c_ack),
         .valid(valid), .write(write), .addr(addr), .wr_data(wr_data), .wr_mask(wr_mask),
         .ready(ready), .rd_data(rd_data), .rd_valid(rd_valid));

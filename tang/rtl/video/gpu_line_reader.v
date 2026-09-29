@@ -42,7 +42,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     reg [1:0] flags;
     reg signed [17:0] left_x,right_x,relative_y;
     wire signed [17:0] available_w=$signed({2'b0,source_w})-$signed({2'b0,scroll_x});
-    wire signed [17:0] available_h=$signed({2'b0,source_h})-$signed({2'b0,scroll_y});
+    reg signed [17:0] available_h; // computed in SIZE, before vertical clipping
     reg signed [17:0] window_w;
     wire signed [17:0] right_edge=$signed(pos_x)+window_w-18'sd1;
     reg [15:0] source_x,source_y;
@@ -151,7 +151,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
         if(!resetn) begin
             state<=IDLE;done<=0;mode<=0;bank<=0;y<=0;layer<=0;descriptor_word<=0;
             surface_base<=0;source_w<=0;source_h<=0;view_w<=0;view_h<=0;scroll_x<=0;scroll_y<=0;stride<=0;
-            pos_x<=0;pos_y<=0;flags<=0;left_x<=0;right_x<=0;relative_y<=0;window_w<=0;
+            pos_x<=0;pos_y<=0;flags<=0;left_x<=0;right_x<=0;relative_y<=0;window_w<=0;available_h<=0;
             source_x<=0;source_y<=0;row_offset<=0;byte_address<=0;visible_width<=0;
             issued<=0;received<=0;buffered<=0;burst_count<=0;outstanding<=0;more_requests<=0;request_valid<=0;fetch_addr<=0;elapsed<=0;max_cycles<=0;invalid_layers<=0;
             pair<=0;current_block<=0;first_block<=0;last_block<=0;clear_block<=0;emit_block<=0;
@@ -205,6 +205,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
                     else descriptor_word<=descriptor_word+1'b1;
                 end
                 SIZE: begin
+                    available_h<=$signed({2'b0,source_h})-$signed({2'b0,scroll_y});
                     window_w<=available_w<$signed({2'b0,view_w}) ? available_w : $signed({2'b0,view_w});
                     state<=CLIP;
                 end
@@ -215,15 +216,18 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
                     state<=COORD;
                 end
                 COORD: begin
+                    // Unused on rejected layers; remove the clipping predicate
+                    // from the wide mask/coordinate register enables.
+                        source_x<=scroll_x+left_x-$signed(pos_x);source_y<=scroll_y+relative_y;
+                        visible_width<=right_x-left_x+18'd1;
+                        first_block<=left_x[9:5];last_block<=right_x[9:5];
+                        first_mask<=32'hffffffff<<left_x[4:0];last_mask<=32'hffffffff>>(31-right_x[4:0]);
+
                     if(!flags[0] || view_w==0 || view_h==0 || scroll_x>=source_w || scroll_y>=source_h
                             || left_x>right_x || relative_y<0 || relative_y>=$signed({2'b0,view_h}) || relative_y>=available_h)
                         state<=NEXT;
                     else if(stride<source_w) begin invalid_layers<=invalid_layers+1'b1;state<=NEXT;end
                     else begin
-                        source_x<=scroll_x+left_x-$signed(pos_x);source_y<=scroll_y+relative_y;
-                        visible_width<=right_x-left_x+18'd1;
-                        first_block<=left_x[9:5];last_block<=right_x[9:5];
-                        first_mask<=32'hffffffff<<left_x[4:0];last_mask<=32'hffffffff>>(31-right_x[4:0]);
                         state<=MUL;
                     end
                 end

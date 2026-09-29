@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compare the G2/G5 AHB->blitter->256-bit DDR path against byte-level rasterization."""
 from pathlib import Path
+import argparse
 import random
 import shutil
 import subprocess
@@ -29,6 +30,11 @@ def triangle_pixels(x,y,a,b,sx,sy):
 
 
 def main():
+    global OUT
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--rtl-root',type=Path,default=ROOT,help='Compare a frozen earlier RTL snapshot with the same tests')
+    parser.add_argument('--out',type=Path,default=OUT)
+    args=parser.parse_args();OUT=args.out
     OUT.mkdir(exist_ok=True)
     font = [int(v,16) for v in (ROOT/'tang/rtl/video/font8x16.hex').read_text().split()]
     shutil.copy2(ROOT/'tang/rtl/video/font8x16.hex',OUT/'font8x16.hex')
@@ -41,11 +47,11 @@ def main():
     def plot(page,x,y,c):
         if 0<=x<W and 0<=y<H:
             memory[base(page)+y*W+x]=c
-    def emit(op,x=0,y=0,a=0,b=0,c=0,d=0,sx=0,sy=0,page=0,src=1,text=b''):
+    def emit(op,x=0,y=0,a=0,b=0,c=0,d=0,sx=0,sy=0,page=0,src=1,text=b'',extra=None):
         words=[(op<<24)|(page<<20)|(src<<16)|(c<<8)|d,
                ((x&65535)<<16)|(y&65535),((a&65535)<<16)|(b&65535),
                ((sx&65535)<<16)|(sy&65535)]
-        words += [int.from_bytes(text[i:i+4].ljust(4,b'\0'),'little') for i in range(0,16,4)]
+        words += extra if extra is not None else [int.from_bytes(text[i:i+4].ljust(4,b'\0'),'little') for i in range(0,16,4)]
         commands.extend(words)
         if op in (1,2,3,4):
             if a<=0 or b<=0: return
@@ -87,6 +93,16 @@ def main():
                 for xx in range(max(0,x),min(W,x+a)):
                     qx,qy=sx+xx-x,sy+yy-y
                     if 0<=qx<W and 0<=qy<H:plot(page,xx,yy,before[qy*W+qx])
+        elif op==11:
+            sw,sh=words[4]>>16,words[4]&65535
+            dx,dy=words[5:7]
+            if a<=0 or b<=0 or not (1<=sw<=128 and 1<=sh<=128) or sx<0 or sy<0 or sx+sw>W or sy+sh>H or page==src or dx>0xffffff or dy>0xffffff:return
+            for yy in range(max(0,y),min(H,y+b)):
+                for xx in range(max(0,x),min(W,x+a)):
+                    u,v=(xx-x)*dx>>16,(yy-y)*dy>>16
+                    if u<sw and v<sh:
+                        color=memory[base(src)+(sy+v)*W+sx+u]
+                        if color:plot(page,xx,yy,color)
         elif op==10:
             for xx,yy in triangle_pixels(x,y,a,b,sx,sy):plot(page,xx,yy,c)
         elif op==9:
@@ -151,6 +167,26 @@ def main():
         x,y,a,b,sx,sy=t
         if i%2:a,b,sx,sy=sx,sy,a,b
         emit(10,x=x,y=y,a=a,b=b,sx=sx,sy=sy,c=80+i,page=(0,1,15)[i%3])
+    # Zoom: independent integer sampler, odd origins/masks, arbitrary scales,
+    # clipping, empty/invalid crops, malicious steps, page guards, bus stalls.
+    for i,(x,y,w,h,sw,sh) in enumerate(((21,13,213,193,64,96),(-19,-21,180,149,128,128),
+            (780,460,101,90,65,63),(4,270,17,13,128,128),(-32760,312,32767,80,128,64),
+            (320,30,1,1,128,128),(399,200,128,128,1,1),(9,9,0,24,64,64))):
+        emit(11,x=x,y=y,a=w,b=h,sx=33+i%2,sy=101,page=15,src=1,
+             extra=[sw<<16|sh,(sw<<16)//max(1,w),(sh<<16)//h,0])
+    for sx,sy,sw,sh,step,src in ((-1,0,64,64,65536,1),(799,0,64,64,65536,1),
+            (0,479,2,2,65536,1),(0,0,129,128,65536,1),(0,0,0,128,65536,1),
+            (0,0,128,128,0xffffff,1),(0,0,128,128,0x1000000,1),
+            (0,0,128,128,65536,15),(0,0,128,128,0,1)):
+        emit(11,x=-30000 if step else 720,y=-30000 if step else 300,a=32767 if step else 21,b=32767 if step else 17,sx=sx,sy=sy,page=15,src=src,
+             extra=[sw<<16|sh,step,step,0])
+    # Direct 256-bit solid path: every start lane and partial/full tail size.
+    # Separate rows keep these final checks from masking one another.
+    for lane in range(32):
+        for j,width in enumerate((1,2,15,16,31,32,33,63,64,65,127)):
+            emit(1,x=lane+32,y=lane*11+j,a=width,b=1,c=1+lane*7%254,page=0)
+    emit(1,x=-32760,y=478,a=32767,b=100,c=241,page=15)
+    emit(1,x=798,y=479,a=32767,b=32767,c=243,page=15)
     emit(255)  # unknown opcode must complete and increment BAD, without writes
     (OUT/'commands.hex').write_text(''.join(f'{w:08x}\n' for w in commands))
     (OUT/'expected.hex').write_text(''.join(f'{v:02x}\n' for v in memory))
@@ -159,7 +195,7 @@ def main():
              'tang/rtl/board/ddr_dcfifo.v','tang/rtl/board/cdc_word.v','tang/rtl/board/ddr_gpu_arb.v']
     with (OUT/'build.log').open('w') as log:
         subprocess.run(['verilator','--binary','--timing','-Wno-fatal','--top-module','gpu_accel_tb',
-                        '--Mdir',str(OUT/'obj')]+[str(ROOT/s) for s in sources],stdout=log,stderr=log,check=True)
+                        '--Mdir',str(OUT/'obj')]+[str((ROOT if s.startswith("TESTS/") else args.rtl_root)/s) for s in sources],stdout=log,stderr=log,check=True)
     subprocess.run([str(OUT/'obj/Vgpu_accel_tb'),f'+ncmd={len(commands)//8}','+bad=1'],cwd=OUT,check=True)
 
 

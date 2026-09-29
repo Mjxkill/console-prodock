@@ -10,7 +10,7 @@ module gpu_triangle_tb;
         .x1(x1),.y1(y1),.x2(x2),.y2(y2),.busy(busy),.valid(valid),
         .ready(ready),.span_x(sx),.span_y(sy),.span_width(sw));
     bit pixels[0:383999];
-    integer cycle=0,total=0,spans=0,stalls=0;
+    integer cycle=0,total=0,spans=0,stalls=0,total_cycles=0,max_cycles=0;
     reg held=0;reg [31:0] previous;
     always @(negedge clk) begin cycle++;ready=cycle%7!=0 && cycle%11!=0;end
     always @(posedge clk) if(!rst) begin
@@ -45,6 +45,8 @@ module gpu_triangle_tb;
                 edge_inside(bx,by,cx,cy,x,y,orientation) && edge_inside(cx,cy,ax,ay,x,y,orientation);
             if(pixels[y*800+x]!=expected) $fatal(1,"Triangle %0d mismatch at %0d,%0d",total,x,y);
         end
+        total_cycles+=cycle-began;if(cycle-began>max_cycles)max_cycles=cycle-began;
+        if(cycle-began>5000)$fatal(1,"Scanline work must not depend on triangle width");
         total++;
     endtask
     integer seed=15920,unused;
@@ -63,8 +65,19 @@ module gpu_triangle_tb;
                 int'($urandom_range(0,999))-100,int'($urandom_range(0,679))-100,
                 int'($urandom_range(0,999))-100,int'($urandom_range(0,679))-100);
         end
+        // Large slopes and signed intersections far beyond the screen.
+        triangle(-32768,-1,32767,0,0,480);
+        triangle(32767,1,-32768,0,0,479);
+        triangle(0,-32768,1,32767,799,0);
+        triangle(32766,-32768,32767,32767,-32768,32766);
+        for(integer i=0;i<150;i++)begin
+            triangle(int'($urandom_range(0,65535))-32768,int'($urandom_range(0,65535))-32768,
+                int'($urandom_range(0,65535))-32768,int'($urandom_range(0,65535))-32768,
+                int'($urandom_range(0,65535))-32768,int'($urandom_range(0,65535))-32768);
+        end
         if(stalls==0) $fatal(1,"No backpressure");
         $display("PASS: %0d triangles, every pixel exact, %0d spans, %0d stalls; winding, shared edges, clipping, signed extremes, zero area",total,spans,stalls);
+        $display("Scanline cycles: total=%0d max_triangle=%0d",total_cycles,max_cycles);
         $finish;
     end
     initial begin #600000000;$fatal(1,"Timeout");end

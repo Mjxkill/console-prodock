@@ -20,6 +20,16 @@ gpu_command gpu_make_command(unsigned op, unsigned dst, unsigned src,
         ((uint32_t)(uint16_t)sx << 16) | (uint16_t)sy, 0,0,0,0}};
     return cmd;
 }
+gpu_command gpu_make_zoom(unsigned dst,unsigned src,int x,int y,int w,int h,
+                          int sx,int sy,unsigned sw,unsigned sh)
+{
+    gpu_command c=gpu_make_command(GPU_ZOOM,dst,src,x,y,w,h,sx,sy,0,0);
+    if(w<=0 || h<=0 || w>32767 || h>32767 || sw<1 || sw>128 || sh<1 || sh>128) {
+        c.words[2]=0;return c;
+    }
+    c.words[4]=(sw<<16)|sh;c.words[5]=(sw<<16)/(unsigned)w;c.words[6]=(sh<<16)/(unsigned)h;
+    return c;
+}
 void gpu_submit(const gpu_command *cmd)
 {
     for (unsigned i = 0; i < 8; ++i) BLT[4] = cmd->words[i];

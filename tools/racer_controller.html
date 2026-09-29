@@ -1,0 +1,21 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mega Coast — Manette</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#102039;color:#fff4d7;font:18px system-ui;min-height:100vh;display:grid;place-items:center}main{max-width:680px;padding:36px;width:100%}h1{font-size:52px;letter-spacing:-2px;margin:0;color:#ffdb69}p{line-height:1.6;color:#c8dce0}small{color:#96d9e9}button{font:inherit;border:1px solid #69939a;border-radius:12px;padding:20px;background:#203952;color:white;touch-action:none;cursor:pointer}button.active,button:active{background:#288fe0}#start{background:#ffdb69;color:#102039;font-weight:bold;width:100%;margin:12px 0 24px}.pad{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:12px}#status{font-variant-numeric:tabular-nums;padding:20px 0;min-height:70px}kbd{background:#203952;border-radius:4px;padding:3px 6px}button:focus-visible{outline:3px solid #96d9e9}
+</style><main><small>TANG MEGA PRO DOCK</small><h1>MEGA COAST</h1><p>La course s’affiche sur le LCD de la console.<br>Gardez cette page active pour conduire.</p>
+<div id="status" role="status">Connexion à la console…</div><button id="start">Entrée · Départ / Nouvelle course</button>
+<div class="pad"><button data-bit="1">←<br>Gauche</button><button data-bit="4">↑<br>Accélérer</button><button data-bit="2">→<br>Droite</button><span></span><button data-bit="8">↓ / Espace<br>Freiner</button></div>
+<p><kbd>←</kbd> <kbd>→</kbd> Direction · <kbd>↑</kbd> Accélérer<br><kbd>↓</kbd> ou <kbd>Espace</kbd> Freiner<br><small>AZERTY : ZQSD · QWERTY : WASD<br>Touches simultanées et boutons à l’écran disponibles.</small></p></main>
+<script>
+const held=new Set(), pointers=new Map(), map={ArrowLeft:1,q:1,a:1,ArrowRight:2,d:2,ArrowUp:4,z:4,w:4,ArrowDown:8,s:8,' ':8,Enter:16};
+let sending=false,startUntil=0,enabled=false;
+function mask(){let m=performance.now()<startUntil?16:0;for(const k of held)m|=map[k]||0;for(const bit of pointers.values())m|=bit;return m;}
+async function send(){if(sending||!enabled)return;sending=true;try{await fetch('/controls',{method:'POST',body:String(mask())});}catch(e){}finally{sending=false;}}
+function clear(){held.clear();pointers.clear();startUntil=0;for(const b of document.querySelectorAll('[data-bit]'))b.classList.remove('active');navigator.sendBeacon('/controls','0');}
+addEventListener('keydown',e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;if(!(k in map))return;e.preventDefault();held.add(k);if(k==='Enter'&&!e.repeat)startUntil=performance.now()+100;send();});
+addEventListener('keyup',e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;if(!(k in map))return;e.preventDefault();held.delete(k);send();});
+addEventListener('blur',clear);addEventListener('pagehide',clear);document.addEventListener('visibilitychange',()=>{if(document.hidden)clear();});
+document.getElementById('start').onclick=()=>{startUntil=performance.now()+100;send();};
+for(const b of document.querySelectorAll('[data-bit]')){b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);pointers.set(e.pointerId,Number(b.dataset.bit));b.classList.add('active');send();};b.onpointerup=b.onpointercancel=b.onlostpointercapture=e=>{pointers.delete(e.pointerId);b.classList.remove('active');send();};}
+setInterval(send,40);setInterval(async()=>{try{const r=await fetch('/status');const s=await r.json();enabled=s.ready;document.getElementById('status').textContent=s.error||(!s.ready?'Connexion à la console…':`${Math.floor(s.speed*36/100)} km/h · ${Math.floor(s.distance/10)} / 6000 m · ${s.hits} choc(s)${s.fps?' · '+s.fps.toFixed(1)+' images/s':''}`);}catch(e){enabled=false;document.getElementById('status').textContent='Connexion interrompue — relancez la manette USB.';}},500);
+</script></html>

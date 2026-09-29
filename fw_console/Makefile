@@ -12,7 +12,7 @@ all: $(BUILD)/$(APP).bin $(BUILD)/itcm/itcm0
 $(BUILD)/%.o: %.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 $(BUILD)/gpu.o: gpu.h
-$(BUILD)/gpu_diag.o: gpu.h gpu_demo.h gpu_palette.h gpu_layers_demo.h gpu_sprites_demo.h gpu_3d_scene.h gpu_3d_demo.h $(BUILD)/gpu_font.h
+$(BUILD)/gpu_diag.o: gpu.h gpu_demo.h gpu_palette.h gpu_layers_demo.h gpu_sprites_demo.h gpu_3d_scene.h gpu_3d_demo.h racer_scene.h racer_demo.h $(BUILD)/gpu_font.h
 $(BUILD)/gpu_font.h: ../tang/rtl/video/font8x16.hex ../tools/gen_gpu_font.py | $(BUILD)
 	python3 ../tools/gen_gpu_font.py $< $@
 $(BUILD)/start.o: $(BSP_ASM) | $(BUILD)

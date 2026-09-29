@@ -49,6 +49,12 @@ module blitter #(
     output wire [1:0]  w_mask,
     input  wire        w_ready,
     input  wire        w_done,
+    // Constant span: direct native 32-byte writes, bypass the byte line RAM.
+    output reg         f_req,
+    output reg [24:0]   f_addr,
+    output reg [10:0]   f_len,
+    output reg [7:0]    f_color,
+    input wire         f_done,
     // port C (pixel isolé)
     output reg         c_req,
     output reg  [23:0] c_addr,
@@ -103,7 +109,10 @@ module blitter #(
                      M_COPY_RD = 22, M_COPY_SEG = 23, M_COPY_WAIT = 24, M_DONE = 25, M_CFILL_CALC = 26, M_CFILL_GO = 27,
                      M_F4 = 28, M_F5 = 29, M_F6 = 30, M_F7 = 31, M_TXT_INIT = 32, M_TXT_START = 33, M_TXT_ROW = 34, M_TXT_FONT = 35, M_TXT_BITS = 36, M_TXT_NEXT = 37,
                      M_CLIP = 38, M_LINE_INIT = 39, M_LINE_X = 40, M_LINE_Y = 41, M_COPY_COUNT = 42, M_COPY_CLIP = 43,
-                     M_TRI_START = 44, M_TRI_WAIT = 45;
+                     M_TRI_START = 44, M_TRI_WAIT = 45,
+                     M_Z_INIT = 46, M_Z_ROW = 47, M_Z_ADDR = 48, M_Z_READ = 49,
+                     M_Z_SAMPLE = 50, M_Z_PIXEL = 51, M_Z_ADV = 52,
+                     M_FILL_START = 53, M_FILL_WAIT = 54;
     reg  [5:0]  st, ret;                         // état courant, état de retour des sous-programmes (ligne / pixel)
     assign busy = (st != M_IDLE) || cmd_avail;
     reg signed [16:0] ldx, ldy;
@@ -147,8 +156,28 @@ module blitter #(
         .x0(x0),.y0(y0),.x1(x1),.y1(y1),.x2(xs),.y2(ys),
         .busy(triangle_busy),.valid(triangle_valid),.ready(st==M_TRI_WAIT),
         .span_x(triangle_x),.span_width(triangle_width),.span_y(triangle_y));
+    // ZOOM (11): word4={source width,height}, each 1..128; words5/6
+    // unsigned 8.16 U/V steps; word7 reserved. Source and destination pages
+    // must differ. Index zero and samples beyond the source rectangle are
+    // transparent. Invalid descriptors complete without writes. Row cache
+    // holds at most 65 halfwords (odd source origin), reused on enlargement.
+    reg [15:0] zoom_cache [0:127];
+    reg [15:0] zoom_q;
+    reg [39:0] zu, zv, zu_start;
+    reg [7:0] zoom_index, zoom_cached_y;
+    reg zoom_cached;
+    wire [15:0] zw=txt[31:16], zh=txt[15:0];
+    wire [23:0] zstepx=txt[55:32], zstepy=txt[87:64];
+    wire [8:0] zbyte={1'b0,zu[23:16]}+{8'd0,xs[0]};
+    wire [7:0] zpixel=zbyte[0] ? zoom_q[15:8]:zoom_q[7:0];
+    always @(posedge clk) begin
+        if(st==M_Z_READ && s_valid) zoom_cache[zoom_index[6:0]]<=s_data;
+        zoom_q<=zoom_cache[zbyte[7:1]];
+    end
     always @(posedge clk) begin
         if (rst) begin
+            f_req<=0;f_addr<=0;f_len<=0;f_color<=0;
+            zu<=0;zv<=0;zu_start<=0;zoom_index<=0;zoom_cached_y<=0;zoom_cached<=0;
             offx <= 16'd0; offy <= 16'd0; copy_reverse <= 1'b0; line_negative_dy <= 17'sd0; line_step_x <= 1'b0; line_step_y <= 1'b0;
             st <= M_IDLE; ret <= M_IDLE; rp <= 8'd0; err_cmd_bad <= 16'd0; cmd_done <= 16'd0; s_req <= 1'b0; s_addr <= 24'd0; s_len <= 10'd0;
             w_req <= 1'b0; w_addr <= 24'd0; w_len <= 10'd0; c_req <= 1'b0; c_addr <= 24'd0; c_wdata <= 16'd0; c_wmask <= 2'b00;
@@ -160,6 +189,7 @@ module blitter #(
             txt <= 128'd0; tn <= 5'd0; tci <= 5'd0; tscale <= 1'b0; tsub <= 1'b0; tdup <= 1'b0; trow <= 4'd0; tbit <= 3'd0; tpix <= 9'd0; b0_m <= 1'b1; b1_m <= 1'b1;
             wleft <= 11'd0; waddr <= 24'd0; gi <= 11'd0; m_first <= 2'b11; m_last <= 2'b11; wj_end <= 10'd0; cn <= 10'd0; copy_left <= 11'd0; sxx <= 0; source_row <= 0;
         end else begin
+            f_req<=0;
             s_req <= 1'b0; w_req <= 1'b0; c_req <= 1'b0; b0_we <= 1'b0; b1_we <= 1'b0;
             if (w_ready) rj <= rj + 10'd1;
             case (st)
@@ -182,7 +212,7 @@ module blitter #(
                 M_SETUP: begin
                     dabs <= (c1 >= c0) ? c1 - c0 : c0 - c1; dneg <= (c1 < c0);
                     case (op)
-                        8'd1, 8'd2, 8'd3, 8'd4, 8'd8, 8'd9: begin                 // rectangles et texte : x0, y0, largeur x1, hauteur y1
+                        8'd1, 8'd2, 8'd3, 8'd4, 8'd8, 8'd9, 8'd11: begin                 // rectangles et texte : x0, y0, largeur x1, hauteur y1
                             cx0 <= (x0 < 0) ? 16'sd0 : x0; cy0 <= (y0 < 0) ? 16'sd0 : y0;
                             cx1 <= (x0 + x1 - 1 > X_MAX) ? X_MAX : x0 + x1 - 16'sd1;
                             cy1 <= (y0 + y1 - 1 > Y_MAX) ? Y_MAX : y0 + y1 - 16'sd1;
@@ -236,11 +266,11 @@ module blitter #(
                             8'd4: begin t_start <= recip * ({1'b0, offy} + {1'b0, offx}); t_step <= {1'b0, recip}; t_row <= {1'b0, recip}; end
                             default: begin t_start <= 18'd0; t_step <= 18'd0; t_row <= 18'd0; end
                         endcase
-                        st <= M_ROW_START;
+                        st <= op==11 ? M_Z_INIT:M_ROW_START;
                     end
                 end
                 // ---------------- une ligne du rectangle ----------------
-                M_ROW_START: begin gi <= 11'd0; t_acc <= t_start; cn <= 10'd0; ret <= M_ROW_ADV; st <= (op == 8'd8) ? M_COPY_RD : M_ROW_GEN; end
+                M_ROW_START: begin gi <= 11'd0; t_acc <= t_start; cn <= 10'd0; ret <= M_ROW_ADV; st <= (op == 8'd8) ? M_COPY_RD : (op==8'd1 ? M_FILL_START:M_ROW_GEN); end
                 M_ROW_GEN: begin                                                 // 1 pixel / cycle, banque de la position gi + rx[0]
                     if (gpos[0]) begin b1_we <= 1'b1; b1_a <= gpos[10:1]; b1_d <= gen_pix; b1_m <= 1'b1; end
                     else begin b0_we <= 1'b1; b0_a <= gpos[10:1]; b0_d <= gen_pix; b0_m <= 1'b1; end
@@ -256,11 +286,53 @@ module blitter #(
                     rows_left <= rows_left - 10'd1; ry <= copy_reverse ? ry - 10'd1 : ry + 10'd1; t_start <= t_start + t_row;
                     st <= (rows_left == 10'd1) ? M_DONE : M_ROW_START;
                 end
+                M_Z_INIT: begin
+                    zu_start<=offx*zstepx;zv<=offy*zstepy;zoom_cached<=0;
+                    st<=M_Z_ROW;
+                    if(zw==0 || zw>128 || zh==0 || zh>128 || xs<0 || ys<0 ||
+                       {1'b0,xs}+{1'b0,zw}>WIDTH || {1'b0,ys}+{1'b0,zh}>HEIGHT ||
+                       spage==dpage || txt[63:56]!=0 || txt[95:88]!=0) st<=M_DONE;
+                end
+                M_Z_ROW: begin
+                    gi<=0;zu<=zu_start;ret<=M_Z_ADV;zoom_index<=0;
+                    source_row<=ys[9:0]+{2'b0,zv[23:16]};
+                    if(zv[39:16]>={8'd0,zh})st<=M_Z_ADV;
+                    else if(zoom_cached && zoom_cached_y==zv[23:16])st<=M_Z_SAMPLE;
+                    else st<=M_Z_ADDR;
+                end
+                M_Z_ADDR: begin
+                    s_addr<=row_addr(sbase,source_row,xs[10:0]);
+                    s_len<=({1'b0,zw[7:0]}+{8'd0,xs[0]}+9'd1)>>1;
+                    s_req<=1;st<=M_Z_READ;zoom_cached_y<=zv[23:16];zoom_cached<=1;
+                end
+                M_Z_READ: begin
+                    if(s_valid)zoom_index<=zoom_index+1'b1;
+                    if(s_done)st<=M_Z_SAMPLE;
+                end
+                M_Z_SAMPLE: st<=M_Z_PIXEL; // synchronous cache read after U changes
+                M_Z_PIXEL: begin
+                    if(gpos[0])begin b1_we<=1;b1_a<=gpos[10:1];b1_d<=zpixel;b1_m<=zpixel!=0 && zu[39:16]<{8'd0,zw};end
+                    else begin b0_we<=1;b0_a<=gpos[10:1];b0_d<=zpixel;b0_m<=zpixel!=0 && zu[39:16]<{8'd0,zw};end
+                    zu<=zu+{16'd0,zstepx};
+                    if(gi==rw-1'b1)begin
+                        waddr<=row_addr(dbase,ry,rx);wleft<=row_words;wj_end<=row_words[9:0]-1'b1;
+                        m_first<=rx[0]?2'b10:2'b11;m_last<=row_last[0]?2'b11:2'b01;rj<=0;st<=M_ROW_SEG;
+                    end else begin gi<=gi+1'b1;st<=M_Z_SAMPLE;end
+                end
+                M_Z_ADV: begin
+                    rows_left<=rows_left-1'b1;ry<=ry+1'b1;zv<=zv+{16'd0,zstepy};
+                    st<=rows_left==1 ? M_DONE:M_Z_ROW;
+                end
+                M_FILL_START: begin
+                    f_addr<={row_addr(dbase,ry,rx),rx[0]};f_len<=rw;f_color<=c0;
+                    f_req<=1;st<=M_FILL_WAIT;
+                end
+                M_FILL_WAIT:if(f_done)st<=ret;
                 M_TRI_START: st<=M_TRI_WAIT;
                 M_TRI_WAIT: begin
                     rx<=triangle_x;ry<=triangle_y;rw<=triangle_width;
                     gi<=0;t_acc<=0;ret<=M_TRI_WAIT;
-                    if(triangle_valid) st<=M_ROW_GEN;
+                    if(triangle_valid) st<=M_FILL_START;
                     else if(!triangle_busy) st<=M_DONE;
                 end
                 // ---------------- ligne : Bresenham, un pixel par M_PIX ----------------
@@ -310,7 +382,7 @@ module blitter #(
                 end
                 M_CFILL_GO: begin                                                // segment visible → la ligne l'écrit ; sinon le suivant
                     if (!sp_vis || sp_xa > sp_xb) st <= M_CFILL_NEXT;
-                    else begin ry <= sp_y[9:0]; rx <= sp_xa[10:0]; rw <= sp_xb[10:0] - sp_xa[10:0] + 11'd1; gi <= 11'd0; t_acc <= 18'd0; ret <= M_CFILL_NEXT; st <= M_ROW_GEN; end
+                    else begin ry <= sp_y[9:0]; rx <= sp_xa[10:0]; rw <= sp_xb[10:0] - sp_xa[10:0] + 11'd1; gi <= 11'd0; t_acc <= 18'd0; ret <= M_CFILL_NEXT; st <= M_FILL_START; end
                 end
                 M_CFILL_NEXT: begin cpt <= cpt + 3'd1; st <= (cpt == 3'd3) ? M_CIRC_STEP : M_CFILL_CALC; end
                 M_CIRC_STEP: begin                                               // pas suivant du point médian

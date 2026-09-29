@@ -7,7 +7,7 @@
 #define GPU_PAGE_BYTES 1048576UL
 #define GPU_PAGE_ADDR(p) (0x00800000UL + (unsigned)(p) * GPU_PAGE_BYTES)
 enum gpu_opcode { GPU_FILL=1, GPU_GRAD_H, GPU_GRAD_V, GPU_GRAD_D,
-                  GPU_LINE, GPU_CIRCLE, GPU_DISK, GPU_COPY, GPU_TEXT, GPU_TRIANGLE };
+                  GPU_LINE, GPU_CIRCLE, GPU_DISK, GPU_COPY, GPU_TEXT, GPU_TRIANGLE, GPU_ZOOM };
 typedef struct { uint32_t words[8]; } gpu_command;
 
 // One producer. Flush CPU-written surfaces before submitting GPU work;
@@ -21,6 +21,11 @@ void gpu_submit(const gpu_command *cmd);
 // Outline: three accelerated Bresenham lines. Coordinates are signed 16-bit.
 void gpu_triangle(unsigned page,int x0,int y0,int x1,int y1,int x2,int y2,
                   unsigned color,int filled);
+// Nearest neighbour transparent zoom; source crop 1..128 per axis, within
+// an 800x480 page. Different source/destination pages. Dest size 1..32767.
+// Q16 sampling: floor(relative * floor(source_size*65536/dest_size)/65536).
+gpu_command gpu_make_zoom(unsigned dst,unsigned src,int x,int y,int w,int h,
+                          int sx,int sy,unsigned sw,unsigned sh);
 int gpu_wait(void);
 void gpu_text(unsigned page, int x, int y, unsigned fg, unsigned bg,
               unsigned scale, const char *text);

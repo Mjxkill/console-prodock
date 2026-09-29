@@ -16,6 +16,11 @@ module gpu_blit_dma (
     input wire [15:0] w_data,
     input wire [1:0] w_mask,
     output wire w_ready, w_done,
+    input wire f_req,
+    input wire [24:0] f_addr,
+    input wire [10:0] f_len,
+    input wire [7:0] f_color,
+    output wire f_done,
     input wire c_req,
     input wire [23:0] c_addr,
     input wire [15:0] c_wdata,
@@ -30,34 +35,45 @@ module gpu_blit_dma (
     input wire [255:0] rd_data,
     input wire rd_valid
 );
-    localparam IDLE=0, W_PACK=1, W_SEND=2, R_SEND=3, R_WAIT=4, R_UNPACK=5;
+    localparam IDLE=0, W_PACK=1, W_SEND=2, R_SEND=3, R_WAIT=4, R_UNPACK=5, F_PREP=6, F_MASK=7;
     reg [2:0] state;
     reg [23:0] position;
     reg [9:0] remaining;
-    reg pixel_write;
+    reg pixel_write,fill_write;
+    reg [10:0] fill_left;
+    reg [4:0] fill_offset;
+    reg [5:0] fill_low,fill_high;
+    wire [5:0] fill_room=6'd32-{1'b0,fill_offset};
+    wire [5:0] fill_take=fill_left>{5'd0,fill_room} ? fill_room:fill_left[5:0];
+    integer byte_lane;
     reg [255:0] read_buffer;
     wire [3:0] lane = position[3:0];
     // Keep the global reset/state decode off the arbiter's ready/tag paths.
     // This register changes on the same edges as entry/exit of SEND states.
     assign write = state == W_SEND;
     assign w_ready = !rst && state == W_PACK;
-    assign w_done = !rst && state == W_SEND && ready && !pixel_write && remaining == 0;
+    assign w_done = !rst && state == W_SEND && ready && !pixel_write && !fill_write && remaining == 0;
+    assign f_done=!rst && state==W_SEND && ready && fill_write && fill_left==0;
     assign c_ack = !rst && state == W_SEND && ready && pixel_write;
     assign s_valid = !rst && state == R_UNPACK;
     assign s_data = read_buffer[lane * 16 +: 16];
     assign s_done = s_valid && remaining == 1;
     always @(posedge clk) begin
         if (rst) begin
-            state <= IDLE; valid<=0; position <= 0; remaining <= 0; pixel_write <= 0;
+            state <= IDLE; valid<=0; position <= 0; remaining <= 0; pixel_write <= 0;fill_write<=0;fill_left<=0;fill_offset<=0;fill_low<=0;fill_high<=0;
             addr <= 0; wr_data <= 0; wr_mask <= 32'hffffffff; read_buffer <= 0;
         end else case (state)
             IDLE: begin
-                wr_mask <= 32'hffffffff;
+                wr_mask <= 32'hffffffff;fill_write<=0;
                 if (c_req) begin
                     addr <= {6'b0, c_addr[23:4], 3'b0};
                     wr_data <= {16{c_wdata}};
                     wr_mask <= ~( {30'b0, c_wmask} << (c_addr[3:0] * 2));
                     pixel_write <= 1; remaining <= 0; state <= W_SEND;valid<=1;
+                end else if(f_req && f_len!=0)begin
+                    addr<={6'b0,f_addr[24:5],3'b0};wr_data<={32{f_color}};
+                    fill_write<=1;pixel_write<=0;fill_offset<=f_addr[4:0];fill_left<=f_len;
+                    state<=F_PREP;
                 end else if (w_req && w_len != 0) begin
                     addr <= {6'b0, w_addr[23:4], 3'b0};
                     position <= w_addr; remaining <= w_len;
@@ -66,6 +82,15 @@ module gpu_blit_dma (
                     addr <= {6'b0, s_addr[23:4], 3'b0};
                     position <= s_addr; remaining <= s_len; state <= R_SEND;valid<=1;
                 end
+            end
+            F_PREP:begin
+                fill_low<={1'b0,fill_offset};fill_high<={1'b0,fill_offset}+fill_take;
+                fill_left<=fill_left-{5'd0,fill_take};fill_offset<=0;state<=F_MASK;
+            end
+            F_MASK:begin
+                for(byte_lane=0;byte_lane<32;byte_lane=byte_lane+1)
+                    wr_mask[byte_lane]<=!(byte_lane>=fill_low && byte_lane<fill_high);
+                state<=W_SEND;valid<=1;
             end
             W_PACK: begin
                 wr_data[lane * 16 +: 16] <= w_data;
@@ -77,7 +102,10 @@ module gpu_blit_dma (
             W_SEND: if (ready) begin
                 valid<=0;
                 wr_mask <= 32'hffffffff;
-                if (remaining == 0) state <= IDLE;
+                if(fill_write)begin
+                    if(fill_left==0)state<=IDLE;
+                    else begin addr<=addr+29'd8;state<=F_PREP;end
+                end else if (remaining == 0) state <= IDLE;
                 else begin
                     addr <= {6'b0, position[23:4], 3'b0}; state <= W_PACK;
                 end

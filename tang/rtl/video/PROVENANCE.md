@@ -21,3 +21,11 @@ embarquée dans le bitstream et à sa représentation C générée pour le diagn
 
 `gpu_accel.v` et `gpu_blit_dma.v` sont propres à ce projet : file de commandes
 AHB à deux horloges et adaptation des ports de pixels aux rafales DDR3 de 256 bits.
+
+L'opcode ZOOM (11), son cache de ligne DDR et l'échantillonnage 8.16 sont
+des extensions propres à ce projet, ajoutées pour le prototype de course G6.
+Les graphismes procéduraux du jeu sont définis dans `fw_console/racer_scene.h`.
+
+Le rasteriseur par intersections entières d'arêtes dans `gpu_triangle.v` et
+la voie d'aplats natifs 256 bits dans `gpu_blit_dma.v` sont propres à ce projet.
+Ils conservent les règles de pixels et le protocole de commandes précédents.

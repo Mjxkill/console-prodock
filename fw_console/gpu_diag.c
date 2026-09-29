@@ -78,6 +78,7 @@ static void gpu_demo(void)
 #include "gpu_layers_demo.h"
 #include "gpu_sprites_demo.h"
 #include "gpu_3d_demo.h"
+#include "racer_demo.h"
 #endif
 
 static unsigned char get_byte(void)
@@ -201,22 +202,30 @@ int main(void)
     AE350_UART2->FCR = 7;
     for (;;) {
 #ifdef CONSOLE_GPU
+        if(race_running && !(AE350_UART2->LSR&1U)){racer_tick();continue;}
         if(demo3d_animate && !(AE350_UART2->LSR&1U)){demo3d_tick();continue;}
 #endif
         unsigned char command=get_byte();
 #ifdef CONSOLE_GPU
+        if((command&0xe0)==0x80){racer_input(command&31);continue;}
+        if(command!='?' && command!='S' && command!='H' && command!='E' && command!='M')race_running=0;
         if(command!='?' && command!='S' && command!='A' && command!='X' && command!='E' && command!='M')demo3d_animate=0;
         if(command=='V' || command=='B' || command=='L' || command=='O' || command=='D')demo3d_initialized=0;
 #endif
         switch (command) {
         case '?':
 #ifdef CONSOLE_GPU
-            printf("MegaPro GPU G5 core=800MHz bus=80MHz\r\n");
+            printf("MegaPro GPU G6 FAST core=800MHz bus=80MHz\r\n");
 #else
             printf("MegaPro GPU G0 core=800MHz bus=80MHz\r\n");
 #endif
             break;
 #ifdef CONSOLE_GPU
+        case 'K': racer_benchmark();break;
+        case 'C': race_original^=1;racer_start();break;
+        case 'R': racer_start(); break;
+        case 'G': racer_test(); break;
+        case 'H': racer_status(); break;
         case 'T': demo3d_test(); break;
         case 'J': demo3d_next(); break;
         case 'A': demo3d_start(); break;

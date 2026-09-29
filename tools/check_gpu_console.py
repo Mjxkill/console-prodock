@@ -195,6 +195,49 @@ def test_3d(dev):
     response(dev,b'THREED ANIMATION started')
 
 
+def test_racer(dev):
+    dev.write(b'XG')
+    line=response(dev,b'RACE VERIFIED',timeout=180)
+    if b'poses=4 underflows=0' not in line:raise SystemExit('Racer pixel comparison failed')
+    dev.write(b'R');response(dev,b'RACE READY')
+    def controls(mask,seconds):
+        deadline=time.monotonic()+seconds
+        while time.monotonic()<deadline:
+            dev.write(bytes([0x80|mask]));time.sleep(.04)
+    def status():
+        dev.write(b'H')
+        fields=dict(re.findall(rb'(\w+)=(-?\d+)',response(dev,b'RACE STATUS')))
+        assert fields[b'underflows']==b'0'
+        return {k.decode():int(v) for k,v in fields.items()}
+    controls(16|4,.12);controls(4,2)
+    a=status();assert a['phase']==1 and a['speed']>100 and a['distance']>0
+    controls(4|2,.4);b=status();assert b['x']>a['x']
+    controls(4|1,.6);c=status();assert c['x']<b['x']
+    controls(8,.4);d=status();assert d['speed']<c['speed']
+    controls(4,.2);time.sleep(.55)
+    e=status();assert e['keys']==0, 'Input watchdog failed'
+    dev.write(b'M')
+    assert response(dev,b'SHARED END',timeout=90)==b'SHARED END errors=0'
+    fields=dict(re.findall(rb'(\w+)=(\d+)',response(dev,b'RACE BENCH',timeout=30)))
+    assert fields[b'underflows']==b'0' and int(fields[b'fps_x100'])>0
+    controls(16,.12);controls(0,.1)
+    a=status();assert a['phase']==1 and a['distance']==0 and a['speed']==0 and a['hits']==0
+    dev.write(b'XR');response(dev,b'RACE READY')
+    print('G6 PASS: 4 exact images+guards, zoom, USB driving, steering, brake, watchdog, restart, concurrent DDR, benchmark, zero underflows',flush=True)
+
+
+def test_racer_perf(dev):
+    dev.write(b'K')
+    for mode in (b'original',b'cached'):
+        line=response(dev,b'RACE PERF',timeout=60)
+        fields=dict(re.findall(rb'(\w+)=([\w]+)',line))
+        assert fields[b'mode']==mode and fields[b'frames']==b'240' and fields[b'underflows']==b'0'
+        assert int(fields[b'fps_x100'])>5300, 'Scene does not sustain the panel refresh rate'
+        assert int(fields[b'gpu_max'])<14000000, 'Insufficient GPU margin for 18.17 ms LCD frame'
+    response(dev,b'RACE READY')
+    print('FAST PASS: original and cached renderers, 240 deterministic frames each, >53 fps, GPU max <17.5 ms, zero underflows',flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--wait', type=float, default=15)
@@ -242,16 +285,20 @@ def main():
                     if line != b'DDR END errors=0' or failures:
                         raise SystemExit('DDR verification failed')
                     print('G0 PASS', flush=True)
-                    if re.search(rb'GPU G[12345] ',identity):
+                    if re.search(rb'GPU G[123456] ',identity):
                         test_gpu(dev)
-                    if re.search(rb'GPU G[2345] ',identity):
+                    if re.search(rb'GPU G[23456] ',identity):
                         test_blitter(dev)
-                    if re.search(rb'GPU G[345] ',identity):
+                    if re.search(rb'GPU G[3456] ',identity):
                         test_layers(dev)
-                    if re.search(rb'GPU G[45] ',identity):
+                    if re.search(rb'GPU G[456] ',identity):
                         test_sprites(dev)
-                    if b'GPU G5 ' in identity:
+                    if re.search(rb'GPU G[56] ',identity):
                         test_3d(dev)
+                    if b'GPU G6 ' in identity:
+                        test_racer(dev)
+                    if b' FAST ' in identity:
+                        test_racer_perf(dev)
                     return
         raise SystemExit(f'DDR timeout; pending={pending!r}')
 

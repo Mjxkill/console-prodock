@@ -3,6 +3,10 @@
 Révision du 27 septembre 2026, suite à la correction de Michael.
 Ce document remplace le périmètre et le plan de `ARCHI_V1.md`.
 
+La [feuille de route détaillée](FEUILLE_DE_ROUTE_CONSOLE.md), mise à jour le
+29 septembre 2026 après `gpu_fast_r2`, décrit les travaux restants, leurs
+dépendances, les fichiers concernés et les critères de validation.
+
 ## 1. Décisions de Michael
 
 - Produit : **console de jeux** avec carte graphique évoluée et nombreuses
@@ -250,7 +254,7 @@ erreurs du langage et persistance flash restent à développer.
 | G3 | Validé en simulation et sur carte, rendu LCD confirmé par Michael : 16 surfaces, déplacements/défilement, transparence zéro, priorités et mises à jour atomiques ; trois scènes, six permutations avec accès CPU concurrents, zéro sous-alimentation LCD. |
 | G4 | Validé en simulation et sur carte, rendu LCD confirmé par Michael. 64 sprites en cache, priorités entre couches, transparence, flips et animation par changement d'image ; trois scènes, six permutations sous trafic CPU, zéro ligne manquante. |
 | G5 | Validé en simulation, sur carte et visuellement : triangles matériels, cubes en fil de fer/solide, clipping proche, deux pages et couche de texte. Quatre poses exactes, animation à 54,91 images/s sur 120 images, coût CPU/GPU mesuré et zéro ligne manquante. |
-| G6 | Boutons, LED, ADS1115 et manette si son interface est choisie ; premiers jeux interactifs. |
+| G6 | En cours : [premier jeu de course et zoom transparent](JEU_COURSE.md), pilotage au clavier par USB CDC. [GPU accéléré](GPU_SPANS_DDR256.md) : rendu original du jeu à environ 55 images/s, avec marge de dessin mesurée. Boutons physiques, LED, ADS1115 et manettes restent à intégrer. |
 | G7 | Chargeur, interpréteur et jeux de démonstration utilisant les accélérations ; stockage persistant ensuite. |
 
 Les entrées simples et l'API C peuvent avancer avec les premières démos

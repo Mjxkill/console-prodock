@@ -37,6 +37,11 @@ Les arguments de coordonnées doivent tenir dans des entiers signés 16 bits.
 
 ## Chemin matériel
 
+Le fonctionnement décrit ci-dessous correspond au bitstream G5 conservé.
+Le GPU courant utilise le [rasteriseur par lignes et les aplats DDR natifs](GPU_SPANS_DDR256.md),
+avec la même couverture et les mêmes commandes.
+
+
 `gpu_triangle.v` réduit d'abord la boîte englobante à l'écran, puis calcule
 les équations d'arêtes avec des accumulateurs signés de 36 bits. Le balayage
 emploie ensuite des additions, sans division ni multiplication par pixel.

@@ -64,7 +64,7 @@ def main():
             line = f'set_option -include_path {{{stage / "source/tang/rtl"}}}'
         lines.append(line)
     (stage / 'build.tcl').write_text('\n'.join(lines) + '\n')
-    for name in ('gpu_diag.c', 'gpu_demo.h', 'gpu.c', 'gpu.h', 'gpu_palette.h', 'gpu_layers_demo.h', 'gpu_sprites_demo.h', 'gpu_3d_scene.h', 'gpu_3d_demo.h', 'build/gpu_font.h',
+    for name in ('gpu_diag.c', 'gpu_demo.h', 'gpu.c', 'gpu.h', 'gpu_palette.h', 'gpu_layers_demo.h', 'gpu_sprites_demo.h', 'gpu_3d_scene.h', 'gpu_3d_demo.h', 'racer_scene.h', 'racer_demo.h', 'build/gpu_font.h',
                  'itcm.ld', 'Makefile', 'build/console_test.elf', 'build/console_test.bin'):
         snapshot(ROOT / 'fw_console' / name)
     # $readmemh paths are resolved relative to the Gowin working directory.
