@@ -313,6 +313,30 @@ reg  [ 3:0] s_endpt_sel;
 reg         s_usb_txcork;
 reg         s_usb_rxrdy ;
 reg  [11:0] s_usb_txlen ;
+// Bulk IN retransmissions must keep exactly the original payload length.
+// After a lost host ACK the FIFO rewinds, but UART bytes may have arrived
+// meanwhile. Including them in the retry makes the host discard those NEW
+// bytes with the duplicate packet. Freeze the advertised length on its
+// first read and release it only when the controller acknowledges pktfin.
+reg [15:1] tx_pending;
+reg [11:0] tx_saved_len [15:1];
+always @(posedge i_clk or posedge i_reset) begin
+    if (i_reset) begin
+        tx_pending <= 0;
+    end
+    else if (i_usb_endpt != 0) begin
+        if (i_usb_txpktfin) begin
+            tx_pending[i_usb_endpt] <= 1'b0;
+        end
+        // An empty IN poll can strobe POP without transferring a payload.
+        // Reserving its zero length would permanently block later arrivals.
+        else if (i_usb_txpop && !s_usb_txcork && s_usb_txlen != 0
+                 && !tx_pending[i_usb_endpt]) begin
+            tx_pending[i_usb_endpt] <= 1'b1;
+            tx_saved_len[i_usb_endpt] <= s_usb_txlen;
+        end
+    end
+end
 `ifdef EP1_IN_EN
 wire [ 7:0] ep1_txdat;
 wire        ep1_txcork;
@@ -594,9 +618,9 @@ end
 
 always @(posedge i_clk or posedge i_reset) begin
     if (i_reset) begin
-        s_usb_txcork <= 1'b0;
+        s_usb_txcork <= 1'b1;
         s_usb_rxrdy  <= 1'b0;
-        s_usb_txlen  <= 12'd32;
+        s_usb_txlen  <= 12'd0;
     end
     else begin
         if (i_usb_endpt == 4'd0) begin
@@ -605,10 +629,14 @@ always @(posedge i_clk or posedge i_reset) begin
             s_usb_txlen  <= 12'd0;
         end
         else begin
-            s_usb_txcork <= usb_txcork[i_usb_endpt];
             s_usb_rxrdy  <= usb_rxrdy[i_usb_endpt];
-            if (!i_usb_txact) begin
-                s_usb_txlen <= usb_txlen[i_usb_endpt];
+            // Publish availability together with length. While CORK is high
+            // the controller may keep txact asserted waiting for data: allow
+            // a late UART byte to open a NONZERO packet, then freeze it.
+            // Endpoint selection may also arrive together with txact.
+            if (!i_usb_txact || i_usb_endpt != s_endpt_sel || s_usb_txcork) begin
+                s_usb_txlen <= tx_pending[i_usb_endpt] ? tx_saved_len[i_usb_endpt] : usb_txlen[i_usb_endpt];
+                s_usb_txcork <= (tx_pending[i_usb_endpt] ? tx_saved_len[i_usb_endpt] : usb_txlen[i_usb_endpt]) == 0;
             end
         end
     end

@@ -148,6 +148,55 @@ def test_sprites(dev):
     print('G4 PASS: 64 cached DDR sprites, size 8/16/32, flip XY, transparency, layer priorities, image animation, 6 atomic swaps, CPU DDR, zero underflows',flush=True)
 
 
+def test_tiles(dev):
+    dev.write(b'U')
+    line=response(dev,b'TILES READY',timeout=180)
+    fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',line))
+    if fields.get(b'poses')!=b'4' or fields.get(b'underflows')!=b'0':
+        raise SystemExit('Tile map initialization failed')
+    previous_frames=None
+    for pose in (1,2,3,0,1,2,3,0):
+        dev.write(b'Y')
+        fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'TILES POSE',timeout=90)))
+        expected_hash=int(fields[b'hash'],16)
+        if int(fields[b'max_cycles'])>=2556:
+            raise SystemExit('Tile map scene exceeds the line budget')
+        if response(dev,b'TILES MOVED')!=f'TILES MOVED pose={pose}'.encode():
+            raise SystemExit('Tile pose acknowledgement mismatch')
+        dev.write(b'M')
+        if response(dev,b'SHARED END',timeout=90)!=b'SHARED END errors=0':
+            raise SystemExit('CPU DDR corruption with tile maps active')
+        dev.write(b'S')
+        status=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+        frames=int(status[b'frames'])
+        if (status[b'enable']!=b'1' or status[b'busy']!=b'0' or status[b'underflows']!=b'0'
+                or status.get(b'layers')!=b'1' or status.get(b'sprites')!=b'1'
+                or status.get(b'invalid')!=b'0' or status.get(b'invalid_sprites')!=b'0'
+                or int(status[b'sum'],16)!=expected_hash
+                or (previous_frames is not None and frames<=previous_frames)):
+            raise SystemExit('Tile map frame hash/status mismatch')
+        previous_frames=frames
+    # Scrolling: one descriptor update per LCD frame, no drawing command.
+    dev.write(b'W')
+    response(dev,b'TILES SCROLL')
+    for _ in range(2):
+        fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'TILES BENCH',timeout=30)))
+        if (fields[b'frames']!=b'240' or fields[b'underflows']!=b'0' or fields[b'invalid']!=b'0'
+                or fields[b'gpu_commands']!=b'0'):
+            raise SystemExit('Tile map scrolling status mismatch')
+        assert int(fields[b'fps_x100'])>5400, 'Scrolling does not follow the panel refresh rate'
+        assert int(fields[b'max_cycles'])<2556, 'Scrolling exceeds the line budget'
+    dev.write(b'M')  # CPU DDR traffic while the scene keeps scrolling
+    if response(dev,b'SHARED END',timeout=90)!=b'SHARED END errors=0':
+        raise SystemExit('CPU DDR corruption while scrolling tile maps')
+    response(dev,b'TILES BENCH',timeout=30)
+    dev.write(b'S')
+    status=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+    if status[b'underflows']!=b'0' or status.get(b'invalid')!=b'0':
+        raise SystemExit('Missing lines while scrolling under CPU DDR traffic')
+    print('L11 PASS: tile maps 8/16/32, flips, wrap, map end, surface and sprites, 4 exact poses x2, scrolling at the panel rate without drawing, concurrent CPU DDR, zero underflows',flush=True)
+
+
 def test_3d(dev):
     dev.write(b'T')
     line=response(dev,b'THREED READY',timeout=180)
@@ -295,6 +344,8 @@ def main():
                         test_sprites(dev)
                     if re.search(rb'GPU G[56] ',identity):
                         test_3d(dev)
+                    if b' TILES ' in identity:
+                        test_tiles(dev)
                     if b'GPU G6 ' in identity:
                         test_racer(dev)
                     if b' FAST ' in identity:

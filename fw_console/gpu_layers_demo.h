@@ -8,6 +8,33 @@ static uint32_t rotate32(uint32_t value,unsigned n)
 {
     return (value<<(n&31))|(value>>((32-n)&31));
 }
+// L11 tile layer row: one map entry and one atlas byte per pixel. A layer
+// the GPU rejects draws nothing here either.
+static void reference_tile_row(const uint32_t *d,int y,uint8_t *row)
+{
+    unsigned flags=d[6],t=((d[5]>>8)&3)+3,wlog=d[5]&15,hlog=(d[5]>>4)&15;
+    if(t==6 || wlog<4 || wlog+t>15 || hlog+t>15 || ((d[0]|d[1])&31)
+            || (uint64_t)d[0]+(1UL<<(wlog+hlog+1))>0x40000000ULL
+            || (uint64_t)d[1]+(8192UL<<(2*t))>0x40000000ULL) return;
+    unsigned wpx=1U<<(wlog+t),hpx=1U<<(hlog+t),inside=(1U<<t)-1;
+    int px=(int16_t)d[2],dy=y-(int16_t)(d[2]>>16);
+    unsigned my=(flags&GPU_LAYER_WRAP_Y ? (d[4]>>16)&(hpx-1) : d[4]>>16)+(unsigned)dy;
+    if(dy<0 || dy>=(int)(d[3]>>16)) return;
+    if(flags&GPU_LAYER_WRAP_Y) my&=hpx-1;
+    else if(my>=hpx) return;
+    const uint16_t *map=(const uint16_t *)d[0]+((my>>t)<<wlog);
+    const uint8_t *atlas=(const uint8_t *)d[1];
+    for(int x=max_int(0,px);x<min_int(GPU_WIDTH,px+(int)(d[3]&65535));++x) {
+        unsigned mx=(flags&GPU_LAYER_WRAP_X ? d[4]&(wpx-1) : d[4]&65535)+(unsigned)(x-px);
+        if(flags&GPU_LAYER_WRAP_X) mx&=wpx-1;
+        else if(mx>=wpx) return;
+        unsigned entry=map[mx>>t],tx=mx&inside,ty=my&inside;
+        if(entry&GPU_TILE_FLIP_X) tx=inside-tx;
+        if(entry&GPU_TILE_FLIP_Y) ty=inside-ty;
+        unsigned p=atlas[((entry&GPU_TILE_INDEX)<<(2*t))+(ty<<t)+tx];
+        if(!(flags&GPU_LAYER_KEY_ZERO) || p) row[x]=p;
+    }
+}
 static unsigned gpu_scene_reference_hash(const gpu_layer table[16],const gpu_sprite sprites[64])
 {
     uint32_t hash=0;
@@ -19,7 +46,8 @@ static unsigned gpu_scene_reference_hash(const gpu_layer table[16],const gpu_spr
             int px=(int16_t)d[2],py=(int16_t)(d[2]>>16);
             int sw=d[1]&65535,sh=d[1]>>16,vw=d[3]&65535,vh=d[3]>>16;
             int sx=d[4]&65535,sy=d[4]>>16,dy=y-py;
-            if((flags&GPU_LAYER_ENABLE) && dy>=0 && dy<vh && sy+dy<sh) {
+            if((flags&GPU_LAYER_ENABLE) && (flags&GPU_LAYER_TILES)) reference_tile_row(d,y,layer_reference_row);
+            else if((flags&GPU_LAYER_ENABLE) && dy>=0 && dy<vh && sy+dy<sh) {
                 int left=max_int(0,px),right=min_int(GPU_WIDTH,min_int(px+vw,px+sw-sx));
                 const uint8_t *source=(const uint8_t *)d[0]+(sy+dy)*(d[5]&65535);
                 for(int x=left;x<right;++x) {

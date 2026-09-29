@@ -203,7 +203,7 @@ Ils ne remplacent pas les jalons historiques G0 à G7.
 | L08 | Chargeur USB de programmes et ressources | À faire | L05, carte mémoire et protocole |
 | L09 | Interpréteur du langage maison | À faire | L05, L08 pour le chargement depuis le PC |
 | L10 | Stockage et démarrage autonome | À faire après inventaire flash | L08, gestion du lancement et récupération |
-| L11 | Tilemaps | Extension graphique utile | Format de ressources, composition |
+| L11 | Tilemaps | **Validé sur carte et visuellement** le 30 septembre 2026, USB corrigé (`gpu_l11_usb_r13`) : [architecture](GPU_L11_TILEMAPS.md), [validation](../TESTS/TESTS_GPU_L11.md) | Format de ressources, composition |
 | L12 | Rotation et transformations affines | Extension graphique | Échantillonnage, cache et DMA |
 | L13 | Mélange alpha | Extension nécessitant une étude de format | Palette, composition et mémoire couleur |
 | L14 | Triangles texturés | Extension 3D | Triangle, texture, interpolation et DDR |
@@ -453,7 +453,7 @@ leur taille avec une limite explicite sur le travail en attente.
 ### 6.4 Gestion de la mémoire
 
 Le linker actuel réserve **64 Kio d'ITCM**, **64 Kio d'ILM** et **32 Kio de DLM**.
-L'image de référence occupe 48 112 octets d'ITCM ; sa BSS mesure 27 344 octets
+L'image L11 validée occupe 53 160 octets d'ITCM ; sa BSS mesure 28 920 octets
 en ILM. La BSS seule ne donne pas l'occupation totale des données.
 
 Travaux :
@@ -851,6 +851,14 @@ plein et interruption d'une mise à jour sur une zone de test prévue à cet eff
 ## 12. L11 à L13 — Extensions graphiques 2D
 
 ### 12.1 L11 — Tilemaps
+
+**État au 29 septembre 2026 :** la seconde approche du tableau ci-dessous, la
+lecture des tuiles pendant la composition, est réalisée dans
+`gpu_tile_row.v`. Simulation, références, timing et essais sur carte sont
+validés avec `gpu_l11_usb_r13`, y compris le contrôle visuel du défilement
+et 1 088 200 octets USB exacts. Le coût par ligne mesuré et les solutions écartées
+sont dans [GPU_L11_TILEMAPS.md](GPU_L11_TILEMAPS.md). La suite de cette
+section est le texte de planification d'origine.
 
 **But :** représenter un décor par une grille de petites images réutilisables,
 au lieu de stocker ou redessiner systématiquement une grande surface entière.
@@ -1482,7 +1490,7 @@ Ils ne sont pas présentés comme déjà créés.
 
 ### 18.2 Checklist des livrables
 
-- [ ] **L00** — Commit et push du jalon jeu + GPU accéléré, preuves rattachées.
+- [x] **L00** — Commit et push du jalon jeu + GPU accéléré, preuves rattachées : commit `33c6798`, poussé le 29 septembre 2026.
 - [ ] **L01** — Boutons physiques, anti-rebond, événements et conduite validés.
 - [ ] **L02** — LED/sorties simples et PWM si retenu.
 - [ ] **L03** — Deux ADS1115, axes calibrés, validité et latence mesurées.
@@ -1493,7 +1501,7 @@ Ils ne sont pas présentés comme déjà créés.
 - [ ] **L08** — Chargeur USB, contenu vérifié et lancement sans reconstruction FPGA.
 - [ ] **L09** — Langage maison documenté, programmes de démonstration chargeables.
 - [ ] **L10** — Stockage, réglages, records et démarrage autonome vérifiés.
-- [ ] **L11** — Tilemaps documentées et défilement validé.
+- [x] **L11** — Tilemaps documentées, simulées et validées sur carte (`gpu_l11_usb_r13`) : défilement visuellement confirmé à environ 55 images/s, USB corrigé et 1 088 200 octets vérifiés.
 - [ ] **L12** — Rotation/transformations affines validées pixel par pixel.
 - [ ] **L13** — Format et composition alpha choisis, implémentés et mesurés.
 - [ ] **L14** — Triangles texturés et précision de projection documentés.

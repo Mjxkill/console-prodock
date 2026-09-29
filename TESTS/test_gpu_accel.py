@@ -34,6 +34,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--rtl-root',type=Path,default=ROOT,help='Compare a frozen earlier RTL snapshot with the same tests')
     parser.add_argument('--out',type=Path,default=OUT)
+    parser.add_argument('--equiv-blitter-root',type=Path,help='Compare every blitter interface cycle with an unchanged RTL snapshot')
     args=parser.parse_args();OUT=args.out
     OUT.mkdir(exist_ok=True)
     font = [int(v,16) for v in (ROOT/'tang/rtl/video/font8x16.hex').read_text().split()]
@@ -193,9 +194,28 @@ def main():
     sources=['TESTS/rtl/gpu_accel_tb.sv','tang/rtl/video/gpu_accel.v','tang/rtl/video/blitter.v',
              'tang/rtl/video/gpu_blit_dma.v','tang/rtl/video/font_ram.v','tang/rtl/video/gpu_triangle.v',
              'tang/rtl/board/ddr_dcfifo.v','tang/rtl/board/cdc_word.v','tang/rtl/board/ddr_gpu_arb.v']
+    extra_sources=[]
+    if args.equiv_blitter_root:
+        reference=(args.equiv_blitter_root/'tang/rtl/video/blitter.v').read_text()
+        if reference.count('module blitter #(')!=1:
+            raise ValueError('Expected exactly one blitter module in the reference')
+        reference_path=OUT/'blitter_reference.v'
+        reference=reference.replace('module blitter #(', 'module blitter_reference #(', 1)
+        reference=reference.replace('gpu_triangle #(', 'gpu_triangle_reference #(')
+        reference_path.write_text(reference)
+        triangle=(args.equiv_blitter_root/'tang/rtl/video/gpu_triangle.v').read_text()
+        triangle=triangle.replace('gpu_triangle_floor_div', 'gpu_triangle_reference_floor_div')
+        triangle=triangle.replace('module gpu_triangle #(', 'module gpu_triangle_reference #(', 1)
+        triangle_path=OUT/'gpu_triangle_reference.v'
+        triangle_path.write_text(triangle)
+        dma=(args.equiv_blitter_root/'tang/rtl/video/gpu_blit_dma.v').read_text()
+        dma_path=OUT/'gpu_blit_dma_reference.v'
+        dma_path.write_text(dma.replace('module gpu_blit_dma (', 'module gpu_blit_dma_reference (', 1))
+        extra_sources=[str(reference_path),str(triangle_path),str(dma_path),
+                       str(ROOT/'TESTS/rtl/blitter_equiv.sv'),str(ROOT/'TESTS/rtl/gpu_dma_equiv.sv')]
     with (OUT/'build.log').open('w') as log:
         subprocess.run(['verilator','--binary','--timing','-Wno-fatal','--top-module','gpu_accel_tb',
-                        '--Mdir',str(OUT/'obj')]+[str((ROOT if s.startswith("TESTS/") else args.rtl_root)/s) for s in sources],stdout=log,stderr=log,check=True)
+                        '--Mdir',str(OUT/'obj')]+[str((ROOT if s.startswith("TESTS/") else args.rtl_root)/s) for s in sources]+extra_sources,stdout=log,stderr=log,check=True)
     subprocess.run([str(OUT/'obj/Vgpu_accel_tb'),f'+ncmd={len(commands)//8}','+bad=1'],cwd=OUT,check=True)
 
 

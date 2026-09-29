@@ -255,6 +255,7 @@ erreurs du langage et persistance flash restent à développer.
 | G4 | Validé en simulation et sur carte, rendu LCD confirmé par Michael. 64 sprites en cache, priorités entre couches, transparence, flips et animation par changement d'image ; trois scènes, six permutations sous trafic CPU, zéro ligne manquante. |
 | G5 | Validé en simulation, sur carte et visuellement : triangles matériels, cubes en fil de fer/solide, clipping proche, deux pages et couche de texte. Quatre poses exactes, animation à 54,91 images/s sur 120 images, coût CPU/GPU mesuré et zéro ligne manquante. |
 | G6 | En cours : [premier jeu de course et zoom transparent](JEU_COURSE.md), pilotage au clavier par USB CDC. [GPU accéléré](GPU_SPANS_DDR256.md) : rendu original du jeu à environ 55 images/s, avec marge de dessin mesurée. Boutons physiques, LED, ADS1115 et manettes restent à intégrer. |
+| L11 | [Décors en tuiles matériels](GPU_L11_TILEMAPS.md) : 8/16/32 pixels, plein écran, défilement sans commande de dessin. **Validé sur carte et visuellement**, build `gpu_l11_usb_r13` (+0,093 ns), défilement à environ 55 images/s, G0–G6/FAST conservés et 1 088 200 octets USB exacts. Voir `../TESTS/TESTS_GPU_L11.md`. |
 | G7 | Chargeur, interpréteur et jeux de démonstration utilisant les accélérations ; stockage persistant ensuite. |
 
 Les entrées simples et l'API C peuvent avancer avec les premières démos

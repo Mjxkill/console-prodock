@@ -15,17 +15,18 @@ module gpu_blit_dma (
     input wire [9:0] w_len,
     input wire [15:0] w_data,
     input wire [1:0] w_mask,
-    output wire w_ready, w_done,
+    output wire w_ready,
+    output reg w_done,
     input wire f_req,
     input wire [24:0] f_addr,
     input wire [10:0] f_len,
     input wire [7:0] f_color,
-    output wire f_done,
+    output reg f_done,
     input wire c_req,
     input wire [23:0] c_addr,
     input wire [15:0] c_wdata,
     input wire [1:0] c_wmask,
-    output wire c_ack,
+    output reg c_ack,
     output reg valid=0,
     output wire write,
     output reg [28:0] addr,
@@ -52,9 +53,14 @@ module gpu_blit_dma (
     // This register changes on the same edges as entry/exit of SEND states.
     assign write = state == W_SEND;
     assign w_ready = !rst && state == W_PACK;
-    assign w_done = !rst && state == W_SEND && ready && !pixel_write && !fill_write && remaining == 0;
-    assign f_done=!rst && state==W_SEND && ready && fill_write && fill_left==0;
-    assign c_ack = !rst && state == W_SEND && ready && pixel_write;
+    // Acknowledge on the cycle AFTER native acceptance. This cuts the long
+    // scanout valid -> DDR ready -> blitter next-state path. Completion still
+    // means the final DDR write was accepted; no buffered write is hidden.
+    always @(posedge clk) begin
+        w_done <= !rst && state == W_SEND && ready && !pixel_write && !fill_write && remaining == 0;
+        f_done <= !rst && state == W_SEND && ready && fill_write && fill_left == 0;
+        c_ack <= !rst && state == W_SEND && ready && pixel_write;
+    end
     assign s_valid = !rst && state == R_UNPACK;
     assign s_data = read_buffer[lane * 16 +: 16];
     assign s_done = s_valid && remaining == 1;

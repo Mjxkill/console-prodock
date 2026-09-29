@@ -79,6 +79,7 @@ static void gpu_demo(void)
 #include "gpu_sprites_demo.h"
 #include "gpu_3d_demo.h"
 #include "racer_demo.h"
+#include "gpu_tiles_demo.h"
 #endif
 
 static unsigned char get_byte(void)
@@ -204,6 +205,7 @@ int main(void)
 #ifdef CONSOLE_GPU
         if(race_running && !(AE350_UART2->LSR&1U)){racer_tick();continue;}
         if(demo3d_animate && !(AE350_UART2->LSR&1U)){demo3d_tick();continue;}
+        if(tiles_animate && !(AE350_UART2->LSR&1U)){tiles_tick();continue;}
 #endif
         unsigned char command=get_byte();
 #ifdef CONSOLE_GPU
@@ -211,16 +213,22 @@ int main(void)
         if(command!='?' && command!='S' && command!='H' && command!='E' && command!='M')race_running=0;
         if(command!='?' && command!='S' && command!='A' && command!='X' && command!='E' && command!='M')demo3d_animate=0;
         if(command=='V' || command=='B' || command=='L' || command=='O' || command=='D')demo3d_initialized=0;
+        // Every other demonstration replaces the global palette or the scene.
+        if(command!='?' && command!='S' && command!='E' && command!='M' && command!='W')tiles_animate=0;
+        if(command!='?' && command!='S' && command!='E' && command!='M' && command!='H' && command!='U' && command!='Y' && command!='W')tiles_initialized=0;
 #endif
         switch (command) {
         case '?':
 #ifdef CONSOLE_GPU
-            printf("MegaPro GPU G6 FAST core=800MHz bus=80MHz\r\n");
+            printf("MegaPro GPU G6 FAST TILES core=800MHz bus=80MHz\r\n");
 #else
             printf("MegaPro GPU G0 core=800MHz bus=80MHz\r\n");
 #endif
             break;
 #ifdef CONSOLE_GPU
+        case 'U': tiles_demo(); break;
+        case 'Y': tiles_next(); break;
+        case 'W': tiles_start(); break;
         case 'K': racer_benchmark();break;
         case 'C': race_original^=1;racer_start();break;
         case 'R': racer_start(); break;

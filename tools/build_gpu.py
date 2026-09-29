@@ -22,10 +22,49 @@ def run(argv, cwd, logfile, env=None):
         raise SystemExit(content[-5000:])
 
 
+def resolve_constraints(netlist, constraints, resolved):
+    """Retarget placement constraints on cells that synthesis names itself.
+
+    A line `// @driver module=M instance=I pin=P` in the constraint file says
+    that the next INS_LOC places the cell driving pin P of instance I in
+    module M. Synthesis numbers such a cell differently from one netlist to
+    the next; its location and its function do not change.
+    """
+    text = netlist.read_text()
+    lines = constraints.read_text().splitlines()
+    for number, line in enumerate(lines):
+        directive = re.fullmatch(r'// @driver module=(\S+) instance=(\S+) pin=(\S+)', line.strip())
+        if not directive:
+            continue
+        module, instance, pin = directive.groups()
+        body = re.search(rf'^module {re.escape(module)} \(.*?^endmodule', text, re.S | re.M)
+        if not body:
+            raise SystemExit(f'{constraints}:{number+1}: module {module} is not in {netlist}')
+        cell = re.search(rf'^\s*\w+ {re.escape(instance)} \((.*?)\);', body.group(0), re.S | re.M)
+        net = cell and re.search(rf'\.{re.escape(pin)}\((\w+)\)', cell.group(1))
+        if not net:
+            raise SystemExit(f'{constraints}:{number+1}: no pin {pin} on {module}/{instance}')
+        drivers = re.findall(rf'^\s*\w+ (\w+) \([^;]*?\.F\({net.group(1)}\)', body.group(0), re.S | re.M)
+        if len(drivers) != 1:
+            raise SystemExit(f'{constraints}:{number+1}: {len(drivers)} drivers of {net.group(1)}, expected one')
+        target = re.fullmatch(r'(INS_LOC "(?:[^"/]+/)*)([^"/]+)(" .*)', lines[number+1])
+        if not target:
+            raise SystemExit(f'{constraints}:{number+2}: expected the INS_LOC of the @driver above')
+        if target.group(2) != drivers[0]:
+            print(f'Constraint retargeted: {target.group(2)} is named {drivers[0]} in this netlist', flush=True)
+            lines[number+1] = target.group(1) + drivers[0] + target.group(3)
+    resolved.write_text('\n'.join(lines) + '\n')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--name', default='gpu_g5')
+    parser.add_argument('--resolve-constraints', nargs=3, type=Path, metavar=('NETLIST', 'CST', 'RESOLVED'),
+                        help='internal: called by the generated build script between synthesis and placement')
     args = parser.parse_args()
+    if args.resolve_constraints:
+        resolve_constraints(*args.resolve_constraints)
+        return
     if not re.fullmatch(r'[A-Za-z0-9_-]+', args.name):
         parser.error('name must contain only letters, digits, underscores and hyphens')
     stage = ROOT / 'tang/impl' / args.name
@@ -57,14 +96,24 @@ def main():
     for line in (ROOT / 'tang/build_gpu.tcl').read_text().splitlines():
         if line.startswith('add_file '):
             dest = snapshot(ROOT / 'tang' / line[len('add_file '):])
+            if dest.suffix == '.cst':
+                # The frozen copy stays identical to the source; placement
+                # reads a copy completed from the netlist of this build.
+                constraints, dest = dest, stage / 'constraints_resolved.cst'
+                shutil.copy2(constraints, dest)
             line = f'add_file {{{dest}}}'
+        elif line == 'run all':
+            netlist = stage / f'impl/gwsynthesis/console_{args.name}.vg'
+            lines += ['run syn', f'puts [exec python3 {{{Path(__file__).resolve()}}} --resolve-constraints '
+                      f'{{{netlist}}} {{{constraints}}} {{{stage / "constraints_resolved.cst"}}}]']
+            line = 'run pnr'
         elif line.startswith('set_option -output_base_name '):
             line = f'set_option -output_base_name console_{args.name}'
         elif line.startswith('set_option -include_path '):
             line = f'set_option -include_path {{{stage / "source/tang/rtl"}}}'
         lines.append(line)
     (stage / 'build.tcl').write_text('\n'.join(lines) + '\n')
-    for name in ('gpu_diag.c', 'gpu_demo.h', 'gpu.c', 'gpu.h', 'gpu_palette.h', 'gpu_layers_demo.h', 'gpu_sprites_demo.h', 'gpu_3d_scene.h', 'gpu_3d_demo.h', 'racer_scene.h', 'racer_demo.h', 'build/gpu_font.h',
+    for name in ('gpu_diag.c', 'gpu_demo.h', 'gpu.c', 'gpu.h', 'gpu_palette.h', 'gpu_layers_demo.h', 'gpu_sprites_demo.h', 'gpu_3d_scene.h', 'gpu_3d_demo.h', 'racer_scene.h', 'racer_demo.h', 'gpu_tiles_scene.h', 'gpu_tiles_demo.h', 'build/gpu_font.h',
                  'itcm.ld', 'Makefile', 'build/console_test.elf', 'build/console_test.bin'):
         snapshot(ROOT / 'fw_console' / name)
     # $readmemh paths are resolved relative to the Gowin working directory.

@@ -35,13 +35,28 @@ unsigned gpu_completed(void);
 unsigned gpu_errors(void);
 
 typedef struct { uint32_t words[8]; } gpu_layer;
-enum { GPU_LAYER_ENABLE=1, GPU_LAYER_KEY_ZERO=2 };
+enum { GPU_LAYER_ENABLE=1, GPU_LAYER_KEY_ZERO=2, GPU_LAYER_TILES=4,
+       GPU_LAYER_WRAP_X=8, GPU_LAYER_WRAP_Y=16 };
 gpu_layer gpu_make_layer(unsigned long base,unsigned stride,unsigned width,unsigned height,
     int x,int y,unsigned view_width,unsigned view_height,unsigned scroll_x,unsigned scroll_y,unsigned flags);
 // Upload all 16 descriptors to the inactive bank, then request a vblank swap.
 // Priority is the table index: layer 0 behind, layer 15 in front.
 int gpu_layers_submit(const gpu_layer table[16]);
 int gpu_display_wait(void);
+// L11 tile map layer: composed like a surface of (map size x tile size)
+// pixels, without any drawing command. Map: 16-bit entries, row-major,
+// 2^map_w_log2 (16..4096) by 2^map_h_log2 tiles, at most 32768 pixels per
+// axis. Atlas: tile i is tile_size*tile_size bytes at atlas+i*size*size.
+// tile_size 8, 16 or 32. Both addresses 32-byte aligned; the map and 8192
+// atlas tiles must lie in the first GiB. The GPU counts a layer that breaks
+// these rules in its invalid layer counter and does not display it.
+// A wrapped axis repeats the map; otherwise the map ends like a surface.
+// Window sizes up to 32768. Flags: ENABLE, KEY_ZERO, WRAP_X, WRAP_Y.
+enum { GPU_TILE_INDEX=0x1fff, GPU_TILE_FLIP_X=0x4000, GPU_TILE_FLIP_Y=0x8000 }; // bit 13: write zero
+int gpu_tiles_supported(void);
+gpu_layer gpu_make_tile_layer(unsigned long map,unsigned long atlas,unsigned tile_size,
+    unsigned map_w_log2,unsigned map_h_log2,int x,int y,unsigned view_width,unsigned view_height,
+    unsigned scroll_x,unsigned scroll_y,unsigned flags);
 typedef struct { uint32_t words[4]; } gpu_sprite;
 enum { GPU_SPRITE_ENABLE=1, GPU_SPRITE_FLIP_X=2, GPU_SPRITE_FLIP_Y=4 };
 // Indexed pixels, 32-byte aligned base and fixed 32-byte pitch, size 1..32.

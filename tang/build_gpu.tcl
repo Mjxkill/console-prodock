@@ -1,9 +1,10 @@
-# G5 game console: AE350 800 MHz + DDR3 layers/sprites + triangle accelerator.
+# Game console: AE350 800 MHz + DDR3 layers/sprites/tile maps + triangle accelerator.
 set_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0
 add_file rtl/console_gpu.v
 add_file rtl/video/gpu_scanout.v
 add_file rtl/video/gpu_line_reader.v
 add_file rtl/video/gpu_sprite_cache.v
+add_file rtl/video/gpu_tile_row.v
 add_file rtl/video/gpu_accel.v
 add_file rtl/video/gpu_blit_dma.v
 add_file rtl/video/blitter.v

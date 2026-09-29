@@ -72,13 +72,20 @@ module ddr_ui_adapt #(
     wire   pop  = ip_rd_data_valid;
     wire [TAG_LOG2:0] tq_w_n = tq_w + {{TAG_LOG2{1'b0}}, push};
     wire [TAG_LOG2:0] tq_r_n = tq_r + {{TAG_LOG2{1'b0}}, pop};
+    wire [TAG_LOG2:0] tq_count = tq_w - tq_r;
     always @(posedge clk) begin
         if (!rst_n) begin
             tq_w <= 0; tq_r <= 0; tq_full <= 1'b0;
         end else begin
-            if (push) tags[tq_w[TAG_LOG2-1:0]] <= {half, rot};
+            // The write slot is free whenever the queue is not full. Prepare
+            // its tag every such cycle; only push publishes it by advancing
+            // tq_w. Never overwrite this slot while full: it is then the head.
+            // This removes upstream arbitration from the RAM write enable.
+            if (!tq_full) tags[tq_w[TAG_LOG2-1:0]] <= {half, rot};
             tq_w <= tq_w_n; tq_r <= tq_r_n;
-            tq_full <= (tq_w_n[TAG_LOG2] != tq_r_n[TAG_LOG2]) && (tq_w_n[TAG_LOG2-1:0] == tq_r_n[TAG_LOG2-1:0]);
+            // L11 : même valeur que (tq_w_n, tq_r_n) « écart = DEPTH », calculée sur les pointeurs courants ; push et
+            // pop, qui arrivent tard (arbitre, IP), ne font plus que choisir entre trois comparaisons déjà prêtes.
+            tq_full <= (push && !pop) ? tq_count == DEPTH - 1 : (!push && pop) ? tq_count == DEPTH + 1 : tq_count == DEPTH;
         end
     end
     /* verilator lint_off UNUSEDSIGNAL */

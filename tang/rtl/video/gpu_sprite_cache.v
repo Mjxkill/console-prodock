@@ -4,6 +4,7 @@
 `default_nettype none
 module gpu_sprite_cache (
     input wire clk,resetn,start,config_bank,
+    input wire clear_maxima,
     output wire busy,
     output reg done,
     output wire [8:0] config_address,
@@ -123,6 +124,7 @@ module gpu_sprite_cache (
                 FINISH: begin done<=1;loads<=loads+1'b1;state<=IDLE;if(elapsed>max_cycles) max_cycles<=elapsed;end
                 default:state<=IDLE;
             endcase
+            if(clear_maxima) max_cycles<=0;
         end
     end
 endmodule

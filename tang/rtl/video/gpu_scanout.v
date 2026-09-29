@@ -34,6 +34,7 @@ module gpu_scanout #(
     reg shadow_enable, mailbox_enable, commit_toggle;
     reg shadow_layers,mailbox_layers,mailbox_bank,write_bank;
     reg shadow_sprites,mailbox_sprites;
+    reg clear_toggle; // L11: a write to 0x02c restarts the load maxima
     reg applied_toggle = 0;
     reg [1:0] applied_sync;
     reg [11:0] bus_addr;
@@ -65,7 +66,7 @@ module gpu_scanout #(
             mailbox_base <= 0; mailbox_enable <= 0;
             commit_toggle <= 0; applied_sync <= 0;
             shadow_layers<=0;mailbox_layers<=0;mailbox_bank<=0;write_bank<=1;
-            shadow_sprites<=0;mailbox_sprites<=0;
+            shadow_sprites<=0;mailbox_sprites<=0;clear_toggle<=0;
             bus_addr <= 0; bus_write <= 0;bus_guarded<=0;
         end else begin
             applied_sync <= {applied_sync[0], applied_toggle};
@@ -85,6 +86,7 @@ module gpu_scanout #(
                     if(shadow_layers) write_bank<=~write_bank;
                     commit_toggle <= ~commit_toggle;
                 end
+                12'h02c: clear_toggle<=~clear_toggle;
                 12'h030: shadow_layers<=hwdata[0];
                 12'h040: shadow_sprites<=hwdata[0];
                 default: begin end
@@ -124,33 +126,41 @@ module gpu_scanout #(
         if (!hresetn) begin enabled_sync <= 0;layers_sync<=0;sprites_sync<=0;end
         else begin enabled_sync <= {enabled_sync[0], active_enable};layers_sync<={layers_sync[0],active_layers};sprites_sync<={sprites_sync[0],active_sprites};end
     end
+    // Decode read addresses in the existing AHB address phase. The data
+    // phase only gates/ORs register values; read latency is unchanged.
+    reg [23:0] read_select;
+    genvar reg_index;
+    generate for (reg_index=0; reg_index<24; reg_index=reg_index+1) begin: read_decode
+        always @(posedge hclk)
+            if (!hresetn) read_select[reg_index] <= (reg_index == 0);
+            else if (hready) read_select[reg_index] <= (haddr[11:0] == reg_index*4);
+    end endgenerate
     always @* begin
-        case (bus_addr)
-            12'h000: hrdata = 32'h47505531; // GPU1
-            12'h004: hrdata = shadow_base;
-            12'h008: hrdata = {31'b0, shadow_enable};
-            12'h00c: hrdata = {31'b0, busy};
-            12'h010: hrdata = r_base;
-            12'h014: hrdata = {31'b0, enabled_sync[1]};
-            12'h018: hrdata = r_frames;
-            12'h01c: hrdata = r_underflows;
-            12'h020: hrdata = r_checksum;
-            12'h024: hrdata = r_fetch_frames;
-            12'h028: hrdata = 16;
-            12'h02c: hrdata = r_max_cycles;
-            12'h030: hrdata = {31'b0,shadow_layers};
-            12'h034: hrdata = {31'b0,layers_sync[1]};
-            12'h038: hrdata = r_invalid_layers;
-            12'h03c: hrdata = 64;
-            12'h040: hrdata = {31'b0,shadow_sprites};
-            12'h044: hrdata = {31'b0,sprites_sync[1]};
-            12'h048: hrdata = r_invalid_sprites;
-            12'h04c: hrdata = r_max_sprites;
-            12'h050: hrdata = r_cache_cycles;
-            12'h054: hrdata = r_max_sprite_pixels;
-            12'h058: hrdata = r_cache_loads;
-            default: hrdata = 0;
-        endcase
+        hrdata =
+            ({32{read_select[0]}} & (32'h47505531)) |
+            ({32{read_select[1]}} & (shadow_base)) |
+            ({32{read_select[2]}} & ({31'b0, shadow_enable})) |
+            ({32{read_select[3]}} & ({31'b0, busy})) |
+            ({32{read_select[4]}} & (r_base)) |
+            ({32{read_select[5]}} & ({31'b0, enabled_sync[1]})) |
+            ({32{read_select[6]}} & (r_frames)) |
+            ({32{read_select[7]}} & (r_underflows)) |
+            ({32{read_select[8]}} & (r_checksum)) |
+            ({32{read_select[9]}} & (r_fetch_frames)) |
+            ({32{read_select[10]}} & (16)) |
+            ({32{read_select[11]}} & (r_max_cycles)) |
+            ({32{read_select[12]}} & ({31'b0,shadow_layers})) |
+            ({32{read_select[13]}} & ({31'b0,layers_sync[1]})) |
+            ({32{read_select[14]}} & (r_invalid_layers)) |
+            ({32{read_select[15]}} & (64)) |
+            ({32{read_select[16]}} & ({31'b0,shadow_sprites})) |
+            ({32{read_select[17]}} & ({31'b0,sprites_sync[1]})) |
+            ({32{read_select[18]}} & (r_invalid_sprites)) |
+            ({32{read_select[19]}} & (r_max_sprites)) |
+            ({32{read_select[20]}} & (r_cache_cycles)) |
+            ({32{read_select[21]}} & (r_max_sprite_pixels)) |
+            ({32{read_select[22]}} & (r_cache_loads)) |
+            ({32{read_select[23]}} & (32'h00000d07));
     end
 
     // Pixel domain: line requests sent during blanking, one line ahead.
@@ -255,12 +265,16 @@ module gpu_scanout #(
     // Data runs continuously so the tag decode only drives one valid register.
     reg [255:0] returned_data;
     reg returned_valid=0;
+    reg [2:0] clear_sync=0;
+    wire clear_maxima=clear_sync[2]!=clear_sync[1];
     always @(posedge mem_clk) begin
         returned_data<=fetch_data;
         returned_valid<=mrst[1] && fetch_data_valid;
+        clear_sync<={clear_sync[1:0],clear_toggle};
     end
     gpu_line_reader #(.WIDTH(WIDTH),.HEIGHT(HEIGHT)) u_reader (
         .clk(mem_clk),.resetn(mrst[1]),.start(reader_start),.layers(request_layers),.config_bank(request_bank),
+        .clear_maxima(clear_maxima),
         .sprites(request_sprites && request_layers),
         .base(request_base),.line_y(request_tag[8:0]),.busy(reader_busy),.done(reader_done),
         .config_address(config_address),.config_data(config_data),
@@ -270,6 +284,7 @@ module gpu_scanout #(
         .sprite_row_address(sprite_row_address),.sprite_row_data(sprite_row_data),.max_sprites(max_sprites),.max_sprite_pixels(max_sprite_pixels));
     gpu_sprite_cache u_sprites (
         .clk(mem_clk),.resetn(mrst[1]),.start(cache_start),.config_bank(request_bank),.busy(cache_busy),.done(cache_done),
+        .clear_maxima(clear_maxima),
         .config_address(sprite_config_address),.config_data(sprite_config_data),
         .fetch_valid(cache_fetch_valid),.fetch_addr(cache_fetch_addr),.fetch_ready(fetch_ready && prefetch_active),
         .fetch_data(returned_data),.fetch_data_valid(returned_valid && prefetch_active),

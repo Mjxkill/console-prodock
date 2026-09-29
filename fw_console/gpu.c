@@ -98,6 +98,22 @@ gpu_layer gpu_make_layer(unsigned long base,unsigned stride,unsigned width,unsig
         ((scroll_y&65535)<<16)|(scroll_x&65535),stride&65535,flags&3,0}};
     return layer;
 }
+int gpu_tiles_supported(void) { return DISPLAY[0x5c/4]==0x00000d07U; }
+gpu_layer gpu_make_tile_layer(unsigned long map,unsigned long atlas,unsigned tile_size,
+    unsigned map_w_log2,unsigned map_h_log2,int x,int y,unsigned view_width,unsigned view_height,
+    unsigned scroll_x,unsigned scroll_y,unsigned flags)
+{
+    // An unsupported size becomes code 3: the GPU rejects and counts the
+    // layer, instead of displaying it with another tile size.
+    unsigned code=tile_size==8 ? 0 : tile_size==16 ? 1 : tile_size==32 ? 2 : 3;
+    gpu_layer layer={{map,atlas,
+        ((uint32_t)(uint16_t)y<<16)|(uint16_t)x,
+        ((view_height&65535)<<16)|(view_width&65535),
+        ((scroll_y&65535)<<16)|(scroll_x&65535),
+        (map_w_log2&15)|((map_h_log2&15)<<4)|(code<<8),
+        (flags&(GPU_LAYER_ENABLE|GPU_LAYER_KEY_ZERO|GPU_LAYER_WRAP_X|GPU_LAYER_WRAP_Y))|GPU_LAYER_TILES,0}};
+    return layer;
+}
 int gpu_display_wait(void)
 {
     unsigned timeout=1000000;

@@ -26,6 +26,46 @@ L'opcode ZOOM (11), son cache de ligne DDR et l'échantillonnage 8.16 sont
 des extensions propres à ce projet, ajoutées pour le prototype de course G6.
 Les graphismes procéduraux du jeu sont définis dans `fw_console/racer_scene.h`.
 
+`gpu_tile_row.v` (L11, décors en tuiles) est propre à ce projet : lecture
+des cases et des lignes de tuiles en DDR3, retournements et assemblage en
+mots de 32 pixels. `gpu_line_reader.v` lui confie les couches en tuiles et
+garde son traitement des couches d'image.
+
 Le rasteriseur par intersections entières d'arêtes dans `gpu_triangle.v` et
 la voie d'aplats natifs 256 bits dans `gpu_blit_dma.v` sont propres à ce projet.
 Ils conservent les règles de pixels et le protocole de commandes précédents.
+
+Revue USB/L11 : la remise à zéro du pointeur de lecture des banques de
+`blitter.v` passe par `row_rewind` pour raccourcir le chemin vers la BSRAM.
+Le protocole, les pixels et les cycles consommés sont conservés, vérifiés
+contre le module antérieur par `TESTS/rtl/blitter_equiv.sv`.
+
+La préparation d'une lecture de surface dans `gpu_line_reader.v` charge
+les registres d'adresse/alignement même pour une ligne refusée. Seuls
+l'état et `request_valid` autorisent la requête : le contrôle de limite DDR
+ne pilote plus les activations de registres larges. Le banc lié
+`TESTS/rtl/gpu_reader_equiv.sv` compare les interfaces au cycle près avec
+la version antérieure, y compris les surfaces hors de la DDR.
+
+Revue timing suivante : `blitter.v` et `gpu_triangle.v` utilisent un bit
+par état, avec les mêmes transitions et cycles. Les bornes source d'une
+copie sont préparées dans les cycles existants avant `M_COPY_CLIP`.
+La comparaison du blitter comprend le rasteriseur et ses diviseurs
+antérieurs inchangés ; les interfaces et pixels restent équivalents.
+
+`gpu_blit_dma.v` enregistre les trois acquittements d'écriture pour couper
+le chemin de retour DDR vers le blitter. Ils arrivent un cycle après
+l'acceptation native (jamais avant). `TESTS/rtl/gpu_dma_equiv.sv` vérifie
+ce décalage exact et l'identité des interfaces natives ; la régression
+AHB/DDR vérifie les pixels et quantifie le coût en cycles.
+
+`gpu_scanout.v` présélectionne les registres de lecture durant la phase
+adresse AHB. Le multiplexage des valeurs conserve le cycle et la valeur
+courante ; `TESTS/rtl/gpu_registers_equiv.sv` compare avec le décodage
+antérieur, notamment durant les attentes de validation de scène.
+
+La correction du quotient signé de `gpu_triangle_floor_div` prépare en
+parallèle le complément du quotient et la nullité du reste. Elle conserve
+les 36 itérations et le résultat ; 12 000 divisions sont comparées à la
+version antérieure. Le blitter prépare aussi la fin de caractère pendant
+la lecture de police, sans changer les cycles ni les pixels du texte.

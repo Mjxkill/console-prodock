@@ -10,8 +10,9 @@ import tempfile
 
 from PIL import Image
 from render_gpu_demo import ROOT, brace_block
+from gpu_compose import W,H,compose,frame_hash,palette_rgb
 
-W,H,SLOT=800,480,1048576
+SLOT=1048576
 
 
 def render(pose,output,hardware_log=None,sprites=False):
@@ -70,52 +71,22 @@ void gpu_submit(const gpu_command *cmd) {reference_draw(cmd,pages[(cmd->words[0]
     if len(raw)!=16*SLOT+512+1024+(196608+1024 if sprites else 0):
         raise SystemExit('Unexpected surface/descriptor/palette data size')
     # Independent host composition of the descriptors produced by the C driver.
-    indices=bytearray(W*H)
-    def compose_layer(layer):
-        base,wh,xy,view,scroll,stride,flags,_=struct.unpack_from('<8I',raw,16*SLOT+layer*32)
-        if not flags&1:return
-        signed=lambda v:v if v<32768 else v-65536
-        x,y=signed(xy&65535),signed(xy>>16)
-        sw,sh=wh&65535,wh>>16;vw,vh=view&65535,view>>16;sx,sy=scroll&65535,scroll>>16
-        left,right=max(0,x),min(W,x+vw,x+sw-sx)
-        top,bottom=max(0,y),min(H,y+vh,y+sh-sy)
-        if left>=right or top>=bottom:return
-        if stride<sw:raise SystemExit('Invalid source stride')
-        for yy in range(top,bottom):
-            start=base-0x00800000+(sy+yy-y)*stride+sx+left-x
-            if not 0<=start<=16*SLOT-(right-left):raise SystemExit('Source outside surface memory')
-            row=raw[start:start+right-left];at=yy*W+left
-            if flags&2:row=bytes(p if p else old for p,old in zip(row,indices[at:at+len(row)]))
-            indices[at:at+len(row)]=row
-    for layer in range(16):
-        compose_layer(layer)
-        if not sprites:continue
-        for slot in range(64):
-            base,xy,prop,_=struct.unpack_from('<4I',raw,16*SLOT+512+196608+slot*16)
-            if not prop&65536 or (prop>>20)&15!=layer:continue
-            signed=lambda v:v if v<32768 else v-65536
-            x,y=signed(xy&65535),signed(xy>>16)
-            width,height=prop&255,(prop>>8)&255
-            for yy in range(max(0,y),min(H,y+height)):
-                for xx in range(max(0,x),min(W,x+width)):
-                    sx=width-1-(xx-x) if prop&131072 else xx-x
-                    sy=height-1-(yy-y) if prop&262144 else yy-y
-                    value=raw[16*SLOT+512+base-0x02000000+sy*32+sx]
-                    if value:indices[yy*W+xx]=value
-    rotate=lambda v,n:((v<<(n&31))|(v>>((32-n)&31)))&0xffffffff
-    checksum=0
-    for offset in range(0,len(indices),32):
-        block=0
-        for i,word in enumerate(struct.unpack_from('<8I',indices,offset)):block^=rotate(word,i*4)
-        checksum=rotate(checksum,5)^block
+    textures=16*SLOT+512
+    def read(address,count):
+        if 0x00800000<=address and address+count<=0x00800000+16*SLOT:
+            return raw[address-0x00800000:address-0x00800000+count]
+        if sprites and 0x02000000<=address and address+count<=0x02000000+196608:
+            return raw[textures+address-0x02000000:textures+address-0x02000000+count]
+        raise SystemExit('Source outside surface memory')
+    layer_table=list(struct.iter_unpack('<8I',raw[16*SLOT:16*SLOT+512]))
+    sprite_table=list(struct.iter_unpack('<4I',raw[textures+196608:textures+196608+1024])) if sprites else None
+    indices=compose(layer_table,sprite_table,read)
+    checksum=frame_hash(indices)
     if hardware_log:
         label='SPRITES' if sprites else 'LAYERS'
         expected=re.findall(rf'{label} POSE {pose} hash=([0-9a-fA-F]+)',hardware_log.read_text())
         if not expected or any(int(v,16)!=checksum for v in expected):raise SystemExit(f'Hardware image differs from {checksum:08x}')
-    colors=[]
-    for (rgb,) in struct.iter_unpack('<I',raw[-1024:]):
-        colors.extend((((rgb>>shift)&63)*255+31)//63 for shift in (12,6,0))
-    picture=Image.frombytes('P',(W,H),bytes(indices));picture.putpalette(colors)
+    picture=Image.frombytes('P',(W,H),bytes(indices));picture.putpalette(palette_rgb(raw[-1024:]))
     output.parent.mkdir(parents=True,exist_ok=True);picture.convert('RGB').save(output)
     print(f'{output}: pose {pose}, hash {checksum:08x}'+(', matches hardware log' if hardware_log else ', software reference'))
 

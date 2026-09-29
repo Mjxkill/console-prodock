@@ -16,6 +16,20 @@ officiel Sipeed `TangMega-138KPro-example` (Apache 2.0 / CC BY-SA 4.0), copiés 
 - `sync_fifo/` — sources Sipeed/Gowin ; **modification E2** dans `usb_fifo.v` :
   la validité d'un octet reçu est conditionnée par `i_ep_rx_rdy`, comme la lecture
   FIFO, pour permettre la régulation du débit vers l'UART AE350.
+  **Correction de reprise USB IN (29 septembre 2026)** dans `sync_tx_pkt_fifo.v` :
+  le pointeur de prélecture `rp_next` est rétabli avec `rp` à la fin d'une
+  tentative de paquet. Sans cela, une retransmission à lectures consécutives
+  corrompt son deuxième octet. Reproduit par `TESTS/rtl/usb_tx_retry_tb.sv`.
+  Dans `usb_fifo.v`, la longueur d'un paquet IN est conservée jusqu'à son
+  acquittement (seulement pour un paquet non vide annoncé disponible ;
+  aucun paquet réservé lors d'un sondage à vide) : les octets UART arrivés
+  entre deux tentatives doivent rester
+  dans le paquet suivant. L'autorisation `txcork` et cette longueur sont
+  acquises ensemble : le paquet peut s'ouvrir pendant l'attente active de
+  données, puis reste stable pendant sa lecture. Un octet tardif ne doit pas
+  ouvrir un paquet de longueur nulle. La sélection d'un
+  endpoint simultanée au début de transaction reste prise en compte.
+  Reproduit par `TESTS/rtl/usb_in_packet_tb.sv`.
 - `ddrtest/ddr3_memory_interface/` — netlist `DDR3_Memory_Interface_Top` (PHY DDR3) —
   `pro_ddr_test/src/ddr3_memory_interface/`.
 - `ddrtest/gowin_pll/` — PLL DDR Sipeed (copie).
@@ -25,6 +39,25 @@ officiel Sipeed `TangMega-138KPro-example` (Apache 2.0 / CC BY-SA 4.0), copiés 
 
 Règle du projet : ne jamais modifier le contenu chiffré ; les modifications RTL se font dans
 les modules du projet (`console_top.v`, machines CDC/DDR3).
+
+## Modification L11 du socle DDR3 (29 septembre 2026)
+
+`board/ddr_ui_adapt.v` et `board/ddr_arb.v` : l'état « file pleine » de leur
+file d'étiquettes est calculé par sélection tardive entre trois comparaisons
+des pointeurs courants. Valeur identique à l'expression d'origine sur les
+4 096 cas (`TESTS/rtl/ddr_tag_queue_equiv.sv`).
+
+Revue USB/L11 : `board/ddr_arb.v` sélectionne ensuite le maître et les
+données indépendamment de `ready`, qui ne conditionne que l'acceptation.
+Les priorités, les cycles acceptés, les masques et les étiquettes de lecture
+restent identiques sur 4 096 cas (`TESTS/rtl/ddr_arb_equiv.sv`). Cela enlève
+le trajet combinatoire DDR ready/reset → sélection d'adresse → rotation
+→ tampon CPU de l'arbitre GPU, sans ajouter de cycle.
+
+Revue r9 : `ddr_ui_adapt.v` prépare l'étiquette dans l'emplacement libre
+sans attendre `push`. Elle n'est publiée que par l'avance du pointeur ;
+aucune écriture à file pleine. Interfaces comparées sur 20 000 cycles
+contre r8 (`TESTS/rtl/ddr_ui_equiv.sv`).
 
 ## Ajouts E2 — AE350 et diagnostic LED (27 septembre 2026)
 

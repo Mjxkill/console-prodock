@@ -15,7 +15,8 @@ Documents de référence, à lire avant toute évolution :
   (`ARCHI_V1.md` est remplacé ; les fonctions d'acquisition de signaux sont hors périmètre).
 - `ARCHI/FEUILLE_DE_ROUTE_CONSOLE.md` : lots restants L00–L18, contraintes, budgets.
 - `ARCHI/GPU_G*_REGISTRES.md`, `GPU_G5_TRIANGLES_3D.md`, `GPU_SPANS_DDR256.md`,
-  `JEU_COURSE.md` : contrats de registres, d'opcodes et protocole USB du jeu.
+  `GPU_L11_TILEMAPS.md`, `JEU_COURSE.md` : contrats de registres, d'opcodes,
+  de décors en tuiles et protocole USB du jeu.
 - `TESTS/TESTS_*.md` : une fiche de validation par jalon, avec mesures et journaux.
 
 ## Commandes
@@ -35,6 +36,9 @@ python3 tools/build_gpu.py --name gpu_xxx_r1
   `cfg/riscv_ae350_soc.vg` : ce diff est attendu après un build.
 - Il échoue si une marge de timing est négative. Résultat :
   `tang/impl/<name>/impl/pnr/console_<name>.fs` et `bitstream.sha256`.
+- Un build dure environ 12 minutes. Le placement est reproductible mais très
+  sensible : une petite modification déplace le pire chemin d'une à deux
+  nanosecondes. Compter plusieurs builds pour un changement RTL.
 - La liste des fichiers RTL compilés est dans `tang/build_gpu.tcl` ; la liste des
   fichiers firmware figés est dans `tools/build_gpu.py`. Tout nouveau fichier
   source doit être ajouté aux deux endroits concernés, ainsi qu'aux dépendances
@@ -61,25 +65,32 @@ verilator --binary --timing -Wno-fatal --top-module gpu_triangle_tb \
   --Mdir /tmp/console_gpu_triangle TESTS/rtl/gpu_triangle_tb.sv tang/rtl/video/gpu_triangle.v
 /tmp/console_gpu_triangle/Vgpu_triangle_tb
 
-# Un banc isolé : 16 couches + 64 sprites
+# Un banc isolé : 16 couches + 64 sprites ; ajouter -GTILES=8 pour les décors en tuiles
 verilator --binary --timing -Wno-fatal --top-module gpu_layers_tb \
   -GW=800 -GH=480 -GVT=533 -GSPRITES=1 --Mdir /tmp/console_gpu_g4 \
   TESTS/rtl/gpu_layers_tb.sv tang/rtl/video/gpu_scanout.v tang/rtl/video/gpu_line_reader.v \
-  tang/rtl/video/gpu_sprite_cache.v tang/rtl/board/ddr_gpu_arb.v tang/rtl/board/cdc_word.v
+  tang/rtl/video/gpu_tile_row.v tang/rtl/video/gpu_sprite_cache.v \
+  tang/rtl/board/ddr_gpu_arb.v tang/rtl/board/cdc_word.v
 /tmp/console_gpu_g4/Vgpu_layers_tb
 ```
+
+Sans `-GW=800 -GH=480 -GVT=533`, le banc tourne en 64 × 32 en quelques secondes.
+Sans `-GTILES`, son journal doit rester identique à `TESTS/gpu_fast_layers_simulation.txt`.
 
 ### Tests hôte (sans carte)
 
 ```sh
 python3 tools/render_racer.py --pose 1      # poses 0..3 ; --cached pour la variante panorama
 python3 tools/render_gpu_3d.py --pose 0     # de même render_gpu_layers.py, render_gpu_sprites.py, render_gpu_demo.py
+python3 tools/render_gpu_tiles.py --sweep   # décors en tuiles : toutes les poses et positions de défilement
 python3 TESTS/test_racer_controller.py      # manette Web : Chrome headless + node
 ```
 
 Les `render_*.py` compilent avec `cc` les **mêmes en-têtes de scène que le
 firmware** (`fw_console/*_scene.h`, `*_demo.h`) et produisent l'image et
 l'empreinte attendues ; `--hardware-log FICHIER` les compare à un journal UART.
+`tools/gpu_compose.py` est la composition de référence commune aux couches,
+sprites et tuiles ; elle ne partage aucun code avec le RTL ni le firmware.
 
 ### Tests sur carte
 
@@ -106,7 +117,8 @@ AE350 800 MHz ──AHB 80 MHz──> gpu_accel.v (registres + FIFO de commandes
                                  └─> blitter.v + gpu_triangle.v ─> gpu_blit_dma.v ─┐
 AE350 ──> pont AHB/DDR (adaptateur 128 bits) ──────────────────────────────────────┤
                                                                      ddr_gpu_arb.v ┴─> DDR3 (rafales 256 bits)
-DDR3 ─> gpu_line_reader.v (16 couches) + gpu_sprite_cache.v (64 sprites, BSRAM)
+DDR3 ─> gpu_line_reader.v (16 couches : images, ou décors en tuiles par gpu_tile_row.v)
+     + gpu_sprite_cache.v (64 sprites, BSRAM)
      ─> gpu_scanout.v (composition, palette, échange au retour vertical) ─> LCD 35 MHz
 ```
 
@@ -115,12 +127,17 @@ DDR3 ─> gpu_line_reader.v (16 couches) + gpu_sprite_cache.v (64 sprites, BSRAM
   utiliser des activations synchrones.
 - `tang/rtl/video/` contient le GPU ; `tang/rtl/board/` le socle AE350/DDR3
   (`ext_regs.v`, `ddr_gpu_arb.v`, pont AHB) ; `tang/rtl/console_top.v` est le top.
-  `tang/rtl/usb/`, `ddrtest/` et les IP DDR3/AE350 sont des netlists fournisseur.
+  Les IP USB/DDR3/AE350 comprennent des netlists fournisseur fermées ;
+  `tang/rtl/usb/sync_fifo/` contient aussi des sources ouvertes corrigées
+  pour les reprises de paquets et sondages vides (voir `TESTS_USB_REPRISE.md`).
 - Les `build_e*.tcl`, `console_e0b_*.v`, `console_top_noddr.v`, `ref_demo/` sont
   des jalons historiques E0–E2 conservés comme points de retour.
 
 ### Modèle graphique
 
+- Une couche est soit une image, soit un **décor en tuiles** (grille de cases
+  de 16 bits + jeu de tuiles 8/16/32 en DDR), composé pendant l'affichage :
+  le défilement ne demande aucune commande de dessin.
 - **Page, couche et sprite sont trois objets distincts.** Une page est une image
   stockée en DDR (16 emplacements, `0x00800000 + n × 1 Mio`, 384 000 octets
   utiles) ; une couche est un élément de la composition affichée qui référence
@@ -135,7 +152,10 @@ DDR3 ─> gpu_line_reader.v (16 couches) + gpu_sprite_cache.v (64 sprites, BSRAM
   invalider avant de relire sur le CPU une surface écrite par le GPU.
 - `DONE` est un compteur de commandes terminées sur 16 bits, à traiter modulo.
 - Budget de composition : environ 2 556 cycles à 75 MHz par ligne LCD ; un
-  dépassement est compté (lignes manquantes), jamais masqué.
+  dépassement est compté (lignes manquantes), jamais masqué. Écrire dans
+  `0x02c` remet les maxima à zéro pour mesurer une scène.
+- Le registre de demande de lecture DDR de `gpu_line_reader.v` alimente
+  l'arbitrage : ne rien insérer entre ce registre et `fetch_valid`.
 
 ### Firmware (`fw_console/`)
 
@@ -146,7 +166,8 @@ DDR3 ─> gpu_line_reader.v (16 couches) + gpu_sprite_cache.v (64 sprites, BSRAM
   `*_scene.h` doivent rester compilables sur l'hôte : ce sont les références
   des comparaisons de pixels.
 - Mémoire : 64 Kio ITCM, 64 Kio ILM, 32 Kio DLM (`itcm.ld`). L'image de
-  référence occupe 48 112 octets d'ITCM ; les grosses ressources vont en DDR.
+  L11 occupe 53 160 octets d'ITCM et 28 920 octets de BSS ;
+  les grosses ressources vont en DDR.
 - La DDR3 commence à l'adresse 0 : les options
   `-fno-delete-null-pointer-checks -fno-isolate-erroneous-paths-dereference`
   de la toolchain sont indispensables.
@@ -163,6 +184,20 @@ DDR3 ─> gpu_line_reader.v (16 couches) + gpu_sprite_cache.v (64 sprites, BSRAM
 - Conserver le cœur à 800 MHz et les domaines 80/75/35 MHz. Ne pas relâcher les
   contraintes (`tang/constr/gpu.sdc`) pour faire passer un build : la marge de
   référence n'est que de **+0,139 ns** (`gpu_fast_r2`).
+- `tang/constr/gpu.cst` fixe l'emplacement des mémoires BSRAM du build validé.
+  Une mémoire renommée ou supprimée arrête le build sur sa ligne : la mettre à
+  jour ou la retirer. Une ligne `// @driver module=… instance=… pin=…` fait
+  résoudre par `tools/build_gpu.py` le nom d'une cellule que la synthèse
+  numérote elle-même ; la copie figée de `gpu.cst` reste identique à la source.
+- Le FPGA n'a pas de RAM distribuée : une mémoire est en BSRAM ou en registres.
+- Dans `gpu_line_reader.v`, l'état est codé en binaire sur 5 bits et les codes
+  libres sont comptés : ajouter un état allonge le décodage des états 8 à 15.
+  Les étapes d'une fonction nouvelle vont dans un registre séparé.
+- Toute réécriture de logique existante s'accompagne d'une preuve d'équivalence
+  (`TESTS/rtl/*_equiv.sv`) et de journaux de simulation identiques au cycle près.
+  Exception documentée : les acquittements d'écriture DMA sont enregistrés
+  depuis L11/USB r13 ; le banc prouve le décalage exact d'un cycle et mesure
+  son coût, avec pixels et transactions conservés (`TESTS_USB_REPRISE.md`).
 - Une accélération doit conserver exactement les pixels, les gardes mémoire et
   les opcodes existants ; les bancs comparent à une référence indépendante, à
   réutiliser plutôt qu'à remplacer.

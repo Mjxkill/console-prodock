@@ -72,12 +72,17 @@ begin                  // read from RAM
         rp_next <= 'd1;
     end
     //else if ( txact_rise ) begin
+    // A packet without pktfin is retried from pkt_rp. Rewind both RAM
+    // lookahead addresses: leaving rp_next at the failed packet's end
+    // corrupts the second byte when the controller requests consecutive bytes.
     else if ( txact_fall ) begin
         if ( read & (~empty)  ) begin
             rp <= pkt_rp + 1'b1;
+            rp_next <= pkt_rp + 2'd2;
         end
         else begin
             rp <= pkt_rp;
+            rp_next <= pkt_rp + 1'b1;
         end
     end
     else if ( read & (~empty)  ) begin

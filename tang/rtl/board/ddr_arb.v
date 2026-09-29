@@ -88,21 +88,27 @@ module ddr_arb #(
     // L'IP prend une commande quand cmd_ready (et wr_data_rdy pour une écriture) ; commande et donnée
     // sont toujours présentées au même cycle, donc on exige les deux ready.
     wire ip_ok    = ui_cmd_ready && ui_wr_data_rdy;
-    wire want_m1  = m1_cmd_en;
-    wire serve_m1 = ip_ok && want_m1 && (!b_full || m1_urgent);
     wire m0_is_rd = (b_cmd == 3'b001);
-    wire serve_m0 = ip_ok && b_full && !serve_m1 && !(m0_is_rd && tq_full);
-    wire serve_m2 = ip_ok && m2_cmd_en && !serve_m1 && !serve_m0 && !tq_full;
+    // Choose the payload independently of downstream ready. Using accepted
+    // grants for this mux fed DDR reset/ready back through arbitration, address
+    // rotation and the CPU buffer. Factoring ready out preserves every accepted
+    // command and its cycle; payload while ui_cmd_en=0 is deliberately irrelevant.
+    wire choose_m1 = m1_cmd_en && (!b_full || m1_urgent);
+    wire choose_m0 = b_full && !(m1_cmd_en && m1_urgent) && !(m0_is_rd && tq_full);
+    wire choose_m2 = m2_cmd_en && !b_full && !m1_cmd_en && !tq_full;
+    wire serve_m1 = ip_ok && choose_m1;
+    wire serve_m0 = ip_ok && choose_m0;
+    wire serve_m2 = ip_ok && choose_m2;
 
     assign m1_ready       = serve_m1;
     assign m2_ready       = serve_m2;
     assign ui_cmd_en      = serve_m0 || serve_m1 || serve_m2;
-    assign ui_cmd         = serve_m1 ? 3'b000 : serve_m2 ? 3'b001 : b_cmd;
-    assign ui_addr        = serve_m1 ? m1_addr : serve_m2 ? m2_addr : b_addr;
+    assign ui_cmd         = choose_m1 ? 3'b000 : choose_m2 ? 3'b001 : b_cmd;
+    assign ui_addr        = choose_m1 ? m1_addr : choose_m2 ? m2_addr : b_addr;
     assign ui_wr_data_en  = serve_m1 || (serve_m0 && b_wr);
     assign ui_wr_data_end = ui_wr_data_en;                 // une donnée par commande (burst = 1, BL8)
-    assign ui_wr_data     = serve_m1 ? m1_wr_data : b_data;
-    assign ui_wr_data_mask= serve_m1 ? m1_wr_mask : b_mask;
+    assign ui_wr_data     = choose_m1 ? m1_wr_data : b_data;
+    assign ui_wr_data_mask= choose_m1 ? m1_wr_mask : b_mask;
 
     // --- Retour des lectures, routé par l'étiquette de tête ---------------------------------------
     wire   push = (serve_m0 && m0_is_rd) || serve_m2;
@@ -118,6 +124,7 @@ module ddr_arb #(
     /* verilator lint_on UNUSEDSIGNAL */
     wire [TAG_LOG2:0] tq_w_n = tq_w + {{TAG_LOG2{1'b0}}, push};
     wire [TAG_LOG2:0] tq_r_n = tq_r + {{TAG_LOG2{1'b0}}, pop};
+    wire [TAG_LOG2:0] tq_count = tq_w - tq_r;
 
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -131,7 +138,9 @@ module ddr_arb #(
             end
             if (push) tags[tq_w[TAG_LOG2-1:0]] <= serve_m2;
             tq_w <= tq_w_n; tq_r <= tq_r_n;
-            tq_full <= (tq_w_n[TAG_LOG2] != tq_r_n[TAG_LOG2]) && (tq_w_n[TAG_LOG2-1:0] == tq_r_n[TAG_LOG2-1:0]);
+            // L11 : même valeur que (tq_w_n, tq_r_n) « écart = DEPTH », calculée sur les pointeurs courants ; push et
+            // pop, qui arrivent tard (arbitre, IP), ne font plus que choisir entre trois comparaisons déjà prêtes.
+            tq_full <= (push && !pop) ? tq_count == DEPTH - 1 : (!push && pop) ? tq_count == DEPTH + 1 : tq_count == DEPTH;
         end
     end
 
