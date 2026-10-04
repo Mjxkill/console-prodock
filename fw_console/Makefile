@@ -13,6 +13,7 @@ $(BUILD)/%.o: %.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 $(BUILD)/gpu.o: gpu.h gpu_v1.h
 $(BUILD)/gpu_v1.o: gpu.h gpu_v1.h
+$(BUILD)/luma_main.o: luma_scene.h luma_fx_scene.h luma_assets.h gpu.h gpu_v1.h
 $(BUILD)/gpu_diag.o: gpu_v1.h gpu_v1_scene.h gpu_v1_demo.h gpu_v1_expected.h
 $(BUILD)/gpu_diag.o: gpu_raster_scene.h gpu_raster_reference.h gpu_raster_demo.h gpu_rgb_overlay_scene.h
 $(BUILD)/gpu_diag.o: gpu.h gpu_demo.h gpu_palette.h gpu_layers_demo.h gpu_sprites_demo.h gpu_3d_scene.h gpu_3d_demo.h racer_scene.h racer_demo.h gpu_tiles_scene.h gpu_tiles_demo.h gpu_affine_scene.h gpu_affine_demo.h $(BUILD)/gpu_font.h

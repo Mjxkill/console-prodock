@@ -10,6 +10,19 @@ détectée**, avec échos USB et références revérifiées à la fin. R31 est l
 Les trois nouvelles scènes sont également confirmées correctes visuellement
 par l'utilisateur le 4 octobre.
 
+L'application **Luma — Le Sanctuaire des lucioles** ajoute une aventure
+automatique sur ce même GPU : forêt détaillée, caméra mobile, héros animé,
+trois créatures, gardien et réveil du cristal. La suite R2 ajoute un portail
+déformé, des lumières additives, un cristal 3D texturé avec profondeur, puis
+un agrandissement plein écran et un final animé avec le portrait du héros
+et le titre LUMA. Les effets RGB565 en 400 × 240 sont agrandis matériellement ;
+le portrait, le texte et les sprites restent en 800 × 480. Ses ressources résident en DDR
+et son programme est téléchargé en ILM/DLM, sans modifier R31. Les commandes
+de diagnostic historiques redeviennent disponibles en rechargeant R31 ;
+Luma a son propre petit protocole de test. Voir le
+[guide de la démo](../assets/luma/README.md) et
+[les mesures sur carte](../TESTS/TESTS_LUMA.md).
+
 ## Affichage et mémoire
 
 | Fonction | Capacité actuelle |

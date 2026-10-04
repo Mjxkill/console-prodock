@@ -32,6 +32,10 @@ python3 tools/build_gpu.py --name gpu_xxx_r1
 
 - Le firmware est **incorporé dans l'initialisation ITCM du bitstream** : tout
   changement de firmware exige ce build complet, qui régénère l'IP AE350.
+  Exception pour les applications téléchargées : `tools/build_luma.py` construit
+  la démo autonome Luma en ILM/DLM, puis `tools/load_luma.py` la charge par J-Link
+  sur le R31 inchangé, avec ses ressources en DDR. Ce chargement est volatile ;
+  il ne remplace pas l'initialisation ITCM de l'archive. Voir `assets/luma/README.md`.
 - `tang/impl/<name>` ne doit pas déjà exister : chaque build utilise un nom
   nouveau (`…_r1`, `…_r2`). Les sources sont figées dans `tang/impl/<name>/source`
   avec leur SHA-256 dans `sources.json`.
