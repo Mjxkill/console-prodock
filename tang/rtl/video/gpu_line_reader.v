@@ -21,6 +21,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     output wire block_valid,
     output wire [4:0] block_index,
     output wire [255:0] block_data,
+    output wire [31:0] block_coverage,
     output reg [31:0] max_cycles, invalid_layers,
     output wire [3:0] sprite_head_layer,
     input wire [6:0] sprite_head_index,
@@ -136,6 +137,8 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     // reads and one incoming DDR write therefore need only dual-port RAMs.
     reg [255:0] source_even[0:15],source_odd[0:15];
     reg [255:0] composed[0:31];
+    reg [31:0] covered[0:31];
+    reg [31:0] old_coverage,p2_coverage,p3_coverage,merged_coverage,write_coverage;
     reg [255:0] even_q,odd_q,old_q;
     reg signed [6:0] pair;
     reg [4:0] current_block,first_block,last_block,clear_block,emit_block;
@@ -174,6 +177,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
         even_q<=source_even[even_pair[4:1]];
         odd_q<=source_odd[odd_pair[4:1]];
         old_q<=composed[ram_read_block];
+        old_coverage<=covered[ram_read_block];
     end
     reg p1_valid,p1_odd;
     reg [4:0] p1_block,p2_block,p3_block;
@@ -185,20 +189,24 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     // fetched source interval, including the unused neighbor of an edge word.
     wire [255:0] low_word=p1_odd ? odd_q : even_q;
     wire [255:0] high_word=p1_odd ? even_q : odd_q;
-    wire [511:0] aligned_pair=p2_pair>>(shift_bytes*8);
+    wire [511:0] aligned_pair=p2_pair>>({shift_bytes[4:1],4'b0});
     reg [255:0] merged;
     integer lane;
     always @* begin
-        merged=p3_old;
+        merged=p3_old;merged_coverage=p3_coverage;
         for(lane=0;lane<32;lane=lane+1)
-            if(p3_mask[lane] && (!flags[1] || p3_pixels[lane*8+:8]!=0))
+            if(p3_mask[lane] && (!flags[1] || p3_pixels[lane*8+:8]!=0)) begin
                 merged[lane*8+:8]=p3_pixels[lane*8+:8];
+                merged_coverage[lane]=1;
+            end
     end
-    // Separate bank selection from byte alignment. Wide data registers have
-    // no reset/enable tree; only their associated valid bits carry meaning.
+    // RAM clock-to-Q precedes the bank selection: put only the low shift bit
+    // in that stage, then the high four bits after a logic register.
+    // shift_bytes is stable until DRAIN empties
+    // the pipeline. No extra merge cycle or reset/enable tree is introduced.
     always @(posedge clk) begin
-        p2_pair<={high_word,low_word};p2_old<=old_q;
-        p3_pixels<=aligned_pair[255:0];p3_old<=p2_old;
+        p2_pair<=({high_word,low_word}>>{shift_bytes[0],3'b0});p2_old<=old_q;p2_coverage<=old_coverage;
+        p3_pixels<=aligned_pair[255:0];p3_old<=p2_old;p3_coverage<=p2_coverage;
     end
     reg write_valid=0;
     reg [4:0] write_block;
@@ -207,7 +215,8 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
         write_valid<=resetn && (state==CLEAR || p3_valid);
         write_block<=state==CLEAR ? clear_block : p3_block;
         write_pixels<=state==CLEAR ? 256'd0 : merged;
-        if(write_valid) composed[write_block]<=write_pixels;
+        write_coverage<=state==CLEAR ? 32'd0:merged_coverage;
+        if(write_valid) begin composed[write_block]<=write_pixels;covered[write_block]<=write_coverage;end
     end
     reg emit_valid;
     reg [4:0] emit_index;
@@ -217,6 +226,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     assign block_valid=resetn && (mode ? emit_valid : framebuffer_fetch && fetch_data_valid);
     assign block_index=mode ? emit_index : received[4:0];
     assign block_data=mode ? old_q : fetch_data;
+    assign block_coverage=mode ? old_coverage:32'hffffffff;
 
     always @(posedge clk) begin
         if(!resetn) begin

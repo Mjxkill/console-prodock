@@ -29,6 +29,7 @@ module gpu_sprite_cache (
     reg [5:0] sprite;
     reg [2:0] word_index;
     reg [31:0] image_base,position,properties;
+    reg [32:0] image_end;
     reg [6:0] heads[0:15];
     reg [63:0] metadata[0:63];
     reg [255:0] textures[0:2047];
@@ -37,7 +38,7 @@ module gpu_sprite_cache (
     wire [3:0] priority_layer=properties[23:20];
     wire valid_descriptor=width!=0 && width<=32 && height!=0 && height<=32
         && image_base[31:30]==0 && image_base[4:0]==0
-        && {1'b0,image_base}+{20'b0,height,5'b0}<=33'h040000000;
+        && image_end<=33'h040000000;
     assign config_address={bank,sprite,word_index[1:0]};
     assign head_index=heads[head_layer];
     assign busy=state!=IDLE;
@@ -74,7 +75,7 @@ module gpu_sprite_cache (
     always @(posedge clk) begin
         if(!resetn) begin
             state<=IDLE;bank<=0;clear_index<=0;sprite<=0;word_index<=0;
-            image_base<=0;position<=0;properties<=0;request_valid<=0;more_requests<=0;
+            image_base<=0;position<=0;properties<=0;image_end<=0;request_valid<=0;more_requests<=0;
             issued<=0;received<=0;outstanding<=0;fetch_addr<=0;flip_shift<=0;
             elapsed<=0;invalid_sprites<=0;max_cycles<=0;loads<=0;done<=0;
         end else begin
@@ -91,7 +92,12 @@ module gpu_sprite_cache (
                     case(word_index)
                         1:image_base<=config_data;
                         2:position<=config_data;
-                        3:properties<=config_data;
+                        3:begin
+                            properties<=config_data;
+                            // Compute the end address as the final descriptor
+                            // word arrives; CHECK compares it on the next cycle.
+                            image_end<={1'b0,image_base}+{20'b0,config_data[15:8],5'b0};
+                        end
                         default:begin end
                     endcase
                     if(word_index==3) state<=CHECK;else word_index<=word_index+1'b1;

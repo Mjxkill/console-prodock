@@ -1,0 +1,88 @@
+{
+  "scope": "Existing unit regressions for HS recovery audit; no PHY or hardware",
+  "cases": [
+    {
+      "test": "usb_control_diag_tb",
+      "sha256": {
+        "/home/michael/console/TESTS/rtl/usb_control_diag_tb.sv": "223e148e2d409b250cfb9f40eae61af5c35d586acac6a5747fd815b1e788c8d0",
+        "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v": "f86d8f897c00ffaad58d803d10bcae2935f35b9f4e78352d41e55b5c8c5bdc56"
+      },
+      "compile_returncode": 0,
+      "compile_stderr": "",
+      "run": {
+        "returncode": 0,
+        "stdout": "PASS: standard CDC 7 bytes, two diagnostic snapshots of 32 bytes, standard CDC restored\n/home/michael/console/TESTS/rtl/usb_control_diag_tb.sv:40: $finish called at 2340000 (1ps)\n",
+        "stderr": ""
+      },
+      "sources_unchanged": true,
+      "pass": true
+    },
+    {
+      "test": "usb_reset_release_tb",
+      "sha256": {
+        "/home/michael/console/TESTS/rtl/usb_reset_release_tb.sv": "e838f22ef7e07a9df9d86753127bf398c0fcb9d9e53c919abce1b325c1526359",
+        "/home/michael/console/tang/rtl/usb/usb_reset_release.v": "0de3b296817601f50e0eed23301201c4490a3d067832a98fdda03c113a5454a9"
+      },
+      "compile_returncode": 0,
+      "compile_stderr": "",
+      "run": {
+        "returncode": 0,
+        "stdout": "PASS: synchronized delayed release, asynchronous lock loss, stopped clock, lock glitch and restart\n/home/michael/console/TESTS/rtl/usb_reset_release_tb.sv:29: $finish called at 536000 (1ps)\n",
+        "stderr": ""
+      },
+      "sources_unchanged": true,
+      "pass": true
+    },
+    {
+      "test": "usb_in_packet_tb",
+      "sha256": {
+        "/home/michael/console/TESTS/rtl/usb_in_packet_tb.sv": "4d8be62a82817a8777152535632832158101ccfafdde8783ab9ad92ae1612c6c",
+        "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v": "eca58c1fb3c4bd0955f7882cc6a5e61708c6293a0ae0c70daedd138e33b90a27",
+        "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+        "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12"
+      },
+      "compile_returncode": 0,
+      "compile_stderr": "",
+      "run": {
+        "returncode": 0,
+        "stdout": "PASS: USB retry retains its packet length while new UART data arrives\n/home/michael/console/TESTS/rtl/usb_in_packet_tb.sv:145: $finish called at 10290000 (1ps)\n",
+        "stderr": ""
+      },
+      "sources_unchanged": true,
+      "pass": true
+    },
+    {
+      "test": "usb_tx_retry_tb",
+      "sha256": {
+        "/home/michael/console/TESTS/rtl/usb_tx_retry_tb.sv": "d2ce4f4e4cef9acfd452c0b9912042da17ea7ae06da896a757f5b887a22c2bf8",
+        "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488"
+      },
+      "compile_returncode": 0,
+      "compile_stderr": "",
+      "run": {
+        "returncode": 0,
+        "stdout": "PASS: 191 USB bytes checked including retries and an interrupted packet\n/home/michael/console/TESTS/rtl/usb_tx_retry_tb.sv:55: $finish called at 4010000 (1ps)\n",
+        "stderr": ""
+      },
+      "sources_unchanged": true,
+      "pass": true
+    },
+    {
+      "test": "usb_cdc_fifo_tb",
+      "sha256": {
+        "/home/michael/console/TESTS/rtl/usb_cdc_fifo_tb.sv": "961666b9c426374990c0499b3292c755451f721d8e65f61a69346aafe187cf28",
+        "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v": "eca58c1fb3c4bd0955f7882cc6a5e61708c6293a0ae0c70daedd138e33b90a27"
+      },
+      "compile_returncode": 0,
+      "compile_stderr": "",
+      "run": {
+        "returncode": 0,
+        "stdout": "PASS dual-clock FIFO wr=125.000000 MHz rd=124.500000 MHz phase=0.317000 ns checked=59877 discarded_on_reset=123 full_cycles=32364 empty_cycles=1316\n/home/michael/console/TESTS/rtl/usb_cdc_fifo_tb.sv:120: $finish called at 787468749000 (1fs)\n",
+        "stderr": ""
+      },
+      "sources_unchanged": true,
+      "pass": true
+    }
+  ],
+  "pass": true
+}

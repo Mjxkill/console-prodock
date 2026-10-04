@@ -41,6 +41,56 @@ module usb_in_packet_tb;
     endtask
     initial begin
         repeat(5) @(negedge clk);reset=0;
+        // EP0 advertises an open zero length in this wrapper (its real
+        // control data bypasses it in the top). That stale offer must never
+        // escape on EP2, even before the next rising clock updates the mux.
+        endpoint=0;repeat(4) @(negedge clk);
+        endpoint=2;active=1;#1;
+        if(!cork || length!=0)$fatal(1,"Endpoint change exposed EP0 offer on empty EP2");
+        @(negedge clk);
+        if(!cork || length!=0)$fatal(1,"Empty EP2 must remain closed after selection");
+        active=0;repeat(4) @(negedge clk);
+        // Start the next IN immediately after ACK, before the pipelined
+        // available count has reflected retirement of the preceding packet.
+        append(198,1);
+        active=1;repeat(4)@(negedge clk);
+        if(out!==198)$fatal(1,"Retirement test setup");
+        pop=1;@(negedge clk);pop=0;
+        repeat(3)@(negedge clk);
+        ack=1;@(negedge clk);ack=0;active=0;
+        @(negedge clk);active=1;
+        if(!cork || length!=0)$fatal(1,"ACK exposed stale packet length: %0d",length);
+        repeat(6)@(negedge clk);
+        if(!cork || length!=0)$fatal(1,"Empty packet stuck after ACK");
+        active=0;repeat(8)@(negedge clk);
+        // A following packet can already be queued. Its length must exclude
+        // the acknowledged bytes even with only one idle clock between INs.
+        append(210,4);active=1;repeat(4)@(negedge clk);
+        append(214,3);
+        for(integer i=0;i<4;i++)begin
+            if(out!==8'(210+i))$fatal(1,"Queued retirement byte");
+            pop=1;@(negedge clk);
+        end
+        pop=0;repeat(3)@(negedge clk);
+        ack=1;@(negedge clk);ack=0;active=0;
+        @(negedge clk);active=1;
+        if(!cork || length!=0)$fatal(1,"ACK published count including old bytes");
+        repeat(6)@(negedge clk);
+        packet(214,3,1);
+        // A ZLP poll may already have sampled CORK=1 when a UART byte
+        // reaches packet RAM, before the registered length is published.
+        // Its speculative POP and completion must not consume that byte.
+        repeat(8) @(negedge clk);
+        active=1;valid=1;data=199;
+        @(negedge clk);valid=0;
+        wait(!dut.usb_tx_buf_ep2.pkt_fifo_empty);
+        @(negedge clk);
+        if(!cork || length!=0) $fatal(1,"Test needs an unpublished UART byte");
+        pop=1;@(negedge clk);pop=0;
+        repeat(3) @(negedge clk);
+        ack=1;@(negedge clk);ack=0;active=0;
+        repeat(8) @(negedge clk);
+        packet(199,1,1);
         // The controller may keep txact high while waiting for data. A late
         // byte must open CORK together with its nonzero length, then both
         // must stay frozen while more bytes arrive.
@@ -87,6 +137,8 @@ module usb_in_packet_tb;
         endpoint=0;
         repeat(8) @(negedge clk);
         endpoint=2;active=1; // selection may arrive with the IN transaction
+        #1;
+        if(!cork || length!=0)$fatal(1,"Endpoint change exposed stale offer before queued EP2 selection");
         repeat(4) @(negedge clk);
         packet(100,5,1);
         $display("PASS: USB retry retains its packet length while new UART data arrives");

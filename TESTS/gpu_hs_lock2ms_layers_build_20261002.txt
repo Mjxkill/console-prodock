@@ -1,0 +1,281 @@
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_tile_row.v:87:27: Operator ASSIGNDLY expects 24 bits on the Assign RHS, but Assign RHS's ADD generates 25 bits.
+                                                        : ... note: In instance 'gpu_layers_tb.dut.u_reader.u_tiles'
+   87 |             2'd0:g3_offset<={5'd0,g2_entry[12:0],6'd0}+{19'd0,entry_row[2:0],3'd0};
+      |                           ^~
+                     ... For warning description see https://verilator.org/warn/WIDTHTRUNC?v=5.020
+                     ... Use "/* verilator lint_off WIDTHTRUNC */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_tile_row.v:143:48: Operator EQ expects 32 or 3 bits on the LHS, but LHS's VARREF 'r2_slot' generates 2 bits.
+                                                          : ... note: In instance 'gpu_layers_tb.dut.u_reader.u_tiles'
+  143 |         wire selected=tile_code==2'd0 ? r2_slot==(lane>>3) :
+      |                                                ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_tile_row.v:144:48: Operator EQ expects 32 or 3 bits on the LHS, but LHS's VARREF 'r2_slot' generates 2 bits.
+                                                          : ... note: In instance 'gpu_layers_tb.dut.u_reader.u_tiles'
+  144 |                       tile_code==2'd1 ? r2_slot==(lane>>4) : 1'b1;
+      |                                                ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_tile_row.v:143:48: Operator EQ expects 32 or 4 bits on the LHS, but LHS's VARREF 'r2_slot' generates 2 bits.
+                                                          : ... note: In instance 'gpu_layers_tb.dut.u_reader.u_tiles'
+  143 |         wire selected=tile_code==2'd0 ? r2_slot==(lane>>3) :
+      |                                                ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_tile_row.v:144:48: Operator EQ expects 32 or 4 bits on the LHS, but LHS's VARREF 'r2_slot' generates 2 bits.
+                                                          : ... note: In instance 'gpu_layers_tb.dut.u_reader.u_tiles'
+  144 |                       tile_code==2'd1 ? r2_slot==(lane>>4) : 1'b1;
+      |                                                ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_tile_row.v:143:48: Operator EQ expects 32 or 5 bits on the LHS, but LHS's VARREF 'r2_slot' generates 2 bits.
+                                                          : ... note: In instance 'gpu_layers_tb.dut.u_reader.u_tiles'
+  143 |         wire selected=tile_code==2'd0 ? r2_slot==(lane>>3) :
+      |                                                ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_tile_row.v:144:48: Operator EQ expects 32 or 5 bits on the LHS, but LHS's VARREF 'r2_slot' generates 2 bits.
+                                                          : ... note: In instance 'gpu_layers_tb.dut.u_reader.u_tiles'
+  144 |                       tile_code==2'd1 ? r2_slot==(lane>>4) : 1'b1;
+      |                                                ^~
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_tile_row.v:189:31: Operator ASSIGNDLY expects 4 bits on the Assign RHS, but Assign RHS's SHIFTR generates 8 bits.
+                                                         : ... note: In instance 'gpu_layers_tb.dut.u_reader.u_tiles'
+  189 |                     map_bursts<=({4'd0,first_lane}+tiles+8'd15)>>4;
+      |                               ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:58:49: Operator ADD expects 18 bits on the LHS, but LHS's SIGNED generates 16 bits.
+                                                            : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+   58 |     wire signed [17:0] right_edge=$signed(pos_x)+window_w-18'sd1;
+      |                                                 ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:122:32: Operator ASSIGNW expects 18 bits on the Assign RHS, but Assign RHS's SIGNED generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  122 |     wire signed [17:0] sprite_x=$signed(sprite_metadata[15:0]);
+      |                                ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:123:58: Operator SUB expects 18 bits on the RHS, but RHS's SIGNED generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  123 |     wire signed [17:0] layer_relative_y=$signed({9'b0,y})-$signed(pos_y);
+      |                                                          ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:124:59: Operator SUB expects 18 bits on the RHS, but RHS's SIGNED generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  124 |     wire signed [17:0] sprite_relative_y=$signed({9'b0,y})-$signed(sprite_metadata[31:16]);
+      |                                                           ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:132:67: Operator ADD expects 18 bits on the LHS, but LHS's SIGNED generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  132 |     wire signed [17:0] sprite_right=$signed(sprite_metadata[15:0])+$signed({12'b0,sprite_metadata[37:32]})-18'sd1;
+      |                                                                   ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:133:47: Operator SUB expects 18 bits on the RHS, but RHS's SIGNED generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  133 |     wire signed [17:0] clipped_source_x=left_x-$signed(pos_x);
+      |                                               ^
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_line_reader.v:268:83: Operator ASSIGNDLY expects 6 bits on the Assign RHS, but Assign RHS's VARREF 'BLOCKS' generates 32 or 10 bits.
+                                                            : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  268 |                         request_addr<=base[30:2];issued<=0;received<=0;burst_count<=BLOCKS;outstanding<=0;more_requests<=1;request_valid<=1;state<=FETCH;
+      |                                                                                   ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:272:38: Operator EQ expects 32 or 10 bits on the LHS, but LHS's VARREF 'clear_block' generates 5 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  272 |                 CLEAR: if(clear_block==BLOCKS-1) begin descriptor_word<=0;state<=DESC;end
+      |                                      ^~
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_line_reader.v:322:36: Operator ASSIGNDLY expects 6 bits on the Assign RHS, but Assign RHS's SHIFTR generates 11 bits.
+                                                            : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  322 |                         burst_count<=({6'b0,source_x[4:0]}+visible_width+11'd31)>>5;
+      |                                    ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:337:37: Operator COND expects 18 bits on the Conditional False, but Conditional False's SIGNED generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  337 |                     left_x<=pos_x<0 ? 18'sd0 : $signed(pos_x);
+      |                                     ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:349:43: Operator ADD expects 18 bits on the LHS, but LHS's VARREF 'scroll_x' generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  349 |                         source_x<=scroll_x+left_x-$signed(pos_x);source_y<=scroll_y+relative_y;
+      |                                           ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:349:50: Operator SUB expects 18 bits on the RHS, but RHS's SIGNED generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  349 |                         source_x<=scroll_x+left_x-$signed(pos_x);source_y<=scroll_y+relative_y;
+      |                                                  ^
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_line_reader.v:349:33: Operator ASSIGNDLY expects 16 bits on the Assign RHS, but Assign RHS's SUB generates 18 bits.
+                                                            : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  349 |                         source_x<=scroll_x+left_x-$signed(pos_x);source_y<=scroll_y+relative_y;
+      |                                 ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:349:84: Operator ADD expects 18 bits on the LHS, but LHS's VARREF 'scroll_y' generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  349 |                         source_x<=scroll_x+left_x-$signed(pos_x);source_y<=scroll_y+relative_y;
+      |                                                                                    ^
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_line_reader.v:349:74: Operator ASSIGNDLY expects 16 bits on the Assign RHS, but Assign RHS's ADD generates 18 bits.
+                                                            : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  349 |                         source_x<=scroll_x+left_x-$signed(pos_x);source_y<=scroll_y+relative_y;
+      |                                                                          ^~
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_line_reader.v:350:38: Operator ASSIGNDLY expects 11 bits on the Assign RHS, but Assign RHS's ADD generates 18 bits.
+                                                            : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  350 |                         visible_width<=right_x-left_x+18'd1;
+      |                                      ^~
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_line_reader.v:369:32: Operator ASSIGNDLY expects 6 bits on the Assign RHS, but Assign RHS's SHIFTR generates 11 bits.
+                                                            : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  369 |                     burst_count<=({6'b0,byte_address[4:0]}+visible_width+11'd31)>>5;
+      |                                ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:410:62: Operator COND expects 18 bits on the Conditional False, but Conditional False's SIGNED generates 16 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  410 |                     left_x<=$signed(sprite_metadata[15:0])<0 ? 18'sd0 : $signed(sprite_metadata[15:0]);
+      |                                                              ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:425:95: Operator ADD expects 18 bits on the LHS, but LHS's VARREF 'line_sprite_pixels' generates 12 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  425 |                         line_sprites<=line_sprites+1'b1;line_sprite_pixels<=line_sprite_pixels+right_x-left_x+18'd1;
+      |                                                                                               ^
+%Warning-WIDTHTRUNC: tang/rtl/video/gpu_line_reader.v:425:75: Operator ASSIGNDLY expects 12 bits on the Assign RHS, but Assign RHS's ADD generates 18 bits.
+                                                            : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  425 |                         line_sprites<=line_sprites+1'b1;line_sprite_pixels<=line_sprite_pixels+right_x-left_x+18'd1;
+      |                                                                           ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:438:36: Operator EQ expects 32 or 10 bits on the LHS, but LHS's VARREF 'emit_block' generates 5 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  438 |                 EMIT: if(emit_block==BLOCKS-1) state<=FINISH;
+      |                                    ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:442:61: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's VARREF 'line_sprites' generates 7 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  442 |                     if(line_sprites>max_sprites) max_sprites<=line_sprites;
+      |                                                             ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:442:36: Operator GT expects 32 bits on the LHS, but LHS's VARREF 'line_sprites' generates 7 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  442 |                     if(line_sprites>max_sprites) max_sprites<=line_sprites;
+      |                                    ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:443:79: Operator ASSIGNDLY expects 32 bits on the Assign RHS, but Assign RHS's VARREF 'line_sprite_pixels' generates 12 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  443 |                     if(line_sprite_pixels>max_sprite_pixels) max_sprite_pixels<=line_sprite_pixels;
+      |                                                                               ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_line_reader.v:443:42: Operator GT expects 32 bits on the LHS, but LHS's VARREF 'line_sprite_pixels' generates 12 bits.
+                                                             : ... note: In instance 'gpu_layers_tb.dut.u_reader'
+  443 |                     if(line_sprite_pixels>max_sprite_pixels) max_sprite_pixels<=line_sprite_pixels;
+      |                                          ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_scanout.v:169:42: Operator LT expects 32 bits on the LHS, but LHS's VARREF 'vy' generates 10 bits.
+                                                         : ... note: In instance 'gpu_layers_tb.dut'
+  169 |     wire visible_y = vy >= V_START && vy < V_START + HEIGHT;
+      |                                          ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_scanout.v:170:53: Operator LT expects 32 bits on the LHS, but LHS's VARREF 'hx' generates 11 bits.
+                                                         : ... note: In instance 'gpu_layers_tb.dut'
+  170 |     wire visible = visible_y && hx >= H_START && hx < H_START + WIDTH;
+      |                                                     ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_scanout.v:173:39: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'vy' generates 10 bits.
+                                                         : ... note: In instance 'gpu_layers_tb.dut'
+  173 |     wire vblank_start = hx == 0 && vy == V_START + HEIGHT;
+      |                                       ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_scanout.v:205:24: Operator EQ expects 32 bits on the LHS, but LHS's VARREF 'vy' generates 10 bits.
+                                                         : ... note: In instance 'gpu_layers_tb.dut'
+  205 |                 if (vy == V_TOTAL - 1) vy <= 0; else vy <= vy + 1'b1;
+      |                        ^~
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_scanout.v:234:40: Operator LT expects 32 bits on the LHS, but LHS's VARREF 'y' generates 9 bits.
+                                                         : ... note: In instance 'gpu_layers_tb.dut'
+  234 |                 if (active_enable && y < HEIGHT - 1 && request_idle) begin
+      |                                        ^
+%Warning-WIDTHEXPAND: tang/rtl/video/gpu_scanout.v:322:28: Operator EQ expects 32 bits on the LHS, but LHS's SEL generates 9 bits.
+                                                         : ... note: In instance 'gpu_layers_tb.dut'
+  322 |                 if(tag[8:0]==HEIGHT-1) begin frame_checksum<=checksum;fetch_frames<=fetch_frames+1'b1;end
+      |                            ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:70:20: Logical operator LOGAND expects 1 bit on the RHS, but RHS's FUNCREF 'tile_field' generates 32 bits.
+                                                     : ... note: In instance 'gpu_layers_tb'
+   70 |         if(pose>=7 && tile_field(pose,layer,T_USED)) case(word)
+      |                    ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:110:78: Logical operator COND expects 1 bit on the Conditional Test, but Conditional Test's MODDIVS generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  110 |         x=(pose==4 || pose==6) ? (slot%16)*(W/16)-3 : (slot%8)*(W/8)+(slot%2 ? -7 : 5);
+      |                                                                              ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:134:72: Logical operator COND expects 1 bit on the Conditional Test, but Conditional Test's MODDIVS generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  134 |             return 8'(map_entry((address-MAPS)%'h100000/2)>>(address%2 ? 8 : 0));
+      |                                                                        ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:163:13: Logical operator IF expects 1 bit on the If, but If's AND generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  163 |             if(flags&8) mx=(tile_field(pose,l,T_SX)%wpx+dx)%wpx;
+      |             ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:164:13: Logical operator IF expects 1 bit on the If, but If's AND generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  164 |             if(flags&16) my=(tile_field(pose,l,T_SY)%hpx+dy)%hpx;
+      |             ^~
+%Warning-WIDTHEXPAND: TESTS/rtl/gpu_layers_tb.sv:170:62: Operator AND expects 32 bits on the LHS, but LHS's VARREF 'entry' generates 16 bits.
+                                                       : ... note: In instance 'gpu_layers_tb'
+  170 |                 value=pixel(tile_field(pose,l,T_ATLAS)+(entry&8191)*size*size+ty*size+tx);
+      |                                                              ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:171:20: Logical operator LOGNOT expects 1 bit on the LHS, but LHS's AND generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  171 |                 if(!(flags&2) || value!=0) expected_image[pose][y][x]=value;
+      |                    ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:194:24: Logical operator LOGNOT expects 1 bit on the LHS, but LHS's AND generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  194 |                     if(!(flags&2) || value!=0) expected_image[pose][y][x]=value;
+      |                        ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:189:18: Logical operator IF expects 1 bit on the If, but If's AND generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  189 |             else if(flags&1) for(integer y=0;y<H;y++) for(integer x=0;x<W;x++) begin
+      |                  ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:188:24: Logical operator LOGAND expects 1 bit on the RHS, but RHS's FUNCREF 'tile_field' generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  188 |             if(pose>=7 && tile_field(pose,l,T_USED)) reference_tiles(pose,l);
+      |                        ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:201:38: Logical operator COND expects 1 bit on the Conditional Test, but Conditional Test's AND generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  201 |                     xx=(prop&131072) ? ww-1-x : x;yy=(prop&262144) ? hh-1-y : y;
+      |                                      ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:201:68: Logical operator COND expects 1 bit on the Conditional Test, but Conditional Test's AND generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  201 |                     xx=(prop&131072) ? ww-1-x : x;yy=(prop&262144) ? hh-1-y : y;
+      |                                                                    ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:200:33: Logical operator LOGAND expects 1 bit on the LHS, but LHS's AND generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  200 |                 if((prop&65536) && ((prop>>20)&15)==l) for(integer y=0;y<hh;y++) for(integer x=0;x<ww;x++) begin
+      |                                 ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:197:24: Logical operator LOGAND expects 1 bit on the LHS, but LHS's VARREF 'SPRITES' generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  197 |             if(SPRITES && pose!=5) for(integer sp=0;sp<64;sp++) begin
+      |                        ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:209:44: Logical operator COND expects 1 bit on the Conditional Test, but Conditional Test's VARREF 'TILES' generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  209 |     initial for(integer pose=0;pose<(TILES ? POSES : 7);pose++) reference_scene(pose);
+      |                                            ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:306:9: Logical operator IF expects 1 bit on the If, but If's VARREF 'SPRITES' generates 32 bits.
+                                                     : ... note: In instance 'gpu_layers_tb'
+  306 |         if(SPRITES) for(integer sp=0;sp<64;sp++) for(integer w=0;w<4;w++) write_reg('hc00+sp*16+w*4,sprite_descriptor(pose,sp,w));
+      |         ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:307:32: Logical operator LOGAND expects 1 bit on the LHS, but LHS's VARREF 'SPRITES' generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  307 |         write_reg('h40,SPRITES && pose!=2);
+      |                                ^~
+%Warning-WIDTHEXPAND: TESTS/rtl/gpu_layers_tb.sv:307:9: Operator TASKREF 'write_reg' expects 32 bits on the Function Argument, but Function Argument's LOGAND generates 1 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  307 |         write_reg('h40,SPRITES && pose!=2);
+      |         ^~~~~~~~~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:329:9: Logical operator IF expects 1 bit on the If, but If's VARREF 'SPRITES' generates 32 bits.
+                                                     : ... note: In instance 'gpu_layers_tb'
+  329 |         if(SPRITES) begin
+      |         ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:354:9: Logical operator IF expects 1 bit on the If, but If's VARREF 'TILES' generates 32 bits.
+                                                     : ... note: In instance 'gpu_layers_tb'
+  354 |         if(TILES) begin
+      |         ^~
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:394:37: Logical operator COND expects 1 bit on the Conditional Test, but Conditional Test's VARREF 'SPRITES' generates 32 bits.
+                                                      : ... note: In instance 'gpu_layers_tb'
+  394 |             begin write_reg(SPRITES ? 'hc00 : 'h800,'h2000000);end
+      |                                     ^
+%Warning-WIDTHTRUNC: TESTS/rtl/gpu_layers_tb.sv:411:9: Logical operator IF expects 1 bit on the If, but If's VARREF 'SPRITES' generates 32 bits.
+                                                     : ... note: In instance 'gpu_layers_tb'
+  411 |         if(SPRITES) $display("G4 PASS: 64 DDR sprites, sizes 8/16/32, flip X/Y, key zero, clipping, layer/object priorities, image animation, invalid descriptors, cache refresh");
+      |         ^~
+make : on entre dans le répertoire « /tmp/console_gpu_hs_lock2ms_layers »
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated.o /usr/share/verilator/include/verilated.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_timing.o /usr/share/verilator/include/verilated_timing.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_threads.o /usr/share/verilator/include/verilated_threads.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -x c++-header Vgpu_layers_tb__pch.h -o Vgpu_layers_tb__pch.h.fast.gch
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb.o Vgpu_layers_tb.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__0.o Vgpu_layers_tb___024root__DepSet_h41de2173__0.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__1.o Vgpu_layers_tb___024root__DepSet_h41de2173__1.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__2.o Vgpu_layers_tb___024root__DepSet_h41de2173__2.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__3.o Vgpu_layers_tb___024root__DepSet_h41de2173__3.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__4.o Vgpu_layers_tb___024root__DepSet_h41de2173__4.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__5.o Vgpu_layers_tb___024root__DepSet_h41de2173__5.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__6.o Vgpu_layers_tb___024root__DepSet_h41de2173__6.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__7.o Vgpu_layers_tb___024root__DepSet_h41de2173__7.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__8.o Vgpu_layers_tb___024root__DepSet_h41de2173__8.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__9.o Vgpu_layers_tb___024root__DepSet_h41de2173__9.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__10.o Vgpu_layers_tb___024root__DepSet_h41de2173__10.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__11.o Vgpu_layers_tb___024root__DepSet_h41de2173__11.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__12.o Vgpu_layers_tb___024root__DepSet_h41de2173__12.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h653250fc__0.o Vgpu_layers_tb___024root__DepSet_h653250fc__0.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h653250fc__1.o Vgpu_layers_tb___024root__DepSet_h653250fc__1.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h653250fc__2.o Vgpu_layers_tb___024root__DepSet_h653250fc__2.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb___024root__DepSet_h653250fc__3.o Vgpu_layers_tb___024root__DepSet_h653250fc__3.cpp
+g++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.fast -c -o Vgpu_layers_tb__main.o Vgpu_layers_tb__main.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -x c++-header Vgpu_layers_tb__pch.h -o Vgpu_layers_tb__pch.h.slow.gch
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.slow -c -o Vgpu_layers_tb__ConstPool_0.o Vgpu_layers_tb__ConstPool_0.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.slow -c -o Vgpu_layers_tb___024root__Slow.o Vgpu_layers_tb___024root__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.slow -c -o Vgpu_layers_tb___024root__DepSet_h41de2173__0__Slow.o Vgpu_layers_tb___024root__DepSet_h41de2173__0__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.slow -c -o Vgpu_layers_tb___024root__DepSet_h653250fc__0__Slow.o Vgpu_layers_tb___024root__DepSet_h653250fc__0__Slow.cpp
+g++   -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -include Vgpu_layers_tb__pch.h.slow -c -o Vgpu_layers_tb__Syms.o Vgpu_layers_tb__Syms.cpp
+echo "" > Vgpu_layers_tb__ALL.verilator_deplist.tmp
+Archive ar -rcs Vgpu_layers_tb__ALL.a Vgpu_layers_tb.o Vgpu_layers_tb___024root__DepSet_h41de2173__0.o Vgpu_layers_tb___024root__DepSet_h41de2173__1.o Vgpu_layers_tb___024root__DepSet_h41de2173__2.o Vgpu_layers_tb___024root__DepSet_h41de2173__3.o Vgpu_layers_tb___024root__DepSet_h41de2173__4.o Vgpu_layers_tb___024root__DepSet_h41de2173__5.o Vgpu_layers_tb___024root__DepSet_h41de2173__6.o Vgpu_layers_tb___024root__DepSet_h41de2173__7.o Vgpu_layers_tb___024root__DepSet_h41de2173__8.o Vgpu_layers_tb___024root__DepSet_h41de2173__9.o Vgpu_layers_tb___024root__DepSet_h41de2173__10.o Vgpu_layers_tb___024root__DepSet_h41de2173__11.o Vgpu_layers_tb___024root__DepSet_h41de2173__12.o Vgpu_layers_tb___024root__DepSet_h653250fc__0.o Vgpu_layers_tb___024root__DepSet_h653250fc__1.o Vgpu_layers_tb___024root__DepSet_h653250fc__2.o Vgpu_layers_tb___024root__DepSet_h653250fc__3.o Vgpu_layers_tb__main.o Vgpu_layers_tb__ConstPool_0.o Vgpu_layers_tb___024root__Slow.o Vgpu_layers_tb___024root__DepSet_h41de2173__0__Slow.o Vgpu_layers_tb___024root__DepSet_h653250fc__0__Slow.o Vgpu_layers_tb__Syms.o
+g++     verilated.o verilated_timing.o verilated_threads.o Vgpu_layers_tb__ALL.a    -pthread -lpthread -latomic   -o Vgpu_layers_tb
+rm Vgpu_layers_tb__ALL.verilator_deplist.tmp
+make : on quitte le répertoire « /tmp/console_gpu_hs_lock2ms_layers »

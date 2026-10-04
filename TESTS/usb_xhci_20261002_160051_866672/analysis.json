@@ -1,0 +1,104 @@
+{
+  "capture": "TESTS/usb_xhci_20261002_160051_866672",
+  "hardware": "gpu_usb_first_r3, VID359f PID2011 serial11252024, 480Mbps port3-7, xHCI slot49 PCI0000:00:14.0",
+  "status": "Observed DATA0 duplicate with intervening host Reset Endpoint TSP=0; initial cause still unresolved",
+  "samples_passed": 17,
+  "failed_sample": {
+    "index": 17,
+    "expected": "ea",
+    "start_monotonic_ns": 7344872721211224,
+    "first_read_monotonic_ns": 7344872722014856,
+    "received": "eaea",
+    "end_monotonic_ns": 7344872732144819,
+    "received_after_grace": "eaea"
+  },
+  "events_during_failed_sample": [
+    {
+      "line": 89,
+      "monotonic_ns": 7344872721227000,
+      "event": "xhci_urb_enqueue",
+      "detail": "3-7 ep2out-bulk: urb 000000005d575783 pipe 3221314304 slot 49 length 0/4 sgs 0/0 stream 0 flags 00000004"
+    },
+    {
+      "line": 90,
+      "monotonic_ns": 7344872721291000,
+      "event": "xhci_urb_giveback",
+      "detail": "3-7 ep2out-bulk: urb 000000005d575783 pipe 3221314304 slot 49 length 4/4 sgs 0/0 stream 0 flags 00000004"
+    },
+    {
+      "line": 91,
+      "monotonic_ns": 7344872721857000,
+      "event": "xhci_urb_giveback",
+      "detail": "3-7 ep2in-bulk: urb 00000000aa69f2a5 pipe 3225508736 slot 49 length 1/1024 sgs 0/0 stream 0 flags 00000204"
+    },
+    {
+      "line": 92,
+      "monotonic_ns": 7344872721863000,
+      "event": "xhci_queue_trb",
+      "detail": "CMD: @0x00000000ffffeb30 Reset Endpoint Command: ctx 0000000000000000 slot 49 ep 5 flags t:C"
+    },
+    {
+      "line": 93,
+      "monotonic_ns": 7344872721878000,
+      "event": "xhci_handle_cmd_reset_ep",
+      "detail": "State stopped mult 1 max P. Streams 0 interval 125 us max ESIT payload 0 CErr 3 Type Bulk IN burst 0 maxp 512 deq 00000000fff86171 avg trb len 0"
+    },
+    {
+      "line": 94,
+      "monotonic_ns": 7344872721879000,
+      "event": "xhci_dbg_reset_ep",
+      "detail": "Ignoring reset ep completion code of 1"
+    },
+    {
+      "line": 95,
+      "monotonic_ns": 7344872721881000,
+      "event": "xhci_queue_trb",
+      "detail": "CMD: @0x00000000ffffeb40 Set TR Dequeue Pointer Command: deq 00000000fff86181 stream 0 slot 49 ep 5 flags C"
+    },
+    {
+      "line": 96,
+      "monotonic_ns": 7344872721891000,
+      "event": "xhci_urb_enqueue",
+      "detail": "3-7 ep2in-bulk: urb 00000000aa69f2a5 pipe 3225508736 slot 49 length 0/1024 sgs 0/0 stream 0 flags 00000204"
+    },
+    {
+      "line": 97,
+      "monotonic_ns": 7344872721977000,
+      "event": "xhci_urb_giveback",
+      "detail": "3-7 ep2in-bulk: urb 00000000be1c9c18 pipe 3225508736 slot 49 length 0/1024 sgs 0/0 stream 0 flags 00000204"
+    },
+    {
+      "line": 98,
+      "monotonic_ns": 7344872721992000,
+      "event": "xhci_urb_giveback",
+      "detail": "3-7 ep2in-bulk: urb 0000000054b44c69 pipe 3225508736 slot 49 length 1/1024 sgs 0/0 stream 0 flags 00000204"
+    },
+    {
+      "line": 99,
+      "monotonic_ns": 7344872721997000,
+      "event": "xhci_urb_enqueue",
+      "detail": "3-7 ep2in-bulk: urb 0000000054b44c69 pipe 3225508736 slot 49 length 0/1024 sgs 0/0 stream 0 flags 00000204"
+    }
+  ],
+  "trace_clean": true,
+  "kernel_event_limitation": "Original tool incorrectly filtered xhci_handle_transfer (buffer TRB, not Event TRB) by slot. No completion/error code captured. Corrected tool requires xhci_handle_event. Reset commands and targeted URBs remain valid evidence.",
+  "sources": {
+    "Linux TRB_TSP decoder": "https://github.com/torvalds/linux/blob/v6.17/drivers/usb/host/xhci.h#L2077",
+    "Linux tracepoint calls": "https://github.com/torvalds/linux/blob/v6.17/drivers/usb/host/xhci-ring.c#L2775"
+  },
+  "sha256": {
+    "capture_tool.py": "6a55116b7b7341c5153bf129d03272ec88bd73f0ec38e77fc0fc3a0b4fa0988f",
+    "xhci_dbg_reset_ep.format": "164cc570cb4b6dd535948ab3ab85604b333057b9d796adb6fd726b3606da123a",
+    "xhci_queue_trb.format": "e637df5660862db3775be9c93e932390d6f27203cb3c0bd297b0f2cf932f9d05",
+    "capture.json": "b97296ef4dc239810b6a79656f4bb579474739dd84b9f6a55b30f707de402d22",
+    "xhci_urb_enqueue.format": "59c1e4eac4ca541844b0e9dc3777c40e8ff8e2ce3b13a871e705fbdde5dcc3d1",
+    "xhci_handle_cmd_reset_ep.format": "58dda28eaf579503aef36da45f3baae8426421da625133ea5719c62d9935f0a7",
+    "xhci_urb_giveback.format": "4d5cf81cf9b6cc322d8b24caf0b230b2156883f3aedb96e1dc746568cfae565e",
+    "xhci_handle_transfer.format": "4bb2554d89632dbfb2c1fd8b493ee0bbbd28e63b3b0ca7e9e9efdb5662444e6f",
+    "xhci.trace": "3a04fb3fb0c69567a484f02a2a606295f5f557f7124ee460aeeaa25149696f58",
+    "echo.log": "084e9aa2869fe0c8f56aeedfdce1361fb95a5540a37973c9ab2dc64294119164",
+    "xhci_urb_dequeue.format": "4afaac7fc2c41d613f7bc96589c7395061f2a0ad1cadbea30c5932605712e6e1",
+    "echo/result.json": "3cd4df93aae016bd8000cc7400f32931192cf67ff379810f0ff6dbdfbd170425",
+    "echo/fpga.txt": "f45cb0cc91b38bae3885b45370f6940dc1d4c844dbbfe93eb7b21297d6a3a1b8"
+  }
+}

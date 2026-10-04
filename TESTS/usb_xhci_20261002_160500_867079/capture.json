@@ -1,0 +1,212 @@
+{
+  "status": "completed",
+  "device": {
+    "topology": "3-7",
+    "sysfs": "/sys/bus/usb/devices/3-7",
+    "bus": 3,
+    "address": 91,
+    "speed": "480",
+    "vid": "359f",
+    "pid": "2011",
+    "serial": "11252024"
+  },
+  "slot_mapping": {
+    "slot": 49,
+    "controller": "0000:00:14.0",
+    "name_file": "/sys/kernel/debug/usb/xhci/0000:00:14.0/devices/49/name"
+  },
+  "instance": "/sys/kernel/tracing/instances/console_usb_867079_e8efc4c07f",
+  "kernel": "6.17.0-35-generic",
+  "uid": 1000,
+  "gid": 1000,
+  "started_wall_ns": 1790949900058996721,
+  "started_monotonic_ns": 7345121158833182,
+  "capture_tool_sha256": "530dcc2fbc97bcdc70dd20814d4ad4f65757ae21e98289d8a7d158cb298bc1a8",
+  "seconds_limit": 30,
+  "events": {
+    "xhci_handle_event": {
+      "available": true,
+      "fields": [
+        "common_flags",
+        "common_pid",
+        "common_preempt_count",
+        "common_type",
+        "dma",
+        "field0",
+        "field1",
+        "field2",
+        "field3",
+        "type"
+      ],
+      "filter": "field3 >= 822083584 && field3 <= 838860799",
+      "accepted_filter": "field3 >= 822083584 && field3 <= 838860799"
+    },
+    "xhci_queue_trb": {
+      "available": true,
+      "fields": [
+        "common_flags",
+        "common_pid",
+        "common_preempt_count",
+        "common_type",
+        "dma",
+        "field0",
+        "field1",
+        "field2",
+        "field3",
+        "type"
+      ],
+      "filter": "type == 5 && field3 >= 822083584 && field3 <= 838860799",
+      "accepted_filter": "type == 5 && field3 >= 822083584 && field3 <= 838860799"
+    },
+    "xhci_urb_enqueue": {
+      "available": true,
+      "fields": [
+        "actual",
+        "common_flags",
+        "common_pid",
+        "common_preempt_count",
+        "common_type",
+        "devname",
+        "dir_in",
+        "epnum",
+        "flags",
+        "length",
+        "num_mapped_sgs",
+        "num_sgs",
+        "pipe",
+        "slot_id",
+        "status",
+        "stream",
+        "type",
+        "urb"
+      ],
+      "filter": "devname == \"3-7\"",
+      "accepted_filter": "devname == \"3-7\""
+    },
+    "xhci_urb_giveback": {
+      "available": true,
+      "fields": [
+        "actual",
+        "common_flags",
+        "common_pid",
+        "common_preempt_count",
+        "common_type",
+        "devname",
+        "dir_in",
+        "epnum",
+        "flags",
+        "length",
+        "num_mapped_sgs",
+        "num_sgs",
+        "pipe",
+        "slot_id",
+        "status",
+        "stream",
+        "type",
+        "urb"
+      ],
+      "filter": "devname == \"3-7\"",
+      "accepted_filter": "devname == \"3-7\""
+    },
+    "xhci_urb_dequeue": {
+      "available": true,
+      "fields": [
+        "actual",
+        "common_flags",
+        "common_pid",
+        "common_preempt_count",
+        "common_type",
+        "devname",
+        "dir_in",
+        "epnum",
+        "flags",
+        "length",
+        "num_mapped_sgs",
+        "num_sgs",
+        "pipe",
+        "slot_id",
+        "status",
+        "stream",
+        "type",
+        "urb"
+      ],
+      "filter": "devname == \"3-7\"",
+      "accepted_filter": "devname == \"3-7\""
+    },
+    "xhci_handle_cmd_reset_ep": {
+      "available": true,
+      "fields": [
+        "common_flags",
+        "common_pid",
+        "common_preempt_count",
+        "common_type",
+        "deq",
+        "info",
+        "info2",
+        "tx_info"
+      ],
+      "filter": "0",
+      "accepted_filter": "none"
+    },
+    "xhci_dbg_reset_ep": {
+      "available": true,
+      "fields": [
+        "common_flags",
+        "common_pid",
+        "common_preempt_count",
+        "common_type",
+        "msg"
+      ],
+      "filter": "0",
+      "accepted_filter": "none"
+    }
+  },
+  "cleanup_errors": [],
+  "sources": [
+    "https://raw.githubusercontent.com/torvalds/linux/v6.17/drivers/usb/host/xhci-trace.h",
+    "https://raw.githubusercontent.com/torvalds/linux/v6.17/drivers/usb/host/xhci.h",
+    "https://raw.githubusercontent.com/torvalds/linux/v6.17/drivers/usb/host/xhci-debugfs.c",
+    "https://docs.kernel.org/trace/events.html",
+    "https://docs.kernel.org/trace/ftrace.html#instances"
+  ],
+  "limits": [
+    "Pas de capture des PID \u00e9lectriques USB ; trace FPGA = UTMI.",
+    "Les \u00e9v\u00e9nements TRB ne contiennent pas le contr\u00f4leur PCI ; un slot identique sur un autre contr\u00f4leur reste possible.",
+    "Les \u00e9v\u00e9nements reset-context/debug ne permettent pas un filtre par p\u00e9riph\u00e9rique.",
+    "xhci_urb_giveback expose status dans format mais ne l\u2019imprime pas dans TP_printk v6.17 ; USBmon ajoute les statuts URB si disponible.",
+    "Une corr\u00e9lation reset/erreur ne prouve pas la cause initiale du d\u00e9faut PHY."
+  ],
+  "usbmon": {
+    "unavailable": true,
+    "source": "/sys/kernel/debug/usb/usbmon/3u"
+  },
+  "command": [
+    "/usr/bin/python3",
+    "/home/michael/console-validation-20261001/tools/check_usb_xhci.py",
+    "--echo-worker",
+    "--device",
+    "3-7",
+    "--out",
+    "/home/michael/console-validation-20261001/TESTS/usb_xhci_20261002_160500_867079/echo",
+    "--seconds",
+    "25",
+    "--rounds",
+    "1000"
+  ],
+  "child_pid": 867082,
+  "child_returncode": 1,
+  "readers": [
+    {
+      "bytes": 51888,
+      "truncated": false,
+      "error": null
+    }
+  ],
+  "cpu_stats": {
+    "cpu3": "entries: 0\noverrun: 0\ncommit overrun: 0\nbytes: 0\noldest event ts: 7345121.263598\nnow ts: 7345123.319210\ndropped events: 0\nread events: 32\n",
+    "cpu2": "entries: 0\noverrun: 0\ncommit overrun: 0\nbytes: 0\noldest event ts: 7345121.428937\nnow ts: 7345123.319284\ndropped events: 0\nread events: 41\n",
+    "cpu1": "entries: 0\noverrun: 0\ncommit overrun: 0\nbytes: 0\noldest event ts:     0.000000\nnow ts: 7345123.319337\ndropped events: 0\nread events: 0\n",
+    "cpu0": "entries: 0\noverrun: 0\ncommit overrun: 0\nbytes: 0\noldest event ts: 7345123.160444\nnow ts: 7345123.319386\ndropped events: 0\nread events: 215\n"
+  },
+  "ended_monotonic_ns": 7345123344803844
+}

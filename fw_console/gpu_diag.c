@@ -80,6 +80,9 @@ static void gpu_demo(void)
 #include "gpu_3d_demo.h"
 #include "racer_demo.h"
 #include "gpu_tiles_demo.h"
+#include "gpu_affine_demo.h"
+#include "gpu_raster_demo.h"
+#include "gpu_v1_demo.h"
 #endif
 
 static unsigned char get_byte(void)
@@ -203,12 +206,21 @@ int main(void)
     AE350_UART2->FCR = 7;
     for (;;) {
 #ifdef CONSOLE_GPU
+        if(v1_animate && !(AE350_UART2->LSR&1U)){v1_tick();continue;}
+        if(raster_animate && !(AE350_UART2->LSR&1U)){raster_tick();continue;}
+        if(affine_animate && !(AE350_UART2->LSR&1U)){affine_tick();continue;}
         if(race_running && !(AE350_UART2->LSR&1U)){racer_tick();continue;}
         if(demo3d_animate && !(AE350_UART2->LSR&1U)){demo3d_tick();continue;}
         if(tiles_animate && !(AE350_UART2->LSR&1U)){tiles_tick();continue;}
 #endif
         unsigned char command=get_byte();
 #ifdef CONSOLE_GPU
+        if(command!='?' && command!='S' && command!='E' && command!='g')v1_animate=0;
+        if(command!='?' && command!='S' && command!='E' && command!='f' && command!='g' && command!='c')v1_initialized=0;
+        if(command!='?' && command!='S' && command!='E' && command!='M' && command!='b' && command!='e')raster_animate=0;
+        if(command!='?' && command!='S' && command!='E' && command!='M' && command!='a' && command!='b' && command!='c' && command!='d' && command!='e')raster_initialized=0;
+        if(command!='?' && command!='S' && command!='E' && command!='M' && command!='Z')affine_animate=0;
+        if(command!='?' && command!='S' && command!='E' && command!='M' && command!='I' && command!='Z' && command!='Q')affine_initialized=0;
         if((command&0xe0)==0x80){racer_input(command&31);continue;}
         if(command!='?' && command!='S' && command!='H' && command!='E' && command!='M')race_running=0;
         if(command!='?' && command!='S' && command!='A' && command!='X' && command!='E' && command!='M')demo3d_animate=0;
@@ -220,12 +232,22 @@ int main(void)
         switch (command) {
         case '?':
 #ifdef CONSOLE_GPU
-            printf("MegaPro GPU G6 FAST TILES core=800MHz bus=80MHz\r\n");
+            printf("MegaPro GPU G6 FAST TILES AFFINE RASTER PERSPECTIVE OVERLAY V1 core=800MHz bus=80MHz\r\n");
 #else
             printf("MegaPro GPU G0 core=800MHz bus=80MHz\r\n");
 #endif
             break;
 #ifdef CONSOLE_GPU
+        case 'f': v1_test();break;
+        case 'g': v1_start();break;
+        case 'a': raster_test(0);break;
+        case 'b': raster_start(0);break;
+        case 'd': raster_test(1);break;
+        case 'e': raster_start(1);break;
+        case 'c': raster_animate=0;printf("RASTER PAUSED\r\n");break;
+        case 'I': affine_test(); break;
+        case 'Z': affine_start(); break;
+        case 'Q': affine_animate=0;printf("AFFINE PAUSED\r\n");break;
         case 'U': tiles_demo(); break;
         case 'Y': tiles_next(); break;
         case 'W': tiles_start(); break;

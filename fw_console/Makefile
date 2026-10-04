@@ -3,16 +3,19 @@ APP   = console_test
 BUILD = build
 MAIN ?= main.c
 LD    = /home/michael/console/fw_console/itcm.ld
-SRCS  = $(MAIN) gpu.c $(filter-out $(AE350_SDK)/bsp/lib/read.c,$(BSP_SRCS))
+SRCS  = $(MAIN) gpu.c gpu_v1.c $(filter-out $(AE350_SDK)/bsp/lib/read.c,$(BSP_SRCS))
 OBJS  = $(patsubst %.c,$(BUILD)/%.o,$(notdir $(SRCS))) $(BUILD)/start.o
-CFLAGS += -DCFG_XIP   # Le BSP copie les données initialisées de l'ITCM vers l'ILM.
+CFLAGS += -Os -DCFG_XIP   # Le BSP copie les données initialisées de l'ITCM vers l'ILM.
 vpath %.c $(sort $(dir $(SRCS)))   # seulement les .c : sinon make trouve les .o d'un autre dossier build
 all: $(BUILD)/$(APP).bin $(BUILD)/itcm/itcm0
 	$(SIZE) $(BUILD)/$(APP).elf
 $(BUILD)/%.o: %.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
-$(BUILD)/gpu.o: gpu.h
-$(BUILD)/gpu_diag.o: gpu.h gpu_demo.h gpu_palette.h gpu_layers_demo.h gpu_sprites_demo.h gpu_3d_scene.h gpu_3d_demo.h racer_scene.h racer_demo.h gpu_tiles_scene.h gpu_tiles_demo.h $(BUILD)/gpu_font.h
+$(BUILD)/gpu.o: gpu.h gpu_v1.h
+$(BUILD)/gpu_v1.o: gpu.h gpu_v1.h
+$(BUILD)/gpu_diag.o: gpu_v1.h gpu_v1_scene.h gpu_v1_demo.h gpu_v1_expected.h
+$(BUILD)/gpu_diag.o: gpu_raster_scene.h gpu_raster_reference.h gpu_raster_demo.h gpu_rgb_overlay_scene.h
+$(BUILD)/gpu_diag.o: gpu.h gpu_demo.h gpu_palette.h gpu_layers_demo.h gpu_sprites_demo.h gpu_3d_scene.h gpu_3d_demo.h racer_scene.h racer_demo.h gpu_tiles_scene.h gpu_tiles_demo.h gpu_affine_scene.h gpu_affine_demo.h $(BUILD)/gpu_font.h
 $(BUILD)/gpu_font.h: ../tang/rtl/video/font8x16.hex ../tools/gen_gpu_font.py | $(BUILD)
 	python3 ../tools/gen_gpu_font.py $< $@
 $(BUILD)/start.o: $(BSP_ASM) | $(BUILD)

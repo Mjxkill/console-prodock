@@ -1,0 +1,82 @@
+{
+  "scope": "HS EP0 class requests, UTMI + intact official controller model + real application RTL",
+  "case": "retry32",
+  "sha256": {
+    "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv": "93fa102589e7af54881aed3bac3a153d00a031645515d5c6714d17118d83de2a",
+    "/home/michael/console/TESTS/rtl/usb_ep0_recovery_tasks.svh": "ea9f4684a674653418f86edab34266eb5838a70fd119946e753dad8505249832",
+    "/home/michael/console/TESTS/rtl/usb_controller_cdc_tasks.svh": "5101d44a22f35b3abac653f68a6ecfddfb5d5c3ef56702b4b71c6a0345cefd61",
+    "/home/michael/console/tang/rtl/usb/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "/home/michael/console/tools/check_usb_ep0_recovery.py": "faee4be16dbcf825abe1d3c4a3b53f839f049d7675bc580124b2c5d8381dfc1b",
+    "/home/michael/console/tang/rtl/usb/usb_descriptor.v": "757a84e036f5d0f65e3c3794958daeb5b68df3ff96c3449b5345d0de670d44b0",
+    "TESTS/usb_hs_ep0_before_20261002/usb_uart_config.v": "f86d8f897c00ffaad58d803d10bcae2935f35b9f4e78352d41e55b5c8c5bdc56",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v": "eca58c1fb3c4bd0955f7882cc6a5e61708c6293a0ae0c70daedd138e33b90a27",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo": "4c33e258b10e2fb25fcff25cee1fbdd7bb256ca963a6f638ee2d69ce7bbd7e00",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5",
+    "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/provenance.json": "77d12c20ddc7d897bbb348b451a0f87fb50908e793aceac20e24781cf3b9536a",
+    "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/export/controller33_hs/impl/pnr/controller33_hs.vo": "aa94743bb6922840761dfb2d6ba84f9c522f5b8b220f5feda95ca61a173dbaae",
+    "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/usb_descriptor.v": "757a84e036f5d0f65e3c3794958daeb5b68df3ff96c3449b5345d0de670d44b0",
+    "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/usb_hs_controller_model.v": "2ff73106d7f733550c01450f9e28ef89cbd818d18e63860c214aa2230bf9ace5",
+    "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/usb_device_controller.vg": "270faa84b48751cc87df7845e1aaaafa48cd37c4572e46f5cfeda6529582f828",
+    "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/clock.sdc": "24fb8ee9b795eb0475c35e52a4ab589176c76e69b6f9fb0f036c82795c34b198",
+    "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/generate.tcl": "dc5529ee71802006fbb2ae5d894997f0b4537a2c37f2d5d714f0c1a7dc6c25ca"
+  },
+  "limits": [
+    "Exact HS3.3 VG exported officially with the actual descriptor ROM; BOS inputs tied to zero in the export wrapper",
+    "Ideal UTMI, no PHY, cable, analog effects or physical timing",
+    "Normal SET_ADDRESS/SET_CONFIGURATION bootstrap, not complete descriptor enumeration",
+    "This does not establish the cause of the physical bulk insertion/loss",
+    "Private legacy observer fields are replaced by constant display values; verdicts use public EP0 transactions only"
+  ],
+  "harness_changes": [
+    "Replace test sequence by usb_ep0_recovery_tasks.svh",
+    "EP0 RXRDY forced high exactly as current production top"
+  ],
+  "controller_model": {
+    "stage": "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1",
+    "model": "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/export/controller33_hs/impl/pnr/controller33_hs.vo",
+    "model_sha256": "aa94743bb6922840761dfb2d6ba84f9c522f5b8b220f5feda95ca61a173dbaae",
+    "vendor_sha256": "270faa84b48751cc87df7845e1aaaafa48cd37c4572e46f5cfeda6529582f828"
+  },
+  "generated_harness_sha256": "6efa6ffc2fa1c71b30db7c7e8e120377cd9fb36ada9389b91aacf693174488f0",
+  "compile": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+      "-B",
+      "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+      "-g2012",
+      "-I",
+      "/tmp/console-usb-ep0-recovery-ngdscp6s",
+      "-I",
+      "/home/michael/console/TESTS/rtl",
+      "-s",
+      "usb_controller_packet_tb",
+      "-o",
+      "/tmp/console-usb-ep0-recovery-ngdscp6s/test.vvp",
+      "/tmp/console-usb-ep0-recovery-ngdscp6s/usb_controller_packet_tb.sv",
+      "TESTS/usb_hs_ep0_before_20261002/usb_uart_config.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v",
+      "/home/michael/console/tang/impl/gpu_usb_controller33_hs_model_r1/export/controller33_hs/impl/pnr/controller33_hs.vo",
+      "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "pass": false,
+  "run": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/vvp",
+      "/tmp/console-usb-ep0-recovery-ngdscp6s/test.vvp",
+      "+RECOVERY_CASE=2"
+    ],
+    "returncode": 1,
+    "elapsed_s": 16.98230483700172,
+    "stdout": "Start HS negotiation at          16832660000\nDevice chirp at         183934309000\nDevice chirp ends at        1383902975000\nHigh speed negotiated at        1687215842000\nTX at        1688174137000 ep0 len=1: d2 \nTX at        1690190723000 ep0 len=3: 4b 00 00 \nControl write 05=07 complete\nTX at        3693610583000 ep0 len=1: d2 \nTX at        3695627169000 ep0 len=3: 4b 00 00 \nControl write 09=01 complete\nTX at        3699093697000 ep0 len=1: d2 \nTX at        3701760257000 ep0 len=1: d2 \nTX at        3703776843000 ep0 len=3: 4b 00 00 \nTX at        3707243371000 ep0 len=1: d2 \nTX at        3709259957000 ep0 len=3: 4b 00 00 \nCDC open configuration completed\nTX at        3712726485000 ep0 len=1: d2 \nTX at        3714859733000 ep0 len=10: 4b 00 c2 01 00 00 00 08 c8 1b \nFIN at        3715343047000 EP=0 act=1 pop=0 len=7 clr=0 isync=0\nTX at        3716642995000 ep0 len=1: d2 \nTX at        3719342887000 ep0 len=1: d2 \nTX at        3721892785000 ep0 len=35: 4b 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 94 a8 \nFIN at        3722376099000 EP=0 act=1 pop=0 len=32 clr=0 isync=0\nTX at        3723676047000 ep0 len=1: d2 \nNORMAL EP0 PASS: CDC7 + diagnostic32, DATA1, CRC and status\nTX at        3726375939000 ep0 len=1: d2 \nTX at        3728925837000 ep0 len=35: 4b 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 94 a8 \nLOST ACK n=32 pops=32 finishes=0 send=0 data=1f sub_stage=32\nTX at        3731275743000 ep0 len=3: 4b 00 00 \nFATAL: /home/michael/console/TESTS/rtl/usb_ep0_recovery_tasks.svh:18: EP0 reply framing: got PID=4b length=3 expected DATA1 length=35\n       Time: 3731284076000  Scope: usb_controller_packet_tb.recovery_check\n"
+  },
+  "sources_unchanged": true
+}

@@ -1,0 +1,70 @@
+{
+  "scope": "Controller/FIFO with original PHY and independent serial host after UTMI bootstrap",
+  "limits": [
+    "HS negotiation/enumeration bootstrap uses ideal UTMI; only subsequent packets traverse D+/D-",
+    "Digital simulation only; no metastability, SDF or physical timing proof",
+    "SET_ADDRESS, SET_CONFIGURATION and optional GET_CONFIGURATION; not complete enumeration",
+    "Digital ideal CDR; framing differences are recorded separately and prevent a full-link pass"
+  ],
+  "bare_config": false,
+  "ack_delay_cycles": 20,
+  "interleave_out": true,
+  "sof_context": true,
+  "interrupt_polls": true,
+  "sha256": {
+    "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv": "54c6e5684cd39054532ff0ab380778313e6f59df291d4df28397ab22ee18f284",
+    "/home/michael/console/tang/rtl/usb/usb_descriptor.v": "757a84e036f5d0f65e3c3794958daeb5b68df3ff96c3449b5345d0de670d44b0",
+    "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v": "f86d8f897c00ffaad58d803d10bcae2935f35b9f4e78352d41e55b5c8c5bdc56",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v": "eca58c1fb3c4bd0955f7882cc6a5e61708c6293a0ae0c70daedd138e33b90a27",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo": "4c33e258b10e2fb25fcff25cee1fbdd7bb256ca963a6f638ee2d69ce7bbd7e00",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.vo": "0a0eb5da9cb1c9f859d3cba4aafa4a327356984b0a9f3f2477f8e2c81abd8dd3",
+    "/home/michael/console/TESTS/rtl/usb_controller_phy_link.svh": "686fba1ba23daf7eaafffbf8408b06ece8c642456702076c84a9885ba553e6d5",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.v": "9b66def6f3a9d00b3cfa847c4a47d2477256aa960e03aea550b513b28aca12b8",
+    "/home/michael/console/tang/rtl/usb/usb2_0_softphy.v": "9b66def6f3a9d00b3cfa847c4a47d2477256aa960e03aea550b513b28aca12b8",
+    "/home/michael/console/tang/rtl/usb/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49"
+  },
+  "host_ppm": 0,
+  "card_ppm": 0,
+  "phase_ns": 0.317,
+  "compile": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+      "-B",
+      "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+      "-g2012",
+      "-I",
+      "/home/michael/console/TESTS/rtl",
+      "-s",
+      "usb_controller_packet_tb",
+      "-o",
+      "/tmp/console-usb-controller-ftqq52ow/controller.vvp",
+      "-DWITH_SERIAL_PHY",
+      "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv",
+      "/home/michael/console/tang/rtl/usb/usb_descriptor.v",
+      "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v",
+      "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo",
+      "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v",
+      "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.vo"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "run": {
+    "returncode": 1,
+    "stdout": "state                    0 op=xx xcvr=01 reset=1 HS=0\nstate                    0 op=0x xcvr=01 reset=1 HS=0\nstate                    0 op=01 xcvr=01 reset=1 HS=0\nstate            175000000 op=01 xcvr=01 reset=0 HS=0\nInitial reset released HS=0\nStart HS negotiation at          16833333333\nstate       17000208333800 op=00 xcvr=01 reset=0 HS=0\nstate       17166891667109 op=00 xcvr=01 reset=1 HS=0\nstate       17166908333775 op=00 xcvr=00 reset=0 HS=0\nstate       17166908333775 op=10 xcvr=00 reset=0 HS=0\nDevice chirp at       17166941667109\nDevice chirp ends at       18366958333596\nstate       18621425000225 op=10 xcvr=00 reset=0 HS=1\nstate       18621425000225 op=00 xcvr=00 reset=0 HS=1\nHigh speed negotiated at       18670283333551\nTX at       18671258333551 ep0 len=1: d2 \nTX at       18673291666884 ep0 len=3: 4b 00 00 \nControl write 05=07 complete\nTX at       20676741666586 ep0 len=1: d2 \nTX at       20678774999919 ep0 len=3: 4b 00 00 \nControl write 09=01 complete\nTX at       20682191666585 ep0 len=1: d2 \nPOP at       20684141666584 EP=0 len=7 cork=0 pending=0\nTX at       20684241666584 ep0 len=4: 4b 01 81 7f \nTX at       20685974999918 ep0 len=1: d2 \nGET_CONFIGURATION completed\nConfigured HS=1\nOriginal PHY connected at       20713649999856\nHOST SOP       20750000317000 pid=a5 len=3 gap_from_device_ns=20750000.317000 rx_en=0 state=00 counter=Z\nPHY RX enable       20750024999769 en=1 state=10 counter=Z\nPHY RX       20750324999768 a5 act=1 error=0\nPHY RX       20750341666435 14 act=1 error=0\nPHY RX       20750358333102 c8 act=1 error=0\nPHY RX enable       20750391666435 en=0 state=00 counter=Z\nHOST SOP       20750466983667 pid=69 len=3 gap_from_device_ns=20750466.983667 rx_en=0 state=00 counter=Z\nPHY RX enable       20750491666435 en=1 state=10 counter=Z\nPHY RX       20750791666434 69 act=1 error=0\nPHY RX       20750808333100 87 act=1 error=0\nPHY RX       20750824999767 d8 act=1 error=0\nPHY RX enable       20750858333100 en=0 state=00 counter=Z\nPHY TX       20750974999767 5a\nWIRE at       20751164062266 ep1 len=1: 5a \nHOST SOP       20751500317000 pid=69 len=3 gap_from_device_ns=336.254734 rx_en=0 state=00 counter=Z\nPHY RX enable       20751524999765 en=1 state=10 counter=Z\nPHY RX       20751824999765 69 act=1 error=0\nPHY RX       20751841666431 07 act=1 error=0\nPHY RX       20751858333098 41 act=1 error=0\nPHY RX enable       20751891666431 en=0 state=00 counter=Z\nPHY TX       20752008333098 5a\nWIRE at       20752197395597 ep2 len=1: 5a \nHOST SOP       20752533650333 pid=e1 len=3 gap_from_device_ns=336.254736 rx_en=0 state=00 counter=Z\nPHY RX enable       20752558333096 en=1 state=10 counter=Z\nPHY RX       20752858333096 e1 act=1 error=0\nHOST SOP       20752866983667 pid=c3 len=7 gap_from_device_ns=669.588070 rx_en=1 state=10 counter=Z\nPHY RX       20752874999762 07 act=1 error=0\nPHY RX       20752891666429 41 act=1 error=0\nPHY RX       20753191666428 c3 act=1 error=0\nPHY RX       20753208333095 45 act=1 error=0\nPHY RX       20753224999761 01 act=1 error=0\nPHY RX       20753241666428 00 act=1 error=0\nPHY RX       20753258333095 11 act=1 error=0\nPHY RX       20753274999761 7b act=1 error=0\nPHY RX       20753291666428 1b act=1 error=0\nPHY RX enable       20753324999761 en=0 state=00 counter=Z\nPHY TX       20753441666428 d2\nWIRE at       20753630728927 ep2 len=1: d2 \nHOST SOP       20754666983667 pid=69 len=3 gap_from_device_ns=1036.254740 rx_en=0 state=00 counter=Z\nPHY RX enable       20754691666425 en=1 state=10 counter=Z\nPHY RX       20754991666424 69 act=1 error=0\nPHY RX       20755008333090 07 act=1 error=0\nPHY RX       20755024999757 41 act=1 error=0\nPHY RX enable       20755058333090 en=0 state=00 counter=Z\nPOP at       20755124999757 EP=2 len=1 cork=0 pending=0\nPHY TX       20755174999757 c3\nPHY TX       20755191666423 11\nPHY TX       20755208333090 80\nPHY TX       20755224999757 b3\nWIRE at       20755414062256 ep2 len=4: c3 11 80 b3 \nHOST SOP       20755750317000 pid=d2 len=1 gap_from_device_ns=336.254744 rx_en=0 state=00 counter=Z\nPHY RX enable       20755774999755 en=1 state=10 counter=Z\nPHY RX       20756074999755 d2 act=1 error=0\nPHY RX enable       20756108333088 en=0 state=00 counter=Z\nFIN at       20756124999754 EP=2 act=1 pop=0 len=1 clr=0 isync=0\nHOST SOP       20756766983667 pid=e1 len=3 gap_from_device_ns=1352.921411 rx_en=0 state=00 counter=Z\nPHY RX enable       20756791666420 en=1 state=10 counter=Z\nPHY RX       20757091666419 e1 act=1 error=0\nHOST SOP       20757100317000 pid=4b len=7 gap_from_device_ns=1686.254744 rx_en=1 state=10 counter=Z\nPHY RX       20757108333085 07 act=1 error=0\nPHY RX       20757124999752 41 act=1 error=0\nPHY RX       20757424999751 4b act=1 error=0\nPHY RX       20757441666418 45 act=1 error=0\nPHY RX       20757458333085 01 act=1 error=0\nPHY RX       20757474999751 00 act=1 error=0\nPHY RX       20757491666418 5a act=1 error=0\nPHY RX       20757508333084 3b act=1 error=0\nPHY RX       20757524999751 2c act=1 error=0\nPHY RX enable       20757558333084 en=0 state=00 counter=Z\nPHY TX       20757674999751 d2\nWIRE at       20757864062250 ep2 len=1: d2 \nHOST SOP       20758900317000 pid=69 len=3 gap_from_device_ns=1036.254750 rx_en=0 state=00 counter=Z\nPHY RX enable       20758924999748 en=1 state=10 counter=Z\nPHY RX       20759224999747 69 act=1 error=0\nPHY RX       20759241666414 07 act=1 error=0\nPHY RX       20759258333080 41 act=1 error=0\nPHY RX enable       20759291666414 en=0 state=00 counter=Z\nPOP at       20759358333080 EP=2 len=1 cork=0 pending=0\nPHY TX       20759408333080 4b\nPHY TX       20759424999747 5a\nPHY TX       20759441666413 c0\nPHY TX       20759458333080 84\nWIRE at       20759647395579 ep2 len=4: 4b 5a c0 84 \nHOST SOP       20761650317000 pid=69 len=3 gap_from_device_ns=2002.921421 rx_en=0 state=00 counter=Z\nPHY RX enable       20761674999741 en=1 state=10 counter=Z\nPHY RX       20761974999741 69 act=1 error=0\nPHY RX       20761991666407 87 act=1 error=0\nPHY RX       20762008333074 d8 act=1 error=0\nPHY RX enable       20762041666407 en=0 state=00 counter=Z\nPHY TX       20762158333073 5a\nWIRE at       20762347395573 ep1 len=1: 5a \nHOST SOP       20875000317000 pid=a5 len=3 gap_from_device_ns=112652.921427 rx_en=0 state=00 counter=Z\nPHY RX enable       20875024999471 en=1 state=10 counter=Z\nPHY RX       20875324999470 a5 act=1 error=0\nPHY RX       20875341666137 14 act=1 error=0\nPHY RX       20875358332804 c8 act=1 error=0\nPHY RX enable       20875391666137 en=0 state=00 counter=Z\nHOST SOP       20875466983667 pid=e1 len=3 gap_from_device_ns=113119.588094 rx_en=0 state=00 counter=Z\nPHY RX enable       20875491666137 en=1 state=10 counter=Z\nPHY RX       20875791666136 e1 act=1 error=0\nHOST SOP       20875800317000 pid=c3 len=7 gap_from_device_ns=113452.921427 rx_en=1 state=10 counter=Z\nPHY RX       20875808332802 07 act=1 error=0\nPHY RX       20875824999469 41 act=1 error=0\nPHY RX       20876124999468 c3 act=1 error=0\nPHY RX       20876141666135 45 act=1 error=0\nPHY RX       20876158332802 01 act=1 error=0\nPHY RX       20876174999468 00 act=1 error=0\nPHY RX       20876191666135 a3 act=1 error=0\nPHY RX       20876208332801 fb act=1 error=0\nPHY RX       20876224999468 6e act=1 error=0\nPHY RX enable       20876258332801 en=0 state=00 counter=Z\nPHY TX       20876374999468 5a\nWIRE at       20876564061967 ep2 len=1: 5a \nFATAL: /home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv:397: Bulk OUT not ACKed\n       Time: 20876566666134  Scope: usb_controller_packet_tb.out_command\n",
+    "stderr": "",
+    "elapsed_s": 91.68057748299907
+  },
+  "pass": false,
+  "payload_pass": false,
+  "framing_differences": null,
+  "sources_unchanged": true
+}

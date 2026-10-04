@@ -32,10 +32,22 @@ module gpu_triangle #(parameter WIDTH=800, HEIGHT=480) (
     reg [9:0] py;
     reg signed [11:0] edge_left[0:2],edge_right[0:2];
     reg [2:0] row_allowed;
-    wire signed [11:0] left01=edge_left[0]>edge_left[1]?edge_left[0]:edge_left[1];
-    wire signed [11:0] right01=edge_right[0]<edge_right[1]?edge_right[0]:edge_right[1];
-    wire signed [11:0] line_left=left01>edge_left[2]?left01:edge_left[2];
-    wire signed [11:0] line_right=right01<edge_right[2]?right01:edge_right[2];
+    // Compare all edge pairs in parallel. Cascading max/min through another
+    // comparator before the span subtraction creates a long serial path.
+    // Ties select the lowest edge index; the numeric bounds are unchanged.
+    wire l01=edge_left[0]>=edge_left[1],l02=edge_left[0]>=edge_left[2],l12=edge_left[1]>=edge_left[2];
+    wire r01=edge_right[0]<=edge_right[1],r02=edge_right[0]<=edge_right[2],r12=edge_right[1]<=edge_right[2];
+    // max(lefts) <= min(rights) iff every left <= every right. Parallel
+    // comparisons avoid feeding the state through min/max selection first.
+    wire span_nonempty=(edge_left[0]<=edge_right[0]) && (edge_left[0]<=edge_right[1]) && (edge_left[0]<=edge_right[2]) &&
+                       (edge_left[1]<=edge_right[0]) && (edge_left[1]<=edge_right[1]) && (edge_left[1]<=edge_right[2]) &&
+                       (edge_left[2]<=edge_right[0]) && (edge_left[2]<=edge_right[1]) && (edge_left[2]<=edge_right[2]);
+    wire signed [11:0] line_left=({12{l01 && l02}} & edge_left[0]) |
+                                ({12{!l01 && l12}} & edge_left[1]) |
+                                ({12{!l02 && !l12}} & edge_left[2]);
+    wire signed [11:0] line_right=({12{r01 && r02}} & edge_right[0]) |
+                                 ({12{!r01 && r12}} & edge_right[1]) |
+                                 ({12{!r02 && !r12}} & edge_right[2]);
     assign busy=!state[$clog2(IDLE)];
     assign valid=state[$clog2(EMIT)];
     function signed [15:0] min3;
@@ -134,7 +146,7 @@ module gpu_triangle #(parameter WIDTH=800, HEIGHT=480) (
             state[$clog2(CLAMP)]:state<=SPAN;
             state[$clog2(SPAN)]:begin
                 span_x<=line_left[10:0];span_width<=line_right-line_left+12'sd1;span_y<=py;
-                state<=(&row_allowed) && line_left<=line_right ? EMIT : py==bottom[9:0] ? IDLE:ADVANCE;
+                state<=(&row_allowed) && span_nonempty ? EMIT : py==bottom[9:0] ? IDLE:ADVANCE;
             end
             state[$clog2(EMIT)]:if(ready)state<=py==bottom[9:0] ? IDLE:ADVANCE;
             state[$clog2(ADVANCE)]:begin py<=py+1'b1;state<=CARRY;end

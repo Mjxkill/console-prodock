@@ -7,7 +7,10 @@
 #define GPU_PAGE_BYTES 1048576UL
 #define GPU_PAGE_ADDR(p) (0x00800000UL + (unsigned)(p) * GPU_PAGE_BYTES)
 enum gpu_opcode { GPU_FILL=1, GPU_GRAD_H, GPU_GRAD_V, GPU_GRAD_D,
-                  GPU_LINE, GPU_CIRCLE, GPU_DISK, GPU_COPY, GPU_TEXT, GPU_TRIANGLE, GPU_ZOOM };
+                  GPU_LINE, GPU_CIRCLE, GPU_DISK, GPU_COPY, GPU_TEXT, GPU_TRIANGLE, GPU_ZOOM,
+                  GPU_AFFINE_SETUP, GPU_AFFINE,
+                  GPU_RASTER_STATE, GPU_TEXTURE, GPU_PLANE_U, GPU_PLANE_V,
+                  GPU_PLANE_Z, GPU_RASTER_TRIANGLE, GPU_RASTER_CLEAR, GPU_PLANE_Q };
 typedef struct { uint32_t words[8]; } gpu_command;
 
 // One producer. Flush CPU-written surfaces before submitting GPU work;
@@ -26,6 +29,16 @@ void gpu_triangle(unsigned page,int x0,int y0,int x1,int y1,int x2,int y2,
 // Q16 sampling: floor(relative * floor(source_size*65536/dest_size)/65536).
 gpu_command gpu_make_zoom(unsigned dst,unsigned src,int x,int y,int w,int h,
                           int sx,int sy,unsigned sw,unsigned sh);
+// Inverse transform from destination-relative coordinates to source-relative
+// coordinates. All six coefficients are signed Q16.16; samples use floor.
+// Submit SETUP before DRAW. SETUP persists until replaced/reset; both count
+// as commands. Source 1..128 per axis, destination 1..32767; zero/outside is
+// transparent. Same-page overlap uses a snapshot of the entire source crop.
+typedef struct { int32_t u0,v0,du_dx,dv_dx,du_dy,dv_dy; } gpu_affine_transform;
+int gpu_affine_supported(void);
+gpu_command gpu_make_affine_setup(const gpu_affine_transform *transform);
+gpu_command gpu_make_affine(unsigned dst,unsigned src,int x,int y,int w,int h,
+                            int sx,int sy,unsigned sw,unsigned sh);
 int gpu_wait(void);
 void gpu_text(unsigned page, int x, int y, unsigned fg, unsigned bg,
               unsigned scale, const char *text);
@@ -33,6 +46,37 @@ void gpu_font_write(unsigned address, const uint8_t *bytes, unsigned count);
 void gpu_publish_surface(unsigned long address, unsigned long bytes);
 unsigned gpu_completed(void);
 unsigned gpu_errors(void);
+enum { GPU_RASTER_TEXTURE=1, GPU_Z_TEST=2, GPU_Z_WRITE=4, GPU_KEY_ZERO=8, GPU_PERSPECTIVE=16 };
+enum { GPU_TEX_DISCARD=0, GPU_TEX_REPEAT=1, GPU_TEX_CLAMP=2 };
+typedef struct { int64_t origin; int32_t dx,dy; } gpu_raster_plane;
+int gpu_raster_supported(void);
+int gpu_perspective_supported(void);
+unsigned gpu_raster_rejected(void);
+int gpu_rgb565_present(unsigned page);
+static inline gpu_command gpu_make_raster_state(unsigned page,unsigned zpage,unsigned flags,unsigned alpha,unsigned color)
+{
+    gpu_command c={{GPU_RASTER_STATE<<24,page|(zpage<<4),flags,alpha,color,0,0,0}};
+    if(page>15 || zpage>15)c.words[1]=~0U;
+    return c;
+}
+static inline gpu_command gpu_make_texture(unsigned page,unsigned x,unsigned y,unsigned width,unsigned height,unsigned mode_u,unsigned mode_v)
+{
+    gpu_command c={{GPU_TEXTURE<<24,page,(x<<16)|y,(width<<16)|height,mode_u|(mode_v<<2),0,0,0}};
+    if(x>65535 || y>65535 || width>65535 || height>65535 || mode_u>2 || mode_v>2)c.words[4]=~0U;
+    return c;
+}
+static inline gpu_command gpu_make_plane(unsigned op,const gpu_raster_plane *p)
+{
+    gpu_command c={{op<<24,(uint32_t)p->origin,(uint32_t)p->dx,(uint32_t)p->dy,
+        0x10000U|((uint32_t)((uint64_t)p->origin>>32)&65535),0,0,0}};
+    if(p->origin<-(1LL<<47) || p->origin>=(1LL<<47))c.words[4]=~0U;
+    return c;
+}
+static inline gpu_command gpu_make_raster_clear(unsigned flags,unsigned color,unsigned depth)
+{
+    gpu_command c={{GPU_RASTER_CLEAR<<24,flags,color,depth,0,0,0,0}};
+    return c;
+}
 
 typedef struct { uint32_t words[8]; } gpu_layer;
 enum { GPU_LAYER_ENABLE=1, GPU_LAYER_KEY_ZERO=2, GPU_LAYER_TILES=4,
@@ -65,4 +109,6 @@ enum { GPU_SPRITE_ENABLE=1, GPU_SPRITE_FLIP_X=2, GPU_SPRITE_FLIP_Y=4 };
 gpu_sprite gpu_make_sprite(unsigned long base,int x,int y,unsigned width,unsigned height,
     unsigned priority,unsigned flags);
 int gpu_scene_submit(const gpu_layer layers[16],const gpu_sprite sprites[64]);
+// RGB565 background and indexed overlays committed together at vblank.
+int gpu_rgb565_scene_submit(unsigned page,const gpu_layer layers[16],const gpu_sprite sprites[64]);
 #endif

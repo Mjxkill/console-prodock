@@ -1,0 +1,23 @@
+{
+  "official_guide": "https://www.gowinsemi.com/upload/database_doc/2125/document/687a7263eb932.pdf",
+  "configuration": "TX_DELAY_0_BIT, UTMI, GW5AT, V_120 (Advance); Single LVDS retained",
+  "sha256": {
+    "tang/impl/gpu_usb_phy34_advance_model_r1/usb2_0_softphy_name.v": "e06334342fc2c88a566d4af0f4b54a23fa9e482545b5daf3d6ed1aaaafccb7e0",
+    "tang/impl/gpu_usb_phy34_advance_model_r1/phy.prj": "1a8ee5d41d01294ff065cf845610a569862c8fe92bcb3f839d719222d795bbab",
+    "tang/impl/gpu_usb_phy34_advance_model_r1/generate.tcl": "c37370f66a018756fe5e31faac5c3dbf1787f9b3c0481e629e181da7f5c30158",
+    "tang/impl/gpu_usb_phy34_advance_model_r1/hardware_reference/generate.tcl": "0115d0f85840c7a446da45435c925dd877ba3ee14664830e67e4f57b6f6d2d26",
+    "tang/impl/gpu_usb_phy34_advance_model_r1/hardware_reference/phy.sdc": "0bb8f696a0b1707f3356e91ddf378069dc01e405344d85ade2979c14fc925d15",
+    "tang/impl/gpu_usb_phy34_advance_model_r1/hardware_reference/usb2_0_softphy.vg": "363d18af0556baeaff5dd5b0d0ed1da5a7a1298fb7803dd9c865db0fb49728a9",
+    "tang/impl/gpu_usb_advance_r1/usb_phy_ip/usb2_0_softphy.vg": "363d18af0556baeaff5dd5b0d0ed1da5a7a1298fb7803dd9c865db0fb49728a9",
+    "tang/impl/gpu_usb_phy34_advance_model_r1/hardware_reference/pnr_model/phy34_pnr/impl/pnr/usb2_0_softphy.vo": "c35605a5684c8c2d2b1305ff32188e029b33f29a78a8756ad7a8451eb2f7d686"
+  },
+  "hardware_vg_identity": true,
+  "unused_isolated_synthesis_vg_sha256": "37721d907437315fceb4734c8d0d614cbd86fb5134143de1edd3ddef5988388f",
+  "reason_hardware_copy_exported": "Independent synthesis VG hash differed; no equivalence assumed. Hardware VG copied intact in separate hardware_reference folder and exported via official P&R.",
+  "synthesis_project": "<?xml version='1.0' encoding='UTF-8'?>\n<Project>\n  <Version>beta</Version>\n  <Device id=\"GW5AST-138B\" package=\"FCPBGA676A\" speed=\"1\" partNumber=\"GW5AST-LV138FPG676AC1/I0\" />\n  <FileList>\n    <File path=\"/home/michael/console/tang/impl/gpu_usb_phy34_advance_model_r1/usb2_0_softphy_top.v\" type=\"verilog\" />\n    <File path=\"/home/michael/console/tang/impl/gpu_usb_phy34_advance_model_r1/usb2_0_softphy.v\" type=\"verilog\" />\n  </FileList>\n  <OptionList>\n    <Option type=\"disable_insert_pad\" value=\"1\" />\n    <Option type=\"enable_dsrm\" value=\"0\" />\n    <Option type=\"include_path\" value=\"/home/michael/console/tang/impl/gpu_usb_phy34_advance_model_r1\" />\n    <Option type=\"output_file\" value=\"usb2_0_softphy.vg\" />\n    <Option type=\"ram_balance\" value=\"1\" />\n    <Option type=\"ram_rw_check\" value=\"1\" />\n    <Option type=\"top_module\" value=\"USB2_0_SoftPHY_Top\" />\n    <Option type=\"vcc\" value=\"0.9\" />\n    <Option type=\"vccx\" value=\"1.8\" />\n    <Option type=\"verilog_language\" value=\"sysv-2017\" />\n  </OptionList>\n</Project>",
+  "macro_config": "`define module_name USB2_0_SoftPHY_Top\n`define TX_DELAY_0_BIT\n`define UTMI\n`define GW5AT\n`define V_120\n",
+  "official_export_tcl": "create_project -name phy34_pnr -dir {pnr_model} -pn {GW5AST-LV138FPG676AC1/I0} -device_version B\nset_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0\nadd_file {/home/michael/console/tang/impl/gpu_usb_phy34_advance_model_r1/hardware_reference/usb2_0_softphy.vg}\nadd_file {/home/michael/console/tang/impl/gpu_usb_phy34_advance_model_r1/hardware_reference/phy.sdc}\nset_option -top_module USB2_0_SoftPHY_Top\nset_option -gen_verilog_sim_netlist 1\nset_option -gen_text_timing_rpt 1\nset_option -use_cpu_as_gpio 1\nrun all\n",
+  "standalone_clocks": "create_clock -name phy60 -period 16.666667 [get_ports {clk_i}]\ncreate_clock -name phy960 -period 1.041667 [get_ports {fclk_i}]\n",
+  "results": "TESTS/usb_phy_turnaround_advance_r4_20261002.json",
+  "processes": "All synthesis, P&R and simulations completed; no hardware access by this agent."
+}

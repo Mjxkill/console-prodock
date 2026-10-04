@@ -449,3 +449,53 @@ Les références blitter, triangles et DMA du snapshot r14 sont identiques
 aux fichiers du commit `33c6798` ; elles peuvent aussi être extraites de ce
 commit pour rejouer les comparateurs sans conserver les anciens builds.
 
+
+## Cas supplémentaire pendant L12 : octet présent mais non annoncé
+
+Le 30 septembre, `gpu_l12_r2` passe le timing mais échoue en USB : délai
+d'écriture sur 4096 octets, puis 59 octets reçus sur 64 lors d'un nouveau
+chargement. L11 rechargé sur la même carte passe à nouveau 100 séries,
+544 100 octets exacts ([comparaison L11](gpu_l12_l11_usb_comparison.txt)). Le changement
+d'implémentation expose donc un défaut absent des séries précédentes ;
+la cause physique précise de cette différence n'est pas établie.
+
+L'examen du FIFO trouve un cas logique non couvert : son RAM reçoit un
+octet alors que `CORK` est encore fermé et que la longueur enregistrée
+vaut zéro. Le contrôleur peut encore terminer son sondage vide avec POP
+et acquittement. Le garde de mémorisation de reprise ajouté en r13
+n'empêchait pas ce POP d'avancer le pointeur RAM. Un octet pouvait ainsi
+être libéré sans avoir été annoncé comme payload.
+
+Le nouveau cas du banc `usb_in_packet_tb.sv` reproduit exactement cette
+perte : [avant correction](usb_unpublished_pop_before.txt),
+[après correction](usb_unpublished_pop_simulation.txt). La correction
+qualifie les POP envoyés aux FIFO par `!s_usb_txcork && s_usb_txlen != 0`.
+La sortie de données et les autres handshakes sont conservés.
+Le flux concurrent garde exactement 30 000 octets, 14 733 tentatives et
+3 685 reprises ([journal](usb_l12_stream_simulation.txt)).
+
+La validation matérielle de cette correction est en cours dans L12.
+
+
+## 2 octobre : offre périmée lors du changement d'endpoint
+
+Le banc avec contrôleur **et PHY originaux**, après initialisation à UTMI,
+reproduit un autre cas : le passage EP0 → EP2 expose brièvement CORK ouvert
+et une longueur nulle provenant d'EP0. Cela produit un ZLP DATA0 sur EP2.
+Si son ACK est perdu et qu'une donnée UART arrive, la reprise contient cette
+donnée sous le même DATA0 ; l'hôte peut l'éliminer comme doublon.
+
+La FIFO ferme désormais CORK lorsque l'endpoint courant diffère de
+`s_endpt_sel`. La même condition qualifie POP et la réservation du paquet.
+Les registres de longueur et le chemin de données restent inchangés.
+Le test avant correction échoue sur la reprise `c3 00 00` → `c3 11 80 b3` ;
+après correction, le sondage vide reçoit NAK et les octets utiles gardent
+leur identité jusqu'à l'ACK. Les tests historiques conservent leurs journaux.
+
+Voir [la validation L12](TESTS_GPU_L12.md),
+[le défaut avant correction](usb_controller_phy_zlp_before_20261002.json) et
+[la comparaison de la garde simplifiée](usb_endpoint_guard_r28_equivalence_20261002.json).
+Les essais à horloges hôte/carte indépendantes valident le contenu et les
+reprises dans les séquences testées ; leurs écarts de framing conservés
+empêchent de déclarer le PHY complet conforme. Aucun succès de simulation
+n'est présenté comme une validation matérielle.

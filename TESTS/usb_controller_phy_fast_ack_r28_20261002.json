@@ -1,0 +1,67 @@
+{
+  "scope": "Controller/FIFO with original PHY and independent serial host after UTMI bootstrap",
+  "limits": [
+    "HS negotiation/enumeration bootstrap uses ideal UTMI; only subsequent packets traverse D+/D-",
+    "Digital simulation only; no metastability, SDF or physical timing proof",
+    "SET_ADDRESS, SET_CONFIGURATION and optional GET_CONFIGURATION; not complete enumeration",
+    "Digital ideal CDR; framing differences are recorded separately and prevent a full-link pass"
+  ],
+  "bare_config": false,
+  "ack_delay_cycles": 2,
+  "sha256": {
+    "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv": "3c9d51611a39a55fc1fa2a2616c6be4c41376cfc0c15daa892e940524c4c484c",
+    "/home/michael/console/tang/rtl/usb/usb_descriptor.v": "757a84e036f5d0f65e3c3794958daeb5b68df3ff96c3449b5345d0de670d44b0",
+    "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v": "f86d8f897c00ffaad58d803d10bcae2935f35b9f4e78352d41e55b5c8c5bdc56",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v": "eca58c1fb3c4bd0955f7882cc6a5e61708c6293a0ae0c70daedd138e33b90a27",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo": "4c33e258b10e2fb25fcff25cee1fbdd7bb256ca963a6f638ee2d69ce7bbd7e00",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.vo": "0a0eb5da9cb1c9f859d3cba4aafa4a327356984b0a9f3f2477f8e2c81abd8dd3",
+    "/home/michael/console/TESTS/rtl/usb_controller_phy_link.svh": "0eec49ea43af797aeb6d316e06c75bbaaa083b91f1bb9cff4e638df3cd1ee04b",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.v": "9b66def6f3a9d00b3cfa847c4a47d2477256aa960e03aea550b513b28aca12b8",
+    "/home/michael/console/tang/rtl/usb/usb2_0_softphy.v": "9b66def6f3a9d00b3cfa847c4a47d2477256aa960e03aea550b513b28aca12b8",
+    "/home/michael/console/tang/rtl/usb/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49"
+  },
+  "host_ppm": 500.0,
+  "card_ppm": -500.0,
+  "phase_ns": 1.113,
+  "compile": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+      "-B",
+      "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+      "-g2012",
+      "-I",
+      "/home/michael/console/TESTS/rtl",
+      "-s",
+      "usb_controller_packet_tb",
+      "-o",
+      "/tmp/console-usb-controller-9vgt3nx7/controller.vvp",
+      "-DWITH_SERIAL_PHY",
+      "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv",
+      "/home/michael/console/tang/rtl/usb/usb_descriptor.v",
+      "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v",
+      "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo",
+      "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v",
+      "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.vo"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "run": {
+    "returncode": 1,
+    "stdout": "Initial reset released HS=0\nStart HS negotiation at          16841754210\nDevice chirp at       17175529431807\nDevice chirp ends at       18376146407004\nHigh speed negotiated at       18679623145384\nTX at       18680598633128 ep0 len=1: d2 \nTX at       18682632983637 ep0 len=3: 4b 00 00 \nControl write 05=07 complete\nTX at       20686768384742 ep0 len=1: d2 \nTX at       20688802735251 ep0 len=3: 4b 00 00 \nControl write 09=01 complete\nTX at       20691920961030 ep0 len=1: d2 \nTX at       20693971986543 ep0 len=4: 4b 01 81 7f \nTX at       20695406036902 ep0 len=1: d2 \nGET_CONFIGURATION completed\nConfigured HS=1\nOriginal PHY connected at       20723094881256\nWIRE at       20723792625960 ep2 len=1: 5a \nWIRE at       20725593526405 ep2 len=4: c3 11 80 b3 \nWIRE at       20728094777024 ep2 len=4: c3 11 80 b3 \nWIRE at       20730879502713 ep2 len=4: c3 11 80 b3 \nWIRE at       20732013402993 ep2 len=4: c3 11 80 b3 \nWIRE at       20733147303274 ep2 len=4: c3 11 80 b3 \nWIRE at       20734281203554 ep2 len=4: c3 11 80 b3 \nWIRE at       20735415103834 ep2 len=4: c3 11 80 b3 \nWIRE at       20736549004115 ep2 len=4: c3 11 80 b3 \nWIRE at       20737699579400 ep2 len=4: c3 11 80 b3 \nWIRE at       20738833479680 ep2 len=4: c3 11 80 b3 \nWIRE at       20739967379961 ep2 len=4: c3 11 80 b3 \nWIRE at       20741101280241 ep2 len=4: c3 11 80 b3 \nWIRE at       20742235180521 ep2 len=4: c3 11 80 b3 \nWIRE at       20743369080802 ep2 len=4: c3 11 80 b3 \nWIRE at       20744519656087 ep2 len=4: c3 11 80 b3 \nFATAL: /home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv:410: Queued byte disappeared: produced=3 delivered=1\n       Time: 20745572786816  Scope: usb_controller_packet_tb.drain\n",
+    "stderr": "",
+    "elapsed_s": 85.58334890000697
+  },
+  "pass": false,
+  "payload_pass": false,
+  "framing_differences": null,
+  "sources_unchanged": true
+}

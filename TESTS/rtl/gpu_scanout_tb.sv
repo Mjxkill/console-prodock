@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 module gpu_scanout_tb #(
     parameter W=64, H=4, HT=128, VT=12,
-    parameter HSTART=16, VSTART=2, HSYNC=4, VSYNC=1
+    parameter HSTART=16, VSTART=2, HSYNC=4, VSYNC=1, RGB=0
 );
     reg hc=0, pc=0, mc=0, rst=0;
     always #6.25 hc=~hc;
@@ -98,16 +98,23 @@ module gpu_scanout_tb #(
     // Frame selection is sampled at VS, independently from the scanout's X/Y.
     reg prev_vs=1, prev_de=0, check_pixels=0, skip_pixels=0;
     integer col=0,row=0,checked_frames=0,selected_base=0,expected_base=0;
+    reg expected_rgb=RGB!=0,selected_rgb=0;
+    function automatic [17:0] expected_color(input integer at,input bit direct);
+        reg [15:0] p;
+        p={pixel(at+1),pixel(at)};
+        return direct ? {p[15:11],p[15],p[10:5],p[4:0],p[4]}:{10'b0,pixel(at)};
+    endfunction
     always @(negedge pc) begin
         if (!vs && prev_vs) begin
             if (check_pixels && row!=H) $fatal(1,"Wrong active line count %0d",row);
             row=0; col=0;
             selected_base=expected_base;
+            selected_rgb=expected_rgb;
             check_pixels=rst && dut.active_enable && !stalled && !skip_pixels;
             if (check_pixels) checked_frames=checked_frames+1;
         end
         if (de && check_pixels) begin
-            if ({r,g,b} !== {10'b0,pixel(selected_base+row*W+col)})
+            if ({r,g,b} !== expected_color(selected_base+(row*W+col)*(selected_rgb ? 2:1),selected_rgb))
                 $fatal(1,"Pixel frame%0d xy=%0d,%0d got=%h expected=%h base=%h",checked_frames,col,row,{r,g,b},pixel(selected_base+row*W+col),selected_base);
             col=col+1;
         end
@@ -123,12 +130,12 @@ module gpu_scanout_tb #(
         read_reg(0,value);
         if(value!=32'h47505531) $fatal(1,"GPU ID");
         for(integer i=0;i<256;i++) write_reg('h400+i*4,i);
-        write_reg(4,'h2000); write_reg(8,1); write_reg(12,1);
+        write_reg(4,'h2000); write_reg(8,RGB ? 3:1); write_reg(12,1);
         expected_base='h2000;
         wait(checked_frames>=3); @(negedge vs);
         read_reg('h1c,value); if(value!=0) $fatal(1,"Unexpected underflows %0d",value);
         sum=0;
-        for(integer a='h2000;a<'h2000+W*H;a+=4)
+        for(integer a='h2000;a<'h2000+W*H*(RGB ? 2:1);a+=4)
             sum=sum+{pixel(a+3),pixel(a+2),pixel(a+1),pixel(a)};
         read_reg('h20,value); if(value!=sum) $fatal(1,"Framebuffer checksum %h expected %h",value,sum);
         // Submit a flip during active pixels: it must wait for blanking.
@@ -147,6 +154,12 @@ module gpu_scanout_tb #(
         repeat(3) @(negedge vs);
         skip_pixels=0;
         wait(checked_frames>=9); @(negedge vs);
+        // Switch between direct RGB and indexed palette at vertical blank.
+        wait(de);write_reg(8,RGB ? 1:3);write_reg(12,1);
+        repeat(20)@(posedge pc);
+        if(dut.active_rgb565!=(RGB!=0))$fatal(1,"Format changed inside active frame");
+        wait(dut.active_rgb565!=(RGB!=0));expected_rgb=RGB==0;
+        wait(checked_frames>=12);@(negedge vs);
         $display("PASS: palette, pixel order, exact dimensions, checksum, vblank flip, underflow recovery, CPU reads=%0d",cpureads);
         $finish;
     end

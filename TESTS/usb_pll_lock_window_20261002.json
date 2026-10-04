@@ -1,0 +1,226 @@
+{
+  "scope": "Digital qualification/reset behavior using hold values extracted from the real console tops",
+  "limits": [
+    "No analog PLL, LOCK-glitch probability or metastability model",
+    "Exact reset-release chain instances, with digitally driven LOCK and PLL output clocks; no actual PLL acquisition",
+    "No new timing, bitstream or board proof"
+  ],
+  "cases": [
+    {
+      "revision": "previous",
+      "top": "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/rtl/console_top.v",
+      "module": "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/rtl/usb/usb_reset_release.v",
+      "sdc": "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/constr/gpu.sdc",
+      "configuration": [
+        {
+          "instance": "u_usb_ref_start",
+          "clock": "clk48",
+          "clock_mhz": 48,
+          "hold_cycles": 1024,
+          "explicit_parameter": false,
+          "instance_text": "usb_reset_release u_usb_ref_start (.clk(clk48), .locked(pll_f_lock), .reset(pll_b_reset));"
+        },
+        {
+          "instance": "u_usb_phy_start",
+          "clock": "phy_clk",
+          "clock_mhz": 60,
+          "hold_cycles": 1024,
+          "explicit_parameter": false,
+          "instance_text": "usb_reset_release u_usb_phy_start (.clk(phy_clk),\n        .locked(pll_f_lock & pll_b_lock & ~pll_b_reset), .reset(phy_lock_reset));"
+        },
+        {
+          "instance": "u_usb_controller_start",
+          "clock": "phy_clk",
+          "clock_mhz": 60,
+          "hold_cycles": 64,
+          "explicit_parameter": true,
+          "instance_text": "usb_reset_release #(.HOLD_CYCLES(64)) u_usb_controller_start\n        (.clk(phy_clk), .locked(~phy_lock_reset), .reset(rst_usb));"
+        }
+      ],
+      "phy_inputs": {
+        "pll_locked_i": "~phy_lock_reset",
+        "rst_i": "PHY_RESET"
+      },
+      "guard_stage": 0,
+      "generated_model_sha256": "46af8150a44e9d35929e4a25b4ae1b236c3fdb53b1b3fb527515680a9dadb91f",
+      "compile": {
+        "command": [
+          "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+          "-B",
+          "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+          "-g2012",
+          "-s",
+          "usb_pll_lock_window_tb",
+          "-o",
+          "/tmp/usb-pll-lock-window-g4_6s2fm/previous_guard0.vvp",
+          "-Pusb_pll_lock_window_tb.GUARD_STAGE=0",
+          "-Pusb_pll_lock_window_tb.REF_HOLD=1024",
+          "-Pusb_pll_lock_window_tb.PHY_HOLD=1024",
+          "-Pusb_pll_lock_window_tb.CONTROLLER_HOLD=64",
+          "-Pusb_pll_lock_window_tb.REF_QUAL_MHZ=48",
+          "-Pusb_pll_lock_window_tb.PHY_QUAL_MHZ=60",
+          "/home/michael/console/TESTS/rtl/usb_pll_lock_window_tb.sv",
+          "/tmp/usb-pll-lock-window-g4_6s2fm/previous_guard0.v",
+          "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/rtl/usb/usb_reset_release.v"
+        ],
+        "returncode": 0,
+        "stderr": ""
+      },
+      "expectation_met": true,
+      "run": {
+        "returncode": 1,
+        "stdout": "RELEASE stage=0 scenario=0 elapsed_ns=21370.001000 ref_clk_edges=1069\nFATAL: /home/michael/console/TESTS/rtl/usb_pll_lock_window_tb.sv:43: LOCK released before 2 ms: stage=0 elapsed_ns=21370.001000\n       Time: 21450001000  Scope: usb_pll_lock_window_tb.qualified\n",
+        "stderr": ""
+      },
+      "pass": false
+    },
+    {
+      "revision": "previous",
+      "top": "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/rtl/console_top.v",
+      "module": "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/rtl/usb/usb_reset_release.v",
+      "sdc": "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/constr/gpu.sdc",
+      "configuration": [
+        {
+          "instance": "u_usb_ref_start",
+          "clock": "clk48",
+          "clock_mhz": 48,
+          "hold_cycles": 1024,
+          "explicit_parameter": false,
+          "instance_text": "usb_reset_release u_usb_ref_start (.clk(clk48), .locked(pll_f_lock), .reset(pll_b_reset));"
+        },
+        {
+          "instance": "u_usb_phy_start",
+          "clock": "phy_clk",
+          "clock_mhz": 60,
+          "hold_cycles": 1024,
+          "explicit_parameter": false,
+          "instance_text": "usb_reset_release u_usb_phy_start (.clk(phy_clk),\n        .locked(pll_f_lock & pll_b_lock & ~pll_b_reset), .reset(phy_lock_reset));"
+        },
+        {
+          "instance": "u_usb_controller_start",
+          "clock": "phy_clk",
+          "clock_mhz": 60,
+          "hold_cycles": 64,
+          "explicit_parameter": true,
+          "instance_text": "usb_reset_release #(.HOLD_CYCLES(64)) u_usb_controller_start\n        (.clk(phy_clk), .locked(~phy_lock_reset), .reset(rst_usb));"
+        }
+      ],
+      "phy_inputs": {
+        "pll_locked_i": "~phy_lock_reset",
+        "rst_i": "PHY_RESET"
+      },
+      "guard_stage": 1,
+      "generated_model_sha256": "46af8150a44e9d35929e4a25b4ae1b236c3fdb53b1b3fb527515680a9dadb91f",
+      "compile": {
+        "command": [
+          "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+          "-B",
+          "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+          "-g2012",
+          "-s",
+          "usb_pll_lock_window_tb",
+          "-o",
+          "/tmp/usb-pll-lock-window-g4_6s2fm/previous_guard1.vvp",
+          "-Pusb_pll_lock_window_tb.GUARD_STAGE=1",
+          "-Pusb_pll_lock_window_tb.REF_HOLD=1024",
+          "-Pusb_pll_lock_window_tb.PHY_HOLD=1024",
+          "-Pusb_pll_lock_window_tb.CONTROLLER_HOLD=64",
+          "-Pusb_pll_lock_window_tb.REF_QUAL_MHZ=48",
+          "-Pusb_pll_lock_window_tb.PHY_QUAL_MHZ=60",
+          "/home/michael/console/TESTS/rtl/usb_pll_lock_window_tb.sv",
+          "/tmp/usb-pll-lock-window-g4_6s2fm/previous_guard1.v",
+          "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/rtl/usb/usb_reset_release.v"
+        ],
+        "returncode": 0,
+        "stderr": ""
+      },
+      "expectation_met": true,
+      "run": {
+        "returncode": 1,
+        "stdout": "RELEASE stage=0 scenario=0 elapsed_ns=21370.001000 ref_clk_edges=1069\nRELEASE stage=1 scenario=0 elapsed_ns=17110.001000 ref_clk_edges=856\nFATAL: /home/michael/console/TESTS/rtl/usb_pll_lock_window_tb.sv:43: LOCK released before 2 ms: stage=1 elapsed_ns=17110.001000\n       Time: 38570001000  Scope: usb_pll_lock_window_tb.qualified\n",
+        "stderr": ""
+      },
+      "pass": false
+    },
+    {
+      "revision": "current",
+      "top": "/home/michael/console/tang/rtl/console_top.v",
+      "module": "/home/michael/console/tang/rtl/usb/usb_reset_release.v",
+      "sdc": "/home/michael/console/tang/constr/gpu.sdc",
+      "configuration": [
+        {
+          "instance": "u_usb_ref_start",
+          "clock": "clk",
+          "clock_mhz": 50,
+          "hold_cycles": 104000,
+          "explicit_parameter": true,
+          "instance_text": "usb_reset_release #(.HOLD_CYCLES(104000)) u_usb_ref_start\n        (.clk(clk), .locked(pll_f_lock), .reset(pll_b_reset));"
+        },
+        {
+          "instance": "u_usb_phy_start",
+          "clock": "clk",
+          "clock_mhz": 50,
+          "hold_cycles": 104000,
+          "explicit_parameter": true,
+          "instance_text": "usb_reset_release #(.HOLD_CYCLES(104000)) u_usb_phy_start (.clk(clk),\n        .locked(pll_f_lock & pll_b_lock & ~pll_b_reset), .reset(phy_lock_reset));"
+        },
+        {
+          "instance": "u_usb_controller_start",
+          "clock": "phy_clk",
+          "clock_mhz": 60,
+          "hold_cycles": 64,
+          "explicit_parameter": true,
+          "instance_text": "usb_reset_release #(.HOLD_CYCLES(64)) u_usb_controller_start\n        (.clk(phy_clk), .locked(~phy_lock_reset), .reset(rst_usb));"
+        }
+      ],
+      "phy_inputs": {
+        "pll_locked_i": "~rst_usb",
+        "rst_i": "PHY_RESET | rst_usb"
+      },
+      "guard_stage": 2,
+      "generated_model_sha256": "df1c457141d1810d7744cae8c1c58441cfd7dd24196990e60a983167b1b12b38",
+      "compile": {
+        "command": [
+          "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+          "-B",
+          "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+          "-g2012",
+          "-s",
+          "usb_pll_lock_window_tb",
+          "-o",
+          "/tmp/usb-pll-lock-window-g4_6s2fm/current_guard2.vvp",
+          "-Pusb_pll_lock_window_tb.GUARD_STAGE=2",
+          "-Pusb_pll_lock_window_tb.REF_HOLD=104000",
+          "-Pusb_pll_lock_window_tb.PHY_HOLD=104000",
+          "-Pusb_pll_lock_window_tb.CONTROLLER_HOLD=64",
+          "-Pusb_pll_lock_window_tb.REF_QUAL_MHZ=50",
+          "-Pusb_pll_lock_window_tb.PHY_QUAL_MHZ=50",
+          "/home/michael/console/TESTS/rtl/usb_pll_lock_window_tb.sv",
+          "/tmp/usb-pll-lock-window-g4_6s2fm/current_guard2.v",
+          "/home/michael/console/tang/rtl/usb/usb_reset_release.v"
+        ],
+        "returncode": 0,
+        "stderr": ""
+      },
+      "expectation_met": true,
+      "run": {
+        "returncode": 0,
+        "stdout": "RELEASE stage=0 scenario=0 elapsed_ns=2080030.001000 ref_clk_edges=104002\nRELEASE stage=1 scenario=0 elapsed_ns=2080030.001000 ref_clk_edges=104002\nCONTROLLER_RELEASE phy_edges=66\nRELEASE stage=0 scenario=1 elapsed_ns=2080029.269000 ref_clk_edges=104002\nRELEASE stage=1 scenario=1 elapsed_ns=2080029.269000 ref_clk_edges=104002\nCONTROLLER_RELEASE phy_edges=66\nRELEASE stage=0 scenario=2 elapsed_ns=2080021.862898 ref_clk_edges=104002\nRELEASE stage=1 scenario=2 elapsed_ns=2080030.001000 ref_clk_edges=104002\nCONTROLLER_RELEASE phy_edges=66\nPASS PLL LOCK chain: 6 qualifications >=2 ms, two late glitches, LOCK loss without PLL output clocks, independent reference progress and 64-cycle safe restart\n/home/michael/console/TESTS/rtl/usb_pll_lock_window_tb.sv:99: $finish called at 17983800000000 (1fs)\n",
+        "stderr": ""
+      },
+      "pass": true
+    }
+  ],
+  "sha256": {
+    "/home/michael/console/TESTS/rtl/usb_pll_lock_window_tb.sv": "4c77932e637cb10410743dd582e80cb9927b6a670da08d5990f21be2990ed572",
+    "/home/michael/console/tools/check_usb_pll_lock_window.py": "dc6297ca3061278485fcf3f0e02829b0d7e9559062376d7b09bc799ee9233d67",
+    "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/rtl/console_top.v": "abec24bf547e9aee973fec9e0c19dcc71956fa1206931103b13c9b55473526fd",
+    "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/rtl/usb/usb_reset_release.v": "0de3b296817601f50e0eed23301201c4490a3d067832a98fdda03c113a5454a9",
+    "/home/michael/console/tang/impl/gpu_usb_hs33_ep0_r1/source/tang/constr/gpu.sdc": "c9367c2d390554345db5bcc5dbb115a8c348b955dd5013e99e1ecade80c8f64b",
+    "/home/michael/console/tang/rtl/console_top.v": "d2017d52070953c3c8811ea289ecbdb7dac68f718841f58a16d8b0f218475e6a",
+    "/home/michael/console/tang/rtl/usb/usb_reset_release.v": "0de3b296817601f50e0eed23301201c4490a3d067832a98fdda03c113a5454a9",
+    "/home/michael/console/tang/constr/gpu.sdc": "c9367c2d390554345db5bcc5dbb115a8c348b955dd5013e99e1ecade80c8f64b"
+  },
+  "sources_unchanged": true,
+  "pass": true
+}

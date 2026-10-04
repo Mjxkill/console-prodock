@@ -422,12 +422,15 @@ INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/me
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_5_s" BSRAM_R46[16];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_7_s" BSRAM_R10[17];
 
-// G4: keep the EXTS ready feedback decode next to the hard CPU. The r4
-// route crossed the fabric twice (HREADYIN -> HSEL -> m_hready enable).
-// Synthesis numbers this LUT differently from one netlist to the next.
-// tools/build_gpu.py resolves the name below from the netlist of each build.
-// @driver module=ahb_exts_bridge instance=m_hready_s1 pin=CE
-INS_LOC "u_soc/u_bridge/n147_s7" R3C153[0][A];
+// GPU V1 r27: the EXTS ready FF now has a complete next-value expression.
+// Its former clock-enable LUT no longer exists; let placement locate the
+// new data path. Clock frequencies and timing exceptions remain unchanged.
+// r29: keep the small AHB control loop beside the hard core (R0C160).
+// r27 placed HREADY at R15C73 and state at R31C36: the round trip through
+// hard-core HSEL spent 10.728 ns on wires, failing by 0.407 ns at 80 MHz.
+INS_LOC "u_soc/u_bridge/m_hready_s0" R4C150[0][A];
+INS_LOC "u_soc/u_bridge/st_0_s0" R4C150[1][A];
+INS_LOC "u_soc/u_bridge/st_1_s5" R4C150[2][A];
 
 // G4: all 32 banks use rows 10/28/46, columns 13..23,
 // around the relocated address decoder; distant outliers caused marginal paths.
@@ -478,14 +481,6 @@ INS_LOC "u_gpu/u_reader/composed_composed_0_4_s" BSRAM_R64[19][A];
 INS_LOC "u_gpu/u_reader/composed_composed_0_5_s" BSRAM_R64[22];
 INS_LOC "u_gpu/u_reader/composed_composed_0_6_s" BSRAM_R64[19][B];
 INS_LOC "u_gpu/u_reader/composed_composed_0_7_s" BSRAM_R64[23][B];
-INS_LOC "u_gpu/u_reader/gowin_add_SDPB_composed_composed_0_0_s" BSRAM_R82[23][A];
-INS_LOC "u_gpu/u_reader/gowin_add_SDPB_composed_composed_0_1_s" BSRAM_R82[22];
-INS_LOC "u_gpu/u_reader/gowin_add_SDPB_composed_composed_0_2_s" BSRAM_R82[19][A];
-INS_LOC "u_gpu/u_reader/gowin_add_SDPB_composed_composed_0_3_s" BSRAM_R82[23][B];
-INS_LOC "u_gpu/u_reader/gowin_add_SDPB_composed_composed_0_4_s" BSRAM_R82[19][B];
-INS_LOC "u_gpu/u_reader/gowin_add_SDPB_composed_composed_0_5_s" BSRAM_R82[20];
-INS_LOC "u_gpu/u_reader/gowin_add_SDPB_composed_composed_0_6_s" BSRAM_R82[21][B];
-INS_LOC "u_gpu/u_reader/gowin_add_SDPB_composed_composed_0_7_s" BSRAM_R64[20];
 INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_0_s" BSRAM_R82[26];
 INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_1_s" BSRAM_R100[29];
 INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_2_s" BSRAM_R64[30];
@@ -610,3 +605,45 @@ INS_LOC "u_usb_fifo/usb_tx_buf_ep2/sync_tx_pkt_fifo/RAM_RAM_0_1_s" BSRAM_R28[31]
 INS_LOC "u_usb_fifo/usb_tx_buf_ep2/sync_tx_pkt_fifo/RAM_RAM_0_1_s0" BSRAM_R28[34];
 INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.mem_Equal.mem_0_0_s" BSRAM_R82[30];
 INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.mem_Small.mem_0_0_s" BSRAM_R82[31][B];
+
+// Diagnostic L12 : conserver le placement du reset PHY de r6 (+1,048 ns).
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/reset_w_1_s0" R72C172[0][A];
+// L12 diagnostic r16: the unchanged blitter's shared row-end decode drove
+// 45 loads through a 5.145 ns net from R20C134 to the state machine near
+// R32C121. Place its final LUT beside those loads; no logic/timing exception.
+// Synthesized instance checked against the frozen r16 blitter netlist.
+INS_LOC "u_accel/u_blitter/n4837_s0" R32C121[0][A];
+// r17: rw[1]'s final mux was at R24C156, its destination at R26C102
+// (2.996 ns net). Place the destination between that mux and its consumers.
+INS_LOC "u_accel/u_blitter/rw_1_s2" R24C130[0][A];
+// Multiplexeur source sprite/image : rapprocher le decodeur des 256 bits.
+// Resoudre le selecteur I2 du mux qui alimente une bascule stable.
+// @driver module=gpu_line_reader instance=source_write_data_205_s0 pin=D via=I2
+INS_LOC "u_gpu/u_reader/n777_s3" R70C110[0][A];
+
+// r28: triangle signed step decode at R24C108 drove the DSP input path
+// near R40C140 through a 4.565 ns net, after another 2.347 ns from R38C143.
+// Bring the unchanged decode near that arithmetic cluster (r29).
+// Cell verified in the frozen r28 blitter netlist; no timing exception.
+INS_LOC "u_accel/u_blitter/t_step_16_s3" R39C140[0][A];
+
+// Shadow-base enable: 4.422 ns final wire from R88C134 to R81C114,
+// setup -0.046 ns. Place its driver between decode and register bank.
+// @driver module=gpu_scanout instance=shadow_base_5_s0 pin=CE
+INS_LOC "u_gpu/n8555_s0" R85C120[0][A];
+
+// CDC r3: UTMI TXREADY at R33C174 returns to controller at R41C113
+// through 5.409 ns of routing; three setup violations (min -0.246 ns).
+// Place its final LUT between the PHY and controller; vendor RTL unchanged.
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/utmi_txready_o_d_s" R38C142[0][A];
+
+// Perspective r9: the PHY alignment enable ended with a 0.759 ns wire
+// from R45C176 to R51C172 (setup -0.297 ns). Keep its destination beside
+// the control cluster; vendor logic and timing constraints are unchanged.
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/bit_align_wr_act_s1" R45C176[2][A];
+
+// GPU V1 r9: RXACTIVE's 34-load output at R17C171 reached the controller
+// at R7C126 through a 5.461 ns wire (setup -1.059 ns). Place this output
+// mux between PHY and controller. Only placement changes; no vendor logic,
+// USB speed selection, clock period or timing exception is modified.
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/utmi_rxactive_o_d_s" R12C148[0][A];

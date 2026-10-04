@@ -1,0 +1,65 @@
+{
+  "scope": "HS controller/FIFO DATA toggle, late UART arrival and lost ACK",
+  "limits": [
+    "Ideal UTMI receiver/transmitter; no physical PHY or independent serial clock",
+    "Digital simulation only; no metastability, SDF or physical timing proof",
+    "SET_ADDRESS, SET_CONFIGURATION and optional GET_CONFIGURATION; not complete enumeration",
+    "CDC diagnostic payload is a fixed byte ramp; live console counters are not simulated"
+  ],
+  "bare_config": true,
+  "ack_delay_cycles": 20,
+  "interleave_out": true,
+  "sof_context": true,
+  "interrupt_polls": true,
+  "cdc_context": true,
+  "notification_endpoint": 3,
+  "out_payload_checked": true,
+  "sha256": {
+    "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv": "53001ec032565271c5957d6dd9a78198a77b611198a4ba150bc98019a0ce0b81",
+    "/home/michael/console/tang/rtl/usb/usb_descriptor.v": "757a84e036f5d0f65e3c3794958daeb5b68df3ff96c3449b5345d0de670d44b0",
+    "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v": "f86d8f897c00ffaad58d803d10bcae2935f35b9f4e78352d41e55b5c8c5bdc56",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v": "eca58c1fb3c4bd0955f7882cc6a5e61708c6293a0ae0c70daedd138e33b90a27",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo": "4c33e258b10e2fb25fcff25cee1fbdd7bb256ca963a6f638ee2d69ce7bbd7e00",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5",
+    "/home/michael/console/TESTS/rtl/usb_controller_cdc_tasks.svh": "e60c4475180d09807b7582ac1e61d90f5b2a923950ba9fa64382697191fa1204",
+    "/home/michael/console/tang/rtl/usb/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49"
+  },
+  "compile": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+      "-B",
+      "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+      "-g2012",
+      "-I",
+      "/home/michael/console/TESTS/rtl",
+      "-s",
+      "usb_controller_packet_tb",
+      "-o",
+      "/tmp/console-usb-controller-cres5cc8/controller.vvp",
+      "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv",
+      "/home/michael/console/tang/rtl/usb/usb_descriptor.v",
+      "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v",
+      "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo",
+      "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv:159: warning: Port 2 (diagnostic_data) of usb_uart_config expects 512 bits, got 1.\n/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv:159:        : Padding 511 high bits of the port.\n"
+  },
+  "run": {
+    "returncode": 1,
+    "stdout": "state                    0 op=xx xcvr=01 reset=1 HS=0\nstate                    0 op=0x xcvr=01 reset=1 HS=0\nstate                    0 op=01 xcvr=01 reset=1 HS=0\nstate            174993000 op=01 xcvr=01 reset=0 HS=0\nInitial reset released HS=0\nStart HS negotiation at          16832660000\nstate       16999528325000 op=00 xcvr=01 reset=0 HS=0\nstate       17166204991000 op=00 xcvr=01 reset=1 HS=0\nstate       17166221657000 op=00 xcvr=00 reset=0 HS=0\nstate       17166221657000 op=10 xcvr=00 reset=0 HS=0\nDevice chirp at       17166254989000\nDevice chirp ends at       18366223655000\nstate       18620680143000 op=10 xcvr=00 reset=0 HS=1\nstate       18620680143000 op=00 xcvr=00 reset=0 HS=1\nHigh speed negotiated at       18669536522000\nTX at       18670511483000 ep0 len=1: d2 \nTX at       18672544735000 ep0 len=3: 4b 00 00 \nControl write 05=07 complete\nTX at       20675981261000 ep0 len=1: d2 \nTX at       20678014513000 ep0 len=3: 4b 00 00 \nControl write 09=01 complete\nConfigured HS=1\nTX at       20681431043000 ep0 len=1: d2 \nTX at       20684047605000 ep0 len=1: d2 \nTX at       20686080857000 ep0 len=3: 4b 00 00 \nTX at       20689497387000 ep0 len=1: d2 \nTX at       20691530639000 ep0 len=3: 4b 00 00 \nCDC open configuration completed\nTX at       20694947169000 ep0 len=1: d2 \nPOP at       20696897091000 EP=0 len=7 cork=0 pending=0\nPOP at       20696947089000 EP=0 len=7 cork=0 pending=0\nPOP at       20696963755000 EP=0 len=7 cork=0 pending=0\nPOP at       20696980421000 EP=0 len=7 cork=0 pending=0\nPOP at       20696997087000 EP=0 len=7 cork=0 pending=0\nPOP at       20697013753000 EP=0 len=7 cork=0 pending=0\nPOP at       20697030419000 EP=0 len=7 cork=0 pending=0\nTX at       20697097083000 ep0 len=10: 4b 00 c2 01 00 00 00 08 c8 1b \nFIN at       20697597063000 EP=0 act=1 pop=0 len=7 clr=0 isync=0\nTX at       20698830347000 ep0 len=1: d2 \nCDC GET diagnostic=0 history=0 pending=0 pid=0->0 clear=0->0\nTX at       20701480241000 ep0 len=1: d2 \nPOP at       20703430163000 EP=0 len=32 cork=0 pending=0\nPOP at       20703480161000 EP=0 len=32 cork=0 pending=0\nPOP at       20703496827000 EP=0 len=32 cork=0 pending=0\nPOP at       20703513493000 EP=0 len=32 cork=0 pending=0\nPOP at       20703530159000 EP=0 len=32 cork=0 pending=0\nPOP at       20703546825000 EP=0 len=32 cork=0 pending=0\nPOP at       20703563491000 EP=0 len=32 cork=0 pending=0\nPOP at       20703580157000 EP=0 len=32 cork=0 pending=0\nPOP at       20703596823000 EP=0 len=32 cork=0 pending=0\nPOP at       20703613489000 EP=0 len=32 cork=0 pending=0\nPOP at       20703630155000 EP=0 len=32 cork=0 pending=0\nPOP at       20703646821000 EP=0 len=32 cork=0 pending=0\nPOP at       20703663487000 EP=0 len=32 cork=0 pending=0\nPOP at       20703680153000 EP=0 len=32 cork=0 pending=0\nPOP at       20703696819000 EP=0 len=32 cork=0 pending=0\nPOP at       20703713485000 EP=0 len=32 cork=0 pending=0\nPOP at       20703730151000 EP=0 len=32 cork=0 pending=0\nPOP at       20703746817000 EP=0 len=32 cork=0 pending=0\nPOP at       20703763483000 EP=0 len=32 cork=0 pending=0\nPOP at       20703780149000 EP=0 len=32 cork=0 pending=0\nPOP at       20703796815000 EP=0 len=32 cork=0 pending=0\nPOP at       20703813481000 EP=0 len=32 cork=0 pending=0\nPOP at       20703830147000 EP=0 len=32 cork=0 pending=0\nPOP at       20703846813000 EP=0 len=32 cork=0 pending=0\nPOP at       20703863479000 EP=0 len=32 cork=0 pending=0\nPOP at       20703880145000 EP=0 len=32 cork=0 pending=0\nPOP at       20703896811000 EP=0 len=32 cork=0 pending=0\nPOP at       20703913477000 EP=0 len=32 cork=0 pending=0\nPOP at       20703930143000 EP=0 len=32 cork=0 pending=0\nPOP at       20703946809000 EP=0 len=32 cork=0 pending=0\nPOP at       20703963475000 EP=0 len=32 cork=0 pending=0\nPOP at       20703980141000 EP=0 len=32 cork=0 pending=0\nTX at       20704046805000 ep0 len=35: 4b 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 fe 6b \nFATAL: /home/michael/console/TESTS/rtl/usb_controller_cdc_tasks.svh:89: GET_LINE_CODING byte 0 differs: got=00 expected=20\n       Time: 20704055138000  Scope: usb_controller_packet_tb.cdc_get_line_coding\n",
+    "stderr": "",
+    "elapsed_s": 85.36873470299179
+  },
+  "pass": false,
+  "cdc_controls_checked": null,
+  "cdc_controls_during_pending": null,
+  "sources_unchanged": true
+}

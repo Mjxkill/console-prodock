@@ -34,6 +34,10 @@ module blitter #(
     output reg  [15:0] err_cmd_bad,
     output reg  [15:0] cmd_done,
     output wire        busy,
+    // Ordered extension: native RGB565/depth engine owns DDR until ext_done.
+    output reg         ext_start, ext_active,
+    output wire [255:0] ext_command,
+    input wire         ext_done,
     // port S (lecture : COPY)
     output reg         s_req,
     output reg  [23:0] s_addr,
@@ -98,6 +102,10 @@ module blitter #(
     reg  [7:0]  op, c0, c1; reg [3:0] dpage, spage;
     reg signed [15:0] x0, y0, x1, y1, xs, ys;
     reg signed [15:0] cx0, cy0, cx1, cy1;        // rectangle découpé (inclusif)
+    // M_CLIP follows the final bounds update and precedes RECT_INIT/TXT_START.
+    // Resolve emptiness there, before it gates the shared setup/state logic.
+    reg rectangle_empty;
+    always @(posedge clk) rectangle_empty <= cy0 > cy1 || cx0 > cx1;
     reg  [10:0] rw, rx; reg [9:0] ry;            // ligne en cours : largeur, colonne de départ, ligne
     reg  [9:0]  rows_left;
     reg  [7:0]  dabs; reg dneg;
@@ -111,18 +119,39 @@ module blitter #(
     endfunction
     // ------------------------------------------------------------------ machine principale --------------------------------------------
     // One bit per state keeps DDR handshakes out of a deep binary decode.
-    localparam [54:0] M_IDLE = (55'd1 << 0), M_F0 = (55'd1 << 1), M_F1 = (55'd1 << 2), M_F2 = (55'd1 << 3), M_F3 = (55'd1 << 4), M_SETUP = (55'd1 << 5), M_DIV = (55'd1 << 6), M_RECT_INIT = (55'd1 << 7),
-                     M_ROW_START = (55'd1 << 8), M_ROW_GEN = (55'd1 << 9), M_ROW_SEG = (55'd1 << 10), M_ROW_WAIT = (55'd1 << 11), M_ROW_ADV = (55'd1 << 12),
-                     M_LINE = (55'd1 << 13), M_LINE_STEP = (55'd1 << 14), M_PIX = (55'd1 << 15), M_PIX_WAIT = (55'd1 << 16),
-                     M_CIRC = (55'd1 << 17), M_CIRC_PTS = (55'd1 << 18), M_CFILL = (55'd1 << 19), M_CFILL_NEXT = (55'd1 << 20), M_CIRC_STEP = (55'd1 << 21),
-                     M_COPY_RD = (55'd1 << 22), M_COPY_SEG = (55'd1 << 23), M_COPY_WAIT = (55'd1 << 24), M_DONE = (55'd1 << 25), M_CFILL_CALC = (55'd1 << 26), M_CFILL_GO = (55'd1 << 27),
-                     M_F4 = (55'd1 << 28), M_F5 = (55'd1 << 29), M_F6 = (55'd1 << 30), M_F7 = (55'd1 << 31), M_TXT_INIT = (55'd1 << 32), M_TXT_START = (55'd1 << 33), M_TXT_ROW = (55'd1 << 34), M_TXT_FONT = (55'd1 << 35), M_TXT_BITS = (55'd1 << 36), M_TXT_NEXT = (55'd1 << 37),
-                     M_CLIP = (55'd1 << 38), M_LINE_INIT = (55'd1 << 39), M_LINE_X = (55'd1 << 40), M_LINE_Y = (55'd1 << 41), M_COPY_COUNT = (55'd1 << 42), M_COPY_CLIP = (55'd1 << 43),
-                     M_TRI_START = (55'd1 << 44), M_TRI_WAIT = (55'd1 << 45),
-                     M_Z_INIT = (55'd1 << 46), M_Z_ROW = (55'd1 << 47), M_Z_ADDR = (55'd1 << 48), M_Z_READ = (55'd1 << 49),
-                     M_Z_SAMPLE = (55'd1 << 50), M_Z_PIXEL = (55'd1 << 51), M_Z_ADV = (55'd1 << 52),
-                     M_FILL_START = (55'd1 << 53), M_FILL_WAIT = (55'd1 << 54);
-    reg  [54:0] st, ret;                         // état courant, état de retour des sous-programmes (ligne / pixel)
+    localparam [63:0] M_IDLE = (64'd1 << 0), M_F0 = (64'd1 << 1), M_F1 = (64'd1 << 2), M_F2 = (64'd1 << 3), M_F3 = (64'd1 << 4), M_SETUP = (64'd1 << 5), M_DIV = (64'd1 << 6), M_RECT_INIT = (64'd1 << 7),
+                     M_ROW_START = (64'd1 << 8), M_ROW_GEN = (64'd1 << 9), M_ROW_SEG = (64'd1 << 10), M_ROW_WAIT = (64'd1 << 11), M_ROW_ADV = (64'd1 << 12),
+                     M_LINE = (64'd1 << 13), M_LINE_STEP = (64'd1 << 14), M_PIX = (64'd1 << 15), M_PIX_WAIT = (64'd1 << 16),
+                     M_CIRC = (64'd1 << 17), M_CIRC_PTS = (64'd1 << 18), M_CFILL = (64'd1 << 19), M_CFILL_NEXT = (64'd1 << 20), M_CIRC_STEP = (64'd1 << 21),
+                     M_COPY_RD = (64'd1 << 22), M_COPY_SEG = (64'd1 << 23), M_COPY_WAIT = (64'd1 << 24), M_DONE = (64'd1 << 25), M_CFILL_CALC = (64'd1 << 26), M_CFILL_GO = (64'd1 << 27),
+                     M_F4 = (64'd1 << 28), M_F5 = (64'd1 << 29), M_F6 = (64'd1 << 30), M_F7 = (64'd1 << 31), M_TXT_INIT = (64'd1 << 32), M_TXT_START = (64'd1 << 33), M_TXT_ROW = (64'd1 << 34), M_TXT_FONT = (64'd1 << 35), M_TXT_BITS = (64'd1 << 36), M_TXT_NEXT = (64'd1 << 37),
+                     M_CLIP = (64'd1 << 38), M_LINE_INIT = (64'd1 << 39), M_LINE_X = (64'd1 << 40), M_LINE_Y = (64'd1 << 41), M_COPY_COUNT = (64'd1 << 42), M_COPY_CLIP = (64'd1 << 43),
+                     M_TRI_START = (64'd1 << 44), M_TRI_WAIT = (64'd1 << 45),
+                     M_Z_INIT = (64'd1 << 46), M_Z_ROW = (64'd1 << 47), M_Z_ADDR = (64'd1 << 48), M_Z_READ = (64'd1 << 49),
+                     M_Z_SAMPLE = (64'd1 << 50), M_Z_PIXEL = (64'd1 << 51), M_Z_ADV = (64'd1 << 52),
+                     M_FILL_START = (64'd1 << 53), M_FILL_WAIT = (64'd1 << 54),
+                     M_A_INIT=(64'd1<<55), M_A_ADDR=(64'd1<<56), M_A_READ=(64'd1<<57),
+                     M_A_PAD=(64'd1<<58), M_A_BEGIN=(64'd1<<59), M_A_ROW=(64'd1<<60),
+                     M_A_SAMPLE=(64'd1<<61), M_A_PIXEL=(64'd1<<62), M_A_ADV=(64'd1<<63);
+    reg  [63:0] st, ret;                         // état courant, état de retour des sous-programmes (ligne / pixel)
+    // Decode the opcode fetched in F0 while the seven other words are fetched,
+    // before SETUP, rather than through every SETUP register CE.
+    reg rectangle_opcode,line_opcode,circle_opcode,triangle_opcode,
+        affine_setup_opcode,extended_opcode;
+    always @(posedge clk)begin
+        rectangle_opcode<=0;line_opcode<=0;circle_opcode<=0;triangle_opcode<=0;
+        affine_setup_opcode<=0;extended_opcode<=0;
+        if(!rst)case(op)
+            8'd1,8'd2,8'd3,8'd4,8'd8,8'd9,8'd11,8'd13:rectangle_opcode<=1;
+            8'd5:line_opcode<=1;
+            8'd6,8'd7:circle_opcode<=1;
+            8'd10:triangle_opcode<=1;
+            8'd12:affine_setup_opcode<=1;
+            8'd14,8'd15,8'd16,8'd17,8'd18,8'd19,8'd20,8'd21,
+            8'd22,8'd23,8'd24,8'd25,8'd26,8'd27,8'd28,8'd29,8'd30:extended_opcode<=1;
+            default:begin end
+        endcase
+    end
     assign busy = (!st[$clog2(M_IDLE)]) || cmd_avail;
     reg signed [16:0] ldx, ldy;
     // Signed 16-bit endpoints can produce deltas of 65535. The error can
@@ -139,8 +168,17 @@ module blitter #(
     assign font_addr = {tchar, trow};
     wire signed [15:0] ty = y0 + $signed({11'd0, trow, tsub} >> (tscale ? 0 : 1));   // ligne d'écran de la rangée de glyphe courante
     reg  [10:0] wleft; reg [23:0] waddr; reg [10:0] gi; reg [1:0] m_first, m_last; reg [9:0] wj_end;   // écriture d'une ligne ; gi : 11 bits (sur 10 bits la ligne s'arrêtait à rw mod 1024 = 256 px pour 1280, build p31)
+    // rw settles before ROW_START/Z_INIT/A_INIT. Store its final index so
+    // last-pixel detection is an equality, without an arithmetic carry chain.
+    reg [10:0] row_last_index;
+    always @(posedge clk) row_last_index <= rw - 11'd1;
     wire [9:0]  seg_max = 10'd512 - {1'b0, waddr[8:0]};
-    wire [9:0]  seg_len = (wleft > {1'b0, seg_max}) ? seg_max : wleft[9:0];
+    // Test the end position directly instead of subtracting the block offset
+    // and then comparing that subtraction against the remaining word count.
+    // wleft[10] means at least 1024 words, necessarily beyond this 512-word block.
+    wire [10:0] seg_end = {2'b0,waddr[8:0]} + {1'b0,wleft[9:0]};
+    wire seg_crosses = wleft[10] || seg_end[10] || (seg_end[9] && |seg_end[8:0]);
+    wire [9:0]  seg_len = seg_crosses ? seg_max : wleft[9:0];
     assign w_mask = ((rj == 10'd0) ? m_first : 2'b11) & ((rj == wj_end) ? m_last : 2'b11) & {bm1[rj], bm0[rj]};
     wire [10:0] row_last = rx + rw - 11'd1;                                    // dernier pixel de la ligne
     wire [10:0] row_words = {1'b0, row_last[10:1]} - {1'b0, rx[10:1]} + 11'd1;   // mots couverts
@@ -153,6 +191,7 @@ module blitter #(
     wire [10:0] gpos = gi + {10'd0, rx[0]};                           // position du pixel gi dans la mémoire de ligne
     reg [15:0] offx, offy;
     reg copy_reverse;
+    reg [10:0] copy_limit0,copy_limit1;
     // Source coordinates are loaded in M_F3, several cycles before COPY_CLIP.
     // Prepare these bounds in that existing gap instead of cascading two
     // arithmetic operations and comparisons into the clipping register enables.
@@ -182,6 +221,17 @@ module blitter #(
     reg [7:0] zoom_index, zoom_cached_y;
     reg zoom_cached;
     wire [15:0] zw=txt[31:16], zh=txt[15:0];
+    // The crop arrives in F3/F4, several cycles before Z_INIT/A_INIT.
+    // Resolve its bounds in that gap: an add followed by a wide compare
+    // must not feed the one-hot state transitions in a single cycle.
+    reg [16:0] crop_right, crop_bottom;
+    reg source_crop_valid;
+    always @(posedge clk) begin
+        crop_right <= {1'b0,xs} + {1'b0,zw};
+        crop_bottom <= {1'b0,ys} + {1'b0,zh};
+        source_crop_valid <= zw!=0 && zw<=128 && zh!=0 && zh<=128 &&
+                             xs>=0 && ys>=0 && crop_right<=WIDTH && crop_bottom<=HEIGHT;
+    end
     wire [23:0] zstepx=txt[55:32], zstepy=txt[87:64];
     wire [8:0] zbyte={1'b0,zu[23:16]}+{8'd0,xs[0]};
     wire [7:0] zpixel=zbyte[0] ? zoom_q[15:8]:zoom_q[7:0];
@@ -189,11 +239,52 @@ module blitter #(
         if(st[$clog2(M_Z_READ)] && s_valid) zoom_cache[zoom_index[6:0]]<=s_data;
         zoom_q<=zoom_cache[zbyte[7:1]];
     end
+    // L12: inverse affine sampling, signed Q16.16. The entire source crop
+    // is captured before writing, including when source and target overlap.
+    // Normalized cache pitch: 128 bytes; two pixels per BSRAM word.
+    reg signed [31:0] a_u0,a_v0,a_dudx,a_dvdx,a_dudy,a_dvdy;
+    reg a_configured;
+    reg signed [47:0] a_u,a_v,a_row_u,a_row_v;
+    reg signed [47:0] a_xu,a_xv,a_yu,a_yv,a_origin_u,a_origin_v;
+    reg [15:0] affine_cache [0:8191];
+    reg [15:0] a_q;
+    reg [6:0] a_load_y,a_load_word;
+    reg [7:0] a_previous_high;
+    reg [10:0] a_gpos;
+    reg a_last,a_inside,a_lane;
+    wire [7:0] a_pixel=a_lane ? a_q[15:8]:a_q[7:0];
+    wire [5:0] a_previous_word=a_load_word[5:0]-6'd1;
+    always @(posedge clk) begin
+        // Clipped offsets are stable throughout source loading. Registered
+        // products and sums keep geometry out of the pixel accumulator path.
+        a_xu <= $signed({1'b0,offx}) * a_dudx;
+        a_xv <= $signed({1'b0,offx}) * a_dvdx;
+        a_yu <= $signed({1'b0,offy}) * a_dudy;
+        a_yv <= $signed({1'b0,offy}) * a_dvdy;
+        a_origin_u <= a_xu + a_u0;
+        a_origin_v <= a_xv + a_v0;
+        if(st[$clog2(M_A_READ)] && s_valid) begin
+            if(!xs[0]) affine_cache[{a_load_y,a_load_word[5:0]}]<=s_data;
+            else if(a_load_word!=0)
+                affine_cache[{a_load_y,a_previous_word}]<={s_data[7:0],a_previous_high};
+        end else if(st[$clog2(M_A_PAD)] && xs[0] && zw[0])
+            affine_cache[{a_load_y,zw[6:1]}]<={8'd0,a_previous_high};
+        a_q<=affine_cache[{a_v[22:16],a_u[22:17]}];
+        a_gpos<=gpos;
+        a_last<=gi==row_last_index;
+        a_inside<=a_u[47:23]==0 && {9'd0,a_u[22:16]}<zw &&
+                  a_v[47:23]==0 && {9'd0,a_v[22:16]}<zh;
+        a_lane<=a_u[16];
+    end
+    assign ext_command={txt,{xs,ys},{x1,y1},{x0,y0},{op,dpage,spage,c0,c1}};
     always @(posedge clk) begin
         if (rst) begin
+            ext_start<=0;ext_active<=0;
             f_req<=0;f_addr<=0;f_len<=0;f_color<=0;
+            a_u0<=0;a_v0<=0;a_dudx<=0;a_dvdx<=0;a_dudy<=0;a_dvdy<=0;a_configured<=0;
+            a_u<=0;a_v<=0;a_row_u<=0;a_row_v<=0;a_load_y<=0;a_load_word<=0;a_previous_high<=0;
             zu<=0;zv<=0;zu_start<=0;zoom_index<=0;zoom_cached_y<=0;zoom_cached<=0;
-            offx <= 16'd0; offy <= 16'd0; copy_reverse <= 1'b0; line_negative_dy <= 17'sd0; line_step_x <= 1'b0; line_step_y <= 1'b0;
+            offx <= 16'd0; offy <= 16'd0; copy_reverse <= 1'b0; copy_limit0<=0;copy_limit1<=0; line_negative_dy <= 17'sd0; line_step_x <= 1'b0; line_step_y <= 1'b0;
             st <= M_IDLE; ret <= M_IDLE; rp <= 8'd0; err_cmd_bad <= 16'd0; cmd_done <= 16'd0; s_req <= 1'b0; s_addr <= 24'd0; s_len <= 10'd0;
             w_req <= 1'b0; w_addr <= 24'd0; w_len <= 10'd0; c_req <= 1'b0; c_addr <= 24'd0; c_wdata <= 16'd0; c_wmask <= 2'b00;
             b0_we <= 1'b0; b1_we <= 1'b0; b0_a <= 10'd0; b1_a <= 10'd0; b0_d <= 8'd0; b1_d <= 8'd0; row_rewind <= 1'b0;
@@ -204,10 +295,13 @@ module blitter #(
             txt <= 128'd0; tn <= 5'd0; tci <= 5'd0; tscale <= 1'b0; tsub <= 1'b0; tdup <= 1'b0; text_last_char <= 1'b0; trow <= 4'd0; tbit <= 3'd0; tpix <= 9'd0; b0_m <= 1'b1; b1_m <= 1'b1;
             wleft <= 11'd0; waddr <= 24'd0; gi <= 11'd0; m_first <= 2'b11; m_last <= 2'b11; wj_end <= 10'd0; cn <= 10'd0; copy_left <= 11'd0; sxx <= 0; source_row <= 0;
         end else begin
+            ext_start<=0;
             f_req<=0;
             s_req <= 1'b0; w_req <= 1'b0; c_req <= 1'b0; b0_we <= 1'b0; b1_we <= 1'b0;
             row_rewind <= 1'b0;
-            case (1'b1) // synthesis parallel_case
+            if(ext_active)begin
+                if(ext_done)begin ext_active<=0;st<=M_DONE;end
+            end else case (1'b1) // synthesis parallel_case
                 // ---------------- lecture d'une commande (4 mots utiles, 4 réservés) ----------------
                 st[$clog2(M_IDLE)]: if (cmd_avail) st <= M_F0;
                 st[$clog2(M_F0)]: begin {op, dpage, spage, c0, c1} <= cmem[rp[6:0]]; rp <= rp + 8'd1; st <= M_F1; end
@@ -226,8 +320,8 @@ module blitter #(
                 // ---------------- préparation : découpe, diviseur du dégradé ----------------
                 st[$clog2(M_SETUP)]: begin
                     dabs <= (c1 >= c0) ? c1 - c0 : c0 - c1; dneg <= (c1 < c0);
-                    case (op)
-                        8'd1, 8'd2, 8'd3, 8'd4, 8'd8, 8'd9, 8'd11: begin                 // rectangles et texte : x0, y0, largeur x1, hauteur y1
+                    case (1'b1) // synthesis parallel_case
+                        rectangle_opcode: begin                 // rectangles et texte : x0, y0, largeur x1, hauteur y1
                             cx0 <= (x0 < 0) ? 16'sd0 : x0; cy0 <= (y0 < 0) ? 16'sd0 : y0;
                             cx1 <= (x0 + x1 - 1 > X_MAX) ? X_MAX : x0 + x1 - 16'sd1;
                             cy1 <= (y0 + y1 - 1 > Y_MAX) ? Y_MAX : y0 + y1 - 16'sd1;
@@ -236,15 +330,22 @@ module blitter #(
                             copy_reverse <= (op == 8'd8 && dpage == spage && y0 > ys);
                             st <= (x1 <= 0 || y1 <= 0) ? M_DONE : (op == 8'd8 ? M_COPY_CLIP : M_CLIP);
                         end
-                        8'd5: begin                                                // ligne : Bresenham
+                        line_opcode: begin                                                // ligne : Bresenham
                             ldx <= (x1 >= x0) ? x1 - x0 : x0 - x1; ldy <= (y1 >= y0) ? y1 - y0 : y0 - y1;
                             lsx <= (x1 >= x0) ? 16'sd1 : -16'sd1; lsy <= (y1 >= y0) ? 16'sd1 : -16'sd1; lx <= x0; ly <= y0;
                             st <= M_LINE_INIT;
                         end
-                        8'd6, 8'd7: begin                                          // cercle : rayon x1 ≥ 0
+                        circle_opcode: begin                                          // cercle : rayon x1 ≥ 0
                             ccx <= x0; ccy <= y0; cxv <= x1; cyv <= 16'sd0; cerr <= 16'sd1 - x1; cpt <= 3'd0; st <= (x1 < 0) ? M_DONE : M_CIRC;
                         end
-                        8'd10: st<=M_TRI_START;
+                        triangle_opcode: st<=M_TRI_START;
+                        affine_setup_opcode: begin
+                            a_u0<={x0,y0};a_v0<={x1,y1};a_dudx<={xs,ys};
+                            a_dvdx<=txt[31:0];a_dudy<=txt[63:32];a_dvdy<=txt[95:64];
+                            a_configured<=txt[127:96]==0 && {dpage,spage,c0,c1}==0;
+                            st<=M_DONE;
+                        end
+                        extended_opcode:begin ext_start<=1;ext_active<=1;end
                         default: begin err_cmd_bad <= err_cmd_bad + 16'd1; st <= M_DONE; end
                     endcase
                 end
@@ -272,7 +373,7 @@ module blitter #(
                     end
                 end
                 st[$clog2(M_RECT_INIT)]: begin                                               // lignes visibles ; t au départ de la première ligne découpée
-                    if (cy0 > cy1 || cx0 > cx1) st <= M_DONE;
+                    if (rectangle_empty) st <= M_DONE;
                     else begin
                         ry <= copy_reverse ? cy1[9:0] : cy0[9:0]; rows_left <= cy1[9:0] - cy0[9:0] + 10'd1; rx <= cx0[10:0]; rw <= cx1[10:0] - cx0[10:0] + 11'd1;
                         case (op)
@@ -281,22 +382,38 @@ module blitter #(
                             8'd4: begin t_start <= recip * ({1'b0, offy} + {1'b0, offx}); t_step <= {1'b0, recip}; t_row <= {1'b0, recip}; end
                             default: begin t_start <= 18'd0; t_step <= 18'd0; t_row <= 18'd0; end
                         endcase
-                        st <= op==11 ? M_Z_INIT:M_ROW_START;
+                        st <= op==13 ? M_A_INIT:(op==11 ? M_Z_INIT:M_ROW_START);
                     end
                 end
                 // ---------------- une ligne du rectangle ----------------
-                st[$clog2(M_ROW_START)]: begin gi <= 11'd0; t_acc <= t_start; cn <= 10'd0; ret <= M_ROW_ADV; st <= (op == 8'd8) ? M_COPY_RD : (op==8'd1 ? M_FILL_START:M_ROW_GEN); end
+                st[$clog2(M_ROW_START)]: begin
+                    // Geometry is already stable. Prepare the DMA row here,
+                    // keeping last-pixel/last-glyph decode off its enables.
+                    waddr <= row_addr(dbase, ry, rx); wleft <= row_words;
+                    gi <= 11'd0; t_acc <= t_start; cn <= 10'd0; ret <= M_ROW_ADV;
+                    st <= (op == 8'd8) ? M_COPY_RD : (op==8'd1 ? M_FILL_START:M_ROW_GEN);
+                end
                 st[$clog2(M_ROW_GEN)]: begin                                                 // 1 pixel / cycle, banque de la position gi + rx[0]
                     if (gpos[0]) begin b1_we <= 1'b1; b1_a <= gpos[10:1]; b1_d <= gen_pix; b1_m <= 1'b1; end
                     else begin b0_we <= 1'b1; b0_a <= gpos[10:1]; b0_d <= gen_pix; b0_m <= 1'b1; end
                     t_acc <= t_acc + t_step;
-                    if (gi == rw - 11'd1) begin
-                        waddr <= row_addr(dbase, ry, rx); wleft <= row_words; wj_end <= row_words[9:0] - 10'd1;
+                    if (gi == row_last_index) begin
+                        wj_end <= row_words[9:0] - 10'd1;
                         m_first <= rx[0] ? 2'b10 : 2'b11; m_last <= row_last[0] ? 2'b11 : 2'b01; row_rewind <= 1'b1; st <= M_ROW_SEG;
                     end else gi <= gi + 11'd1;
                 end
-                st[$clog2(M_ROW_SEG)]: begin w_req <= 1'b1; w_addr <= waddr; w_len <= seg_len; waddr <= waddr + {14'd0, seg_len}; wleft <= wleft - {1'b0, seg_len}; st <= M_ROW_WAIT; end
-                st[$clog2(M_ROW_WAIT)]: if (w_done) st <= (wleft != 11'd0) ? M_ROW_SEG : ret;
+                st[$clog2(M_ROW_SEG)]: begin w_req <= 1'b1; w_addr <= waddr; w_len <= seg_len; st <= M_ROW_WAIT; end
+                st[$clog2(M_ROW_WAIT)]: begin
+                    // Advance when the DMA samples our registered request.
+                    // It cannot finish until after packing/sending the data.
+                    // Using w_len cuts segment selection from this adder,
+                    // without adding a cycle to any request or completion.
+                    if (w_req) begin
+                        waddr <= waddr + {14'd0, w_len};
+                        wleft <= wleft - {1'b0, w_len};
+                    end
+                    if (w_done) st <= (wleft != 11'd0) ? M_ROW_SEG : ret;
+                end
                 st[$clog2(M_ROW_ADV)]: begin                                                 // ligne suivante du rectangle
                     rows_left <= rows_left - 10'd1; ry <= copy_reverse ? ry - 10'd1 : ry + 10'd1; t_start <= t_start + t_row;
                     st <= (rows_left == 10'd1) ? M_DONE : M_ROW_START;
@@ -304,11 +421,11 @@ module blitter #(
                 st[$clog2(M_Z_INIT)]: begin
                     zu_start<=offx*zstepx;zv<=offy*zstepy;zoom_cached<=0;
                     st<=M_Z_ROW;
-                    if(zw==0 || zw>128 || zh==0 || zh>128 || xs<0 || ys<0 ||
-                       {1'b0,xs}+{1'b0,zw}>WIDTH || {1'b0,ys}+{1'b0,zh}>HEIGHT ||
+                    if(!source_crop_valid ||
                        spage==dpage || txt[63:56]!=0 || txt[95:88]!=0) st<=M_DONE;
                 end
                 st[$clog2(M_Z_ROW)]: begin
+                    waddr<=row_addr(dbase,ry,rx);wleft<=row_words;
                     gi<=0;zu<=zu_start;ret<=M_Z_ADV;zoom_index<=0;
                     source_row<=ys[9:0]+{2'b0,zv[23:16]};
                     if(zv[39:16]>={8'd0,zh})st<=M_Z_ADV;
@@ -329,14 +446,58 @@ module blitter #(
                     if(gpos[0])begin b1_we<=1;b1_a<=gpos[10:1];b1_d<=zpixel;b1_m<=zpixel!=0 && zu[39:16]<{8'd0,zw};end
                     else begin b0_we<=1;b0_a<=gpos[10:1];b0_d<=zpixel;b0_m<=zpixel!=0 && zu[39:16]<{8'd0,zw};end
                     zu<=zu+{16'd0,zstepx};
-                    if(gi==rw-1'b1)begin
-                        waddr<=row_addr(dbase,ry,rx);wleft<=row_words;wj_end<=row_words[9:0]-1'b1;
+                    if(gi==row_last_index)begin
+                        wj_end<=row_words[9:0]-1'b1;
                         m_first<=rx[0]?2'b10:2'b11;m_last<=row_last[0]?2'b11:2'b01;row_rewind<=1'b1;st<=M_ROW_SEG;
                     end else begin gi<=gi+1'b1;st<=M_Z_SAMPLE;end
                 end
                 st[$clog2(M_Z_ADV)]: begin
                     rows_left<=rows_left-1'b1;ry<=ry+1'b1;zv<=zv+{16'd0,zstepy};
                     st<=rows_left==1 ? M_DONE:M_Z_ROW;
+                end
+                st[$clog2(M_A_INIT)]: begin
+                    a_load_y<=0;a_load_word<=0;source_row<=ys[9:0];st<=M_A_ADDR;
+                    if(!a_configured || !source_crop_valid ||
+                       txt[127:32]!=0 || {c0,c1}!=0) st<=M_DONE;
+                end
+                st[$clog2(M_A_ADDR)]: begin
+                    s_addr<=row_addr(sbase,source_row,xs[10:0]);
+                    s_len<=({1'b0,zw[7:0]}+{8'd0,xs[0]}+9'd1)>>1;
+                    s_req<=1;a_load_word<=0;st<=M_A_READ;
+                end
+                st[$clog2(M_A_READ)]: begin
+                    if(s_valid)begin a_load_word<=a_load_word+1'b1;a_previous_high<=s_data[15:8];end
+                    if(s_done)st<=M_A_PAD;
+                end
+                st[$clog2(M_A_PAD)]: begin
+                    a_load_y<=a_load_y+1'b1;source_row<=source_row+1'b1;
+                    st<=({9'd0,a_load_y}+16'd1==zh) ? M_A_BEGIN:M_A_ADDR;
+                end
+                st[$clog2(M_A_BEGIN)]: begin
+                    a_row_u<=a_origin_u+a_yu;a_row_v<=a_origin_v+a_yv;st<=M_A_ROW;
+                end
+                st[$clog2(M_A_ROW)]: begin
+                    waddr<=row_addr(dbase,ry,rx);wleft<=row_words;
+                    a_u<=a_row_u;a_v<=a_row_v;gi<=0;ret<=M_A_ADV;st<=M_A_SAMPLE;
+                end
+                st[$clog2(M_A_SAMPLE)]: begin
+                    a_u<=a_u+a_dudx;a_v<=a_v+a_dvdx;gi<=gi+1'b1;st<=M_A_PIXEL;
+                end
+                st[$clog2(M_A_PIXEL)]: begin
+                    // Consume the registered BSRAM sample while the next one
+                    // is being read: one destination pixel per GPU clock.
+                    if(a_gpos[0])begin b1_we<=1;b1_a<=a_gpos[10:1];b1_d<=a_pixel;b1_m<=a_inside && a_pixel!=0;end
+                    else begin b0_we<=1;b0_a<=a_gpos[10:1];b0_d<=a_pixel;b0_m<=a_inside && a_pixel!=0;end
+                    a_u<=a_u+a_dudx;a_v<=a_v+a_dvdx;gi<=gi+1'b1;
+                    if(a_last)begin
+                        wj_end<=row_words[9:0]-1'b1;
+                        m_first<=rx[0]?2'b10:2'b11;m_last<=row_last[0]?2'b11:2'b01;row_rewind<=1;st<=M_ROW_SEG;
+                    end
+                end
+                st[$clog2(M_A_ADV)]: begin
+                    rows_left<=rows_left-1'b1;ry<=ry+1'b1;
+                    a_row_u<=a_row_u+a_dudy;a_row_v<=a_row_v+a_dvdy;
+                    st<=rows_left==1 ? M_DONE:M_A_ROW;
                 end
                 st[$clog2(M_FILL_START)]: begin
                     f_addr<={row_addr(dbase,ry,rx),rx[0]};f_len<=rw;f_color<=c0;
@@ -415,6 +576,11 @@ module blitter #(
                     // Keep coordinate translation out of the row-address path.
                     s_addr <= row_addr(sbase, source_row, sxx[10:0]);
                     copy_left <= {1'b0, (sxx[10:0] + rw - 11'd1) >> 1} - {1'b0, sxx[10:1]} + 11'd1;
+                    // Move the source parity across the range comparisons:
+                    // 2*cn-parity < rw; 2*cn+1-parity < rw. Prepare their
+                    // constant bounds here, before any source data can arrive.
+                    copy_limit0<=rw+{10'd0,sxx[0]};
+                    copy_limit1<=rw+{10'd0,sxx[0]}-11'd1;
                     st <= M_COPY_SEG;
                 end
                 st[$clog2(M_COPY_SEG)]: begin : seg
@@ -426,10 +592,10 @@ module blitter #(
                         reg signed [12:0] p0, p1; reg [10:0] q0, q1;
                         p0 = $signed({2'b00, cn, 1'b0}) - $signed({12'd0, sxx[0]}); p1 = p0 + 13'sd1;
                         q0 = p0[10:0] + {10'd0, rx[0]}; q1 = p1[10:0] + {10'd0, rx[0]};
-                        if (p0 >= 0 && p0 < $signed({2'b00, rw})) begin
+                        if ((!sxx[0] || cn!=0) && {cn,1'b0}<copy_limit0) begin
                             if (q0[0]) begin b1_we <= 1'b1; b1_a <= q0[10:1]; b1_d <= s_data[7:0]; b1_m <= 1'b1; end else begin b0_we <= 1'b1; b0_a <= q0[10:1]; b0_d <= s_data[7:0]; b0_m <= 1'b1; end
                         end
-                        if (p1 >= 0 && p1 < $signed({2'b00, rw})) begin
+                        if ({cn,1'b0}<copy_limit1) begin
                             if (q1[0]) begin b1_we <= 1'b1; b1_a <= q1[10:1]; b1_d <= s_data[15:8]; b1_m <= 1'b1; end else begin b0_we <= 1'b1; b0_a <= q1[10:1]; b0_d <= s_data[15:8]; b0_m <= 1'b1; end
                         end
                         cn <= cn + 10'd1;
@@ -437,13 +603,13 @@ module blitter #(
                     if (s_done) begin
                         if (copy_left != 11'd0) begin s_addr <= s_addr + {14'd0, s_len}; st <= M_COPY_SEG; end
                         else begin
-                            waddr <= row_addr(dbase, ry, rx); wleft <= row_words; wj_end <= row_words[9:0] - 10'd1;
+                            wj_end <= row_words[9:0] - 10'd1;
                             m_first <= rx[0] ? 2'b10 : 2'b11; m_last <= row_last[0] ? 2'b11 : 2'b01; row_rewind <= 1'b1; st <= M_ROW_SEG;
                         end
                     end
                 end
                 // ---------------- texte : une rangée de glyphe (× échelle) à la fois, par la mémoire de ligne et le port W ----------------
-                st[$clog2(M_TXT_START)]: begin trow <= 4'd0; tsub <= 1'b0; st <= (cy0 > cy1 || cx0 > cx1 || tn == 5'd0) ? M_DONE : M_TXT_ROW; end
+                st[$clog2(M_TXT_START)]: begin trow <= 4'd0; tsub <= 1'b0; st <= (rectangle_empty || tn == 5'd0) ? M_DONE : M_TXT_ROW; end
                 st[$clog2(M_TXT_ROW)]: begin                                                 // rangée visible ? (cy0/cy1 découpés)
                     // These values are unused on a clipped row. Load them
                     // unconditionally to keep Y addition/comparison off the
@@ -453,6 +619,8 @@ module blitter #(
                     else st <= M_TXT_FONT;
                 end
                 st[$clog2(M_TXT_FONT)]: begin
+                    // No DMA starts until the entire glyph row is generated.
+                    waddr <= row_addr(dbase, ry, rx); wleft <= row_words;
                     // Character index is stable for the entire glyph row.
                     text_last_char <= (tci + 5'd1 == tn);
                     tbit <= 3'd0; tdup <= 1'b0; st <= M_TXT_BITS;
@@ -471,7 +639,7 @@ module blitter #(
                         if (tbit != 3'd7) tbit <= tbit + 3'd1;
                         else if (!text_last_char) begin tci <= tci + 5'd1; st <= M_TXT_FONT; end
                         else begin                                               // rangée finie : écriture
-                            waddr <= row_addr(dbase, ry, rx); wleft <= row_words; wj_end <= row_words[9:0] - 10'd1;
+                            wj_end <= row_words[9:0] - 10'd1;
                             m_first <= rx[0] ? 2'b10 : 2'b11; m_last <= row_last[0] ? 2'b11 : 2'b01; row_rewind <= 1'b1; ret <= M_TXT_NEXT; st <= M_ROW_SEG;
                         end
                     end

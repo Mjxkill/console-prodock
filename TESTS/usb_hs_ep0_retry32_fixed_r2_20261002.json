@@ -1,0 +1,67 @@
+{
+  "scope": "HS EP0 class requests, UTMI + intact official controller model + real application RTL",
+  "case": "retry32",
+  "sha256": {
+    "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv": "4b3020ccb8e048ff2b8e6c629512b4b013cbb52e17299b836eeba7f2a154b8bc",
+    "/home/michael/console/TESTS/rtl/usb_ep0_recovery_tasks.svh": "ea9f4684a674653418f86edab34266eb5838a70fd119946e753dad8505249832",
+    "/home/michael/console/TESTS/rtl/usb_controller_cdc_tasks.svh": "5101d44a22f35b3abac653f68a6ecfddfb5d5c3ef56702b4b71c6a0345cefd61",
+    "/home/michael/console/tang/rtl/usb/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "/home/michael/console/tools/check_usb_ep0_recovery.py": "d838d565ebf8a2e26412d565760d8390455ecbf0116507fb36146d4516292912",
+    "/home/michael/console/tang/rtl/usb/usb_descriptor.v": "757a84e036f5d0f65e3c3794958daeb5b68df3ff96c3449b5345d0de670d44b0",
+    "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v": "3b241ade43973aa5d8f4f3d457443a32d9335f1683d473f092e0512e5084975a",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v": "eca58c1fb3c4bd0955f7882cc6a5e61708c6293a0ae0c70daedd138e33b90a27",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo": "4c33e258b10e2fb25fcff25cee1fbdd7bb256ca963a6f638ee2d69ce7bbd7e00",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5"
+  },
+  "limits": [
+    "Original Sipeed HS controller model, not the newly generated HS 3.3 controller",
+    "Ideal UTMI, no PHY, cable, analog effects or physical timing",
+    "Normal SET_ADDRESS/SET_CONFIGURATION bootstrap, not complete descriptor enumeration",
+    "This does not establish the cause of the physical bulk insertion/loss"
+  ],
+  "harness_changes": [
+    "Replace test sequence by usb_ep0_recovery_tasks.svh",
+    "EP0 RXRDY forced high exactly as current production top"
+  ],
+  "generated_harness_sha256": "cbcb74c533e500ff0dce2deb5866828720190acc1aa22265e2dbee0133e5baca",
+  "compile": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+      "-B",
+      "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+      "-g2012",
+      "-I",
+      "/home/michael/console/TESTS/rtl",
+      "-s",
+      "usb_controller_packet_tb",
+      "-o",
+      "/tmp/console-usb-ep0-recovery-4wl4u72v/test.vvp",
+      "/tmp/console-usb-ep0-recovery-4wl4u72v/usb_controller_packet_tb.sv",
+      "/home/michael/console/tang/rtl/usb/usb_descriptor.v",
+      "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v",
+      "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo",
+      "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "pass": true,
+  "run": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/vvp",
+      "/tmp/console-usb-ep0-recovery-4wl4u72v/test.vvp",
+      "+RECOVERY_CASE=2"
+    ],
+    "returncode": 0,
+    "elapsed_s": 86.23531383200316,
+    "stdout": "Start HS negotiation at          16832660000\nDevice chirp at       17166254989000\nDevice chirp ends at       18366223655000\nHigh speed negotiated at       18669536522000\nTX at       18670511483000 ep0 len=1: d2 \nTX at       18672544735000 ep0 len=3: 4b 00 00 \nControl write 05=07 complete\nTX at       20675981261000 ep0 len=1: d2 \nTX at       20678014513000 ep0 len=3: 4b 00 00 \nControl write 09=01 complete\nTX at       20681497707000 ep0 len=1: d2 \nTX at       20684180933000 ep0 len=1: d2 \nTX at       20686214185000 ep0 len=3: 4b 00 00 \nTX at       20689697379000 ep0 len=1: d2 \nTX at       20691730631000 ep0 len=3: 4b 00 00 \nCDC open configuration completed\nTX at       20695213825000 ep0 len=1: d2 \nTX at       20697363739000 ep0 len=10: 4b 00 c2 01 00 00 00 08 c8 1b \nFIN at       20697863719000 EP=0 act=1 pop=0 len=7 clr=0 isync=0\nTX at       20699163667000 ep0 len=1: d2 \nTX at       20701880225000 ep0 len=1: d2 \nTX at       20704446789000 ep0 len=35: 4b 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 94 a8 \nFIN at       20704946769000 EP=0 act=1 pop=0 len=32 clr=0 isync=0\nTX at       20706246717000 ep0 len=1: d2 \nNORMAL EP0 PASS: CDC7 + diagnostic32, DATA1, CRC and status\nTX at       20708963275000 ep0 len=1: d2 \nTX at       20711529839000 ep0 len=35: 4b 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 94 a8 \nLOST ACK n=32 pops=32 finishes=0 send=0 data=1f sub_stage=32\nTX at       20714429723000 ep0 len=35: 4b 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 94 a8 \nFIN at       20714929703000 EP=0 act=1 pop=0 len=32 clr=0 isync=0\nTX at       20716229651000 ep0 len=1: d2 \nTX at       20718879545000 ep0 len=1: d2 \nTX at       20720929463000 ep0 len=4: 4b 01 81 7f \nTX at       20722662727000 ep0 len=1: d2 \nGET_CONFIGURATION completed\nPASS HS EP0 recovery case=2 pops=104 finishes=3\n/home/michael/console/TESTS/rtl/usb_ep0_recovery_tasks.svh:94: $finish called at 20724337660000 (1fs)\n"
+  },
+  "sources_unchanged": true
+}

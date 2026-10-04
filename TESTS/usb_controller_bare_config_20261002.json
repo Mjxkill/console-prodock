@@ -1,0 +1,53 @@
+{
+  "scope": "HS controller/FIFO DATA toggle, late UART arrival and lost ACK",
+  "limits": [
+    "Ideal UTMI receiver/transmitter; no physical PHY or independent serial clock",
+    "Digital simulation only; no metastability, SDF or physical timing proof",
+    "SET_ADDRESS, SET_CONFIGURATION and optional GET_CONFIGURATION; not complete enumeration"
+  ],
+  "bare_config": true,
+  "ack_delay_cycles": 20,
+  "sha256": {
+    "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv": "5922710b8fda3151c750349e1ba93d2c3fd478b6647393447826bb87d7cb1e1b",
+    "/home/michael/console/tang/rtl/usb/usb_descriptor.v": "757a84e036f5d0f65e3c3794958daeb5b68df3ff96c3449b5345d0de670d44b0",
+    "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v": "f86d8f897c00ffaad58d803d10bcae2935f35b9f4e78352d41e55b5c8c5bdc56",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v": "0175385b42710bdd6ebfef675fa43a3b0f18e75b88388458e9e851559926d79c",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+    "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo": "4c33e258b10e2fb25fcff25cee1fbdd7bb256ca963a6f638ee2d69ce7bbd7e00",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5",
+    "/home/michael/console/tang/rtl/usb/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49"
+  },
+  "compile": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+      "-B",
+      "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+      "-g2012",
+      "-s",
+      "usb_controller_packet_tb",
+      "-o",
+      "/tmp/console-usb-controller-fcaedh52/controller.vvp",
+      "/home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv",
+      "/home/michael/console/tang/rtl/usb/usb_descriptor.v",
+      "/home/michael/console/tang/rtl/usb/uart/usb_uart_config.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/usb_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v",
+      "/home/michael/console/tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v",
+      "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller/usb_device_controller.vo",
+      "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "run": {
+    "returncode": 1,
+    "stdout": "Initial reset released HS=0\nStart HS negotiation at             16832660\nDevice chirp at          17166254989\nDevice chirp ends at          18366223655\nHigh speed negotiated at          18669536522\nTX at          18670511483 ep0 len=1: d2 \nTX at          18672544735 ep0 len=3: 4b 00 00 \nControl write 05=07 complete\nTX at          20675897931 ep0 len=1: d2 \nTX at          20677931183 ep0 len=3: 4b 00 00 \nControl write 09=01 complete\nConfigured HS=1\nTX at          20680697739 ep2 len=1: 5a \nTX at          20681781029 ep2 len=4: c3 11 80 b3 \nFIN at          20682281009 EP=2 act=1 pop=0 len=1 clr=1 isync=0\nTX at          20683630955 ep2 len=4: c3 5a c0 84 \nFATAL: /home/michael/console/TESTS/rtl/usb_controller_packet_tb.sv:365: Retry changed byte 1: 11 -> 5a\n       Time: 20683639288  Scope: usb_controller_packet_tb.consume_response\n",
+    "stderr": "",
+    "elapsed_s": 84.95250691298861
+  },
+  "pass": false,
+  "sources_unchanged": true
+}

@@ -1,0 +1,112 @@
+{
+  "status": "PASS_BUILD_AND_TIMING",
+  "hardware_tested": false,
+  "expected_speed_mbps": 12,
+  "minimum_slack_ns": 0.153,
+  "detailed_slacks": 110,
+  "minima_by_command": {
+    "report_timing -setup -max_paths 25 -max_common_paths 1": {
+      "count": 25,
+      "minimum_ns": 2.221
+    },
+    "report_timing -hold -max_paths 25 -max_common_paths 1": {
+      "count": 25,
+      "minimum_ns": 0.153
+    },
+    "report_timing -recovery -max_paths 25 -max_common_paths 1": {
+      "count": 25,
+      "minimum_ns": 11.729
+    },
+    "report_timing -removal -max_paths 25 -max_common_paths 1": {
+      "count": 25,
+      "minimum_ns": 1.949
+    },
+    "report_min_pulse_width -nworst 10 -detail": {
+      "count": 10,
+      "minimum_ns": 5.357
+    }
+  },
+  "tns": [
+    {
+      "clock": "clk_50M",
+      "analysis": "setup",
+      "tns_ns": 0.0,
+      "violated_endpoints": 0
+    },
+    {
+      "clock": "clk_50M",
+      "analysis": "hold",
+      "tns_ns": 0.0,
+      "violated_endpoints": 0
+    },
+    {
+      "clock": "CLK_48M",
+      "analysis": "setup",
+      "tns_ns": 0.0,
+      "violated_endpoints": 0
+    },
+    {
+      "clock": "CLK_48M",
+      "analysis": "hold",
+      "tns_ns": 0.0,
+      "violated_endpoints": 0
+    },
+    {
+      "clock": "PHY_CLKOUT",
+      "analysis": "setup",
+      "tns_ns": 0.0,
+      "violated_endpoints": 0
+    },
+    {
+      "clock": "PHY_CLKOUT",
+      "analysis": "hold",
+      "tns_ns": 0.0,
+      "violated_endpoints": 0
+    }
+  ],
+  "active_sources_unchanged_after_build": true,
+  "reference_unchanged": true,
+  "netlists_unchanged": true,
+  "hs_ports_absent_in_pnr": true,
+  "compiled_files": [
+    "src/TOP.v",
+    "src/gowin_pll/gowin_pll_b.v",
+    "src/gowin_pll/gowin_pll_f.v",
+    "src/integer_division/integer_division.v",
+    "src/sync_fifo/sync_rx_pkt_fifo.v",
+    "src/sync_fifo/sync_tx_pkt_fifo.v",
+    "src/sync_fifo/usb_fifo.v",
+    "src/uart/uart.v",
+    "src/uart/usb_uart_config.v",
+    "src/usb_descriptor.v",
+    "src/usb_device_controller_fs/usb_device_controller.vg",
+    "src/usb_softphy/usb_softphy.v",
+    "src/uart/uart_rx.vhd",
+    "src/uart/uart_tx.vhd"
+  ],
+  "configuration_delta": {
+    "SerDes_retiming": [
+      null,
+      false
+    ],
+    "MULTIJUMP_MODE": [
+      "Normal",
+      "Single"
+    ],
+    "Generate_Plain_Text_Timing_Report": [
+      false,
+      true
+    ],
+    "MULTIBOOT_MODE": [
+      "Normal",
+      "Single"
+    ]
+  },
+  "controller_sha256": "211bdb357052537b1cb19f769dcdd01b72968172a6686b0798f3509d1e1ce342",
+  "phy_sha256": "b7bfe336d7ce1a5d4f275ec5ab6cf12df28a565995fc430d85ddd8bf54f0c660",
+  "limitations": [
+    "T\u00e9moin FS distinct ; aucune \u00e9quivalence HS/FS.",
+    "Faux chemins UART Sipeed et politique de broches inutilis\u00e9es conserv\u00e9s.",
+    "Les marges STA ne prouvent pas la conformit\u00e9 \u00e9lectrique USB."
+  ]
+}

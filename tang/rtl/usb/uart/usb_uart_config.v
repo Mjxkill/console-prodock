@@ -9,9 +9,13 @@
 // Description        :
 //----------------------------------------------------------------------
 //===========================================
+`define CONSOLE_USB_DIAG
 module usb_uart_config 
 (
     input              PHY_CLKOUT        ,// clock
+`ifdef CONSOLE_USB_DIAG
+    input [511:0]      diagnostic_data   ,
+`endif
     input              RESET_IN          ,// reset
     input              setup_active      ,
     input   [3:0]      endpt_sel         ,
@@ -20,6 +24,7 @@ module usb_uart_config
     input   [7:0]      usb_rxdat         ,
     input              usb_txact         ,
     input              usb_txpop         ,
+    input              usb_txpktfin      ,// host ACK accepted for this endpoint
     output  [11:0]     usb_txdat_len_o   ,
     output  [7:0]      endpt0_dat_o      ,
     output             endpt0_send_o     ,
@@ -67,6 +72,15 @@ reg [7:0] s_parity3_type;
 reg [7:0] s_data3_bits;
 reg [7:0] endpt0_dat;
 reg       endpt0_send;
+reg       endpt0_pending;
+`ifdef CONSOLE_USB_DIAG
+// Temporary board diagnosis: GET_LINE_CODING with wValue=0xd1a6 returns
+// a 32-byte snapshot. Ordinary CDC requests keep their seven-byte reply.
+reg [15:0] diagnostic_key;
+reg [511:0] diagnostic_snapshot;
+wire diagnostic_request = diagnostic_key == 16'hd1a6 || diagnostic_key == 16'hd1a7;
+wire [255:0] diagnostic_page = diagnostic_key[0] ? diagnostic_snapshot[511:256] : diagnostic_snapshot[255:0];
+`endif
 
 assign uart1_en_o=s_uart1_en;
 assign uart1_BAUD_RATE_o=s_dte1_rate;
@@ -75,7 +89,11 @@ assign uart1_STOP_BIT_o=s_char1_format;
 assign uart1_DATA_BITS_o=s_data1_bits;
 assign endpt0_dat_o=endpt0_dat;
 assign endpt0_send_o=endpt0_send;
+`ifdef CONSOLE_USB_DIAG
+assign usb_txdat_len_o=diagnostic_request ? 12'd32 : 12'd7;
+`else
 assign usb_txdat_len_o=12'd7;
+`endif
 
 always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
     if (RESET_IN) begin
@@ -91,30 +109,46 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
         s_parity1_type <= 8'd0;
         s_data1_bits <= 8'd8;
         endpt0_send <= 1'd0;
+        endpt0_pending <= 1'b0;
         endpt0_dat  <= 8'd0;
         s_uart1_en <= 1'b0;
+`ifdef CONSOLE_USB_DIAG
+        diagnostic_key <= 0;
+        diagnostic_snapshot <= 0;
+`endif
     end
     else begin
         if (setup_active) begin
             if (usb_rxval) begin
                 case (stage)
                     8'd0 : begin
+`ifdef CONSOLE_USB_DIAG
+                        diagnostic_key <= 0;
+                        diagnostic_snapshot <= diagnostic_data;
+`endif
                         s_req_type <= usb_rxdat;
                         stage <= stage + 8'd1;
                         sub_stage <= 8'd0;
                         endpt0_send <= 1'd0;
+                        endpt0_pending <= 1'b0;
                     end
                     8'd1 : begin
                         s_req_code <= usb_rxdat;
                         stage <= stage + 8'd1;
                     end
                     8'd2 : begin
+`ifdef CONSOLE_USB_DIAG
+                        diagnostic_key[7:0] <= usb_rxdat;
+`endif
                         if (s_req_code == SET_CONTROL_LINE_STATE) begin
                             s_ctl_sig[7:0] <= usb_rxdat;
                         end
                         stage <= stage + 8'd1;
                     end
                     8'd3 : begin
+`ifdef CONSOLE_USB_DIAG
+                        diagnostic_key[15:8] <= usb_rxdat;
+`endif
                         if (s_req_code == SET_CONTROL_LINE_STATE) begin
                             s_ctl_sig[15:8] <= usb_rxdat;
                         end
@@ -165,6 +199,10 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
                             if (s_interface_num == 16'd0) begin
                                 endpt0_send <= 1'd1;
                                 endpt0_dat <= s_dte1_rate[7:0];
+                                endpt0_pending <= 1'b1;
+`ifdef CONSOLE_USB_DIAG
+                                if(diagnostic_request)endpt0_dat <= diagnostic_page[7:0];
+`endif
                             end
                         end
                         stage <= stage + 8'd1;
@@ -175,6 +213,16 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
                     end
                 endcase
             end
+        end
+        // POP consumes an octet for one attempt; only FIN retires the
+        // response. Retain the snapshot separately from TXVAL, whose falling
+        // edge terminates the attempt in this controller. SETUP has priority.
+        else if (usb_txpktfin && endpt_sel == ENDPT_UART_CONFIG &&
+                 s_req_code == GET_LINE_CODING) begin
+            stage <= 8'd0;
+            sub_stage <= 8'd0;
+            endpt0_send <= 1'b0;
+            endpt0_pending <= 1'b0;
         end
         else if (s_req_code == SET_LINE_CODING) begin
             stage <= 8'd0;
@@ -231,6 +279,12 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
                             endpt0_send <= 1'b0;
                         end*/
                         if (usb_txpop) begin// new controller version
+`ifdef CONSOLE_USB_DIAG
+                            if(diagnostic_request)begin
+                                if(sub_stage < 31)endpt0_dat <= diagnostic_page[(sub_stage+1)*8 +: 8];
+                                else endpt0_send <= 0;
+                            end else
+`endif
                             if(s_interface_num==0)begin
                                 if (sub_stage <= 0) begin
                                     endpt0_dat <= s_dte1_rate[15:8];
@@ -263,6 +317,14 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
             end
             else begin
                 sub_stage <= 8'd0;
+                // An aborted attempt may stop before its last POP.
+                // Rewind the first octet as well as the index; do not
+                // resample diagnostic_data outside a new SETUP.
+                endpt0_dat <= s_dte1_rate[7:0];
+`ifdef CONSOLE_USB_DIAG
+                if(diagnostic_request)endpt0_dat <= diagnostic_page[7:0];
+`endif
+                if(endpt0_pending)endpt0_send <= 1'b1;
             end
         end
         else begin

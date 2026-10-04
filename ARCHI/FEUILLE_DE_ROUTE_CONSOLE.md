@@ -2,12 +2,38 @@
 
 État de référence : **29 septembre 2026**, après validation de `gpu_fast_r2`.
 
+Mise à jour graphique du **3 octobre 2026** : L11/L12 et les premières
+versions L13/L14/L15 sont implémentés ; voir les états des lots et leurs
+fiches de validation. Les propositions d'origine sont conservées dans les
+sections détaillées, avec les choix effectivement retenus indiqués en tête.
+
+L'[inventaire des fonctionnalités actuelles](FONCTIONNALITES_ACTUELLES.md)
+regroupe les capacités réellement disponibles et leurs limites. L'extension
+[perspective et composition sur RGB565](GPU_PERSPECTIVE_COMPOSITION.md)
+est validée en simulation, au timing et sur Pro Dock dans **`gpu_perspective_r10`**.
+
 Ce document décrit les évolutions restantes de la console, du jeu de course
 et de l'IP graphique. Il précise ce qui existe, ce qu'il faut modifier,
 les dépendances, les limites et les preuves attendues pour terminer chaque lot.
 Il constitue un plan de réalisation : les interfaces proposées, les noms des
 futurs fichiers et les objectifs de performance ne sont pas des fonctions
 déjà implémentées.
+
+**Orientation précisée par l'utilisateur le 3 octobre 2026 : console multijeux.**
+Les familles visées sont l'aventure de type Zelda, le FPS de type Halo et
+la course de type Need for Speed, avec une ambition graphique adaptée à la
+carte. Ces références définissent des genres et des possibilités de jeu ;
+les prototypes auront leurs propres niveaux et ressources. La course
+existante est l'un des jeux de validation, pas le centre de toute la console.
+L'ordre actualisé de la section 17.1 remplace la priorité historique donnée
+à son enrichissement. Aucun nouveau prototype n'est annoncé comme réalisé.
+
+**Priorité précisée ensuite : terminer d'abord la carte vidéo**, avant le
+runtime et les jeux. Les **sept points de finition GPU V1 de la section 3.2
+sont réalisés et validés dans `gpu_v1_r31`** le 4 octobre : suite complète,
+USB HS, 30 minutes d'endurance et confirmation visuelle. Voir
+[GPU V1](GPU_V1.md), [la qualification](../TESTS/TESTS_GPU_V1.md) et
+[l'image archivée](../bitstreams/console_gpu_v1_800.md).
 
 L'[architecture V2](ARCHI_V2_CONSOLE_JEUX.md) reste la référence de périmètre.
 Le produit est une **console de jeux** : boutons, axes analogiques, LED,
@@ -50,7 +76,7 @@ signaux de V1 ne font pas partie de cette feuille de route.
 | Domaine graphique | GPU et interface utilisateur DDR à **75 MHz**. |
 | LCD | **800 × 480**, horloge pixel **35 MHz**. |
 | Cadence nominale | `35 000 000 / (1 193 × 533)` ≈ **55,04 images/s**, période ≈ **18,17 ms**. |
-| Format des images | Pixels indexés sur 8 bits, palette globale de 256 couleurs RGB666. |
+| Format des images | Mode indexé 8 bits avec palette RGB666 ; mode direct RGB565 ajouté par L13–L15. |
 | Présentation | Double tampon et changement de page au retour vertical. |
 | Liaison PC | Console et commandes par UART2 / USB CDC. |
 
@@ -73,12 +99,16 @@ une mesure physique de la fréquence du panneau.
 | Première 3D | Transformation et projection sur CPU, clipping proche, élimination des faces arrière, tri des faces, rendu filaire et faces unies. |
 | Aplats accélérés | FILL, DISK et TRIANGLE utilisent une voie directe vers les écritures DDR de 256 bits. |
 | Observation | Compteurs de commandes, erreurs, lignes manquantes et charge de composition. |
+| Affines L12 | Rotation, échelles X/Y indépendantes et cisaillement en indexé, cache source 16 Kio. |
+| Alpha L13 | Mélange RGB565 dans le moteur de dessin, alpha uniforme 0..256 ; compositeur indexé inchangé. |
+| Textures L14 | Triangles RGB565, interpolation affine ou corrigée en perspective, plus proche voisin, texture jusqu'à 128 × 128, rejet/répétition/clamp. |
+| Profondeur L15 | Surface Z16 en DDR, test LESS, écriture optionnelle, effacement natif, intersections sans tri des faces opaques. |
 
 **Une page mémoire, une couche affichée et un sprite sont trois objets distincts.**
 Le zoom actuel dessine une image dans une page DDR ; il ne transforme pas les
 64 sprites de composition en sprites matériels de 128 × 128 ou à rotation libre.
 
-La transparence actuelle choisit le pixel du dessous lorsque l'index vaut zéro.
+La transparence du compositeur indexé choisit le pixel du dessous lorsque l'index vaut zéro.
 Elle ne mélange pas les couleurs. La palette globale n'appartient pas à la
 transaction atomique des tables de couches et de sprites.
 
@@ -204,10 +234,10 @@ Ils ne remplacent pas les jalons historiques G0 à G7.
 | L09 | Interpréteur du langage maison | À faire | L05, L08 pour le chargement depuis le PC |
 | L10 | Stockage et démarrage autonome | À faire après inventaire flash | L08, gestion du lancement et récupération |
 | L11 | Tilemaps | **Validé sur carte et visuellement** le 30 septembre 2026, USB corrigé (`gpu_l11_usb_r13`) : [architecture](GPU_L11_TILEMAPS.md), [validation](../TESTS/TESTS_GPU_L11.md) | Format de ressources, composition |
-| L12 | Rotation et transformations affines | Extension graphique | Échantillonnage, cache et DMA |
-| L13 | Mélange alpha | Extension nécessitant une étude de format | Palette, composition et mémoire couleur |
-| L14 | Triangles texturés | Extension 3D | Triangle, texture, interpolation et DDR |
-| L15 | Z-buffer | Extension 3D | Surface profondeur, DMA, ordre des opérations |
+| L12 | Rotation et transformations affines | **Validé sur carte**, repris dans `gpu_l1315_r3` | [Contrat](GPU_L12_AFFINE.md) |
+| L13 | Mélange alpha | **Version RGB565 dans le moteur de dessin validée sur carte**, `gpu_l1315_r3` | [Contrat L13–L15](GPU_L13_L15_RGB_DEPTH.md) |
+| L14 | Triangles texturés | **Affine et perspective validées sur carte**, `gpu_perspective_r10` | Bilinéaire restant ; [contrat perspective et composition](GPU_PERSPECTIVE_COMPOSITION.md) |
+| L15 | Z-buffer | **Z16 LESS validé sur carte**, `gpu_l1315_r3` | [Preuves et mesures L13–L15](../TESTS/TESTS_GPU_L13_L15.md) |
 | L16 | Transformations 3D par DSP | Conditionnel | Mesures prouvant un besoin CPU |
 | L17 | Copies, dégradés, texte et zoom plus rapides | Conditionnel, ciblé par mesure | Profilage et conservation des références |
 | L18 | Fiabilité, outils, documentation et diagnostics | Transversal | Chaque lot concerné |
@@ -215,6 +245,117 @@ Ils ne remplacent pas les jalons historiques G0 à G7.
 Le jeu actuel n'a pas besoin de L11 à L17 pour retrouver sa fluidité : ce
 problème est résolu sur la scène de référence. Ces lots augmentent les
 possibilités graphiques ou la capacité des scènes futures.
+
+### 3.1 Trois familles de jeux sur le même socle
+
+| Famille | Premier prototype jouable proposé | Socle graphique disponible | Travail logiciel restant |
+|---|---|---|---|
+| Aventure vue du dessus, type Zelda | Une petite carte, déplacement, obstacles, interaction, combat simple et changement de zone | Tuiles, sprites, texte, couches et défilement | Caméra 2D, animations, collisions, interactions, inventaire et état du monde |
+| FPS en vraie 3D, type Halo | Une petite arène, déplacement et visée, collisions, tir et un ennemi | Triangles texturés en perspective, Z16, alpha uniforme et interface superposée | Caméra 3D, niveaux/maillages, élimination des objets hors champ, collisions 3D, tirs et comportement ennemi |
+| Course, type Need for Speed | Un circuit avec conduite, trafic/adversaires, collisions et chronomètre | Prototype Mega Coast, rendu 2D/pseudo-3D et nouveau moteur de triangles | Données de circuit, véhicules/objets, caméra de poursuite et évolution vers une scène 3D selon les mesures |
+
+Les jeux partagent le runtime, les entrées, le temps, la mémoire, le chargement
+des ressources, le pilote graphique, l'audio et le retour au menu. Leurs
+règles, niveaux et comportements restent propres à chaque jeu. Il n'est pas
+nécessaire d'imposer le même système de collisions à une carte 2D et à une
+arène 3D ; partager les interfaces et les primitives utiles.
+
+Premiers services à construire dans L05/L08 :
+
+- catalogue/menu et cycle charger → lancer → pause → arrêter → retour ;
+- entrées communes (actions et axes), pas de simulation fixe et caméras 2D/3D ;
+- ressources identifiées : cartes de tuiles, animations, maillages, matériaux,
+  textures, polices et sons, avec allocation/libération explicite ;
+- préparation 3D : matrices, projection, découpage proche, rejet hors champ,
+  regroupement par texture/matériau et ordre des objets translucides ;
+- outils PC de conversion et chargement USB des ressources ; chargement du
+  code selon le contrat d'exécution à définir en L08, sans prétendre qu'un
+  programme natif arbitraire peut déjà être exécuté depuis la DDR.
+
+La scène de deux cubes à environ 55 images/s ne donne pas le débit d'une
+arène entière. Mesurer les trois scènes représentatives : coût des pixels
+texturés/Z, recouvrement, changements de texture, temps de préparation CPU,
+mémoire et composition. Fixer ensuite les budgets de niveaux et objets.
+Les textures mises en cache restent limitées à 128 × 128, et la composition
+2D utilise une palette globale ; les outils doivent préparer les ressources
+selon ces contrats actuels.
+
+Les extensions vidéo restent ciblées : modulation de couleur/éclairage et
+brouillard pour la lisibilité 3D, alpha par texel et par couche pour les
+effets, puis filtrage/mipmaps et cache de textures plus souple si nécessaires.
+L16 (transformations par DSP) n'est prioritaire que si le CPU est limitant ;
+un manque de débit de pixels ou des rechargements de textures appelle une
+correction du moteur de fragments, du cache ou des accès DDR.
+
+**Critère commun de validation :** les trois prototypes utilisent le même
+bitstream et les mêmes services, ont chacun une boucle jouable, et permettent
+de revenir au menu puis d'en lancer un autre sans état graphique, commandes
+maintenues ou ressources héritées du précédent. Le choix de leur mode de
+chargement logiciel relève de L08 ; ces fonctions restent à implémenter.
+
+### 3.2 Finition de la carte vidéo — GPU V1 validé
+
+**Livraison du 4 octobre : les sept blocs ci-dessous sont terminés dans R31.**
+Simulations, timing aux fréquences initiales, suite complète sur carte,
+douze poses couleur/Z/LCD, USB HS et 30 minutes d'endurance passent.
+L'utilisateur confirme les trois scènes ; bitstream et sources sont archivés.
+Le contrat est détaillé dans [GPU V1](GPU_V1.md), et les preuves dans
+[TESTS_GPU_V1](../TESTS/TESTS_GPU_V1.md).
+
+Le socle actuel fournit déjà perspective, Z16, alpha uniforme, 16 couches,
+64 sprites et tuiles. La proposition ci-dessous vise une IP réutilisable
+pour les trois genres, avec un pilote et des scènes de validation. Elle
+ne comprend pas encore le runtime multijeux ni les règles des jeux.
+
+| Ordre | Bloc proposé | Résultat attendu |
+|---|---|---|
+| 1 | Cibles de rendu et fenêtres | Descripteurs couleur/Z avec dimensions et pas explicites, viewport, rectangle de découpage et effacement partiel. Conserver les commandes historiques par compatibilité. |
+| 2 | Débit de fragments et textures DDR | Mesurer puis réduire le coût texture/Z/alpha, des effacements et transferts ; cache de blocs réutilisable au lieu d'exiger une texture entière résidente. Viser des textures 256 × 256 puis 512 × 512 sans agrandir la BSRAM proportionnellement. |
+| 3 | Compléments de l'API 2D en RGB565 | Les primitives, texte, copies, zoom et rotation existent déjà en indexé. Réutiliser les triangles RGB565 pour les rectangles/images transformées ; compléter et tester l'API pour le dessin direct en RGB565, notamment texte et copies, selon les besoins. Aucune recréation du moteur 2D existant. |
+| 4 | Transparence et couleur | Format de texture avec alpha par texel, alpha global combinable, mélange additif saturé ; modulation de couleur et interpolation de couleur/intensité par sommet (Gouraud). Éclairage des sommets préparé par le CPU. |
+| 5 | Profondeur visuelle et niveaux de texture | Brouillard selon la profondeur avec contrat cohérent avec le Z écran ; chaînes de mipmaps préparées par l'outil PC, niveau explicitement sélectionnable au premier jalon. |
+| 6 | Affichage d'une cible de taille réduite | Mode optionnel 400 × 240 agrandi ×2 sur le LCD 800 × 480, avec interface 2D à résolution native ; mesurer le gain et vérifier couverture, ordre des couches et échange au vblank. |
+| 7 | API figée et qualification | Formats, capacités, erreurs, synchronisation, compteurs et outils de conversion documentés ; trois scènes de charge et non-régression complète sur carte. |
+
+Le format retenu est **ARGB4444**, en complément de RGB565. Les arrondis et
+les interactions entre alpha par texel, alpha global, clé zéro et écriture Z
+sont définis dans l'ABI V1 et vérifiés par une référence indépendante.
+Les objets translucides restent ordonnés par le logiciel. Un fondu de
+superpositions peut être dessiné dans la cible RGB565 par ce chemin :
+cela ne constitue pas un alpha ajouté au compositeur des 16 couches.
+
+Précision sur le bloc 3 : le texte et les objets indexés peuvent déjà être
+superposés à un fond RGB565. Les commandes historiques de dessin encodent
+des couleurs sur 8 bits et ne changent pas automatiquement de format selon
+la page affichée. Le travail proposé porte sur l'API et les opérations
+directes dans une cible RGB565 ; le rasteriseur couleur existant doit être
+réemployé avant d'envisager de nouveaux blocs matériels.
+
+L'alpha directement dans ce compositeur, le filtrage bilinéaire, les
+transformations géométriques par DSP et les shaders programmables ne sont
+pas des critères proposés pour fermer cette V1. Le bilinéaire reste une
+option ultérieure de qualité ; les mipmaps peuvent déjà limiter le
+scintillement des textures éloignées sans nécessiter ce filtrage.
+
+Préparer trois scènes graphiques reproductibles, sans attendre des jeux
+complets : carte en tuiles avec personnages/effets, pièce 3D avec caméra
+mobile et objets, portion de circuit avec route/paysage/véhicules. Varier
+les changements de textures, les surfaces couvertes plusieurs fois et
+l'alpha ; publier les nombres d'objets/triangles/pixels et les temps CPU/GPU.
+La cadence promise pour chaque mode sera fixée à partir de ces charges.
+
+**Critères de fin V1, satisfaits par R31 :** références de pixels et gardes exactes, timing
+fermé aux fréquences actuelles, aucun sous-débit d'affichage sur les charges
+retenues, changement répété de scène/format sans ancien état rejoué,
+USB HS testé pendant l'activité graphique, endurance d'au moins 30 minutes,
+pilote/API et bitstream archivés. Une mesure de cadence moyenne ne remplace
+pas les maxima de temps de rendu et d'intervalle entre présentations.
+
+Le build V1 complet R31 utilise 242/340 BSRAM (71,18 %), 65 812 éléments
+logiques (47,61 %), 83/298 DSP (27,85 %) et 8/8 horloges PRIMARY.
+Les horloges restent 800/80/75/35 MHz. Les charges de qualification mesurent
+environ 27,4 images/s pour aventure/couloir et 54,6 images/s pour la route ;
+le budget de nouveaux jeux doit être mesuré sur leurs propres contenus.
 
 <a id="jalon"></a>
 
@@ -411,6 +552,7 @@ Répartition proposée, noms encore indicatifs :
 | `runtime/` | Initialisation, temps, boucle principale, lancement/arrêt d'une application |
 | `drivers/` | GPU, entrées, I²C/ADC, audio, USB, stockage |
 | `games/racer/` | État du jeu, physique, circuit, projection et rendu |
+| `games/adventure/`, `games/fps/` | Deux autres jeux utilisant les mêmes services ; noms indicatifs |
 | `diag/` | Tests G0–G6, comparaisons de pixels, benchmarks et commandes techniques |
 | `assets/` | Description des palettes, images, polices, sons et circuits |
 | `lang/` | Analyse et exécution du langage maison |
@@ -891,6 +1033,12 @@ avec les sprites.
 
 ### 12.2 L12 — Rotation et transformations affines
 
+**Avancement du 30 septembre 2026 :** moteur implémenté, comparaison de
+604 commandes passée en simulation et comportement historique conservé
+au cycle près. Démonstration et référence hôte disponibles ; validation
+physique achevée le 3 octobre 2026, reprise dans la suite complète r3. Le [contrat L12](GPU_L12_AFFINE.md) définit les opcodes
+12/13, les coefficients signés Q16.16 et le cache source de 16 Kio.
+
 Le zoom transparent actuel reste la référence pour le cas sans rotation.
 Étendre le dessin d'images avec une transformation inverse, de la destination
 vers la source, pour déterminer quel texel lire à chaque pixel couvert.
@@ -923,6 +1071,16 @@ réduction, agrandissement, coordonnées négatives, découpage aux quatre bords
 coefficients extrêmes et masques de transparence.
 
 ### 12.3 L13 — Mélange alpha
+
+**État au 3 octobre 2026 :** l'option « mélange dans le blitter » est
+réalisée sur un framebuffer RGB565, alpha uniforme 0..256 par commande.
+Couleur opaque ou texturée, transparence du texel zéro optionnelle.
+La couleur du fond est lue en DDR et mélangée par composante. Les quatre
+poses de référence, leurs profondeurs et gardes, le checksum affiché,
+le retour au mode indexé et l'animation à environ 55 images/s passent
+sur carte. L'alpha par pixel et le mélange de 16 couches ne font pas partie
+de cette version. [Contrat](GPU_L13_L15_RGB_DEPTH.md),
+[validation](../TESTS/TESTS_GPU_L13_L15.md). La suite conserve l'étude initiale.
 
 **But :** obtenir des ombres, fumées, transparences partielles, fondus et
 interfaces translucides.
@@ -981,6 +1139,19 @@ Leur intégration commune forme ensuite un moteur 3D plus général.
 
 ### 13.2 L14 — Triangles texturés
 
+**État au 3 octobre 2026 :** première version réalisée en **RGB565**, avec
+texture mise en cache (128 × 128 maximum), interpolation affine, plus proche
+voisin et trois modes de bord par axe. Les paramètres passent par les
+opcodes 14–19 ordonnés dans la FIFO existante de huit mots. Deux cubes
+texturés séparés sont animés et comparés pixel par pixel sur carte.
+La correction de perspective est maintenant validée en simulation, au timing
+et sur Pro Dock dans `gpu_perspective_r10` ; preuves et mesures dans
+[TESTS_GPU_PERSPECTIVE.md](../TESTS/TESTS_GPU_PERSPECTIVE.md).
+Le bilinéaire reste à faire. Le rendu affine peut déformer les textures des
+faces obliques. La proposition initiale
+ci-dessous prévoyait des textures indexées ; le choix RGB565 permet le
+mélange alpha réel du même moteur, sans approximation par palette.
+
 Première étape proposée : textures indexées, plus proche voisin et
 interpolation affine, avec les limites visuelles documentées.
 
@@ -1007,9 +1178,10 @@ Travaux du rasteriseur :
 5. Appliquer la transparence avant une écriture de couleur/profondeur.
 6. Tenir les données stables pendant la contre-pression DDR.
 
-L'interpolation affine peut déformer une texture en perspective. Une deuxième
-étape ajoutera la correction de perspective, par exemple avec interpolation
-de `u/z`, `v/z` et `1/z`, après étude du coût et des erreurs d'arrondi.
+L'interpolation affine peut déformer une texture en perspective. La deuxième
+étape est décrite dans [le contrat perspective](GPU_PERSPECTIVE_COMPOSITION.md) :
+plans UQ/VQ/Q, opcode 21 et division entière exacte, avec le statut physique
+indiqué dans sa fiche de tests.
 Le filtrage bilinéaire et les niveaux de détail restent des extensions possibles.
 
 **Validation :** damier, quadrilatère constitué de deux triangles, arêtes
@@ -1017,6 +1189,16 @@ communes, textures non carrées, clipping proche, fort angle de vue,
 coordonnées négatives et accès DDR bloqués temporairement.
 
 ### 13.3 L15 — Z-buffer
+
+**État au 3 octobre 2026 :** Z16 non signé en DDR, comparaison stricte LESS,
+égalité rejetée, profondeur 65535 à l'effacement. Test et écriture sont
+indépendants. Alpha zéro et texels transparents ne modifient pas Z. Les
+transactions couleur/Z sont séquencées avant la fin de commande. Le test
+de triangles croisés dans les deux ordres donne les mêmes pixels en
+simulation ; les quatre poses matérielles sont comparées intégralement
+au modèle CPU indépendant. La démonstration utilise deux pages couleur
+RGB565 et une page Z : **2 304 000 octets utiles**, trois emplacements DDR
+de 1 Mio. Les travaux ci-dessous sont la planification d'origine.
 
 **But :** décider de la visibilité à chaque pixel, y compris lorsque deux
 triangles se croisent ou que le tri des faces ne suffit plus.
@@ -1375,20 +1557,27 @@ du dépôt voisin. Pour rendre le projet plus facilement reproductible :
 
 ### 17.1 Ordre recommandé
 
+La finition vidéo demandée passe en premier : après conservation du build
+actuel (étape 1), réaliser le périmètre GPU V1 retenu à partir de la
+proposition 3.2. Les étapes 2 et suivantes viennent après ce jalon vidéo.
+
 | Étape | Travaux | Résultat concret |
 |---|---|---|
-| 1 | L00 | Version du jeu et GPU accéléré enregistrée et publiée dans le dépôt |
-| 2 | Début de L05, L01 et L02 | API commune d'entrée, boutons et LED utilisables dans le jeu |
-| 3 | L03, choix éventuel de L04 | Conduite analogique calibrée et choix de manette clarifié |
-| 4 | L06 : circuit, relief et occultation | Course avec montées/descentes et décor correctement caché |
-| 5 | L07 puis compléments de L06 | Jeu avec effets sonores, présentation et progression affinées |
-| 6 | Suite de L05 et L08 | Runtime stable, ressources et programmes transférables par USB |
-| 7 | L09 | Jeux simples écrits dans le langage maison |
-| 8 | L10 | Démarrage, sélection et conservation des jeux sans PC |
-| 9 | L11–L15 selon les scènes souhaitées | Tilemaps, transformations, alpha et 3D plus complète |
-| 10 | L16/L17 lorsque les mesures l'exigent | Accélérations ciblées des nouveaux points limitants |
+| 1 | Conserver le GPU complet validé L11–L15 | Base commune et références de pixels, timing et performances |
+| 2 | L05 : runtime, entrées et ressources | Menu/cycle de vie commun ; caméras 2D/3D ; réservation et libération des ressources |
+| 3 | Début de L08 et outils de conversion | Ressources de plusieurs jeux transférables sans reconstruire le FPGA ; contrat de chargement du code explicite |
+| 4 | Trois prototypes de la section 3.1 | Aventure, FPS et course jouables sur le même socle ; retour au menu entre les jeux |
+| 5 | Mesures et compléments L17 | Budgets mesurés sur les trois genres ; accélérations des pixels, textures ou commandes selon les résultats |
+| 6 | L01–L04 et L07 | Commandes physiques, axes et sons communs aux trois jeux, selon le matériel retenu |
+| 7 | Enrichissement des jeux, dont L06 | Niveaux, ennemis, objets, circuits, progression et présentation ; effets graphiques motivés par ces scènes |
+| 8 | Suite de L08, L09 | Jeux chargeables et langage maison intégrés à la même API ; ne pas bloquer les premiers prototypes C sur l'interpréteur |
+| 9 | L10 | Catalogue, réglages, sauvegardes et démarrage autonome |
+| 10 | L16 et extensions graphiques conditionnelles | Géométrie matérielle, filtrage ou autres fonctions selon les limites mesurées |
 
-Cet ordre privilégie d'abord un jeu plus complet et des commandes autonomes.
+Cet ordre privilégie un socle multijeux et trois usages différents du GPU.
+Les commandes USB existantes permettent les premiers essais pendant la
+préparation des entrées physiques ; les essais graphiques ne présument pas
+du choix futur de manette ou de sortie audio.
 Il n'impose pas d'attendre l'interpréteur pour étudier les textures ou le
 Z-buffer. L'audio, le format des ressources et l'inventaire du stockage
 peuvent être préparés dès que leur matériel est connu.
@@ -1431,11 +1620,11 @@ flowchart TD
 | Sortie audio utilisable | Contraintes et pilote L07 | API sonore, choix des événements du jeu |
 | Support et zones de stockage | Écriture persistante L10 | Catalogue logique, chargeur en DDR |
 | Grammaire et types du langage | Implémentation stable de L09 | API C et format de transfert |
-| Format de couleur pour l'alpha | Architecture RTL de L13 | Scènes de référence et dimensionnement |
-| Format de profondeur et textures | Interfaces L14/L15 | Modèles de référence et scènes de test |
+| Format de couleur pour l'alpha | Décidé : RGB565 dans le moteur de dessin, L13 livré | Alpha du compositeur et alpha par pixel restent des extensions |
+| Format de profondeur et textures | Décidé : Z16 LESS, textures RGB565 affines et en perspective, L14/L15 livrés | Filtrage restant |
 | Priorité entre nouveaux jeux 2D et vraie 3D | Ordre des extensions avancées | Stabilisation du socle commun |
 
-Ces décisions restent ouvertes dans ce document. Elles ne bloquent pas
+Les décisions non marquées comme résolues restent ouvertes. Elles ne bloquent pas
 l'enregistrement du jalon actuel ni la préparation des premiers lots.
 
 ### 17.4 Ce qui n'est pas un prérequis immédiat
@@ -1502,10 +1691,10 @@ Ils ne sont pas présentés comme déjà créés.
 - [ ] **L09** — Langage maison documenté, programmes de démonstration chargeables.
 - [ ] **L10** — Stockage, réglages, records et démarrage autonome vérifiés.
 - [x] **L11** — Tilemaps documentées, simulées et validées sur carte (`gpu_l11_usb_r13`) : défilement visuellement confirmé à environ 55 images/s, USB corrigé et 1 088 200 octets vérifiés.
-- [ ] **L12** — Rotation/transformations affines validées pixel par pixel.
-- [ ] **L13** — Format et composition alpha choisis, implémentés et mesurés.
-- [ ] **L14** — Triangles texturés et précision de projection documentés.
-- [ ] **L15** — Z-buffer, intersections et cohérence mémoire validés.
+- [x] **L12** — Rotation/transformations affines validées pixel par pixel ; non-régression matérielle dans `gpu_l1315_r3`.
+- [x] **L13** — RGB565 et alpha uniforme dans le moteur de dessin validés et mesurés ; aucun alpha ajouté au compositeur indexé.
+- [x] **L14** — Triangles texturés affines et en perspective au plus proche voisin validés dans `gpu_perspective_r10` ; bilinéaire restant.
+- [x] **L15** — Z16 LESS, intersections, transparence, gardes et cohérence mémoire validés dans `gpu_l1315_r3`.
 - [ ] **L16** — Accélération des transformations seulement si un besoin est démontré.
 - [ ] **L17** — Accélérations complémentaires justifiées par les mesures.
 - [ ] **L18** — Tests, endurance, outils et documentation mis à jour pour chaque livraison.

@@ -1,0 +1,16 @@
+name: xhci_queue_trb
+ID: 1554
+format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+
+	field:dma_addr_t dma;	offset:8;	size:8;	signed:0;
+	field:u32 type;	offset:16;	size:4;	signed:0;
+	field:u32 field0;	offset:20;	size:4;	signed:0;
+	field:u32 field1;	offset:24;	size:4;	signed:0;
+	field:u32 field2;	offset:28;	size:4;	signed:0;
+	field:u32 field3;	offset:32;	size:4;	signed:0;
+
+print fmt: "%s: @%pad %s", xhci_ring_type_string(REC->type), &REC->dma, xhci_decode_trb(__get_buf(500), 500, REC->field0, REC->field1, REC->field2, REC->field3)

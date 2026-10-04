@@ -2,10 +2,16 @@
 set_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0
 add_file rtl/console_gpu.v
 add_file rtl/video/gpu_scanout.v
+add_file rtl/video/gpu_rgb_reader.v
 add_file rtl/video/gpu_line_reader.v
 add_file rtl/video/gpu_sprite_cache.v
 add_file rtl/video/gpu_tile_row.v
 add_file rtl/video/gpu_accel.v
+add_file rtl/video/gpu_raster.v
+add_file rtl/video/gpu_v1.v
+add_file rtl/video/gpu_texture_cache.v
+add_file rtl/video/gpu_copy565.v
+add_file rtl/video/gpu_perspective.v
 add_file rtl/video/gpu_blit_dma.v
 add_file rtl/video/blitter.v
 add_file rtl/video/gpu_triangle.v
@@ -21,6 +27,9 @@ add_file rtl/usb/uart/usb_uart_config.v
 add_file rtl/usb/usb2_0_softphy.v
 add_file rtl/usb/usb_device_controller.v
 add_file rtl/usb/usb_descriptor.v
+add_file rtl/usb/usb_packet_trace.v
+add_file rtl/usb/usb_idle_trace.v
+add_file rtl/usb/usb_reset_release.v
 add_file rtl/usb/sync_fifo/sync_rx_pkt_fifo.v
 add_file rtl/usb/sync_fifo/sync_tx_pkt_fifo.v
 add_file rtl/usb/sync_fifo/usb_fifo.v
@@ -36,6 +45,7 @@ add_file rtl/board/ahb_exts_bridge.v
 add_file rtl/board/ddr_subsys.v
 add_file rtl/board/ddr_arb.v
 add_file rtl/board/ddr_dcfifo.v
+add_file rtl/board/ahb_ddr_cdc.v
 add_file rtl/board/ddr_writer.v
 add_file rtl/board/ddr_reader.v
 add_file rtl/board/ddr_ui_adapt.v
@@ -63,5 +73,8 @@ set_option -output_base_name console_gpu
 set_option -verilog_std v2001
 set_option -use_cpu_as_gpio 1
 set_option -gen_text_timing_rpt 1
+set_option -gen_verilog_sim_netlist 1
+set_option -gen_sdf 1
 set_option -route_option 1
+set_option -replicate_resources 1
 run all

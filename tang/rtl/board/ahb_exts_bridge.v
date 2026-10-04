@@ -35,11 +35,24 @@ module ahb_exts_bridge (
         if (!hresetn) begin st <= I; wr <= 1'b0; tgt <= 1'b0; addr <= 32'd0; s_hsel <= 2'b00; s_htrans <= 2'b00; s_hwrite <= 1'b0; s_haddr <= 32'd0; s_hwdata <= 32'd0; m_hrdata <= 32'd0; m_hready <= 1'b1; end
         else begin
             s_hsel <= 2'b00; s_htrans <= 2'b00;
+            // All reachable IDLE cycles have HREADY=1. Assign its complete
+            // next value every cycle: avoid a second, long slave-ready
+            // decode through the clock enable of the hard-core return FF.
+            m_hready <= (st==I && !(m_hsel && m_htrans[1])) || (st==WAIT && t_hready);
             case (st)
-                I: if (m_hsel && m_htrans[1] && m_hready) begin wr <= m_hwrite; addr <= m_haddr; tgt <= m_haddr[24]; m_hready <= 1'b0; st <= DATA; end
+                I: begin
+                    // Sample private payload while idle. Only acceptance
+                    // advances to DATA; unselected samples are never issued.
+                    // Keep the hard-core HREADYIN -> HSEL path off the
+                    // 34 payload register enables without adding latency.
+                    wr <= m_hwrite; addr <= m_haddr; tgt <= m_haddr[24];
+                    // HREADY is always high in reachable IDLE, including
+                    // immediately after reset or completion of WAIT.
+                    if (m_hsel && m_htrans[1]) st <= DATA;
+                end
                 DATA: begin s_hwdata <= m_hwdata; s_hsel <= tgt ? 2'b10 : 2'b01; s_htrans <= 2'b10; s_hwrite <= wr; s_haddr <= addr; st <= ADDR; end
                 ADDR: st <= WAIT;                                              // l'esclave (libre) a accepté sa phase d'adresse
-                WAIT: if (t_hready) begin m_hrdata <= t_hrdata; m_hready <= 1'b1; st <= I; end
+                WAIT: if (t_hready) begin m_hrdata <= t_hrdata; st <= I; end
                 default: st <= I;
             endcase
         end

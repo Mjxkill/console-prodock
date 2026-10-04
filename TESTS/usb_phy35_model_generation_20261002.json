@@ -1,0 +1,60 @@
+{
+  "status": "official GUI macro configuration confirmed for GW5AST-138B, UTMI, Single, Advance, TX Delay0",
+  "version": "3.5",
+  "rx_mode": "Advance V_120",
+  "hardware_stage": "tang/impl/gpu_usb_phy35_r3",
+  "source_vg_sha256": "a612c6417caa5795fc975eb611b16ed9298c4d4d03822dfea2197d54aea6818c",
+  "official_export": "Gowin 1.9.12 gw_sh with create_project, original encrypted VG, gen_verilog_sim_netlist 1, run all",
+  "sha256": {
+    "/home/michael/console/tang/impl/gpu_usb_phy35_model_r1/usb2_0_softphy.vg": "a612c6417caa5795fc975eb611b16ed9298c4d4d03822dfea2197d54aea6818c",
+    "/home/michael/console/tang/impl/gpu_usb_phy35_model_r1/reference/usb2_0_softphy.v": "a612c6417caa5795fc975eb611b16ed9298c4d4d03822dfea2197d54aea6818c",
+    "/home/michael/console/tang/impl/gpu_usb_phy35_model_r1/reference/usb2_0_softphy.vo": "efff800d24f2fe86b307b6845dd2e026ed0054d5e27fbdf69d0f4995396d7cb8",
+    "/home/michael/console/tang/impl/gpu_usb_phy35_model_r1/generate.tcl": "089f46b9b5982b556091f16b8db7c35da63b82729c8f6cab77c6160393b6131b",
+    "/home/michael/console/tang/impl/gpu_usb_phy35_model_r1/phy.sdc": "0bb8f696a0b1707f3356e91ddf378069dc01e405344d85ade2979c14fc925d15",
+    "/home/michael/console/tang/impl/gpu_usb_phy35_r3/usb_phy_ip/usb2_0_softphy.vg": "a612c6417caa5795fc975eb611b16ed9298c4d4d03822dfea2197d54aea6818c",
+    "/home/michael/console/tang/impl/gpu_usb_phy35_r3/usb_phy_ip/usb2_0_softphy_name.v": "e06334342fc2c88a566d4af0f4b54a23fa9e482545b5daf3d6ed1aaaafccb7e0",
+    "/home/michael/gowin/IDE/ipcore/USBTwoSoftPHY/usbtwosoftphy.ipspec": "dccc6d67c010b96213cb8e0c15ae97c8ef9c25609cfc09bcdfd7aac7f4ac096f",
+    "/home/michael/gowin/IDE/ipcore/USBTwoSoftPHY/data/usb2_0_softphy.v": "6b69b695a9eac8a6ce0e8f2d3a419e28fbed16bc686b7ba67a2fa5d7367565e8"
+  },
+  "netlist_modified": false,
+  "mini_report": "TESTS/usb_phy_turnaround_35_advance_r1_20261002.json",
+  "gating": {
+    "vo_lines": "1297-1315",
+    "same_as_3_4": "DHCE.CLKIN=fclk_i, CEN=reset_stop_Z; CLKOUT->CLKDIV.HCLKIN; CLKDIV /8; RESETN=!reset_calib_Z; CALIB=0"
+  },
+  "guard": {
+    "vo_lines": "3459-3466,4643-4698",
+    "same_as_3_4": "q_tx_cnt0 clocked by sclk; threshold terms bits4,5 and LUT INIT0007 unchanged"
+  },
+  "options_audit": {
+    "public_config_keys": [
+      "rx_mode",
+      "lvds_mode",
+      "interface",
+      "tx_delay"
+    ],
+    "new_macro_strings": [
+      "GW2A55",
+      "GW2A18",
+      "GW1N",
+      "GW3A",
+      "GW1A",
+      "DEF_DHCE",
+      "DEF_DHCEN"
+    ],
+    "removed_macro_strings": [
+      "GW5A25"
+    ],
+    "scope": "strings in official generator and public documentation; not proof of internal preprocessor requirement",
+    "documented_change": "RN100-1.9.12.03E page3: USB2.0 SoftPHY V3.5 adds GW3A-20 support and adjusts IO delay control parameters; no new user guard/phase setting documented"
+  },
+  "limits": [
+    "Functional VO is not a physical timing model.",
+    "Model PNR is isolated and does not represent board placement.",
+    "No changes to production constraints, PLL, pins, firmware or closed netlist."
+  ],
+  "initial_status": "export and short simulation completed; hardware configuration provisional pending generator macro confirmation",
+  "configuration_validation_report": "TESTS/usb_phy35_gui_configuration_20261002.json",
+  "hardware_report": "TESTS/usb_ax15_20261002/usb_phy35_r3/result.json",
+  "hardware_outcome": "FAIL reported by main session; negotiated480Mbps, first64-byte round has insertions"
+}

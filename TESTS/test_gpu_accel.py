@@ -11,15 +11,15 @@ OUT = Path('/tmp/console_gpu_accel_test')
 W, H, SLOT = 800, 480, 1 << 20
 
 
-def triangle_pixels(x,y,a,b,sx,sy):
+def triangle_pixels(x,y,a,b,sx,sy,*,width=W,height=H):
     """Independent half-plane reference, sampled at pixel centres."""
     points=[(x,y),(a,b),(sx,sy)]
     area=(a-x)*(sy-y)-(b-y)*(sx-x)
     if not area:return
     if area<0:points[1],points[2]=points[2],points[1]
     edges=list(zip(points,points[1:]+points[:1]))
-    for yy in range(max(0,min(y,b,sy)),min(H-1,max(y,b,sy))+1):
-        for xx in range(max(0,min(x,a,sx)),min(W-1,max(x,a,sx))+1):
+    for yy in range(max(0,min(y,b,sy)),min(height-1,max(y,b,sy))+1):
+        for xx in range(max(0,min(x,a,sx)),min(width-1,max(x,a,sx))+1):
             covered=True
             for (ax,ay),(bx,by) in edges:
                 dx,dy=bx-ax,by-ay
@@ -35,6 +35,8 @@ def main():
     parser.add_argument('--rtl-root',type=Path,default=ROOT,help='Compare a frozen earlier RTL snapshot with the same tests')
     parser.add_argument('--out',type=Path,default=OUT)
     parser.add_argument('--equiv-blitter-root',type=Path,help='Compare every blitter interface cycle with an unchanged RTL snapshot')
+    parser.add_argument('--equiv-dma-delay',type=int,choices=(0,1),default=1)
+    parser.add_argument('--affine',action='store_true',help='Exercise L12 inverse affine sampling and invalid descriptors')
     args=parser.parse_args();OUT=args.out
     OUT.mkdir(exist_ok=True)
     font = [int(v,16) for v in (ROOT/'tang/rtl/video/font8x16.hex').read_text().split()]
@@ -43,6 +45,7 @@ def main():
         font[0x800+row] = 0xa5 if row%2 else 0x5a
     memory = bytearray((i*29+(i>>11)) & 255 for i in range(3*SLOT))
     commands = []
+    affine_matrix = None
     def base(page):
         return {0:0,1:SLOT,15:2*SLOT}[page]
     def plot(page,x,y,c):
@@ -106,6 +109,19 @@ def main():
                         if color:plot(page,xx,yy,color)
         elif op==10:
             for xx,yy in triangle_pixels(x,y,a,b,sx,sy):plot(page,xx,yy,c)
+        elif op==13:
+            sw,sh=words[4]>>16,words[4]&65535
+            if affine_matrix is None or a<=0 or b<=0 or not (1<=sw<=128 and 1<=sh<=128) or sx<0 or sy<0 or sx+sw>W or sy+sh>H or any(words[5:]) or c or d:return
+            # Snapshot makes same-page overlap independent of write order.
+            before=bytes(memory[base(src):base(src)+W*H])
+            u0,v0,ux,vx,uy,vy=affine_matrix
+            for yy in range(max(0,y),min(H,y+b)):
+                for xx in range(max(0,x),min(W,x+a)):
+                    u=(u0+(xx-x)*ux+(yy-y)*uy)//65536
+                    v=(v0+(xx-x)*vx+(yy-y)*vy)//65536
+                    if 0<=u<sw and 0<=v<sh:
+                        color=before[(sy+v)*W+sx+u]
+                        if color:plot(page,xx,yy,color)
         elif op==9:
             scale=2 if b==2 else 1
             for i,ch in enumerate(text[:16]):
@@ -188,12 +204,61 @@ def main():
             emit(1,x=lane+32,y=lane*11+j,a=width,b=1,c=1+lane*7%254,page=0)
     emit(1,x=-32760,y=478,a=32767,b=100,c=241,page=15)
     emit(1,x=798,y=479,a=32767,b=32767,c=243,page=15)
+    if args.affine:
+        def matrix(values=(0,0,65536,0,0,65536),reserved=0,header=0):
+            nonlocal affine_matrix
+            commands.extend([12<<24|header]+[v&0xffffffff for v in values]+[reserved])
+            affine_matrix=tuple(values) if not (reserved or header) else None
+        def draw(x=20,y=20,w=128,h=128,sx=33,sy=101,sw=128,sh=128,page=15,src=1,reserved=0):
+            emit(13,x=x,y=y,a=w,b=h,sx=sx,sy=sy,page=page,src=src,extra=[sw<<16|sh,0,0,reserved])
+        draw()  # Reset leaves the affine matrix invalid.
+        # Protect all previous coverage on page 0; source 1 has zeros/patterns.
+        matrix()
+        for i,(sw,sh) in enumerate(((1,1),(2,1),(3,3),(127,128),(128,127),(128,128))):
+            for parity in range(2):
+                draw(x=15+parity*151,y=12+i*66,w=143,h=63,sx=100+parity,sw=sw,sh=sh)
+        # Distinct regions keep 90-degree rotations, flips, fractional scales
+        # and signed shears visible in the final byte comparison.
+        cases=[(0,0,65536,0,0,65536), (127<<16,0,0,65536,-65536,0),
+               (127<<16,127<<16,-65536,0,0,-65536),(0,127<<16,0,-65536,65536,0),
+               (0,0,32768,0,0,98304),(20<<16,0,55001,17000,-9000,51000),
+               (30<<16,0,65536,0,-20000,65536),(-1,-1,65536,0,0,65536)]
+        for i,values in enumerate(cases):
+            matrix(values);draw(x=325+(i%3)*150,y=5+(i//3)*150,w=139,h=139,sx=71+i%2)
+        matrix((30<<16,30<<16,32768,12000,-11000,40000))
+        for x,y in ((-51,-43),(771,460),(801,10),(10,481)):
+            draw(x=x,y=y,w=157,h=153,sx=671,sy=351)
+        # Source snapshot, reused matrix, both overlap directions.
+        matrix((127<<16,0,-65536,0,0,65536))
+        draw(x=51,y=73,sx=33,sy=63,src=15)
+        draw(x=11,y=23,sx=51,sy=73,src=15)
+        # 48-bit arithmetic: clipped negative origins plus extreme signed
+        # coefficients must not wrap an out-of-range sample into the crop.
+        matrix((2147483647,-2147483648,2147483647,-2147483648,-2147483648,2147483647))
+        draw(x=-32760,y=-32760,w=32767,h=32767)
+        matrix((32<<16,32<<16,2147483647,-2147483648,-2147483647,2147483647))
+        draw(x=-32760,y=-32760,w=32767,h=32767)  # Large terms cancel into valid diagonal samples.
+        matrix((0,0,0,0,0,0));draw(x=750,y=400,w=50,h=30,sw=1,sh=1)
+        matrix((65535,65535,1,1,-1,-1));draw(x=150,y=420,w=50,h=45,sw=2,sh=2)
+        # Rejections complete without touching pixels, including reserved bits.
+        for values in ({'sw':0},{'sw':129},{'sh':0},{'sh':129},{'sx':-1},
+                       {'sy':-1},{'sx':799},{'sy':479},{'reserved':1},{'w':0},{'h':-1}):
+            draw(**values)
+        matrix(reserved=1);draw()
+        matrix(header=1);draw()
+        matrix();draw(x=799,y=479,w=32767,h=32767,sx=799,sy=479,sw=1,sh=1)
     emit(255)  # unknown opcode must complete and increment BAD, without writes
     (OUT/'commands.hex').write_text(''.join(f'{w:08x}\n' for w in commands))
     (OUT/'expected.hex').write_text(''.join(f'{v:02x}\n' for v in memory))
     sources=['TESTS/rtl/gpu_accel_tb.sv','tang/rtl/video/gpu_accel.v','tang/rtl/video/blitter.v',
              'tang/rtl/video/gpu_blit_dma.v','tang/rtl/video/font_ram.v','tang/rtl/video/gpu_triangle.v',
              'tang/rtl/board/ddr_dcfifo.v','tang/rtl/board/cdc_word.v','tang/rtl/board/ddr_gpu_arb.v']
+    if (args.rtl_root/'tang/rtl/video/gpu_perspective.v').exists():
+        sources.append('tang/rtl/video/gpu_perspective.v')
+    for new_rtl in ('gpu_v1.v','gpu_texture_cache.v','gpu_copy565.v'):
+        if (args.rtl_root/('tang/rtl/video/'+new_rtl)).exists():sources.append('tang/rtl/video/'+new_rtl)
+    if (args.rtl_root/'tang/rtl/video/gpu_raster.v').exists():
+        sources.append('tang/rtl/video/gpu_raster.v')
     extra_sources=[]
     if args.equiv_blitter_root:
         reference=(args.equiv_blitter_root/'tang/rtl/video/blitter.v').read_text()
@@ -215,6 +280,7 @@ def main():
                        str(ROOT/'TESTS/rtl/blitter_equiv.sv'),str(ROOT/'TESTS/rtl/gpu_dma_equiv.sv')]
     with (OUT/'build.log').open('w') as log:
         subprocess.run(['verilator','--binary','--timing','-Wno-fatal','--top-module','gpu_accel_tb',
+                        f'-DDMA_COMPLETION_DELAY={args.equiv_dma_delay}',
                         '--Mdir',str(OUT/'obj')]+[str((ROOT if s.startswith("TESTS/") else args.rtl_root)/s) for s in sources]+extra_sources,stdout=log,stderr=log,check=True)
     subprocess.run([str(OUT/'obj/Vgpu_accel_tb'),f'+ncmd={len(commands)//8}','+bad=1'],cwd=OUT,check=True)
 

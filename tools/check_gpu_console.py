@@ -287,6 +287,105 @@ def test_racer_perf(dev):
     print('FAST PASS: original and cached renderers, 240 deterministic frames each, >53 fps, GPU max <17.5 ms, zero underflows',flush=True)
 
 
+def test_affine(dev):
+    dev.write(b'I')
+    fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'AFFINE READY',timeout=180)))
+    assert fields.get(b'poses')==b'4' and fields.get(b'underflows')==b'0'
+    dev.write(b'Z');response(dev,b'AFFINE ANIMATION started')
+    for _ in range(2):
+        fields=dict(re.findall(rb'(\w+)=(\d+)',response(dev,b'AFFINE BENCH',timeout=30)))
+        assert fields[b'frames']==b'240' and fields[b'underflows']==b'0'
+        assert int(fields[b'fps_x100'])>5300
+        assert int(fields[b'gpu_max'])<14000000
+    dev.write(b'M')
+    assert response(dev,b'SHARED END',timeout=90)==b'SHARED END errors=0'
+    response(dev,b'AFFINE BENCH',timeout=30)
+    dev.write(b'Q');response(dev,b'AFFINE PAUSED')
+    time.sleep(.12)
+    dev.write(b'S')
+    a=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+    time.sleep(.12)
+    dev.write(b'S')
+    b=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+    assert a[b'sum']==b[b'sum'] and int(b[b'frames'])>int(a[b'frames'])
+    assert b[b'underflows']==b'0' and b[b'invalid']==b'0' and b[b'busy']==b'0'
+    print('L12 PASS: 4 exact affine poses+guards, rotation, independent XY scale, shear, transparency, atomic double buffering, >53 fps, concurrent CPU DDR, USB pause, zero underflows',flush=True)
+    dev.write(b'Z');response(dev,b'AFFINE ANIMATION started')
+
+
+def test_raster(dev,advanced=False):
+    dev.write(b'd' if advanced else b'a')
+    expected=([b'6121d64d',b'ff0e3a83',b'c54c5c04',b'fa3fafee'] if advanced else
+              [b'5c621648',b'acabdcd1',b'56021377',b'25d5618a'])
+    lcd_expected=[b'58ab9465',b'5d78b787',b'4c1385a9',b'5cc829f0']
+    for pose,want in enumerate(expected):
+        if advanced:
+            overlay=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'RASTER OVERLAY',timeout=180)))
+            assert overlay[b'sum']==lcd_expected[pose] and overlay[b'underflows']==b'0'
+            assert 0<int(overlay[b'line_cycles'])<2500
+        fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'RASTER POSE',timeout=180)))
+        assert int(fields[b'angle'])==pose*37 and fields[b'sum']==want
+        assert fields[b'underflows']==b'0'
+    fields=dict(re.findall(rb'(\w+)=(\d+)',response(dev,b'RASTER READY')))
+    assert all(fields.get(k)==b'1' for k in (b'rgb565',b'alpha',b'textures',b'depth'))
+    assert fields.get(b'perspective',b'0')==(b'1' if advanced else b'0')
+    assert fields.get(b'overlay',b'0')==(b'1' if advanced else b'0')
+    assert fields[b'poses']==b'4' and fields[b'underflows']==b'0'
+    dev.write(b'e' if advanced else b'b');response(dev,b'RASTER ANIMATION started')
+    # Five windows including the one after M cover the complete 512-phase
+    # rotation and its wrap, where the first demo had a discontinuity.
+    for _ in range(4):
+        fields=dict(re.findall(rb'(\w+)=(\d+)',response(dev,b'RASTER BENCH',timeout=30)))
+        assert fields[b'frames']==b'120' and fields[b'underflows']==b'0'
+        assert int(fields[b'fps_x100'])>5300, 'RGB/depth demo below panel cadence'
+        assert int(fields[b'gpu_max'])<14000000, 'RGB/depth drawing exceeds frame budget'
+    dev.write(b'M');assert response(dev,b'SHARED END',timeout=90)==b'SHARED END errors=0'
+    response(dev,b'RASTER BENCH',timeout=30)
+    dev.write(b'c');response(dev,b'RASTER PAUSED')
+    # The last page was committed at vblank; its checksum is published only
+    # after scanout finishes that frame, just as for the indexed/affine mode.
+    time.sleep(.12)
+    dev.write(b'S');a=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+    time.sleep(.12)
+    dev.write(b'S');b=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'GPU base=')))
+    assert a[b'sum']==b[b'sum'] and int(b[b'frames'])>int(a[b'frames'])
+    assert b[b'underflows']==b'0' and b[b'layers']==(b'1' if advanced else b'0') and b[b'busy']==b'0'
+    test_gpu(dev)  # Return to indexed palette mode and check every legacy hash.
+    dev.write(b'e' if advanced else b'b');response(dev,b'RASTER ANIMATION started')
+    print(('PERSPECTIVE + RGB565 OVERLAY PASS: exact rational textures, indexed HUD, sprites, tiles, LCD sums; ' if advanced else '')+'L13-L15 PASS: RGB565 alpha, affine textures, Z16, four exact color/depth images+guards, >53 fps, DDR concurrency, indexed return',flush=True)
+
+
+V1_EXPECTED = [(0, 0, 2156730904, 3989951413, 2474017473, 273), (0, 17, 2098356680, 3517468213, 2463392689, 273), (0, 37, 3179043107, 3763160373, 2468243493, 273), (0, 63, 1263461550, 3463010485, 2463954189, 273), (1, 0, 3866698618, 747709273, 2985973465, 98), (1, 17, 4065131562, 594799877, 3031933949, 98), (1, 37, 3440210949, 2567441261, 2998157477, 98), (1, 63, 402614208, 2776660237, 3007718961, 98), (2, 0, 16414416, 449911942, 1316113705, 90), (2, 17, 3408437997, 1953163065, 1320475261, 90), (2, 37, 3134031366, 1890678586, 1294777777, 90), (2, 63, 1549165510, 3429377969, 1308753289, 90)]
+
+def test_v1(dev):
+    dev.write(b'f')
+    assert response(dev,b'V1 MEMORY PASS',timeout=90)==b'V1 MEMORY PASS rebind_z=1 copy_between_pages=1 guards=1'
+    for scene,phase,color,depth,lcd,commands in V1_EXPECTED:
+        fields=dict(re.findall(rb'(\w+)=([0-9a-fA-F]+)',response(dev,b'V1 POSE',timeout=90)))
+        assert int(fields[b'scene'])==scene and int(fields[b'phase'])==phase
+        assert int(fields[b'color'],16)==color and int(fields[b'depth'],16)==depth and int(fields[b'lcd'],16)==lcd
+        assert int(fields[b'commands'])==commands and fields[b'underflows']==b'0'
+    scale_cycles=[]
+    for width in (400,800):
+        fields=dict(re.findall(rb'(\w+)=(\d+)',response(dev,b'V1 SCALE',timeout=90)))
+        assert int(fields[b'width'])==width and fields[b'underflows']==b'0'
+        scale_cycles.append(int(fields[b'cycles']))
+    assert scale_cycles[0]*5 < scale_cycles[1]*2, 'Reduced render target failed to reduce drawing cost'
+    assert response(dev,b'V1 READY')==b'V1 READY scenes=3 poses=12 underflows=0'
+    dev.write(b'g');response(dev,b'V1 ANIMATION started');scenes=set()
+    for _ in range(6):
+        fields=dict(re.findall(rb'(\w+)=(\d+)',response(dev,b'V1 BENCH',timeout=30)))
+        scenes.add(int(fields[b'scene']))
+        assert fields[b'frames']==b'120' and fields[b'underflows']==b'0' and fields[b'rejected']==b'0'
+        assert int(fields[b'line'])<2556 and int(fields[b'hits'])>0 and int(fields[b'misses'])>0
+        assert int(fields[b'fps_x100'])>=2500, 'V1 representative scene below 25 fps'
+    assert scenes=={0,1,2}
+    dev.write(b'c');response(dev,b'RASTER PAUSED')
+    test_gpu(dev) # Returning to indexed mode must ignore the custom RGB stride.
+    dev.write(b'g');response(dev,b'V1 ANIMATION started')
+    print('V1 PASS: 12 color/Z/guard fingerprints + native LCD sums; alpha, additive, fog, Gouraud, LOD, copies/text; all 3 scenes animated; indexed return',flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--wait', type=float, default=15)
@@ -299,7 +398,7 @@ def main():
         if len(ports) > 1 or time.monotonic() > deadline:
             raise SystemExit(f'Expected one MegaPro USB CDC port, found {ports}')
         time.sleep(.2)
-    with serial.Serial(ports[0].device, 115200, timeout=.2, write_timeout=2) as dev:
+    with serial.Serial(ports[0].device, 115200, timeout=.2, write_timeout=2, exclusive=True) as dev:
         print(f'PORT {ports[0].device}', flush=True)
         time.sleep(.3)
         dev.reset_input_buffer()
@@ -350,6 +449,14 @@ def main():
                         test_racer(dev)
                     if b' FAST ' in identity:
                         test_racer_perf(dev)
+                    if b' AFFINE ' in identity:
+                        test_affine(dev)
+                    if b' RASTER ' in identity:
+                        test_raster(dev)
+                    if b' PERSPECTIVE ' in identity and b' OVERLAY ' in identity:
+                        test_raster(dev,advanced=True)
+                    if b' V1 ' in identity:
+                        test_v1(dev)
                     return
         raise SystemExit(f'DDR timeout; pending={pending!r}')
 

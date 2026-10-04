@@ -1,4 +1,8 @@
-// DMA keeps its native transactions; write completion is delayed one clock.
+// Historical L11 comparison used a one-clock completion delay. Newer
+// snapshots already register completion and must compare without a delay.
+`ifndef DMA_COMPLETION_DELAY
+`define DMA_COMPLETION_DELAY 1
+`endif
 module gpu_dma_equiv (
     input wire  clk,
     input wire  rst,
@@ -92,15 +96,17 @@ module gpu_dma_equiv (
         if(s_data !== ref_s_data) $fatal(1,"DMA equivalence: s_data");
         if(s_done !== ref_s_done) $fatal(1,"DMA equivalence: s_done");
         if(w_ready !== ref_w_ready) $fatal(1,"DMA equivalence: w_ready");
-        if(w_done !== previous_w_done) $fatal(1,"DMA equivalence: w_done");
-        if(f_done !== previous_f_done) $fatal(1,"DMA equivalence: f_done");
-        if(c_ack !== previous_c_ack) $fatal(1,"DMA equivalence: c_ack");
+        if(w_done !== (`DMA_COMPLETION_DELAY ? previous_w_done:ref_w_done)) $fatal(1,"DMA equivalence: w_done");
+        if(f_done !== (`DMA_COMPLETION_DELAY ? previous_f_done:ref_f_done)) $fatal(1,"DMA equivalence: f_done");
+        if(c_ack !== (`DMA_COMPLETION_DELAY ? previous_c_ack:ref_c_ack)) $fatal(1,"DMA equivalence: c_ack");
         if(valid !== ref_valid) $fatal(1,"DMA equivalence: valid");
         if(write !== ref_write) $fatal(1,"DMA equivalence: write");
-        if(addr !== ref_addr) $fatal(1,"DMA equivalence: addr");
+        // Address may advance during the idle cycle after an accepted write.
+        // Every offered command, including every stalled cycle, must match.
+        if(valid && addr !== ref_addr) $fatal(1,"DMA equivalence: offered addr");
         if(wr_data !== ref_wr_data) $fatal(1,"DMA equivalence: wr_data");
         if(wr_mask !== ref_wr_mask) $fatal(1,"DMA equivalence: wr_mask");
     end
-    final $display("PASS DMA equivalence: %0d cycles, native commands identical, completion delayed exactly one clock",cycles);
+    final $display("PASS DMA equivalence: %0d cycles, native commands identical, completion delay=%0d",cycles,`DMA_COMPLETION_DELAY);
 endmodule
 bind gpu_blit_dma gpu_dma_equiv proof (.*);

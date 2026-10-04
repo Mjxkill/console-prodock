@@ -1,0 +1,100 @@
+{
+  "scope": "Elaboration des connexions usb_uart_config des quatre tops historiques; autres modules absents ignorés via -i, aucune preuve de fonctionnement complet.",
+  "cases": [
+    {
+      "source": "tang/rtl/console_e0b_plonly.v",
+      "sha256": "a1e2781506bcb96132eab14448cf1b6aa6412869de4ade5d933144758b0b70f9",
+      "command": [
+        "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+        "-B",
+        "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+        "-g2012",
+        "-i",
+        "-s",
+        "console_top",
+        "-o",
+        "/tmp/console-ep0-ports-k6bw0490/ports.vvp",
+        "tang/rtl/console_e0b_plonly.v",
+        "tang/rtl/usb/uart/usb_uart_config.v"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "source": "tang/rtl/console_e0b_usbonly.v",
+      "sha256": "ca804aca3dee91252186bee1362ab3280ae393c0dd2955a78ab5615fea54a4e8",
+      "command": [
+        "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+        "-B",
+        "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+        "-g2012",
+        "-i",
+        "-s",
+        "console_top",
+        "-o",
+        "/tmp/console-ep0-ports-k6bw0490/ports.vvp",
+        "tang/rtl/console_e0b_usbonly.v",
+        "tang/rtl/usb/uart/usb_uart_config.v"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "source": "tang/rtl/console_top_noddr.v",
+      "sha256": "ceaa724dd53991ec06bfb11728ec3d8f60535f6ab55524b8f1802ccc148938c2",
+      "command": [
+        "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+        "-B",
+        "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+        "-g2012",
+        "-i",
+        "-s",
+        "console_top",
+        "-o",
+        "/tmp/console-ep0-ports-k6bw0490/ports.vvp",
+        "tang/rtl/console_top_noddr.v",
+        "tang/rtl/usb/uart/usb_uart_config.v"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "source": "tang/rtl/ddrtest/ddr_test_cdc.v",
+      "sha256": "dc24c3e9c676cf81d22fedc3bcdf1f68ecfc82bffab1e34d93560c9b47fd6a9b",
+      "command": [
+        "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+        "-B",
+        "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+        "-g2012",
+        "-i",
+        "-s",
+        "console_top",
+        "-o",
+        "/tmp/console-ep0-ports-k6bw0490/ports.vvp",
+        "tang/rtl/ddrtest/ddr_test_cdc.v",
+        "tang/rtl/usb/uart/usb_uart_config.v"
+      ],
+      "returncode": 1,
+      "stderr": "tang/rtl/ddrtest/ddr_test_cdc.v:380: error: 'DDR3_INIT' has already been declared in this scope.\ntang/rtl/ddrtest/ddr_test_cdc.v:31:      : It was declared here as a net.\n"
+    }
+  ],
+  "passed": false,
+  "historical_ddr_baseline": {
+    "command": [
+      "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+      "-B",
+      "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+      "-g2012",
+      "-i",
+      "-s",
+      "console_top",
+      "-o",
+      "/tmp/console-ep0-baseline-xvimotsy/base.vvp",
+      "/tmp/console-ep0-baseline-xvimotsy/ddr_test_cdc.v",
+      "tang/rtl/usb/uart/usb_uart_config.v"
+    ],
+    "returncode": 1,
+    "stderr": "/tmp/console-ep0-baseline-xvimotsy/ddr_test_cdc.v:379: error: 'DDR3_INIT' has already been declared in this scope.\n/tmp/console-ep0-baseline-xvimotsy/ddr_test_cdc.v:31:      : It was declared here as a net.\n",
+    "limitation": "Même double déclaration DDR3_INIT avant modification; cet ancien top reste non validé par Icarus."
+  }
+}

@@ -1,0 +1,175 @@
+{
+  "scope": "Revue indépendante du délai de retour RX du modèle original SoftPHY, sans modification de netlist ni forçage interne.",
+  "changes": [
+    "EOP SOF corrigé : 40 bits ; autres paquets : 8 bits.",
+    "Phase locale fclk 960 MHz séparée de la phase hôte, avec ratio 960/60 conservé.",
+    "Observation du retour état RX 01 vers 00 et des bits câblés du compteur q_tx_cnt."
+  ],
+  "cases": [
+    {
+      "report": "TESTS/usb_controller_localphase_p0_ack20_20261002.json",
+      "local_phase_ns": 0.0,
+      "ack_delay_cycles": 20,
+      "host_ack_packets": 80,
+      "host_ack_gap_ns": {
+        "min": 336.254744,
+        "max": 336.257546
+      },
+      "rx_idle_return_after_electrical_eop_ns": {
+        "min": 227.604308,
+        "max": 227.606945
+      },
+      "sources_unchanged": true,
+      "payload_pass": true,
+      "full_link_pass": false,
+      "framing_differences": 344,
+      "result_line": "PASS controller/FIFO retries HS=1 polls=146 produced=131 delivered=131 packets=80 duplicates=14 ZLP=0 OUT=524/524 OUT_NAK=0",
+      "utmi_d2_bytes_seen": 81
+    },
+    {
+      "report": "TESTS/usb_controller_localphase_p0_ack2_20261002.json",
+      "local_phase_ns": 0.0,
+      "ack_delay_cycles": 2,
+      "host_ack_packets": 14,
+      "host_ack_gap_ns": {
+        "min": 36.25465,
+        "max": 36.254695
+      },
+      "rx_idle_return_after_electrical_eop_ns": {
+        "min": 227.604225,
+        "max": 227.604272
+      },
+      "sources_unchanged": true,
+      "payload_pass": false,
+      "full_link_pass": false,
+      "framing_differences": null,
+      "result_line": null,
+      "utmi_d2_bytes_seen": 0
+    },
+    {
+      "report": "TESTS/usb_controller_localphase_p1_ack20_20261002.json",
+      "local_phase_ns": 0.520833333,
+      "ack_delay_cycles": 20,
+      "host_ack_packets": 80,
+      "host_ack_gap_ns": {
+        "min": 336.775577,
+        "max": 336.778379
+      },
+      "rx_idle_return_after_electrical_eop_ns": {
+        "min": 228.125141,
+        "max": 228.127778
+      },
+      "sources_unchanged": true,
+      "payload_pass": true,
+      "full_link_pass": false,
+      "framing_differences": 344,
+      "result_line": "PASS controller/FIFO retries HS=1 polls=146 produced=131 delivered=131 packets=80 duplicates=14 ZLP=0 OUT=524/524 OUT_NAK=0",
+      "utmi_d2_bytes_seen": 81
+    },
+    {
+      "report": "TESTS/usb_controller_localphase_p1_ack2_20261002.json",
+      "local_phase_ns": 0.520833333,
+      "ack_delay_cycles": 2,
+      "host_ack_packets": 14,
+      "host_ack_gap_ns": {
+        "min": 36.775483,
+        "max": 36.775528
+      },
+      "rx_idle_return_after_electrical_eop_ns": {
+        "min": 228.125059,
+        "max": 228.125105
+      },
+      "sources_unchanged": true,
+      "payload_pass": false,
+      "full_link_pass": false,
+      "framing_differences": null,
+      "result_line": null,
+      "utmi_d2_bytes_seen": 0
+    },
+    {
+      "report": "TESTS/usb_controller_localphase_p2_ack2_20261002.json",
+      "local_phase_ns": 4.166666667,
+      "ack_delay_cycles": 2,
+      "host_ack_packets": 14,
+      "host_ack_gap_ns": {
+        "min": 36.25465,
+        "max": 36.254695
+      },
+      "rx_idle_return_after_electrical_eop_ns": {
+        "min": 227.604225,
+        "max": 227.604272
+      },
+      "sources_unchanged": true,
+      "payload_pass": false,
+      "full_link_pass": false,
+      "framing_differences": null,
+      "result_line": null,
+      "utmi_d2_bytes_seen": 0
+    },
+    {
+      "report": "TESTS/usb_controller_localphase_p3_ack20_20261002.json",
+      "local_phase_ns": 0.260416667,
+      "ack_delay_cycles": 20,
+      "host_ack_packets": 80,
+      "host_ack_gap_ns": {
+        "min": 337.035993,
+        "max": 337.038797
+      },
+      "rx_idle_return_after_electrical_eop_ns": {
+        "min": 228.385558,
+        "max": 228.388195
+      },
+      "sources_unchanged": true,
+      "payload_pass": true,
+      "full_link_pass": false,
+      "framing_differences": 344,
+      "result_line": "PASS controller/FIFO retries HS=1 polls=146 produced=131 delivered=131 packets=80 duplicates=14 ZLP=0 OUT=524/524 OUT_NAK=0",
+      "utmi_d2_bytes_seen": 81
+    },
+    {
+      "report": "TESTS/usb_controller_localphase_p3_ack2_20261002.json",
+      "local_phase_ns": 0.260416667,
+      "ack_delay_cycles": 2,
+      "host_ack_packets": 14,
+      "host_ack_gap_ns": {
+        "min": 37.0359,
+        "max": 37.035945
+      },
+      "rx_idle_return_after_electrical_eop_ns": {
+        "min": 228.385475,
+        "max": 228.385522
+      },
+      "sources_unchanged": true,
+      "payload_pass": false,
+      "full_link_pass": false,
+      "framing_differences": null,
+      "result_line": null,
+      "utmi_d2_bytes_seen": 0
+    }
+  ],
+  "findings": [
+    "Les quatre essais ACK court émettent chacun 14 ACK légaux à 36–37 ns après EOP ; aucun octet d2 ne parvient à UTMI.",
+    "Le récepteur reste en état 01 jusqu’au compteur 24, revient en état 00 à 227,60–228,39 ns après EOP.",
+    "Les trois témoins ACK à 336–337 ns transmettent chacun 131/131 octets IN et 524/524 OUT, avec 14 reprises identiques et 0 ZLP.",
+    "Les 344 différences de framing TX empêchent de qualifier complètement la liaison, même quand les données sont exactes."
+  ],
+  "limits": [
+    "Simulation numérique des modèles originaux ; ni RC analogique, ni SDF, ni qualification matérielle.",
+    "Local_phase à 4,166666667 ns représente quatre périodes de 960 MHz ; ce cas n’est pas une phase distincte en régime permanent. Les phases 0/0,260416667/0,520833333 ns sont distinctes.",
+    "utmi_d2_bytes_seen inclut les octets de charge utile de même valeur ; ne pas le lire comme compteur ACK dans les tests longs.",
+    "Les doublons matériels avec UART +1 ne sont pas reproduits par ces scénarios ; cette fenêtre RX ne suffit pas à prouver toute la cause."
+  ],
+  "vendor_netlist_source": "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.vo",
+  "vendor_logic_lines": {
+    "counter_threshold_lut": 6785,
+    "counter_dff_clk_i": 6880,
+    "rx_enable_dff": 6888,
+    "rx_state0_dff": 7024
+  },
+  "usb_spec": "https://www.usb.org/sites/default/files/USB%202%200%20Electrical%20Compliance%20Specification(v1.07).pdf",
+  "spec_sections": [
+    "EL_22 : 8..192 temps de bit après réception pour hôte et périphérique",
+    "EL_23 : 88..192 temps de bit pour deux émissions hôte consécutives",
+    "EL_25/EL_55 : EOP de 8 bits / SOF de 40 bits"
+  ]
+}

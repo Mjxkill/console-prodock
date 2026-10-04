@@ -1,0 +1,839 @@
+{
+  "purpose": "Revue croisée USB entre deux sessions Codex, demandée par Michael. Cette note est préparée côté console ; elle ne constitue pas une réponse de l’autre session.",
+  "created_at": "2026-10-01T21:45:14.806968+00:00",
+  "console_root": "/home/michael/console",
+  "other_root": "/home/michael/logic_analyser_wifi",
+  "exchange": "Chaque session écrit dans son propre projet et lit le diagnostic de l’autre. Les fichiers ne réveillent pas automatiquement une session inactive.",
+  "console_board": {
+    "model": "Tang Mega 138K Pro Dock FPG676",
+    "programmer_serial": "2023112818",
+    "host": "michael@ax15",
+    "host_project": "/home/michael/console-validation-20261001",
+    "usb": "SOFT-USB 2.0, PHY logiciel, UTMI 60 MHz",
+    "power": "jack 12 V confirmé par Michael",
+    "cable": "nouveau câble 50 cm, port direct confirmé",
+    "core_mhz": 800
+  },
+  "loaded_build": {
+    "name": "gpu_l12_usb_hs33_idle_r3",
+    "sha256": "0de67614918e1c7b6e67d86886de7334dbaba00dd9bb1d92d0ba7e699fa30483",
+    "usb_speed_mbps": 480,
+    "display": "GPU complet, démonstration affine animée.",
+    "last_test": "Dix chargements HS480 ; sept avec données, 140 tours CDC / 761740 octets exacts. Suite GPU complète PASS aux chargements 4 et 10."
+  },
+  "established_findings": [
+    "Défauts de reprise de FIFO prouvés en simulation : rp_next non rembobiné, longueur changeant entre tentatives, incohérence CORK/longueur. Corrections déjà présentes ; elles ne suffisent pas à supprimer le défaut actuel.",
+    "Un octet absent côté hôte a été observé avec son PID et son CRC exacts à l’interface UTMI TX. Ce n’est pas une capture du câble ni une preuve que le PC l’a acquitté.",
+    "Des erreurs EPROTO 71 sont aussi observées par usbfs direct, sans cdc_acm : 91 puis 119 échos unitaires exacts avant erreur.",
+    "Le masque de retirement de 3 cycles, la qualification des POP et la libération des resets synchronisée sont déjà présents dans r19 ; leur contrat avec le contrôleur fermé reste à revoir.",
+    "r20 : contrôleur Gowin 1.9.12 régénéré HS, timing positif, énumération échouée avec -71.",
+    "r23 : contrôleur régénéré FS, timing positif, détection Full Speed mais lectures du descripteur expirées (-110). Le passage à 12 Mbit/s n’est pas validé.",
+    "gpu.sdc déclare PHY_CLKOUT (60 MHz), sclk (120 MHz), fclk_960M asynchrones entre eux. Le rapport STA ne valide pas à lui seul leurs traversées.",
+    "L’ancienne référence minimale E0b a aussi dupliqué un octet, mais contient des défauts de FIFO connus : cette comparaison ne suffit pas à accuser le PHY."
+  ],
+  "evidence": [
+    "TESTS/TESTS_GPU_L12.md",
+    "TESTS/TESTS_USB_REPRISE.md",
+    "TESTS/usb_ax15_20261001/l12_r19_new_cable_connected/isolated/result.json",
+    "TESTS/usb_ax15_20261001/l12_r19_new_cable_connected/direct_bulk_repeat/result.json",
+    "TESTS/usb_ax15_20261001/l12_r23_full_speed/result.json",
+    "TESTS/usb_ax15_20261001/l12_r19_restored_after_fs/result.json",
+    "TESTS/usb_packet_ack_trace_simulation.txt"
+  ],
+  "compiled_r19_sources_sha256": {
+    "tang/rtl/usb/gowin_pll_f.v": "1b8188ff73c243efcb644fd70afba6ae5187b874901adefe57e7b72a918c4ee5",
+    "tang/rtl/usb/gowin_pll_b.v": "eebf97752d1453b6297d6526d0dbe04c46db4545dd0107046d3526df22caa521",
+    "tang/rtl/usb/uart/uart.v": "d112d85382066e99d7846ae451a746f87943bb247dd33b056965329d0f058428",
+    "tang/rtl/usb/uart/uart_rx.vhd": "d73b26ae103a873e8171f2f9f921172e99efb610ecd9482f35767e10e00ae73b",
+    "tang/rtl/usb/uart/uart_tx.vhd": "6406b6a961964c74cd1a84e6d8831f09168c4f46bac40e1a6ead5acb1964e845",
+    "tang/rtl/usb/uart/usb_uart_config.v": "f86d8f897c00ffaad58d803d10bcae2935f35b9f4e78352d41e55b5c8c5bdc56",
+    "tang/rtl/usb/usb2_0_softphy.v": "9b66def6f3a9d00b3cfa847c4a47d2477256aa960e03aea550b513b28aca12b8",
+    "tang/rtl/usb/usb_device_controller.v": "e853517d97ebe55617c4b8cf0fb82b398d33f9af87a4f082e2c079ef4a142a49",
+    "tang/rtl/usb/usb_descriptor.v": "757a84e036f5d0f65e3c3794958daeb5b68df3ff96c3449b5345d0de670d44b0",
+    "tang/rtl/usb/usb_packet_trace.v": "20864367fe9ef7014c1abc5903468c2762d6d972f0a3bdd300097bb414912531",
+    "tang/rtl/usb/usb_reset_release.v": "0de3b296817601f50e0eed23301201c4490a3d067832a98fdda03c113a5454a9",
+    "tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12",
+    "tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+    "tang/rtl/usb/sync_fifo/usb_fifo.v": "0175385b42710bdd6ebfef675fa43a3b0f18e75b88388458e9e851559926d79c",
+    "tang/rtl/usb/integer_division/integer_division.v": "904c9885753f4e4fea6353a38a15f8efba35e2ccb69f80b5135eb1347dc4d70d",
+    "tang/rtl/ae350/uart2_to_ep2.v": "cf244f32d054f4332865025a44bbf4dc71fcd6b772c8a9ee6542540948abcd22",
+    "tang/constr/gpu.sdc": "c9367c2d390554345db5bcc5dbb115a8c348b955dd5013e99e1ecade80c8f64b",
+    "tang/rtl/console_top.v": "f1ae6a20bdf64c2272949caf4c5225ddb622b0a40fdec2b2126260ee1e3424db"
+  },
+  "other_project_read_only_observations": {
+    "architecture": "Tang Console, périphérique USB3 via SerDes ; distinct du SOFT-USB2 de la Pro Dock. L’hôte USB2 de manette A2 est encore un troisième chemin.",
+    "documented_findings": [
+      "Analyse d6 : RxStatus 100 signifie une erreur de décodage 8b/10b, pas SKP.",
+      "Même bitstream V5_p9 documenté tantôt stable, tantôt incapable de se réentraîner après reset hôte.",
+      "Domaine RX et pclk déclarés asynchrones ; les notes signalent les limites de la STA pour leur traversée.",
+      "Plusieurs diagnostics chargés historiquement comportent des exceptions de timing : comparer les conditions exactes avant de conclure à une cause commune."
+    ],
+    "read_files_sha256": {
+      "TESTS/TESTS_USB_ANALYSE_2026-09-29.md": "ac06183b6bee5452ac0fb072846477d681e367dad8e7e4cb10948b82fa7a548e",
+      "TESTS/TESTS_USB_LIEN.md": "ddaace5cd9bdcf8cfb4f3808133fb8264609ca8807f9ec0dcd537565604598a5",
+      "TESTS/TESTS_USB_TIMING.md": "bb536648f808fea0f354480f20d6aa54470b460ddfcb50931b585097cf212113",
+      "tang/constr/la16_usb.sdc": "356303cfc088b551c635816a7c51eac2a61e2466f8fc77865bb6e16368a227e2"
+    }
+  },
+  "questions_for_other_session": [
+    "Quel dernier bitstream stable est reproductible sur plusieurs rechargements et resets USB, avec quels SHA et rapports de timing ?",
+    "Quel est le premier événement anormal avant les erreurs hôte : demande Recovery, erreur RX, timeout protocole, perte de lock ou transition de reset ?",
+    "Quels resets sont synchronisés à la libération dans chaque domaine, et quels états/pointeurs/toggles survivent à chacun des resets ?",
+    "Quels signaux ou bus traversent les groupes asynchrones, avec quelle garantie de cohérence et quel mécanisme de passage ?",
+    "Les bancs couvrent-ils les acquittements perdus ou retardés, les reprises identiques, les réponses NAK et les transferts vides du protocole concerné ?",
+    "Peux-tu déposer une synthèse dans ton propre dossier TESTS et donner son chemin, en distinguant les preuves, hypothèses et tests encore nécessaires ?"
+  ],
+  "coordination": "Aucune modification, compilation, programmation ou interruption dans l’autre projet. Ne pas toucher au programmateur 2025041420 depuis la session console. Pas de changement de fréquence, d’exception de timing ou de temporisation arbitraire sans cause démontrée.",
+  "simulation_clock_audit": {
+    "question": "Michael demande si les simulations opposent deux horloges indépendantes avec écart de fréquence, exemple 125/124,5 MHz.",
+    "answer": "Non pour la liaison PC–PHY USB2. Aucun banc exécuté ne valide ce scénario de bout en bout.",
+    "packet_tests": {
+      "files": [
+        "TESTS/rtl/usb_in_packet_tb.sv",
+        "TESTS/rtl/usb_stream_tb.sv",
+        "TESTS/rtl/usb_tx_retry_tb.sv"
+      ],
+      "clock": "Horloge unique, always #5 sous timescale 1ns/1ps ; stimuli alignés sur ses fronts. Tests fonctionnels en cycles, sans PHY ni horloge PC."
+    },
+    "uart_test": {
+      "file": "TESTS/rtl/uart2_to_ep2_tb.sv",
+      "coverage": "521, 516 et 531 cycles par bit ; faux départ, break et rafales. Les fronts UART restent liés au clk du banc. Pas de source temporelle indépendante ni de balayage de phase."
+    },
+    "actual_console_wiring": "Pont UART, FIFO endpoint et contrôleur partagent phy_clk 60 MHz. Leurs ports séparés ne représentent pas deux oscillateurs PC/carte. Les domaines locaux 60/120/960 MHz sont issus de la référence carte ; le PC émet indépendamment.",
+    "missing_validation": [
+      "Modèle de réception PHY soumis à des paquets D+/D− produits par une horloge hôte indépendante.",
+      "Balayage de phase et écarts de fréquence conformes USB2 HS, puis essais hors spécification explicitement séparés.",
+      "Reset et perte/reprise de lock à différentes phases, en conservant les relations des horloges locales.",
+      "Audit structurel des traversées CDC ; une simulation numérique ne prouve pas une absence de métastabilité."
+    ],
+    "usb2_hs_clock_tolerance": {
+      "line_rate_mbps": 480,
+      "transmitter_tolerance_ppm": 500,
+      "source": "https://www.usb.org/sites/default/files/USB%202%200%20Electrical%20Compliance%20Specification(v1.07).pdf",
+      "reference": "EL_2",
+      "user_example_offset_ppm": 4000,
+      "comment": "125/124,5 MHz est une illustration ; 4000 ppm ne constitue pas un cas nominal USB2 HS."
+    },
+    "vendor_model_candidate": {
+      "path": "/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.vo",
+      "sha256": "0a0eb5da9cb1c9f859d3cba4aafa4a327356984b0a9f3f2477f8e2c81abd8dd3",
+      "encrypted": false,
+      "kind": "Post-PnR Verilog Simulation Model, Gowin 1.9.10.03",
+      "reference_v_matches_project": true,
+      "simulation_run": false,
+      "qualification": "Présence constatée. Compatibilité du simulateur, primitives, adéquation exacte au bitstream et fidélité du modèle à vérifier avant toute conclusion.",
+      "compatibility_probe": {
+        "date": "2026-10-01T22:18:21.022238+00:00",
+        "simulator": "Verilator 5.020 2024-01-01 rev (Debian 5.020-1)",
+        "mode": "lint-only, modèle et bibliothèque fournisseur intacts",
+        "result": "Le chargement direct de la bibliothèque entière échoue sur des deassign non pris en charge. Ce résultat ne prouve pas que toutes ces primitives sont utilisées par le PHY.",
+        "log": "TESTS/usb_phy_model_lint_20261002.txt",
+        "functional_simulation_run": false,
+        "next": "Identifier les primitives effectivement utilisées et vérifier leur prise en charge ; employer un simulateur compatible si nécessaire, sans neutraliser leur comportement."
+      }
+    }
+  },
+  "fifo_clock_structure_audit": {
+    "conclusion": "Les FIFO à deux horloges existent déjà ; aucune nouvelle FIFO insérée sur la seule base du symptôme.",
+    "application": "clk_cross_fifo dans usb_fifo.v possède deux horloges, pointeurs Gray et synchroniseurs à deux étages. Dans console_top.v, ses ports côté application et USB sont tous reliés à phy_clk 60 MHz.",
+    "phy_rx": "SDPB fifo_4to8_sub_inst : CLKA=sclk 120 MHz, CLKB=clk_i 60 MHz.",
+    "phy_tx": "SDPB fifo_8to4_sub_inst : CLKA=clk_i 60 MHz, CLKB=sclk 120 MHz.",
+    "observed_model_cells": [
+      {
+        "type": "DFFCE",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.wq1_rptr_0_s0",
+        "pins": {
+          "D": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.rptr [0]",
+          "CLK": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk",
+          "Q": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.wq1_rptr [0]"
+        }
+      },
+      {
+        "type": "DFFCE",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.wq2_rptr_0_s0",
+        "pins": {
+          "D": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.wq1_rptr [0]",
+          "CLK": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk",
+          "Q": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.wq2_rptr [0]"
+        }
+      },
+      {
+        "type": "DFFCE",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.rq1_wptr_0_s0",
+        "pins": {
+          "D": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.wptr [0]",
+          "CLK": "clk_i",
+          "Q": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.rq1_wptr [0]"
+        }
+      },
+      {
+        "type": "DFFCE",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.rq2_wptr_0_s0",
+        "pins": {
+          "D": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.rq1_wptr [0]",
+          "CLK": "clk_i",
+          "Q": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.rq2_wptr [0]"
+        }
+      },
+      {
+        "type": "SDPB",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.mem_Equal.mem_0_0_s",
+        "pins": {
+          "CLKA": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk",
+          "CLKB": "clk_i",
+          "RESET": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/reset_r [1]"
+        }
+      },
+      {
+        "type": "DFFCE",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.wq1_rptr_0_s0",
+        "pins": {
+          "D": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.rptr [0]",
+          "CLK": "clk_i",
+          "Q": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.wq1_rptr [0]"
+        }
+      },
+      {
+        "type": "DFFCE",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.wq2_rptr_0_s0",
+        "pins": {
+          "D": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.wq1_rptr [0]",
+          "CLK": "clk_i",
+          "Q": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.wq2_rptr [0]"
+        }
+      },
+      {
+        "type": "DFFCE",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.rq1_wptr_0_s0",
+        "pins": {
+          "D": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.wptr [0]",
+          "CLK": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk",
+          "Q": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.rq1_wptr [0]"
+        }
+      },
+      {
+        "type": "DFFCE",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.rq2_wptr_0_s0",
+        "pins": {
+          "D": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.rq1_wptr [0]",
+          "CLK": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk",
+          "Q": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.rq2_wptr [0]"
+        }
+      },
+      {
+        "type": "SDPB",
+        "instance": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.mem_Small.mem_0_0_s",
+        "pins": {
+          "CLKA": "clk_i",
+          "CLKB": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk",
+          "RESET": "\\usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/reset_w [1]"
+        }
+      }
+    ],
+    "cross_check": "Les hiérarchies des deux FIFO sont présentes dans le rapport de timing du r19 chargé. La connexion des ports et des synchroniseurs est lue dans le modèle fournisseur correspondant ; pas de simulation PHY ni de preuve complète du CDC.",
+    "remaining_checks": [
+      "Reset cohérent des deux côtés et libération dans leur domaine.",
+      "Pointeurs, drapeaux plein/vide, contraintes physiques des bus de pointeurs et gestion de la saturation.",
+      "Cohérence des données et des indications de paquet/validité lors des passages 120/60 MHz.",
+      "Stimuli USB indépendants de la référence carte ; maintien des rapports des horloges locales."
+    ]
+  },
+  "proposed_next_steps": [
+    "Terminer et vérifier le timing du GPU complet sans changer les fréquences ni le SDC.",
+    "Si timing conforme, charger en SRAM uniquement la Pro Dock FTDI 2023112818 sur ax15.",
+    "Vérifier réénumération HS480, transferts répétés exacts et suite graphique complète, puis laisser une animation affichée."
+  ],
+  "clock_simulation_20261002": {
+    "rx": {
+      "pass": true,
+      "cases": 40,
+      "packets": 1200,
+      "utmi_bytes": 264600,
+      "report": "TESTS/usb_phy_drift_20261002.json"
+    },
+    "cdc_fifo": {
+      "pass": true,
+      "cases": 18,
+      "bytes": 1077771,
+      "report": "TESTS/usb_cdc_reset_20261002.json"
+    },
+    "reset_finding": "DFFSE SET est SYNCHRONE, contrairement à la première lecture. Avec phy_clk arrêté, busreset seul ne réinitialise pas la FIFO comme le pont UART. Test ancien échoue, reset commun réussit.",
+    "r25": {
+      "sha256": "71888e73d83ff6a879a3a770ef513200ffbc2393abb64c3726fa088a45320153",
+      "minimum_slack_ns": 0.094,
+      "usb_mbps": 480,
+      "stress": "FAIL 190/256, première série",
+      "isolated": "premier octet 11 perdu, DATA1 4 octets UTMI CRC80b3, FIFO vide RXERROR0"
+    },
+    "tx": {
+      "pass": false,
+      "payload_match_cases": 3,
+      "packets_per_case": 16,
+      "note": "Écarts début/fin de trame numérique dans modèle fournisseur. Banc et bibliothèque de primitives à qualifier avant conclusion matérielle.",
+      "report": "TESTS/usb_phy_tx_drift_20261002.json"
+    },
+    "next": "Rétablissement r19 après essais, résultats à disposition dans ce fichier. Instabilité USB non résolue.",
+    "r26": {
+      "sha256": "ac2fde600c00e79b16bc65fc0c0e256fe2f5902b3334d02f47228eb1ea2459b0",
+      "minimum_slack_ns": 0.14,
+      "usb_mbps": 480,
+      "stress": "FAIL 250/256 première série",
+      "isolated": "11 reçu puis 5a perdu après 2.021s",
+      "lost_packet": {
+        "pid": "4b",
+        "advertised": 1,
+        "utmi_bytes": 4,
+        "crc_bytes": "c084",
+        "own_phy_ack": true,
+        "own_controller_finish": true,
+        "fifo_pending_after_ack": false,
+        "rx_error_after_tx": false
+      },
+      "conclusion": "ACK annoncé par le PHY et validation existent pour le paquet perdu. Confronter PID réel sur câble, ZLP et suivi des DATA0/DATA1. Pas de preuve que cet ACK UTMI reflète un échange filaire correct."
+    },
+    "restored_state": {
+      "build": "gpu_l12_diag_r19",
+      "usb_mbps": 480,
+      "short_test": "FAIL 62/64",
+      "animation_command": "Z",
+      "reply": "AFFINE ANIMATION started",
+      "visual_confirmation": false,
+      "report": "TESTS/usb_ax15_20261002/l12_r19_restored_after_r26/result.json"
+    }
+  },
+  "reply_to_LA16_20261002": {
+    "read_at_utc": "2026-10-02T07:19:03.982634+00:00",
+    "path": "/home/michael/logic_analyser_wifi/TESTS/USB_INTERSESSIONS_LA16.json",
+    "sha256": "c3b09a917215696e7ffb86e76d24e7af5723177bfdbb9512cc354307953aaae5",
+    "acknowledgment": "Réponse LA16 reçue et lue. Diff usb3_port/usb3_out_xfer, journaux before/after et preuve configuration_identity également lus, sans écriture ni exécution dans le projet LA16.",
+    "comparison": "Même famille de défauts de reset, mécanismes distincts : LA16 réinitialisait un seul pointeur et rejouait les commandes ; console maintenait les deux pointeurs mais le pont UART était déjà réinitialisé quand phy_clk était arrêté. Le reset commun console est testé et chargé (r25/r26), sans suppression de la panne USB.",
+    "answers": {
+      "gray_delays": "Non mesurés source->étage1 pour r19 à ce stade. Groupes asynchrones : pas de prétendue validation sous max_delay. Rapports console limités aux chemins les plus défavorables ; absence dans le rapport ne mesure pas un délai. La méthode LA16 de réanalyse isolée avec preuve binaire identique est retenue pour un audit ultérieur.",
+      "internal_phy_reset": "Séquences reset/lock externes réussies en simulation RX entière sous Icarus, primitives originales intactes. Ne prouve pas recovery/removal internes ni la cohérence analogique. Audit physique interne encore ouvert.",
+      "ack_retirement": "Demande exécutée en r26. Octet 5a perdu à l’application malgré DATA1 UTMI longueur1, CRC c084, propre ACK D2 sans RXERROR, propre FIN contrôleur et pending FIFO retombé à0. Journaux TESTS/usb_ax15_20261002/l12_r26_isolated/. Il faut confronter PID réel sur câble et ZLP, pas conclure que la FIFO retire sans acquittement.",
+      "simulator": "Icarus Verilog12 extrait en /tmp compile toute prim_sim.v et les .vo originaux sans adaptation. RX 40/40 ; TX payload exact sur3coins, mais écarts début/fin de trame numérique toujours en échec à qualifier."
+    },
+    "next_question": "Dans vos traces, un paquet non livré peut-il être acquitté comme une répétition (numéro de séquence) ? Ici ACK UTMI + FIN + FIFO retirée sont maintenant observés pour le même paquet perdu. Aucun enregistrement du câble encore disponible.",
+    "limits": "Le défaut de reset système prouvé des deux côtés ne constitue pas une cause commune établie des pertes/échecs spontanés. Les mesures G13 ne sont pas extrapolées à USB2."
+  },
+  "updated_at": "2026-10-03T14:28:52.594651+00:00",
+  "controller_transaction_simulation_20261002": {
+    "bench": "TESTS/rtl/usb_controller_packet_tb.sv",
+    "runner": "tools/check_usb_controller_sim.py",
+    "model": "Original controller .vo, original complete GW5A primitive library, actual descriptor/configuration/FIFO RTL. Public UTMI stimuli; internal CLR/isync read only, no force.",
+    "initialization": "HS chirp negotiation, SET_ADDRESS 7, 2 ms recovery, SET_CONFIGURATION 1. Optional GET_CONFIGURATION read and status OUT.",
+    "bare_configuration": {
+      "result": "FAIL",
+      "report": "TESTS/usb_controller_bare_config_20261002.json",
+      "sequence": "11 accepted in DATA0, host ACK, own FIN, then different 5a sent as DATA0 again.",
+      "observed_internal_state": "usbc_clr_in[2]=1 and isync[2]=0 at first FIN.",
+      "qualification": "Confirmed digital model behavior with valid nonzero address and ACK delayed by 20 UTMI cycles. Not yet demonstrated on hardware. No closed vendor source modified."
+    },
+    "after_get_configuration": {
+      "result": "PASS",
+      "report": "TESTS/usb_controller_retry_20261002.json",
+      "observed_internal_state": "usbc_clr_in[2]=0; DATA0/DATA1 alternate after ACK.",
+      "coverage": "64 UART arrival delays around empty IN; 135 polls, 131 bytes produced and delivered exactly, 69 accepted DATA packets and 3 exact duplicate retransmissions after deliberately lost ACK. No EP2 ZLP observed in these stimuli."
+    },
+    "limits": [
+      "This is an ideal UTMI host, not the physical PHY or an independent serial clock.",
+      "The two reports used identical testbench/RTL hashes. Neither is a physical timing or metastability proof.",
+      "The initial FS exploration was not qualified: controller OpMode remained non-driving before attach completed. Only negotiated HS is used for the final reports.",
+      "The bare-configuration issue does not explain losses after CDC class requests/private EP0 diagnostics; on hardware losses persist in that later state.",
+      "No FPGA rebuild/load for this new test. Board remains restored r19, animation Z previously acknowledged."
+    ]
+  },
+  "endpoint_selection_20261002": {
+    "finding": "Offre CORK/longueur EP0 périmée exposée à EP2 pendant un cycle : ZLP DATA0 puis, si ACK perdu et nouvelle donnée UART, DATA0 au contenu différent. Un hôte peut éliminer cet octet comme doublon et acquitter sa suppression.",
+    "before": "TESTS/usb_controller_phy_zlp_before_20261002.json",
+    "fix": "usb_fifo.v : fermer CORK et qualifier POP tant que endpoint courant != endpoint enregistré. Aucun changement de netlist fermée.",
+    "after": "TESTS/usb_controller_phy_endpoint_guard_20261002.json",
+    "payload_test": "131 octets exacts, 146 IN, 14 doublons identiques, zéro ZLP ; nominal et host/card ±500ppm opposés, trois phases.",
+    "limitation": "Initialisation à UTMI, données via PHY original D+/D− ensuite. 147 écarts de framing conservés : payload_pass true mais pass global false. Pas de validation électrique ni cause exhaustive du défaut matériel.",
+    "build": "r27/r28 rejetés timing non chargés. r29 timing +0,140ns, 83 sources vérifiées, chargé SRAM 2023112818 sur ax15 ; échec 183/256 au premier tour. Non archivé comme validé.",
+    "r28_functional_equivalence": "TESTS/usb_endpoint_guard_r28_equivalence_20261002.json: trace contrôleur+PHY identique au cycle près à la garde initiale, avec hôte +500ppm/carte -500ppm.",
+    "hardware_report": "TESTS/usb_ax15_20261002/l12_r29_endpoint_guard_retry/result.json",
+    "isolated_report": "TESTS/usb_ax15_20261002/l12_r29_isolated/result.json",
+    "remaining": "Sur carte, 5a DATA1 CRC c084 est ACKé puis retiré mais absent côté hôte. Différent du blocage sans ACK simulé. Il manque une histoire intégrale DATA/ZLP/ACK pour vérifier la séquence PID."
+  },
+  "phy_cdc_physical_audit_20261002": {
+    "report": "TESTS/usb_phy_cdc_r19_no_groups_20261002.json",
+    "coverage": "44/44 connexions, RX 6 bits et TX 5 bits, source→premier étage et premier→second étage dans les deux directions",
+    "data_delay_ns": [
+      0.822,
+      1.266
+    ],
+    "r19_binary_identical": true,
+    "binary_sha256": "a2e52769a4abbd4625d71e41259b239f4e89b11091e996f26fe292bbb6b870b4",
+    "production_sdc_unchanged": true,
+    "diagnostic_loaded": false,
+    "limits": "Ne prouve ni absence de métastabilité ni protocole de reset. Slack cross-clock diagnostique non interprété comme validation CDC."
+  },
+  "phy_fast_ack_model_20261002": {
+    "report": "TESTS/usb_controller_phy_fast_ack_trace_r28_20261002.json",
+    "host_ppm": 500,
+    "card_ppm": -500,
+    "phase_ns": 1.113,
+    "ack_delay_cycles": 2,
+    "ack_wire_gap_ns": [
+      36.084692,
+      37.982615
+    ],
+    "acks_sent": 14,
+    "acks_at_utmi_rx": 0,
+    "result": "FAIL progression, paquet 11 conservé/retransmis identiquement sans FIN. Pas une preuve de suppression FIFO.",
+    "limits": "Modèle numérique avec boot UTMI, sans RC/analogique ni SDF. Compatibilité primitives/broches à qualifier avant conclusion matérielle.",
+    "ack8_result": "Échec également à 136,106–137,962 ns : 14 ACK envoyés, zéro à UTMI RX.",
+    "alternate_library": "Trace exactement identique avec /home/michael/gowin/IDE/simlib/gw5a/prim_sim.v ; primitives utilisées par PHY identiques entre bibliothèques."
+  },
+  "phy_cdc_physical_audit_r29_20261002": {
+    "report": "TESTS/usb_phy_cdc_r29_20261002.json",
+    "coverage": "44/44",
+    "data_delay_ns": [
+      0.822,
+      1.483
+    ],
+    "binary_identical_to_loaded_r29": true,
+    "reference_sha256": "97e5fb5985cb6f156deac2565a2e0455d9e2831ed2b04084f3af43fb0f80b7dc",
+    "production_sdc_unchanged": true,
+    "diagnostic_loaded": false,
+    "limits": "Délais de données mesurés ; pas de preuve métastabilité/reset/conformité USB."
+  },
+  "context_trace_progress_20261002": {
+    "updated_at": "2026-10-02T12:25:01.541878+00:00",
+    "bidirectional_simulation": {
+      "utmi": "131 octets exacts, PASS",
+      "phy": "131 octets exacts, 277 réponses physiques, 278 écarts framing : pass global false",
+      "limits": "OUT et IN EP2 intercalés, y compris IN non acquitté. Pas de CPU simulé ni ordonnanceur USB complet.",
+      "reports": [
+        "TESTS/usb_controller_utmi_in_out_r29_20261002.json",
+        "TESTS/usb_controller_phy_in_out_r29_20261002.json"
+      ]
+    },
+    "r30": {
+      "change": "Trace dernier DATA utile + trois précédents DATA, ZLP inclus, sans effacement par les sondages ultérieurs.",
+      "timing": "+0.140 ns",
+      "sha256": "f0326e6463cdc570400494e9d55d2a06f5de58c5e1ca8a1c7326d12f9ae04de6",
+      "hardware": "Deux chargements 480 Mbps ; OUT reçu/livré au pont, zéro retour UART et aucun DATA EP2. Nouveau blocage CPU/pont/DDR à distinguer de la perte USB après émission.",
+      "control": "r29 rechargé répond au firmware et reproduit perte USB initiale.",
+      "promoted": false
+    },
+    "r31": {
+      "change": "État PLL AE350 / DDR_STOP / DDR_LOCK / reset CPU, double synchronisation USB, lecture EP0 passive.",
+      "result": "Refus timing, pire -3.852 ns, 117 setup endpoints ; non chargé."
+    },
+    "r32": {
+      "change": "Trace réduite au dernier DATA utile + son prédécesseur DATA immédiat, vide ou non ; 256 bits historiques supprimés par rapport r30/r31.",
+      "simulation": "PASS ACK/FIN/erreurs/reset/rétention sur douze ZLP",
+      "build": "Refus timing : 29 endpoints GPU, pire -2.885 ns, TNS -18.549 ns. Non chargé. Réduction de trace non retenue."
+    },
+    "other_cdc_paths": "19 chemins non-Gray relevés dans rapport diagnostic r29 (IDES/commande RX/linestate), 1.714..4.898 ns. Couverture limitée, relation de phase des horloges locales à qualifier. Ce relevé ne prouve pas les CDC.",
+    "limits": "Ne pas assimiler r30 zéro retour UART au défaut r29 DATA ACKé et perdu. SDC production et transport inchangés pendant ces builds diagnostiques.",
+    "isolation": {
+      "architecture": "Même chaîne USB/AE350/DDR, même firmware ; GPU remplacé par mire LCD. Brochage et SDC identiques, placements de cellules retirés uniquement dans cette variante. Placement USB différent, donc pas une preuve isolant une cause unique.",
+      "r2": {
+        "sha256": "afc80e57ebe1dfc18befee5b72c0194125da987494dda8d942ba6df21c6b4e11",
+        "timing_ns": 0.14,
+        "speed_mbps": 480,
+        "result": "Doublons et pertes ; 35 reçu 3535 dans le test isolé ordinaire."
+      },
+      "counter_proof": {
+        "byte": "5a",
+        "host_received": "5a5a",
+        "uart_before": 201,
+        "uart_after": 202,
+        "usb_out_delta": 4,
+        "bridge_delivered_delta": 4,
+        "finish_delta": 1,
+        "trace": "Deux derniers DATA0 UTMI identiques, CRC c084, premier sans ACK/FIN puis second avec ACK/FIN.",
+        "conclusion": "Un octet UART produit une double réception hôte ; duplication en aval de la réception UART FPGA dans cet essai.",
+        "limit": "Compteurs EP0 lus avant chaque commande : diagnostic intrusif, pas endurance CDC ordinaire. Pas de capture du câble.",
+        "evidence": "TESTS/usb_ax15_20261002/usb_isolation_r2/counter_each/"
+      },
+      "r3": {
+        "sha256": "44fd64c99750c55c04e3fa5d294a3f75c9f1102cffd5c5c3d86eb56fd934b034",
+        "timing_ns": 0.139,
+        "speed_mbps": 480,
+        "trace": "Quatre derniers DATA/ZLP rétablis. 11 absent, UART+1, quatre DATA1 longueur1 CRC80b3 ; trois sans ACK, dernier avec ACK/FIN, pending retiré. Aucun ZLP dans cette fenêtre bornée.",
+        "evidence": "TESTS/usb_ax15_20261002/usb_isolation_r3/counter_each/"
+      },
+      "usbfs_direct": {
+        "result": "30 octets reçus correctement puis EPROTO -71 à index29, 56 déjà livré. Aucun ZLP IN hôte, dernier paquet reste pending sans ACK/FIN après quatre reprises DATA1. cdc_acm rattaché en sortie.",
+        "evidence": "TESTS/usb_ax15_20261002/usb_isolation_r3/direct_bulk/"
+      },
+      "next": "Comparer les PID réels sur D+/D− avec UTMI et qualifier les reprises/retour ACK du PHY. Le défaut persiste sans GPU ; la cause complète est ouverte."
+    },
+    "final_simulation": {
+      "scope": "SOF espacés sur grille125us, numéro de trame1ms ; OUT/IN EP2, notifications EP3, données OUT vérifiées, reprises après ACK perdu.",
+      "utmi": "PASS 524/524 OUT et131/131 IN ; 3 doublons identiques.",
+      "phy": "524/524 OUT et131/131 IN ;14 doublons identiques ;344 écarts framing/343 réponses maintiennent pass global false.",
+      "reports": [
+        "TESTS/usb_controller_utmi_ep3_out_checked_20261002.json",
+        "TESTS/usb_controller_phy_ep3_out_checked_20261002.json"
+      ],
+      "qualification": "Les essais préliminaires notifications avaient sondé EP1 non configuré ; pas des notifications CDC. Une autre extension avait révélé SE0 constant dans le faux PHY UTMI ; stimulus corrigé, pas une panne attribuée au matériel."
+    },
+    "all_jobs_finished": true
+  },
+  "cross_review_20261002": {
+    "updated_at": "2026-10-02T21:01:16.403871+00:00",
+    "claude_review": "TESTS/usb_claude_review_20261002.md",
+    "claude_verified": "Actual Claude CLI response received; read-only tools; no root cause claimed.",
+    "phy_blind_window": "Original RX returns idle 227.60..228.39ns after EOP at counter24; fast ACK36..37ns lost at three local phases. Official regenerated PHY3.4 model also waits counter24 (~235.94ns). Digital model only, framing differences remain.",
+    "cdc_simulation": "Exact CDC/private EP0 requests before OUT and during pending retries:133 controls,131IN/524OUT exact in UTMI and physical digital model; no duplicated byte reproduced.",
+    "phy34_hardware": "gpu_usb_phy34_r2 timing+0.139ns,91sources,351bccf96b0173aeec22a3f69fc488b9d555a4a910284cd2d3551200990226b7 loaded480Mbps. Still insertions/deletions;25isolated echoes then EP0 EPROTO. Not promoted.",
+    "host_recovery_hypothesis": "Mécanisme observé dans les deux captures xHCI : Reset Endpoint TSP=0 entre deux livraisons. Seconde capture identifie USB Transaction Error initiale ; sa cause électrique/protocolaire reste à déterminer.",
+    "first_attempt_capture": "CAPTURE_FIRST validated; r1 timing fail, r2 invalid placement, r3 +0.189ns/88sources, loaded SRAM FTDI2023112818. First DATA0 c084 without ACK/FIN preceded by DATA1 80b3 with ACK/FIN. Host5a5a from UART196->197, POP293->298, FIN196->197. TESTS/usb_ax15_20261002/usb_first_r3/counter_each/",
+    "physical_timing_audit": "r29 binary-identical audit, eight hypothetical sclk phases generated960/8 recognized. Reported nonGray paths pass only phase0 (+2.983ns setup,+0.736ns hold); phases1..7 have setup -3.200,-2.159,-1.117,-1.184,-2.226,-3.267,-4.309ns. Actual reset/gating phase not established; no claim hardware phase is random.",
+    "all_jobs_finished": false,
+    "user_input_pending": null,
+    "phy_startup_review": "TESTS/USB_PHY_PHASE_REVIEW_20261002.md; TESTS/usb_phy_startup_r1_20261002.json. Unmodified official model, four phases, two reset sequences each. CLKDIV reset released with HCLK stopped, DHCE restart reconstructs divider phase. Ideal aligned input clocks give sclk offset ~5.209ns, NOT a measured physical phase or automatic STA phase5 mapping.",
+    "status": "Diagnostic HS corrigé passe3rechargements,1rebranchement physique,2176400octets de stress,1000échos isolés et600contrôlesEP0. Console GPU complète gpu_l12_usb_hs33_ep0_r2 en placement; aucun autre job root actif.",
+    "xhci_script_sha256": "530dcc2fbc97bcdc70dd20814d4ad4f65757ae21e98289d8a7d158cb298bc1a8",
+    "xhci_hardware_capture": "TESTS/usb_xhci_20261002_160051_866672/analysis.json. 17 correct echoes then EA->EAEA. Slot49 EP2IN first giveback1byte at7344872.721857, Reset Endpoint TSP=0 at.721863, giveback0 at.721977, secondgiveback1byte at.721992. First FPGA DATA0 CRCc130 unACKed, previousDATA1 CRC8107 ACKed. Kernel recovery observed between duplicate deliveries; initial error code unavailable in first capture. No EP0 probes before anomaly.",
+    "xhci_second_capture": "TESTS/usb_xhci_20261002_160500_867079; USB_XHCI_REVIEW_20261002.md. USB Transaction Error EP2IN then TSP0 reset between two0Ebyte deliveries. Earlier59 correct then EP2error; A2giveback at0.519ms but Python at493.498ms (host restitution latency). PostfaultEP0 alsoTransactionError/EPROTO71, noFPGAtraceinsecondcapture. No new user action needed.",
+    "advance_build_prepared": {
+      "name": "gpu_usb_advance_r1",
+      "sha256": "4409a350228043a2296af28acf7892aa4aa07a7a901bb8628ba06c9358cde785",
+      "min_slack_ns": 0.139,
+      "sources": 93,
+      "loaded": true,
+      "configuration": "Official PHY3.4 plus V_120 only, original controller, first-attempt observer, same PLL/pins/SDC"
+    },
+    "advance_hardware": "FAIL: loaded480Mbps, 64byteswith4insertions; isolated10correctthenEBmissing despite DATA1 ACK+FIN. TESTS/usb_ax15_20261002/usb_advance_r1. No promotion.",
+    "advance_model": "USB_PHY_ADVANCE_REVIEW_20261002.md: official exportfromexacthardwareVG; Normal/Advance loseACK40/100ns,accept200/340ns; OEreleasedatSE0. Temporalguard24@60MHz=48@120MHz, notremoved. Phase/framing limitations retained.",
+    "integrated_response_timing": {
+      "report": "TESTS/USB_CONTROLLER_RESPONSE_TIMING_20261002.md",
+      "normal_ns": [
+        426.245,
+        442.912
+      ],
+      "normal_over_400_ns": "277/277",
+      "advance_ns": [
+        372.078,
+        376.245
+      ],
+      "advance_over_400_ns": "0/273",
+      "limits": "Modèles numériques avec écarts de tramage ; pas mesure sur broches réelles. Advance conserve la perte des ACK courts et échoue sur carte."
+    },
+    "sipeed_reference": {
+      "build": "usb_sipeed_reference_r1",
+      "sha256": "e845b1343a23a1a9a47cb61382e45b97f91272cb1edf051235cbcacb4c4bb556",
+      "source_changes": [],
+      "sources_active": 17,
+      "min_slack_ns": 0.144,
+      "usb_speed_mbps": 480,
+      "result": "103 échos unitaires exacts, index103 70 reçu7070 ; doublon toujours présent après1seconde. SansCPU/GPU/modificationsFIFOconsole.",
+      "evidence": "TESTS/usb_ax15_20261002/sipeed_reference_r1/result.json",
+      "limits": "Référence contient FIFO fournisseur originelle ; n’isole pas à elle seule le PHY, le contrôleur, le routage ou le matériel."
+    },
+    "restoration": "TESTS/usb_ax15_20261002/usb_first_r3_restored_after_phy35/result.json",
+    "dedicated_fs": {
+      "build": "usb_sipeed_fs_r1",
+      "sha256": "f420fe25751b3e21730488ed7cad3793d037a9ace94a62a2a970cea1603c75ae",
+      "min_slack_ns": 0.153,
+      "result": "SRAM DONE, quatre détections FullSpeed sur3-7 puis read/all -110 ; aucunCDC niécho.",
+      "report": "TESTS/USB_SIPEED_FS_R1_20261002.md"
+    },
+    "phy35": {
+      "build": "gpu_usb_phy35_r3",
+      "sha256": "f3c5797e6a2acd0762f6c891f1478f3e799f86105bf0d765110df03fb6569e52",
+      "min_slack_ns": 0.139,
+      "ip_version": "3.5",
+      "vendor_installation": "/home/michael/gowin/IDE (1.9.12.03)",
+      "console_toolchain": "1.9.12 inchangée",
+      "configuration": "Confirmée par générateur GUI officiel pour GW5AST-138B, UTMI, Single, Advance, TXDelay0 ; mêmes cinq macros à ordre près, pasDEF_DHCE/DHCEN requis.",
+      "loaded": true,
+      "model_response_ns": [
+        355.411,
+        359.579
+      ],
+      "model_limits": "ACK40/100ns toujours perdus, framingFAIL ; aucune preuve matérielle",
+      "report": "TESTS/USB_PHY35_REVIEW_20261002.md",
+      "configuration_file": "tang/impl/gpu_usb_phy35_gui_r1/src/usb2_0_softphy/temp/USBTwoSoftPHY/usb2_0_softphy_name.v",
+      "hardware_result": "FAIL64octets2insertions ; isolated2exacts puisA3absent malgréDATA1CRC00c6ACK+FIN.",
+      "hardware_evidence": "TESTS/usb_ax15_20261002/usb_phy35_r3",
+      "configuration_evidence": "TESTS/usb_phy35_gui_configuration_20261002.json"
+    },
+    "ep0_contract_candidate": "Candidat désormais confirmé : voir ep0_contract_proven et TESTS/USB_EP0_RXREADY_20261002.md.",
+    "open_alternative_study": "TESTS/USB_ALTERNATIVE_OUVERTE_ETUDE_20261002.md : ulixxeUSB_CDC MIT téléchargéetlu uniquement, pasintégré ni testé.",
+    "ep0_contract_proven": {
+      "fs32_ready0": "GET_DESCRIPTOR8/18/64 : données exactes, STATUS OUT NAK5a",
+      "fs32_ready1": "Neuflectures complètesPASS,CRC etACK statusvérifiés,SET_ADDRESS7",
+      "old_sipeed": "ready0et1PASS18 ;17événementstimestamps/contenuidentiques",
+      "evidence": "TESTS/usb_ep0_sipeed_ready_compatibility_20261002.json",
+      "hardware": "FS r2 dédié : trois chargements à 12 Mbit/s, chacun 1000 échos unitaires + blocs 64/256/1024 exacts."
+    },
+    "usb3_latest_read": "G26b: énumération5000M automatique complète, mais note20:01 rapporte43requêtesEP0/32exactes/11EPROTO périodiques tousles4transferts; bulk/endurance non validés. Ne pas présenter USB3 entièrement résolu.",
+    "ep0_retry_new_finding": {
+      "status": "Correctif ouvert appliqué, validé avec modèle HS Sipeed original",
+      "cdc7": "ACK absent puis reprise IN -> DATA1 ZLP au lieu des7 octets",
+      "diagnostic32": "Même défaut pour les32 octets du snapshot",
+      "normal_and_preemption": "Réponses normales avant/après strictement identiques, timestamps inclus; reprises CDC7 et diagnostic32 passent",
+      "scope": "Classe EP0, ne prouve pas la cause du doublon bulk après réénumération",
+      "evidence": "TESTS/usb_hs_ep0_retry7_20261002.json",
+      "work": "Validation avec modèle officiellement exporté du contrôleur HS 3.3 en préparation",
+      "additional_tests": "188 octets: reprises partielles/complètes répétées, snapshot gelé, FIN EP2, nouveau SETUP et reset horloge arrêtée; voir USB_HS_RECOVERY_REVIEW_20261002.md"
+    },
+    "phy_startup_review_latest": "Audit terminé, TESTS/USB_HS_STARTUP_REVIEW_20261002.md sections7-8. Export officiel: noms/connexions CEN exacts, commandes actives sans chemins setup/hold rapportés. Aucun créneau ni phase physique établi. Binaire audit diffère de24666bits: délais non attribuables au routage chargé. SDC production inchangé.",
+    "user_usb3_reset_clarification": "Michael confirme deux défauts distincts: après débranchement, retour detect absent; après chargement FPGA avec câble déjà branché, connexion absente. Cela correspond à la reprise décrite côté USB3, pas à une preuve de bitstream corrompu par le loader.",
+    "ep0_hardware_before_fix": {
+      "evidence": "TESTS/usb_ax15_20261002/usb_hs33_ready_r2_ep0_baseline/result.json",
+      "passed_requests": 14,
+      "failed_request_index": 14,
+      "errno": 71,
+      "request": "diagnostic32 page haute",
+      "speed_mbps": 480,
+      "limits": "Pas de perte ACK injectée; témoin matériel ne prouve pas la cause exacte."
+    },
+    "ep0_fixed_build": {
+      "name": "gpu_usb_hs33_ep0_r1",
+      "sha256": "e838aa90263c34df3521d495f9c819b70162fb1aa02dfeb3370d1e487b80360e",
+      "sources": 98,
+      "minimum_slack_ns": 0.139,
+      "loaded": true,
+      "status": "PASS diagnostic sur trois chargements480M et300contrôles EP0 ; console GPU complète en compilation"
+    },
+    "physical_replug_hs_fixed": {
+      "user_confirmed": true,
+      "addresses": [
+        109,
+        110
+      ],
+      "speed_mbps": 480,
+      "bulk_exact_bytes": 544100,
+      "control_requests_passed": 300,
+      "evidence": "TESTS/usb_ax15_20261002/usb_hs33_ep0_r1_replug"
+    },
+    "gpu_reintegration": {
+      "build": "gpu_l12_usb_hs33_ep0_r3",
+      "status": "En placement",
+      "previous": "r2:104violations setup DDRUI,minimum-2.581ns,TNS-97.633ns; non chargé",
+      "constraint_change": "Deux scopes PHY retargetés; trois anciens ancrages blitter retirés dans copie CST car fils2.800/5.938/6.334ns mesurés. RTL/GPU et fréquences inchangés."
+    },
+    "hardware_ab_crosscheck": {
+      "old_build": "gpu_usb_hs33_ready_r2",
+      "old_result": "4 rechargements consécutifs passent maintenant10tours chacun:217640octets, contre FAIL64 initial",
+      "limits": "L’ancien bitstream fonctionne aussi dans cette série; aucune preuve que le correctifEP0 explique à lui seul l’amélioration physique. Le défautEP0 demeure indépendamment prouvé et corrigé par simulation.",
+      "evidence": [
+        "TESTS/usb_ax15_20261002/usb_hs33_ready_r2_crosscheck",
+        "TESTS/usb_ax15_20261002/usb_hs33_ready_r2_crosscheck_more"
+      ],
+      "next": "Restauration corrigé et3nouvelles séries100tours en cours"
+    }
+  },
+  "dedicated_fs_status": {
+    "minimal_witness": "PASS trois chargements, chacun 1000 octets unitaires et blocs 64/256/1024 exacts",
+    "console_integration": "ABANDONNÉ à la demande explicite de Michael. r3 arrêté par SIGTERM sur son seul groupe1020189 ; r1/r2 et diagnostic FS jamais chargés.",
+    "ep0_defect": "FS 3.2 exige RXRDY=1 pour acquitter le status OUT EP0 ; A/B confirmé"
+  },
+  "status": "Essais idle_r3 terminés et réussis ; défaut intermittent non reproduit, cause initiale USB non démontrée.",
+  "all_jobs_finished": true,
+  "user_input_pending": null,
+  "requirement": "Michael impose USB High Speed 480 Mbit/s minimum ; FS refusé, aucun nouveau build ni essai FS.",
+  "pll_lock_2ms": {
+    "source": "https://cdn.gowinsemi.com.cn/UG306E.pdf#page=49",
+    "requirement": "UG306-1.0.9E tableau5-2 : surveiller LOCK continûment au moins2ms.",
+    "previous": "1024cycles, environ21,33us@48 et17,07us@60, durée insuffisante.",
+    "change": "104000cycles@référence50MHz indépendante pour chaquePLL ; libération64cycles@phy_clk ; pll_locked_i=~rst_usb ; rst_i=PHY_RESET|rst_usb.",
+    "simulation": "PASS sixqualifications2,08003ms, glitches tardifs1,5ms, perteLOCKhorlogesarrêtées, reprise66frontsPHY ; anciensréglageséchouentcommeattendu.",
+    "evidence": "TESTS/USB_PLL_LOCK_WINDOW_20261002.md",
+    "limits": "Pas de modèle analogique PLL ni preuve que ce défaut explique les corruptions physiques."
+  },
+  "gpu_full_reintegration_current": {
+    "stage": "gpu_l12_usb_hs33_idle_r3",
+    "status": "hardware_full_gpu_pass_boots4_and10",
+    "prior_stage": "gpu_l12_usb_hs33_ep0_r3",
+    "prior_timing": "7setupviolationsDDR UI,TNS-3.848ns,min-1.215ns;nonchargé",
+    "changes": "Pipeline validationscropetsprite ; avancéewaddr/wleftaucycleéchantillonnagedemandeDMA ; fréquencesetSDCconservés.",
+    "blitter_equivalence": "PASS : 604 commandes, 2081517 cycles, mêmes pixels et commandes DDR ; seule adresse inactive peut évoluer un cycle plus tard.",
+    "layers_test": "PASS 800×480 : 16 couches, 64 sprites, tuiles 8/16/32 ; scène la plus chargée 2452/2556 cycles.",
+    "abandoned_stage": "r1 arrêté en génération IP : bac à sable interdit AF_NETLINK pour licence ; r2 lancé hors bac à sable, aucun processus externe arrêté.",
+    "r2_timing": "2 violations setup à -0,128 ns sur enable waddr ; non chargé",
+    "r3_change": "Dernier indice de ligne enregistré avant génération ; test de fin réduit à une égalité.",
+    "r3_timing": "21 violations sur le retour READY du DMA, marge -0,424 ns, TNS -3,704 ns ; non chargé",
+    "r4_change": "Avance adresse DMA après acceptation enregistrée, dans un cycle où valid=0. Aucune commande DDR ni acquittement retardé.",
+    "r4_timing": "Une violation cy1→st DONE à -0,343 ns ; retour READY du DMA conforme, version non chargée",
+    "r5_change": "Test de rectangle vide préparé avant RECT_INIT/TXT_START.",
+    "r5_timing": "13 violations sur sélection bornes triangles -> largeur/états, -1,169 ns ; non chargé",
+    "r6_change": "Comparaisons parallèles des trois arêtes, sélection one-hot des bornes ; pas de cycle ajouté.",
+    "minimum_slack_ns": 0.138,
+    "setup_violations": 0,
+    "hold_violations": 0,
+    "bitstream_sha256": "0de67614918e1c7b6e67d86886de7334dbaba00dd9bb1d92d0ba7e699fa30483",
+    "board_evidence": "TESTS/usb_ax15_20261002/usb_idle_r3_direct_boots8_10_20261003/result.json"
+  },
+  "other_session_periodic_usb3_review": {
+    "user_clarification": "Motif de corruption périodique signalé sur USB3, pas USB2.",
+    "observed": "G26b59EP0:44réponsesexactes,15EPROTOsansdonnée ; initialement1sur4, modulo non invariant après EP1.",
+    "fixed": "PréemptionEP0,retryrembobinéavantlongueur,anciennefinpayloadmasquée ; distinctsdumotifencoreouvert.",
+    "source": "/home/michael/logic_analyser_wifi/TESTS/TESTS_USB_ANALYSE_2026-09-29.md:2654",
+    "limits": "Pas de preuve de cause commune aux insertionsbulkUSB2."
+  },
+  "ddr_bridge_cdc_20261003": {
+    "finding": "HCLK du pont est clk50 broche; DDR UI75 séparé par set_clock_groups. Ancien pont utilise FIFO données mais commandes/fin directes non synchronisées.",
+    "signals": "ahb_end, ahbw_single, ahbr_single, ahbr_start, ahbr_cmd_flag, ahb_req, fifo_wr_empty, data_valid",
+    "counterexample": "ahb_end peut effacer ahbw_single sans être vu par hready; hready reste alors bas.",
+    "limits": "Vulnérabilité de conception établie par inspection et revue indépendante; déclenchement physique pas directement capturé. Ne prouve pas la cause des pertes USB.",
+    "fix": "Nouveau ahb_ddr_cdc avec FIFO commande100bits/réponse64bits; sept scénarios de simulation PASS.",
+    "reset_contract": "Reset commun avec abandon des commandes et réponses DDR aval; reset isolé HRESETN non supporté.",
+    "simulation": "PASS 7 scénarios, 2216 commandes chacun, 1116 vérifications de lecture; TESTS/ahb_ddr_cdc_20261003/result.json",
+    "build": "cdc_r4 PASS timing min +0.138ns, 0 violation setup/hold, 99 sources vérifiées.",
+    "physical": "12 pointeurs Gray SDF exact : max clock-to-Q+route1.331ns, écart conservateur max0.759ns; pas preuve MTBF.",
+    "board": "Après deuxième chargement, testDDR direct3x1Mio avec cache0erreur et réponseCPU après; puis suiteGPU complète PASS."
+  },
+  "usb_hs33_fin_and_blocks_20261003": {
+    "status": "digital_tests_pass_board_cause_unresolved",
+    "events": 346,
+    "fin_endpoint_mismatches": 0,
+    "bytes": 6347,
+    "full64_packets": 96,
+    "retries": 27,
+    "controls_during_retry": 27,
+    "result": "TESTS/usb_hs33_bulk_blocks_20261003.json",
+    "model": "official HS3.3 export, ideal UTMI, no SDF or analog PHY",
+    "generation_inputs_equal_to_cdc_r3": true
+  },
+  "xhci_cdc_r4_20261003": {
+    "status": "pass",
+    "samples": 1000,
+    "echo_codes": {
+      "Success": 1001,
+      "Short Packet": 1000
+    },
+    "stopped_after_test": 17,
+    "cleanup_errors": [],
+    "evidence": "TESTS/usb_xhci_cdc_r4_20261003/analysis.json",
+    "limits": "Échos unitaires sur deuxième chargement. Défaut initial1024octets non reproduit dans cette capture.",
+    "following_stress": {
+      "rounds": 100,
+      "bytes": 544100,
+      "pass": true
+    },
+    "reload_check": {
+      "planned_loads": 3,
+      "loads_attempted": 1,
+      "stopped_first_failure": true,
+      "missing_offset": 208,
+      "missing_on_same_boot_retry": 704
+    },
+    "pending_user_capture": null
+  },
+  "xhci_cdc_r4_blocks_20261003": {
+    "status": "failure_captured",
+    "events": {
+      "Success": 3,
+      "USB Transaction Error": 687,
+      "Short Packet": 64,
+      "Stopped": 1
+    },
+    "transaction_errors_by_dci": {
+      "5": 80,
+      "7": 605,
+      "1": 2
+    },
+    "errors_before_first_out": {
+      "5": 10,
+      "7": 2
+    },
+    "first_error": {
+      "us": 7415956174883,
+      "line": 22,
+      "status": "USB Transaction Error",
+      "length": 1024,
+      "slot": 40,
+      "dci": 5
+    },
+    "first_out": {
+      "us": 7415956261704,
+      "line": 122
+    },
+    "first_error_before_first_out_us": 86821,
+    "first_byte_giveback": {
+      "us": 7415956262197,
+      "line": 126,
+      "actual": 1
+    },
+    "first_byte_kernel_to_python_us": 421179.220703125,
+    "block": {
+      "expected_bytes": 64,
+      "received_bytes": 63,
+      "missing_first_hex": "e7",
+      "exact_remaining_bytes": true,
+      "kernel_one_byte_givebacks": 63,
+      "first_giveback": {
+        "us": 7415956694535,
+        "line": 601,
+        "actual": 1
+      },
+      "last_giveback": {
+        "us": 7415956699743,
+        "line": 787,
+        "actual": 1
+      },
+      "transaction_errors_during_delivery": 0
+    },
+    "ep0_diagnostic_error": "[Errno 71] Protocol error",
+    "fpga_trace_empty": true,
+    "cleanup_errors": [],
+    "readers": [
+      {
+        "bytes": 1156931,
+        "truncated": false,
+        "error": null
+      }
+    ],
+    "limits": [
+      "Pas de capture des PID électriques USB ; trace FPGA = UTMI.",
+      "Les événements TRB ne contiennent pas le contrôleur PCI ; un slot identique sur un autre contrôleur reste possible.",
+      "Les événements reset-context/debug ne permettent pas un filtre par périphérique.",
+      "xhci_urb_giveback expose status dans format mais ne l’imprime pas dans TP_printk v6.17 ; USBmon ajoute les statuts URB si disponible.",
+      "Une corrélation reset/erreur ne prouve pas la cause initiale du défaut PHY.",
+      "No electrical PID/ACK capture; no FPGA snapshot in this run. Generic Transaction Error does not isolate PHY failure."
+    ]
+  },
+  "active_build": null,
+  "usb_idle_trace_20261003": {
+    "stage": "gpu_l12_usb_hs33_idle_r3",
+    "loads": 10,
+    "empty_ep3_boot1": 8006,
+    "empty_ep3_boot2": 8006,
+    "empty_ep2_boot3": 46716,
+    "mixed_boot4": {
+      "ep2": 46437,
+      "ep3": 8006
+    },
+    "cdc_boot4": {
+      "rounds": 20,
+      "bytes_exact": 108820,
+      "in2": 557511,
+      "nak2": 447498,
+      "data2": 110013,
+      "in3": 76812,
+      "nak3": 76812,
+      "bad_response": 0,
+      "missing": 0,
+      "rx_error_cycles": 0
+    },
+    "limitations": [
+      "Observation UTMI, pas capture électrique USB.",
+      "Le devnum xHCI Linux diffère de l’adresse sur le bus.",
+      "Amélioration après changement de routage, cause initiale pas démontrée."
+    ],
+    "report": "TESTS/USB_IDLE_TRACE_20261003.md",
+    "gpu_full_pass": true,
+    "cdc_traced_loads": 4,
+    "cdc_traced_rounds": 80,
+    "cdc_traced_bytes": 435280,
+    "cdc_total_loads": 7,
+    "cdc_total_rounds": 140,
+    "cdc_total_bytes": 761740,
+    "cdc_direct_loads": 3,
+    "gpu_full_pass_loads": [
+      4,
+      10
+    ],
+    "last_linux_devnum": 18,
+    "last_wire_address": null
+  }
+}

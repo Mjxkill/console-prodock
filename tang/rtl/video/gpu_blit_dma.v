@@ -48,6 +48,8 @@ module gpu_blit_dma (
     wire [5:0] fill_take=fill_left>{5'd0,fill_room} ? fill_room:fill_left[5:0];
     integer byte_lane;
     reg [255:0] read_buffer;
+    reg [28:0] write_follow_addr;
+    reg write_accepted;
     wire [3:0] lane = position[3:0];
     // Keep the global reset/state decode off the arbiter's ready/tag paths.
     // This register changes on the same edges as entry/exit of SEND states.
@@ -57,22 +59,44 @@ module gpu_blit_dma (
     // scanout valid -> DDR ready -> blitter next-state path. Completion still
     // means the final DDR write was accepted; no buffered write is hidden.
     always @(posedge clk) begin
+        write_accepted <= !rst && state == W_SEND && ready;
         w_done <= !rst && state == W_SEND && ready && !pixel_write && !fill_write && remaining == 0;
         f_done <= !rst && state == W_SEND && ready && fill_write && fill_left == 0;
         c_ack <= !rst && state == W_SEND && ready && pixel_write;
     end
-    assign s_valid = !rst && state == R_UNPACK;
+    // Predict entry/exit of UNPACK and its last halfword on the same edge
+    // as the state/counter updates. No extra transfer cycle: this removes
+    // binary state and remaining-count decoding from the blitter's inputs.
+    reg read_active /* synthesis syn_preserve=1 */;
+    reg read_last /* synthesis syn_preserve=1 */;
+    always @(posedge clk) begin
+        if(rst)begin read_active<=0;read_last<=0;end
+        else begin
+            read_active<=(state==R_WAIT && rd_valid) ||
+                         (state==R_UNPACK && remaining!=1 && lane!=15);
+            read_last<=(state==R_WAIT && rd_valid && remaining==1) ||
+                       (state==R_UNPACK && remaining==2 && lane!=15);
+        end
+    end
+    assign s_valid = !rst && read_active;
     assign s_data = read_buffer[lane * 16 +: 16];
-    assign s_done = s_valid && remaining == 1;
+    assign s_done = !rst && read_last;
     always @(posedge clk) begin
         if (rst) begin
             state <= IDLE; valid<=0; position <= 0; remaining <= 0; pixel_write <= 0;fill_write<=0;fill_left<=0;fill_offset<=0;fill_low<=0;fill_high<=0;
-            addr <= 0; wr_data <= 0; wr_mask <= 32'hffffffff; read_buffer <= 0;
-        end else case (state)
+            addr <= 0; write_follow_addr<=0; wr_data <= 0; wr_mask <= 32'hffffffff; read_buffer <= 0;
+        end else begin
+          // After acceptance, valid is low while PACK/PREP prepares the
+          // next command. Advance the address in that existing cycle so the
+          // arbiter's combinational READY cannot drive this wide enable.
+          // A new IDLE request below takes priority over this deferred update.
+          if (write_accepted) addr <= write_follow_addr;
+          case (state)
             IDLE: begin
                 wr_mask <= 32'hffffffff;fill_write<=0;
                 if (c_req) begin
                     addr <= {6'b0, c_addr[23:4], 3'b0};
+                    write_follow_addr <= {6'b0, c_addr[23:4], 3'b0};
                     wr_data <= {16{c_wdata}};
                     wr_mask <= ~( {30'b0, c_wmask} << (c_addr[3:0] * 2));
                     pixel_write <= 1; remaining <= 0; state <= W_SEND;valid<=1;
@@ -94,11 +118,16 @@ module gpu_blit_dma (
                 fill_left<=fill_left-{5'd0,fill_take};fill_offset<=0;state<=F_MASK;
             end
             F_MASK:begin
+                write_follow_addr<=fill_left==0 ? addr:addr+29'd8;
                 for(byte_lane=0;byte_lane<32;byte_lane=byte_lane+1)
                     wr_mask[byte_lane]<=!(byte_lane>=fill_low && byte_lane<fill_high);
                 state<=W_SEND;valid<=1;
             end
             W_PACK: begin
+                // The final packed lane is either the last halfword or a
+                // native-word boundary. Decide the following address before
+                // W_SEND so DDR READY does not drive this branch/mux tree.
+                write_follow_addr<=remaining==1 ? addr:addr+29'd8;
                 wr_data[lane * 16 +: 16] <= w_data;
                 wr_mask[lane * 2 +: 2] <= ~w_mask;
                 position <= position + 1'b1;
@@ -110,10 +139,10 @@ module gpu_blit_dma (
                 wr_mask <= 32'hffffffff;
                 if(fill_write)begin
                     if(fill_left==0)state<=IDLE;
-                    else begin addr<=addr+29'd8;state<=F_PREP;end
+                    else begin state<=F_PREP;end
                 end else if (remaining == 0) state <= IDLE;
                 else begin
-                    addr <= {6'b0, position[23:4], 3'b0}; state <= W_PACK;
+                    state <= W_PACK;
                 end
             end
             R_SEND: if (ready) begin state <= R_WAIT;valid<=0;end
@@ -126,7 +155,8 @@ module gpu_blit_dma (
                 end
             end
             default: begin state <= IDLE;valid<=0;end
-        endcase
+          endcase
+        end
     end
 endmodule
 `default_nettype wire

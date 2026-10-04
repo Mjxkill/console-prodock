@@ -68,6 +68,8 @@ module ddr_gpu_arb (
     wire pop = m_rd_valid && !empty;
     wire [4:0] next_wp = wp + {4'b0, push};
     wire [4:0] next_rp = rp + {4'b0, pop};
+    wire [4:0] incremented_wp = wp + 5'd1;
+    wire one_slot_left = incremented_wp == {~rp[4],rp[3:0]};
     always @(posedge clk) begin
         if (!rst_n) begin
             wp <= 0; rp <= 0; full <= 0; prefer_blitter <= 1;
@@ -80,17 +82,26 @@ module ddr_gpu_arb (
             // Acknowledgement remains the actual DDR command/data acceptance.
             if(b_valid && b_ready) take_blitter<=0;
             else take_blitter<=b_valid && (prefer_blitter || !cpu_pending);
-            if (c_en && c_ready) begin
-                cpu_pending <= 1; cpu_cmd <= c_cmd; cpu_addr <= c_addr;
+            // While empty, sample the payload independently of the late
+            // upstream request. The acceptance cycle captures the same words;
+            // once pending, every word remains held until DDR accepts it.
+            // This leaves c_en driving only the valid bit, not 320 payload CEs.
+            if (!cpu_pending) begin
+                cpu_cmd <= c_cmd; cpu_addr <= c_addr;
                 cpu_data <= c_wr_data; cpu_mask <= c_wr_mask;
-            end else if (cpu_fire) cpu_pending <= 0;
+            end
+            if (c_en && c_ready) cpu_pending <= 1;
+            else if (cpu_fire) cpu_pending <= 0;
             if (!g_valid) begin
                 if (b_valid && b_ready) prefer_blitter <= 0;
                 else if (cpu_fire) prefer_blitter <= 1;
             end
             if (push) tags[wp[3:0]] <= g_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;
             wp <= next_wp; rp <= next_rp;
-            full <= (next_wp[4] != next_rp[4]) && (next_wp[3:0] == next_rp[3:0]);
+            // Compare stable pointers before the late command acceptance.
+            // Simultaneous push/pop leaves occupancy unchanged.
+            if(push && !pop)full<=one_slot_left;
+            else if(pop && !push)full<=0;
         end
     end
     assign c_rd_data = m_rd_data;

@@ -10,6 +10,7 @@ add_file rtl/usb/uart/uart_rx.vhd
 add_file rtl/usb/uart/uart_tx.vhd
 add_file rtl/usb/uart/usb_uart_config.v
 add_file rtl/usb/usb2_0_softphy.v
+add_file rtl/usb/usb_reset_release.v
 add_file rtl/usb/usb_device_controller.v
 add_file rtl/usb/usb_descriptor.v
 add_file rtl/usb/sync_fifo/sync_rx_pkt_fifo.v
@@ -28,6 +29,7 @@ add_file rtl/board/ddr_subsys.v
 add_file rtl/board/ddr_gpu_arb.v
 add_file rtl/board/ddr_arb.v
 add_file rtl/board/ddr_dcfifo.v
+add_file rtl/board/ahb_ddr_cdc.v
 add_file rtl/board/ddr_writer.v
 add_file rtl/board/ddr_reader.v
 add_file rtl/board/ddr_ui_adapt.v

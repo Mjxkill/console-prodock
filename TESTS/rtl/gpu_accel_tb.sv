@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module gpu_accel_tb;
+module gpu_accel_tb #(parameter DEPTH_SLOT=1, READ_MIN=3);
     reg hc=0, mc=0, rst=0;
     always #6.25 hc=~hc;
     always #6.666 mc=~mc;
@@ -58,8 +58,8 @@ module gpu_accel_tb;
     localparam BYTES=3*1048576;
     reg [7:0] memory [0:BYTES-1];
     reg [7:0] expected [0:BYTES-1];
-    reg [31:0] commands [0:8191];
-    integer ncmd, bad_expected, cycle=0;
+    reg [31:0] commands [0:65535];
+    integer ncmd, bad_expected, raster_bad_expected, v1_bad_expected, v1_pass_expected, rgbinit, cycle=0;
     integer due[$], addresses[$], last_due=0, next_due, response_address;
     integer writes=0, reads=0, full_writes=0, stalls=0;
     integer at;
@@ -67,7 +67,7 @@ module gpu_accel_tb;
         integer slot, offset;
         slot=(byte_addr-'h800000)>>20; offset=byte_addr & 'hfffff;
         if(slot==0) return offset;
-        if(slot==1) return 1048576+offset;
+        if(slot==DEPTH_SLOT) return 1048576+offset;
         if(slot==15) return 2097152+offset;
         $fatal(1,"Out-of-surface DDR access @%h",byte_addr);
         return 0;
@@ -90,7 +90,7 @@ module gpu_accel_tb;
             writes++;
             if(mask==0) full_writes++;
         end else begin
-            next_due=cycle+3+cycle%8;
+            next_due=cycle+READ_MIN+cycle%8;
             if(next_due<=last_due) next_due=last_due+1;
             due.push_back(next_due); addresses.push_back(at); last_due=next_due; reads++;
         end
@@ -112,9 +112,26 @@ module gpu_accel_tb;
     initial begin
         if(!$value$plusargs("ncmd=%d",ncmd)) $fatal(1,"Need ncmd");
         if(!$value$plusargs("bad=%d",bad_expected)) bad_expected=0;
+        if(!$value$plusargs("raster_bad=%d",raster_bad_expected)) raster_bad_expected=-1;
+        if(!$value$plusargs("rgbinit=%d",rgbinit)) rgbinit=0;
+        if(!$value$plusargs("v1_bad=%d",v1_bad_expected)) v1_bad_expected=-1;
+        if(!$value$plusargs("v1_pass=%d",v1_pass_expected)) v1_pass_expected=-1;
         $readmemh("commands.hex",commands,0,ncmd*8-1);
         $readmemh("expected.hex",expected);
         for(integer i=0;i<BYTES;i++) memory[i]=8'((i*29)+(i>>11));
+        if(rgbinit==1)for(integer y=0;y<480;y++)for(integer x=0;x<800;x++)begin
+            automatic integer color=((x/4+y/4)%5==0) ? 0:
+                (((x*3+y)&31)<<11)|(((x+y*2)&63)<<5)|((x^y)&31);
+            memory[2097152+2*(y*800+x)]=8'(color);
+            memory[2097152+2*(y*800+x)+1]=8'(color>>8);
+        end
+        if(rgbinit==2)for(integer y=0;y<64;y++)for(integer x=0;x<64;x++)begin
+            automatic integer color=(x<2 || x>=62 || y<2 || y>=62) ? 65535:((x/8+y/8)%5==0) ? 0:
+                (((x*31)/63)<<11)|(y<<5)|(((x^y)&63)/2);
+            memory[2097152+2*((y+19)*800+x+17)]=8'(color);
+            memory[2097152+2*((y+19)*800+x+17)+1]=8'(color>>8);
+        end
+        if(rgbinit==3)$readmemh("initial.hex",memory);
         #200; rst=1;
         read_reg(0,value); if(value!='h424c5432) $fatal(1,"BLT2 ID");
         // Rewrite glyph 0x80 to exercise the programmable font's second clock.
@@ -128,6 +145,16 @@ module gpu_accel_tb;
         read_reg('hc,value);
         if(value != (bad_expected<<16)) $fatal(1,"Command error counters %h",value);
         read_reg('h1c,value); if(value!=0) $fatal(1,"CDC queue overflow");
+        if(raster_bad_expected>=0)begin
+            read_reg('h24,value);
+            if(value!=raster_bad_expected) $fatal(1,"Raster rejected %0d expected %0d",value,raster_bad_expected);
+        end
+        if(v1_bad_expected>=0)begin
+            read_reg('h34,value);if(value!=v1_bad_expected)$fatal(1,"V1 rejected %0d expected %0d",value,v1_bad_expected);
+            read_reg('h3c,value);if(value!=v1_pass_expected)$fatal(1,"V1 passed %0d expected %0d",value,v1_pass_expected);
+            read_reg('h40,value);$display("V1 cache hits=%0d",value);if(!value)$fatal(1,"No texture reuse");
+            read_reg('h44,value);$display("V1 cache misses=%0d",value);if(!value)$fatal(1,"No texture refill");
+        end
         for(integer i=0;i<BYTES;i++) if(memory[i]!==expected[i]) begin
             if(errors<8) $display("Mismatch @%h: got=%h expected=%h",i,memory[i],expected[i]);
             errors++;
@@ -138,7 +165,7 @@ module gpu_accel_tb;
         $finish;
     end
     initial begin
-        #200000000;
+        #1000000000;
         $display("done=%0d st=%0d op=%0d dma=%0d xy=%0d,%0d end=%0d,%0d err=%0d dxy=%0d,%0d", dut.done_count,dut.u_blitter.st,dut.u_blitter.op,dut.u_dma.state,dut.u_blitter.lx,dut.u_blitter.ly,dut.u_blitter.x1,dut.u_blitter.y1,dut.u_blitter.lerr,dut.u_blitter.ldx,dut.u_blitter.ldy);
         $fatal(1,"Timeout");
     end

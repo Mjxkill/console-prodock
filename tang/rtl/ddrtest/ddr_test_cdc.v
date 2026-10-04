@@ -344,6 +344,7 @@ module console_top #(
         .usb_rxdat          (usb_rxdat),
         .usb_txact          (usb_txact),
         .usb_txpop          (usb_txpop),
+        .usb_txpktfin       (usb_txpktfin),
         .usb_txdat_len_o    (uart_config_txdat_len),
         .endpt0_dat_o       (endpt0_dat),
         .endpt0_send_o      (endpt0_send),

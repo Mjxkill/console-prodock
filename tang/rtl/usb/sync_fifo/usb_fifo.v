@@ -86,8 +86,12 @@
 `define     EP13_OUT_BUF_AFULL   13'd2048
 `define     EP14_OUT_BUF_AFULL   13'd2048
 `define     EP15_OUT_BUF_AFULL   13'd2048
+`define CONSOLE_USB_DIAG
 module usb_fifo
 (
+`ifdef CONSOLE_USB_DIAG
+     output [31:0] diagnostic_data,
+`endif
      input              i_clk         //clock
     ,input              i_reset       //reset
     ,input      [3:0]   i_usb_endpt   //
@@ -313,6 +317,16 @@ reg  [ 3:0] s_endpt_sel;
 reg         s_usb_txcork;
 reg         s_usb_rxrdy ;
 reg  [11:0] s_usb_txlen ;
+// Length/CORK are registered for s_endpt_sel. On an endpoint change,
+// never expose the preceding endpoint's offer to the controller. In
+// particular EP0's open zero length would become a spurious bulk ZLP.
+wire tx_endpoint_ready = i_usb_endpt == s_endpt_sel;
+// An empty IN poll may strobe POP while a newly arrived UART byte is
+// already in RAM but not yet visible through the registered length.
+// Advance packet RAM only for an advertised payload, never for that ZLP.
+wire usb_payload_pop = i_usb_txpop && tx_endpoint_ready &&
+                       !s_usb_txcork && s_usb_txlen != 0;
+
 // Bulk IN retransmissions must keep exactly the original payload length.
 // After a lost host ACK the FIFO rewinds, but UART bytes may have arrived
 // meanwhile. Including them in the retry makes the host discard those NEW
@@ -320,6 +334,18 @@ reg  [11:0] s_usb_txlen ;
 // first read and release it only when the controller acknowledges pktfin.
 reg [15:1] tx_pending;
 reg [11:0] tx_saved_len [15:1];
+// ACK changes pkt_rp immediately, but wrnum -> wrnum_d0 -> advertised
+// length takes three clocks to catch up. Do not publish that stale count
+// as a NEW packet when the next IN arrives immediately after retirement.
+reg [2:0] tx_retire;
+always @(posedge i_clk or posedge i_reset)begin
+    if(i_reset)tx_retire<=0;
+    else tx_retire<={tx_retire[1:0],i_usb_txpktfin && i_usb_endpt!=0};
+end
+`ifdef CONSOLE_USB_DIAG
+assign diagnostic_data={4'b0,tx_pending[2],s_usb_txcork,i_usb_txact,usb_payload_pop,
+                       s_usb_txlen,usb_txlen[2]};
+`endif
 always @(posedge i_clk or posedge i_reset) begin
     if (i_reset) begin
         tx_pending <= 0;
@@ -330,8 +356,7 @@ always @(posedge i_clk or posedge i_reset) begin
         end
         // An empty IN poll can strobe POP without transferring a payload.
         // Reserving its zero length would permanently block later arrivals.
-        else if (i_usb_txpop && !s_usb_txcork && s_usb_txlen != 0
-                 && !tx_pending[i_usb_endpt]) begin
+        else if (usb_payload_pop && !tx_pending[i_usb_endpt]) begin
             tx_pending[i_usb_endpt] <= 1'b1;
             tx_saved_len[i_usb_endpt] <= s_usb_txlen;
         end
@@ -630,11 +655,14 @@ always @(posedge i_clk or posedge i_reset) begin
         end
         else begin
             s_usb_rxrdy  <= usb_rxrdy[i_usb_endpt];
-            // Publish availability together with length. While CORK is high
-            // the controller may keep txact asserted waiting for data: allow
-            // a late UART byte to open a NONZERO packet, then freeze it.
+            // Publish availability together with length. A controller waiting
+            // on an empty FIFO must be allowed to acquire late UART data.
+            // Once open, the packet stays fixed until the transfer ends.
             // Endpoint selection may also arrive together with txact.
-            if (!i_usb_txact || i_usb_endpt != s_endpt_sel || s_usb_txcork) begin
+            if(i_usb_txpktfin || (|tx_retire))begin
+                s_usb_txlen<=0;
+                s_usb_txcork<=1;
+            end else if (!i_usb_txact || i_usb_endpt != s_endpt_sel || s_usb_txcork) begin
                 s_usb_txlen <= tx_pending[i_usb_endpt] ? tx_saved_len[i_usb_endpt] : usb_txlen[i_usb_endpt];
                 s_usb_txcork <= (tx_pending[i_usb_endpt] ? tx_saved_len[i_usb_endpt] : usb_txlen[i_usb_endpt]) == 0;
             end
@@ -655,7 +683,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep1_txdat     )//
         ,.o_usb_txcork  (ep1_txcork    )//
@@ -698,7 +726,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep2_txdat     )//
         ,.o_usb_txcork  (ep2_txcork    )//
@@ -742,7 +770,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep3_txdat     )//
         ,.o_usb_txcork  (ep3_txcork    )//
@@ -786,7 +814,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep4_txdat     )//
         ,.o_usb_txcork  (ep4_txcork    )//
@@ -830,7 +858,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep5_txdat     )//
         ,.o_usb_txcork  (ep5_txcork    )//
@@ -873,7 +901,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep6_txdat     )//
         ,.o_usb_txcork  (ep6_txcork    )//
@@ -916,7 +944,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep7_txdat     )//
         ,.o_usb_txcork  (ep7_txcork    )//
@@ -959,7 +987,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep8_txdat     )//
         ,.o_usb_txcork  (ep8_txcork    )//
@@ -1002,7 +1030,7 @@ end
         ,.i_reset       (i_reset       )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
-        ,.i_usb_txpop   (i_usb_txpop   )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin)//
         ,.o_usb_txdat   (ep9_txdat     )//
         ,.o_usb_txcork  (ep9_txcork    )//
@@ -1045,7 +1073,7 @@ end
         ,.i_reset       (i_reset        )//reset
         ,.i_usb_endpt   (s_endpt_sel    )//
         ,.i_usb_txact   (i_usb_txact    )//
-        ,.i_usb_txpop   (i_usb_txpop    )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin )//
         ,.o_usb_txdat   (ep10_txdat     )//
         ,.o_usb_txcork  (ep10_txcork    )//
@@ -1088,7 +1116,7 @@ end
         ,.i_reset       (i_reset        )//reset
         ,.i_usb_endpt   (s_endpt_sel    )//
         ,.i_usb_txact   (i_usb_txact    )//
-        ,.i_usb_txpop   (i_usb_txpop    )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin )//
         ,.o_usb_txdat   (ep11_txdat     )//
         ,.o_usb_txcork  (ep11_txcork    )//
@@ -1132,7 +1160,7 @@ end
         ,.i_reset       (i_reset        )//reset
         ,.i_usb_endpt   (s_endpt_sel    )//
         ,.i_usb_txact   (i_usb_txact    )//
-        ,.i_usb_txpop   (i_usb_txpop    )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin )//
         ,.o_usb_txdat   (ep12_txdat     )//
         ,.o_usb_txcork  (ep12_txcork    )//
@@ -1175,7 +1203,7 @@ end
         ,.i_reset       (i_reset        )//reset
         ,.i_usb_endpt   (s_endpt_sel    )//
         ,.i_usb_txact   (i_usb_txact    )//
-        ,.i_usb_txpop   (i_usb_txpop    )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin )//
         ,.o_usb_txdat   (ep13_txdat     )//
         ,.o_usb_txcork  (ep13_txcork    )//
@@ -1218,7 +1246,7 @@ end
         ,.i_reset       (i_reset        )//reset
         ,.i_usb_endpt   (s_endpt_sel    )//
         ,.i_usb_txact   (i_usb_txact    )//
-        ,.i_usb_txpop   (i_usb_txpop    )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin )//
         ,.o_usb_txdat   (ep14_txdat     )//
         ,.o_usb_txcork  (ep14_txcork    )//
@@ -1261,7 +1289,7 @@ end
         ,.i_reset       (i_reset        )//reset
         ,.i_usb_endpt   (s_endpt_sel    )//
         ,.i_usb_txact   (i_usb_txact    )//
-        ,.i_usb_txpop   (i_usb_txpop    )//
+        ,.i_usb_txpop   (usb_payload_pop)//
         ,.i_usb_txpktfin(i_usb_txpktfin )//
         ,.o_usb_txdat   (ep15_txdat     )//
         ,.o_usb_txcork  (ep15_txcork    )//
@@ -1295,9 +1323,10 @@ end
 `endif
 
 
-assign o_usb_txcork = s_usb_txcork;
+assign o_usb_txcork = !tx_endpoint_ready || s_usb_txcork;
 assign o_usb_rxrdy  = s_usb_rxrdy ;
-assign o_usb_txlen  = s_usb_txlen ;
+// CORK suppresses the stale offer; keep the length datapath registered.
+assign o_usb_txlen  = s_usb_txlen;
 assign o_usb_txdat  = usb_txdat[i_usb_endpt];
 
 endmodule

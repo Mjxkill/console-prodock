@@ -1,0 +1,59 @@
+{
+  "scope": "Modèle officiel de simulation PHY 3.4 généré par Gowin V1.9.12, via set_option -gen_verilog_sim_netlist 1 et P&R du PHY seul.",
+  "source_bitstream_stage": "tang/impl/gpu_usb_phy34_r2",
+  "generation_directory": "tang/impl/gpu_usb_phy34_model_r1",
+  "sha256": {
+    "tang/impl/gpu_usb_phy34_model_r1/generate.tcl": "b2a558f6d98078a704c6e8a813a2fe56bc8f2b10f571821bd60e705da77aba5f",
+    "tang/impl/gpu_usb_phy34_model_r1/phy.sdc": "0bb8f696a0b1707f3356e91ddf378069dc01e405344d85ade2979c14fc925d15",
+    "tang/impl/gpu_usb_phy34_model_r1/usb2_0_softphy.vg": "20f60f214d40df86aabb8dce3139d7a27dcbaa8179d8676c2e55b4be6bf996d9",
+    "tang/impl/gpu_usb_phy34_model_r1/reference/usb2_0_softphy.v": "20f60f214d40df86aabb8dce3139d7a27dcbaa8179d8676c2e55b4be6bf996d9",
+    "tang/impl/gpu_usb_phy34_model_r1/reference/usb2_0_softphy.vo": "7509ba831ba83d0f342590f6743dc9955eee6baae4508e8581efd22cf042eafb",
+    "tang/impl/gpu_usb_phy34_r2/source/tang/rtl/usb/usb2_0_softphy.v": "20f60f214d40df86aabb8dce3139d7a27dcbaa8179d8676c2e55b4be6bf996d9"
+  },
+  "limits": [
+    "Flux create_project/read_ipc/generate_target essayé sans succès ; journaux conservés dans le dossier de génération.",
+    "Aucune netlist fermée modifiée ou déchiffrée par un outil tiers. Le fichier .vo est la sortie officielle de Gowin.",
+    "Le placement du PHY seul ne correspond pas à celui du bitstream console r2 ; comparaison fonctionnelle sans SDF uniquement.",
+    "La configuration du PHY reste TX_DELAY_0_BIT, UTMI et GW5AT."
+  ],
+  "generation_tcl": "create_project -name phy34_pnr -dir {pnr_model} -pn {GW5AST-LV138FPG676AC1/I0} -device_version B\nset_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0\nadd_file {/home/michael/console/tang/impl/gpu_usb_phy34_model_r1/usb2_0_softphy.vg}\nadd_file {/home/michael/console/tang/impl/gpu_usb_phy34_model_r1/phy.sdc}\nset_option -top_module USB2_0_SoftPHY_Top\nset_option -gen_verilog_sim_netlist 1\nset_option -gen_text_timing_rpt 1\nset_option -use_cpu_as_gpio 1\nrun all\n",
+  "comparison": [
+    {
+      "report": "TESTS/usb_controller_phy34_ack2_r2_20261002.json",
+      "sources_unchanged": true,
+      "ack_delay_cycles": 2,
+      "host_ack_count": 14,
+      "host_ack_gap_ns": {
+        "min": 44.587983,
+        "max": 44.588028
+      },
+      "rx_idle_after_eop_ns": {
+        "min": 235.937559,
+        "max": 235.937605
+      },
+      "payload_pass": false,
+      "full_link_pass": false,
+      "framing_differences": null,
+      "result_line": null
+    },
+    {
+      "report": "TESTS/usb_controller_phy34_ack20_r2_20261002.json",
+      "sources_unchanged": true,
+      "ack_delay_cycles": 20,
+      "host_ack_count": 80,
+      "host_ack_gap_ns": {
+        "min": 344.587983,
+        "max": 344.588583
+      },
+      "rx_idle_after_eop_ns": {
+        "min": 235.937559,
+        "max": 235.938125
+      },
+      "payload_pass": true,
+      "full_link_pass": false,
+      "framing_differences": 152,
+      "result_line": "PASS controller/FIFO retries HS=1 polls=146 produced=131 delivered=131 packets=80 duplicates=14 ZLP=0 OUT=0/0 OUT_NAK=0"
+    }
+  ],
+  "conclusion": "Le modèle officiel du PHY 3.4 conserve la fenêtre RX : retour IDLE au compteur 24, environ 235,938 ns après EOP. Les 14 ACK courts à 44,588 ns sont perdus ; les ACK longs à 344,589 ns permettent 131 octets exacts avec 14 reprises et aucun ZLP. La liaison complète reste FAIL à cause des 152 différences de framing TX. Aucun résultat de validation sur carte n’est déduit de cette comparaison."
+}

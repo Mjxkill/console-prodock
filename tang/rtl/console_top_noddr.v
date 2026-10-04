@@ -202,6 +202,7 @@ module console_top (
         .setup_active(setup_active), .endpt_sel(endpt_sel),
         .usb_rxval(usb_rxval), .usb_rxact(usb_rxact), .usb_rxdat(usb_rxdat),
         .usb_txact(usb_txact), .usb_txpop(usb_txpop),
+        .usb_txpktfin(usb_txpktfin),
         .usb_txdat_len_o(uart_config_txdat_len),
         .endpt0_dat_o(endpt0_dat), .endpt0_send_o(endpt0_send),
         .uart1_en_o(uart_en), .uart1_BAUD_RATE_o(uart_dte_rate),

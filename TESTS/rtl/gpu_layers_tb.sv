@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LATENCY=32,SPRITES=0,TILES=0);
+module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LATENCY=32,SPRITES=0,TILES=0,OVERLAY=0,HALF=0,PITCH=0);
     reg hc=0,pc=0,mc=0,rst=0;
     always #6.25 hc=~hc;
     always #14.285 pc=~pc;
@@ -16,6 +16,17 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         .hclk(hc),.hresetn(rst),.hsel(sel),.hwrite(wr),.haddr(addr),.hwdata(data),.htrans(trans),.hrdata(result),.hready(ready),
         .pixel_clk(pc),.mem_clk(mc),.fetch_valid(fv),.fetch_addr(fa),.fetch_ready(fr),.fetch_data(fd),.fetch_data_valid(fdv),
         .lcd_en(de),.lcd_hs(hs),.lcd_vs(vs),.lcd_r(r),.lcd_g(g),.lcd_b(b));
+
+    // Only one memory engine can request: cache drains, then indexed
+    // composition drains, then the RGB565 background drains. Assert the
+    // previous owner mux and the direct OR give identical native requests.
+    always @(posedge mc) if(rst)begin
+        if(!$onehot0({dut.rgb_fetch_valid,dut.cache_fetch_valid,dut.reader_fetch_valid}))
+            $fatal(1,"Concurrent scanout request engines");
+        if(fv !== (dut.rgb_phase ? dut.rgb_fetch_valid :
+                   dut.prefetch_active ? dut.cache_fetch_valid : dut.reader_fetch_valid))
+            $fatal(1,"Scanout request owner mismatch");
+    end
 
     // L11 tile layers. Poses 7 and up; fields of one tile layer of a pose.
     localparam MAPS='h3000000,ATLAS='h4000000,POSES=11;
@@ -130,6 +141,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
     endfunction
     function automatic [7:0] pixel(input integer address);
         integer page,offset,x,y;
+        if(address>='h5000000) return 8'((address*73)^(address>>7)^(address>>12));
         if(address>=MAPS && address<MAPS+'h1000000)
             return 8'(map_entry((address-MAPS)%'h100000/2)>>(address%2 ? 8 : 0));
         if(address>=ATLAS && address<ATLAS+'h800000)
@@ -147,6 +159,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         for(integer i=0;i<32;i++) v[i*8+:8]=pixel(a+i);
         return v;
     endfunction
+    reg expected_coverage[0:POSES-1][0:H-1][0:W-1];
     reg [7:0] expected_image[0:POSES-1][0:H-1][0:W-1];
     // Independent tile painter: one map lookup and one atlas byte per pixel.
     // No bursts, word assembly, request order or pipeline of the hardware.
@@ -168,7 +181,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
                 if(entry[14]) tx=size-1-tx;
                 if(entry[15]) ty=size-1-ty;
                 value=pixel(tile_field(pose,l,T_ATLAS)+(entry&8191)*size*size+ty*size+tx);
-                if(!(flags&2) || value!=0) expected_image[pose][y][x]=value;
+                if(!(flags&2) || value!=0) begin expected_image[pose][y][x]=value;expected_coverage[pose][y][x]=1;end
             end
         end
     endtask
@@ -177,8 +190,9 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
     task automatic reference_scene(input integer pose);
         integer dx,dy,sx,sy,vw,vh,sw,sh,flags,a,stride,prop,xx,yy,ww,hh,x0,y0;
         reg [7:0] value;
-        for(integer y=0;y<H;y++) for(integer x=0;x<W;x++)
+        for(integer y=0;y<H;y++) for(integer x=0;x<W;x++)begin
             expected_image[pose][y][x]=pose==3 ? pixel('h800000+y*W+x) : 0;
+            expected_coverage[pose][y][x]=0;end
         if(pose==3) return;
         for(integer l=0;l<16;l++) begin
             a=descriptor(pose,l,0);stride=descriptor(pose,l,5);flags=descriptor(pose,l,6);
@@ -191,7 +205,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
                 sx=(descriptor(pose,l,4)&65535)+dx;sy=(descriptor(pose,l,4)>>16)+dy;
                 if(dx>=0 && dy>=0 && dx<vw && dy<vh && sx>=0 && sy>=0 && sx<sw && sy<sh) begin
                     value=pixel(a+sy*stride+sx);
-                    if(!(flags&2) || value!=0) expected_image[pose][y][x]=value;
+                    if(!(flags&2) || value!=0) begin expected_image[pose][y][x]=value;expected_coverage[pose][y][x]=1;end
                 end
             end
             if(SPRITES && pose!=5) for(integer sp=0;sp<64;sp++) begin
@@ -201,7 +215,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
                     xx=(prop&131072) ? ww-1-x : x;yy=(prop&262144) ? hh-1-y : y;
                     value=pixel(sprite_descriptor(pose,sp,0)+yy*32+xx);
                     if(x+x0>=0 && x+x0<W && y+y0>=0 && y+y0<H && value!=0)
-                        expected_image[pose][y+y0][x+x0]=value;
+                        begin expected_image[pose][y+y0][x+x0]=value;expected_coverage[pose][y+y0][x+x0]=1;end
                 end
             end
         end
@@ -210,12 +224,35 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
     function automatic [17:0] color(input [7:0] p);
         return {p[5:0],p[7:2],p[5:0]^6'h15};
     endfunction
+    function automatic integer rgb_base(input integer pose);
+        return 'h5000000+(pose%2)*'h100000;
+    endfunction
+    function automatic [17:0] output_color(input integer pose,input integer y,input integer x);
+        integer at;
+        reg [15:0] rgb;
+        at=rgb_base(pose)+(HALF ? y/2:y)*(PITCH ? PITCH:HALF ? W:W*2)+2*(HALF ? x/2:x);rgb={pixel(at+1),pixel(at)};
+        return OVERLAY && pose!=3 && !expected_coverage[pose][y][x] ?
+            {rgb[15:11],rgb[15],rgb[10:5],rgb[4:0],rgb[4]}:color(expected_image[pose][y][x]);
+    endfunction
+    function automatic [31:0] output_sum(input integer pose);
+        reg [31:0] sum;
+        sum=0;
+        for(integer y=0;y<H;y++)for(integer x=0;x<W;x++)sum+=output_color(pose,y,x);
+        return sum;
+    endfunction
     function automatic [31:0] rot(input [31:0] v,input integer n);
         return (v<<n)|(v>>(32-n));
     endfunction
     function automatic [31:0] frame_hash(input integer pose);
         reg [31:0] hash,word,block_hash;
         hash=0;
+        if(OVERLAY)begin
+            for(integer yy=0;yy<H;yy++)for(integer xx=0;xx<(HALF ? W:W*2);xx+=4)begin
+                automatic integer a=rgb_base(pose)+(HALF ? yy/2:yy)*(PITCH ? PITCH:HALF ? W:W*2)+xx;
+                hash+={pixel(a+3),pixel(a+2),pixel(a+1),pixel(a)};
+            end
+            return hash;
+        end
         for(integer yy=0;yy<H;yy++) for(integer xx=0;xx<W;xx+=32) begin
             block_hash=0;
             for(integer w=0;w<8;w++) begin
@@ -287,8 +324,8 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
             if(check_pixels) checked_frames++;
         end
         if(de && check_pixels) begin
-            if({r,g,b}!==color(expected_image[selected_pose][row][col]))
-                $fatal(1,"Pose%0d pixel %0d,%0d got=%h expected=%h",selected_pose,col,row,{r,g,b},color(expected_image[selected_pose][row][col]));
+            if({r,g,b}!==output_color(selected_pose,row,col))
+                $fatal(1,"Pose%0d pixel %0d,%0d got=%h expected=%h",selected_pose,col,row,{r,g,b},output_color(selected_pose,row,col));
             col++;
         end
         if(!de && prev_de) begin
@@ -305,7 +342,8 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         for(integer l=0;l<16;l++) for(integer w=0;w<8;w++) write_reg('h800+l*32+w*4,descriptor(pose,l,w));
         if(SPRITES) for(integer sp=0;sp<64;sp++) for(integer w=0;w<4;w++) write_reg('hc00+sp*16+w*4,sprite_descriptor(pose,sp,w));
         write_reg('h40,SPRITES && pose!=2);
-        write_reg('h30,1);write_reg(8,1);write_reg(12,1);
+        if(OVERLAY)write_reg(4,rgb_base(pose));
+        write_reg('h30,1);write_reg('h6c,PITCH);write_reg(8,OVERLAY ? (HALF ? 7:3):1);write_reg(12,1);
         do read_reg(12,value);while(value!=0);
         expected_pose=pose;scene_max=0;
     endtask
@@ -320,6 +358,10 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         read_reg('h1c,value);if(value!=0) $fatal(1,"16 full surfaces underflowed");
         read_reg('h20,value);if(value!=frame_hash(0)) $fatal(1,"Initial frame hash %h vs %h",value,frame_hash(0));
         read_reg('h2c,value);if(value>=HT*75/35) $fatal(1,"Exceeded line budget: %0d cycles",value);
+        if(OVERLAY)begin
+            read_reg('h64,value);$display("16 full surfaces + RGB565: total line %0d/%0d DDR cycles",value,HT*75/35);
+            if(value>=HT*75/35)$fatal(1,"RGB overlay line exceeded budget");
+        end
         $display("16 full surfaces: max line %0d/%0d DDR cycles",value,HT*75/35);
         for(integer l=0;l<16;l++) if(read_counts[l]<H*(W/32)*2) $fatal(1,"Layer %0d not read",l);
         wait(de);submit_pose(1);goal_frames=checked_frames+3;
@@ -338,7 +380,7 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
             read_reg('h2c,value);$display("G4 max line %0d/%0d DDR cycles",value,HT*75/35);
             submit_pose(5);goal_frames=checked_frames+3;
             wait(checked_frames>=goal_frames);@(negedge vs);
-            read_reg('h20,value);if(value!=0) $fatal(1,"Invalid sprites produced pixels");
+            read_reg('h20,value);if(value!=frame_hash(5)) $fatal(1,"Invalid sprites produced pixels");
             read_reg('h48,value);if(value<5) $fatal(1,"Invalid sprites not reported");
             if(W==800) begin
                 // Deliberate overload: 16 full layers AND 64 sprites on one
@@ -381,10 +423,13 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
             read_reg('h20,value);if(value!=frame_hash(1)) $fatal(1,"Surfaces after tile layers");
             $display("L11 PASS: tile layers 8/16/32, flips, wrap, clipping, scroll, key zero, sprites and surfaces above, invalid descriptors");
         end
+        repeat(30)@(posedge hc);
+        read_reg('h60,value);if(value!=output_sum(1))$fatal(1,"LCD checksum %h expected %h",value,output_sum(1));
+        read_reg('h64,value);$display("Total composition + RGB line cycles=%0d",value);
         // Defer a table commit while the old memory request is still blocked.
         skip_pixels=1;@(negedge vs);read_reg('h1c,underflow_before);wait(fv);stalled=1;
         for(integer l=0;l<16;l++) for(integer w=0;w<8;w++) write_reg('h800+l*32+w*4,descriptor(2,l,w));
-        write_reg('h40,0);write_reg(12,1);
+        write_reg('h40,0);if(OVERLAY)write_reg(4,rgb_base(2));write_reg(12,1);
         repeat(2) @(negedge vs);
         read_reg(12,value);if(value!=1) $fatal(1,"Recycled a descriptor bank while still in use");
         read_reg('h1c,value);if(value<=underflow_before) $fatal(1,"Missing underflow report");
@@ -402,8 +447,8 @@ module gpu_layers_tb #(parameter W=64,H=32,HT=1193,VT=48,HSTART=182,VSTART=8,LAT
         do read_reg(12,value);while(value!=0);
         expected_pose=2;repeat(2) @(negedge vs);skip_pixels=0;
         goal_frames=checked_frames+3;wait(checked_frames>=goal_frames);@(negedge vs);
-        read_reg('h20,value);if(value!=0) $fatal(1,"Disabled layers did not clear the image");
-        wait(de);write_reg(4,'h800000);write_reg('h30,0);write_reg(12,1);
+        read_reg('h20,value);if(value!=frame_hash(2)) $fatal(1,"Disabled layers did not clear the image");
+        wait(de);write_reg(4,'h800000);write_reg('h30,0);write_reg(8,1);write_reg(12,1);
         do read_reg(12,value);while(value!=0);
         expected_pose=3;goal_frames=checked_frames+3;
         wait(checked_frames>=goal_frames);@(negedge vs);

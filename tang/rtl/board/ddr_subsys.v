@@ -1,5 +1,6 @@
-// ddr_subsys.v — sous-système DDR3 : IP DDR3 standalone Gowin (16 bits, 512 Mo) + pont AHB 64 bits Sipeed
-// (`sipeed/gw_ahb_ddr3.v`, module `gw_ahb_ddr3`). Remplace `gw_ahb_ddr3_top` de Sipeed (mêmes ports) : l'IP est
+// ddr_subsys.v — sous-système DDR3 : IP DDR3 standalone Gowin (32 bits, 1 Go) + pont AHB 64 bits à deux FIFO CDC.
+// `ahb_ddr_cdc` remplace le pont Sipeed dont les contrôles traversaient directement les horloges 50/75 MHz.
+// Historique : remplace `gw_ahb_ddr3_top` de Sipeed (mêmes ports) : l'IP est
 // instanciée ICI pour que son interface utilisateur (cmd/addr/wr_data 128 bits, BL8) puisse être partagée en E2
 // entre le pont (cœur AE350) et `ddr_writer` par `ddr_arb` (ARCHI_V3 § 9). E2-b : 1er temps = pont seul en
 // câblage direct (E1 rejoué à l'identique) ; 2e temps = `ddr_arb` inséré, port writer (m1) inactif, E1 rejoué.
@@ -202,16 +203,16 @@ module ddr_subsys #(
         .ui_rd_data(ui_rd_data), .ui_rd_data_valid(ui_rd_data_valid), .ui_rd_data_end(ui_rd_data_end),
         .dbg(arb_dbg));
 
-    gw_ahb_ddr3 u_bridge (
-        .rst_n(DDR3_RSTN),
-        .HCLK(HCLK), .HRESETN(HRESETN), .HSEL(1'b1), .HREADY(HREADY_O),
-        .HADDR(HADDR), .HSIZE(HSIZE), .HWRITE(HWRITE), .HTRANS(HTRANS), .HBURST(HBURST), .HWDATA(HWDATA),
-        .HREADY_O(HREADY_O), .HRESP(HRESP), .HSPLIT(), .HRDATA(HRDATA), .DBG(DBG),
-        .ddr_clk(ui_clk), .init_calib_complete(DDR3_INIT),
-        .ui_cmd_ready(ui_cmd_ready), .ui_cmd(ui_cmd), .ui_cmd_en(ui_cmd_en), .ui_addr(ui_addr),
-        .ui_wr_data_rdy(ui_wr_data_rdy), .ui_wr_data(ui_wr_data), .ui_wr_data_en(ui_wr_data_en),
-        .ui_wr_data_end(ui_wr_data_end), .ui_wr_data_mask(ui_wr_data_mask),
-        .ui_rd_data(b_rd_data), .ui_rd_data_valid(b_rd_valid), .ui_rd_data_end(b_rd_end)
+    // The legacy bridge crossed completion/control levels directly between
+    // HCLK=50 MHz and UI=75 MHz. Commands and completions now use two FIFOs.
+    ahb_ddr_cdc u_bridge (
+        .rst_n(DDR3_RSTN && DDR3_INIT && HRESETN), .hclk(HCLK), .ui_clk(ui_clk),
+        .haddr(HADDR),.hsize(HSIZE),.hwrite(HWRITE),.htrans(HTRANS),.hwdata(HWDATA),
+        .hready(HREADY_O),.hresp(HRESP),.hrdata(HRDATA),.dbg(DBG),
+        .cmd_ready(ui_cmd_ready),.cmd(ui_cmd),.cmd_en(ui_cmd_en),.addr(ui_addr),
+        .wr_ready(ui_wr_data_rdy),.wr_data(ui_wr_data),.wr_en(ui_wr_data_en),.wr_mask(ui_wr_data_mask),
+        .rd_data(b_rd_data),.rd_valid(b_rd_valid)
     );
+    assign ui_wr_data_end=ui_wr_data_en;
 endmodule
 `default_nettype wire

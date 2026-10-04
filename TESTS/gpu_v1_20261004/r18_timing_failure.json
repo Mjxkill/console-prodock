@@ -1,0 +1,718 @@
+{
+  "stage": "gpu_v1_r18",
+  "report_sha256": "4315cb468e3b04b7aec15d684c906e293916a5871896e6b66a82a8f4b5a18458",
+  "violations": [
+    {
+      "clock": "clk50",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "clk50",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "sclk",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "sclk",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "bus80_clk",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "bus80_clk",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "core_clk",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "core_clk",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "rtc_clk",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "rtc_clk",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "ddr3_ref_clk",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "ddr3_ref_clk",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "ddr3_mem_clk",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "ddr3_mem_clk",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "ddr3_sys_clk",
+      "type": "setup",
+      "tns_ns": -110.394,
+      "endpoints": 92
+    },
+    {
+      "clock": "ddr3_sys_clk",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "CLK_48M",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "CLK_48M",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "PHY_CLKOUT",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "PHY_CLKOUT",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "fclk_960M",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "fclk_960M",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "LCD_35M",
+      "type": "setup",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "LCD_35M",
+      "type": "hold",
+      "tns_ns": 0.0,
+      "endpoints": 0
+    }
+  ],
+  "negative_path_groups": [
+    {
+      "clock": "ddr3_sys_clk:[R]",
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "paths": 91,
+      "worst_ns": -3.568
+    },
+    {
+      "clock": "ddr3_sys_clk:[R]",
+      "source": "u_gpu/u_reader/u_tiles/request_valid_s0",
+      "paths": 1,
+      "worst_ns": -0.066
+    }
+  ],
+  "negative_paths": [
+    {
+      "slack_ns": -3.568,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_5_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -3.568,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_17_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.916,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_4_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.916,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_23_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.916,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_27_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.915,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_6_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.915,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_21_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.485,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_4_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.485,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_12_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.485,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_18_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.485,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_19_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.485,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_31_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.476,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_7_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.476,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_15_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.476,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_20_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.271,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_26_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -2.262,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_28_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.952,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_30_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.853,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_1_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.853,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_3_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.853,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_9_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.853,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_25_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.678,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_pending_s1",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.63,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_12_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.63,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_19_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.63,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_20_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.63,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_26_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.564,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_14_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.3,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_9_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.3,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_13_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.3,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_22_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.105,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_15_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.084,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_mask_10_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_8_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_14_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_17_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_18_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_19_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_20_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_21_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_22_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.05,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_28_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_3_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_12_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_23_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_24_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_25_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_26_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_27_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_13_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_15_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.031,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_16_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.004,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_7_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.004,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_14_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.004,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_16_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -1.004,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_25_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.896,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_10_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.896,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_11_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.678,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_30_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.575,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_adapt/tq_w_3_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.572,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_adapt/tq_w_4_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.485,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_29_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.476,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_6_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.475,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_adapt/tq_w_1_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.472,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_adapt/tq_w_2_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.468,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_197_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.468,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_198_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.468,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_199_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.468,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_200_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.468,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_201_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.468,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_202_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_192_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_230_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_231_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_3_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_8_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_10_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_11_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_18_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.449,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_addr_24_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.395,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_248_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.347,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_204_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.347,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_249_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.347,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_250_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.347,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/cpu_data_255_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.305,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_evfifo/head_valid_s5",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.256,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_adapt/tq_w_0_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.237,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_5_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.228,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_9_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.066,
+      "source": "u_gpu/u_reader/u_tiles/request_valid_s0",
+      "destination": "u_accel/u_raster/state_1_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.035,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_4_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.018,
+      "source": "u_soc/g_ddr.u_evfifo/rd_count_r_2_s1",
+      "destination": "u_soc/g_ddr.u_ddr/u_writer/wptr_7_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    }
+  ]
+}

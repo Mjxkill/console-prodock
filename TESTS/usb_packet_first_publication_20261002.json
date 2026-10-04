@@ -1,0 +1,76 @@
+{
+  "baseline": "/home/michael/console/tang/impl/gpu_usb_phy34_r2/source/tang/rtl/usb/usb_packet_trace.v",
+  "baseline_sha256": "f9c9f0204f45963d343522d02777a0eb00b0f28bcf3002d7370bf0715a82a018",
+  "sources_sha256": {
+    "/home/michael/console/tang/rtl/usb/usb_packet_trace.v": "63f737a0357c3386d6fc3a7e1319901d11a27bb3ebc1d074b5c959269d0073ae",
+    "/home/michael/console/TESTS/rtl/usb_packet_trace_first_tb.sv": "ff88d867902b540f72a8b359dfc6b76cee1185b19a80f9810aab08fb7cb48e1c",
+    "/home/michael/console/TESTS/rtl/usb_packet_trace_equiv.sv": "fec4c36b30e93c3206ba7ca2949bcf94634e6ad8701fc9f3cc68a743f997f61b",
+    "/home/michael/console/TESTS/rtl/usb_packet_trace_tb.sv": "6154ba221b7b6f7f1e462c3feaa8bb41702ace4a96ed40e8d253d99cca4d9bbf"
+  },
+  "cases": {
+    "first": {
+      "command": [
+        "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+        "-B",
+        "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+        "-g2012",
+        "-s",
+        "usb_packet_trace_first_tb",
+        "-o",
+        "/tmp/console_usb_packet_first_20261002.vvp",
+        "/home/michael/console/TESTS/rtl/usb_packet_trace_first_tb.sv",
+        "/home/michael/console/tang/rtl/usb/usb_packet_trace.v"
+      ],
+      "compile_stderr": "",
+      "run_returncode": 0,
+      "stdout": "PASS: first publication captures before/during/completion, keeps ZLP predecessor and own ACK/FIN across five retries, EP0/idle, invalid ACKs and reset\n/home/michael/console/TESTS/rtl/usb_packet_trace_first_tb.sv:109: $finish called at 7080000 (1ps)\n",
+      "stderr": "",
+      "expected_pass": true,
+      "expectation_met": true
+    },
+    "default_equiv": {
+      "command": [
+        "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+        "-B",
+        "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+        "-g2012",
+        "-s",
+        "usb_packet_trace_equiv",
+        "-o",
+        "/tmp/console_usb_packet_default_equiv_20261002.vvp",
+        "/home/michael/console/TESTS/rtl/usb_packet_trace_equiv.sv",
+        "/home/michael/console/TESTS/rtl/usb_packet_trace_tb.sv",
+        "/home/michael/console/tang/rtl/usb/usb_packet_trace.v",
+        "/tmp/console_usb_packet_trace_reference_20261002.v"
+      ],
+      "compile_stderr": "",
+      "run_returncode": 0,
+      "stdout": "PASS: useful DATA snapshot with preceding DATA/ZLP attempts, own and previous ACK/FIN, idle retention, stalls, invalid ACKs, endpoints and reset\n/home/michael/console/TESTS/rtl/usb_packet_trace_tb.sv:110: $finish called at 6700000 (1ps)\n",
+      "stderr": "",
+      "expected_pass": true,
+      "expectation_met": true
+    },
+    "negative_last_attempt": {
+      "command": [
+        "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+        "-B",
+        "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+        "-g2012",
+        "-s",
+        "usb_packet_trace_first_tb",
+        "-o",
+        "/tmp/console_usb_packet_negative_last_attempt_20261002.vvp",
+        "/tmp/console_usb_packet_trace_first_negative_20261002.sv",
+        "/home/michael/console/tang/rtl/usb/usb_packet_trace.v"
+      ],
+      "compile_stderr": "",
+      "run_returncode": 1,
+      "stdout": "FATAL: /tmp/console_usb_packet_trace_first_negative_20261002.sv:67: Retry 0 overwrote first attempt or its ACK flags\n       Time: 1140000  Scope: usb_packet_trace_first_tb.$ivl_for_loop0\n",
+      "stderr": "",
+      "expected_pass": false,
+      "expectation_met": true
+    }
+  },
+  "sources_unchanged": true,
+  "pass": true
+}

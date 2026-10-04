@@ -1,0 +1,79 @@
+{
+  "stage": "tang/impl/gpu_l12_usb_hs33_lock2ms_r6",
+  "status": "timing_passed_hardware_failed",
+  "prior_timing": {
+    "stage": "gpu_l12_usb_hs33_ep0_r3",
+    "minimum_slack_ns": -1.215,
+    "setup_violations": 7,
+    "tns_ns": -3.848,
+    "loaded": false
+  },
+  "source_sha256": {
+    "tang/rtl/console_top.v": "d2017d52070953c3c8811ea289ecbdb7dac68f718841f58a16d8b0f218475e6a",
+    "tang/rtl/video/blitter.v": "dd6ff45b0db5746f1fe07b4276b9aeb5ac2f7818f24f681881efff3f5b1b5469",
+    "tang/rtl/video/gpu_sprite_cache.v": "98241eac1001cf5c344bc34d480b46a26ee20becd6d6ec71a61bac608fe00edf",
+    "tang/constr/gpu.sdc": "c9367c2d390554345db5bcc5dbb115a8c348b955dd5013e99e1ecade80c8f64b",
+    "tang/rtl/video/gpu_blit_dma.v": "06e543708e3e1c91c5b2f696bef1b45dfb8a8ebce8e6230308acb92100d2c086",
+    "tang/rtl/video/gpu_triangle.v": "e2c1655aa85ef608458012191896e625551557eebb95c2d1ea80ba33a9070294"
+  },
+  "tests": {
+    "reset_chain": {
+      "result": "pass",
+      "evidence": "TESTS/usb_pll_lock_window_20261002.json",
+      "scope": "Digital reset and LOCK qualification only; no analog PLL or physical USB proof"
+    },
+    "graphics_equivalence": {
+      "result": "pass",
+      "evidence": "TESTS/gpu_hs_lock2ms_r6_equivalence_20261002.txt",
+      "commands": 604,
+      "cycles": 2081517,
+      "halfwords": 251234,
+      "native_ddr_commands_identical": true,
+      "inactive_address_difference": "After write acceptance, addr can advance one cycle later while valid=0; all offered and stalled transactions are compared."
+    },
+    "layers": {
+      "result": "pass",
+      "evidence": "TESTS/gpu_hs_lock2ms_layers_20261002.txt",
+      "resolution": [
+        800,
+        480
+      ],
+      "layers": 16,
+      "sprites": 64,
+      "max_scene_cycles": 2452,
+      "line_budget_cycles": 2556
+    }
+  },
+  "board": {
+    "tested": true,
+    "usb_reloads": "First two loads pass 20 rounds each; third loses 65/256 bytes.",
+    "ddr": "Three independent trials stop after DDR PASS 0 write, noncached mask/address tests pass.",
+    "animation": "Z alone does not return; CPU UART count stops increasing.",
+    "baseline": "gpu_l12_diag_r13 passes three cached DDR passes then framebuffer/blitter; missing S in SHARED ends USB test.",
+    "jlink": "Baseline PC 0x800057d6 is get_byte. r6 breakpoint at first cached store 0x800079e8 reached, MCAUSE/MEPC/MTVAL=0; stepping this store succeeds. Running subsequent loop does not reach breakpoint 0x800079f0. Post-hang halt fails. PC reported after J-Link communication timeout is NOT reliable.",
+    "evidence": "TESTS/usb_ax15_20261002/"
+  },
+  "production_sdc_unchanged": true,
+  "frequencies_changed": false,
+  "independent_dma_review": {
+    "result": "No blocking defect found by second agent",
+    "corners": [
+      "one halfword after boundary",
+      "F_PREP/F_MASK",
+      "Cpixel",
+      "new IDLE request priority",
+      "reset clears pending advance",
+      "arbiter gates consumption on valid and ready"
+    ],
+    "limitation": "Mid-command reset checked by RTL inspection, not by additional targeted simulation."
+  },
+  "timing": {
+    "minimum_slack_ns": 0.138,
+    "detailed_paths": 110,
+    "setup_violations": 0,
+    "hold_violations": 0
+  },
+  "bitstream_sha256": "f4b5df8fbb80c2a5b02b1688874772768713d341848c904d42fe12bf89cb2193",
+  "archive_sha256": "63b645d8da5f1a3be27ef83becbcba53c5501506c30364e18ea7c02bec7db5da",
+  "frozen_sources": 97
+}
