@@ -52,6 +52,13 @@ module ae350_soc #(
     // Console : UART2 (printf du BSP Gowin)
     output wire        uart2_tx,
     input  wire        uart2_rx,
+    // Carte microSD en mode SPI : SPI maître intégré de l'AE350 (0xF0F00000), sélection par GPIO 0,
+    // présence de la carte sur GPIO 1. Aucune horloge ajoutée : SCK est divisée de l'horloge APB.
+    output wire        sd_clk,
+    output wire        sd_cmd,        // MOSI ; maintenu à 1 quand le contrôleur ne pilote pas
+    input  wire        sd_miso,       // D0
+    output wire        sd_cs_n,       // D3
+    input  wire        sd_detect,
     // Native DDR3 graphics reads (gpu_clk = DDR UI clock).
     output wire gpu_clk,
     input wire gpu_valid,
@@ -337,6 +344,17 @@ module ae350_soc #(
     // --- SoC (suite) : pas d'interruption externe pour l'instant, GPIO/UART2 modem en l'air. ---------------
     /* verilator lint_off PINCONNECTEMPTY */
     wire        core0_wfi;                 // DIAG : le cœur exécute une instruction WFI (preuve de vie pure, sans bus)
+    // SD : les entrées du contrôleur relisent ses propres sorties, comme le feraient des broches bidirectionnelles.
+    wire [31:0] gpio_out, gpio_oe;
+    wire        spi_clk_out, spi_clk_oe, spi_csn_out, spi_csn_oe, spi_mosi_out, spi_mosi_oe;
+    reg  [1:0]  sd_detect_s;
+    always @(posedge apb_clk) sd_detect_s <= {sd_detect_s[0], sd_detect};
+    // Les sorties « OE » de l'IP (SPI et GPIO) sont actives à l'état haut. Relevé sur carte le 5 octobre
+    // 2026 : l'horloge ne bat et la carte ne répond qu'avec cette convention. Les GPIO 2, 3 et 5 relisent
+    // l'horloge, la commande et la sélection (le registre d'entrée d'un GPIO en sortie ne relit pas sa broche).
+    assign sd_clk  = spi_clk_oe  ? spi_clk_out  : 1'b0;
+    assign sd_cmd  = spi_mosi_oe ? spi_mosi_out : 1'b1;
+    assign sd_cs_n = gpio_oe[0]  ? gpio_out[0]  : 1'b1;
     RiscV_AE350_SOC_Top u_ae350 (
         .DDR_HRDATA(ddr_hrdata), .DDR_HREADY(ddr_hready), .DDR_HRESP(ddr_hresp),
         .DDR_HADDR(ddr_haddr), .DDR_HBURST(ddr_hburst), .DDR_HPROT(ddr_hprot), .DDR_HSIZE(ddr_hsize),
@@ -350,7 +368,13 @@ module ae350_soc #(
         .EXTS_HCLK(exts_hclk), .EXTS_HRSTN(exts_hrstn),
         .UART2_TXD(uart2_tx), .UART2_RTSN(), .UART2_RXD(uart2_rx), .UART2_CTSN(1'b0), .UART2_DCDN(1'b0),
         .UART2_DSRN(1'b0), .UART2_RIN(1'b1), .UART2_DTRN(), .UART2_OUT1N(), .UART2_OUT2N(),
-        .GPIO(), .CORE0_WFI_MODE(core0_wfi), .RTC_WAKEUP(),
+        .GPIO_IN({26'd0, sd_cs_n, 1'b0, sd_cmd, sd_clk, sd_detect_s[1], sd_cs_n}), .GPIO_OE(gpio_oe), .GPIO_OUT(gpio_out),
+        .SPI_HOLDN_IN(1'b1), .SPI_WPN_IN(1'b1), .SPI_CLK_IN(sd_clk), .SPI_CSN_IN(spi_csn_oe ? spi_csn_out : 1'b1),
+        .SPI_MISO_IN(sd_miso), .SPI_MOSI_IN(sd_cmd),
+        .SPI_HOLDN_OUT(), .SPI_HOLDN_OE(), .SPI_WPN_OUT(), .SPI_WPN_OE(),
+        .SPI_CLK_OUT(spi_clk_out), .SPI_CLK_OE(spi_clk_oe), .SPI_CSN_OUT(spi_csn_out), .SPI_CSN_OE(spi_csn_oe),
+        .SPI_MISO_OUT(), .SPI_MISO_OE(), .SPI_MOSI_OUT(spi_mosi_out), .SPI_MOSI_OE(spi_mosi_oe),
+        .CORE0_WFI_MODE(core0_wfi), .RTC_WAKEUP(),
         .CORE_CLK(core_clk), .DDR_CLK(ddr3_clk_in), .AHB_CLK(ahb_clk), .APB_CLK(apb_clk), .RTC_CLK(rtc_clk),
         .POR_RSTN(ae350_rstn), .HW_RSTN(ae350_rstn)
     );

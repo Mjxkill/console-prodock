@@ -1,6 +1,26 @@
 # Fonctionnalités actuelles de la console
 
-Inventaire du 4 octobre 2026, build **`gpu_v1_r31`** chargé sur la Pro Dock.
+Mise à jour du 9 octobre 2026 : le build **`gpu_sdusb_c37`** est chargé et
+[archivé après qualification](../bitstreams/console_gpu_sdusb_guard_800.md).
+Il conserve les fonctions graphiques ci-dessous, le SD SPI et le stockage
+USB composite avec CDC à 480 Mbit/s. Le garde BOT bloque les commandes
+invalides jusqu'au reset hôte ; USBDISK R4 valide CBW/CDB, CMD13 et l'arrêt
+CMD25. Les cinq défauts de revue sont corrigés et testés.
+[Corrections, preuves et limites](../TESTS/CORRECTIONS_REVUE_20261008.md).
+
+La démo automatique **ORBITAL R6**, façon tir à la première personne,
+tourne sur C37 : 51 références exactes, 28 546 images en 520,828 s réelles,
+**54,81 images/s**, zéro erreur, underflow ou rejet. Elle utilise les textures
+en perspective, transparence, additif, brouillard, mipmaps, rendu en texture,
+texte, tuiles, sprites et couches. Le validateur exige la progression réelle
+des images et l'acquittement de reprise automatique.
+[Guide ORBITAL](../assets/orbital/README.md).
+
+USBDISK R4 expose la SD ou un disque DDR de 32 Mio dans une application ILM
+séparée. Les transferts DDR et neuf cas malformés passent sur carte ; la SD
+physique est qualifiée en lecture seule. [Contrat et limites](SD_USB_DISQUE.md).
+
+L'inventaire graphique initial date du 4 octobre 2026, build **`gpu_v1_r31`**.
 Il passe les simulations, le timing, deux rechargements SRAM avec USB HS et
 la suite graphique complète, incluant les douze poses V1 couleur/Z et LCD.
 L'endurance passe également : **30 minutes, 58 680 images, zéro erreur

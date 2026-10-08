@@ -404,3 +404,63 @@ R31 passe simulations, timing, deux rechargements USB HS, suite graphique
 complète et 30 minutes d'endurance (58 680 images). Les trois scènes sont
 confirmées visuellement. Image et sources archivées ; preuves et limites
 de charge dans `TESTS/TESTS_GPU_V1.md` et `ARCHI/GPU_V1.md`.
+
+### Carte SD et disque USB — 5 octobre 2026, en cours de validation
+
+Carte SD : aucune logique nouvelle. `board/riscv_ae350_soc_ext/cfg/riscv_ae350_config.v`
+active le contrôleur SPI optionnel de l'IP AE350 (`AE350_APB_SPI_EN`) et retire
+`AE350_GPIO_IOPORT_EN` (GPIO en ports séparés) ; l'IP est régénérée par le
+build, sa netlist n'est pas éditée. `board/ae350_soc.v` et `console_top.v`
+relient SPI et deux GPIO aux broches microSD du dock (`constr/gpu.cst`).
+Le système de fichiers `fw_console/fatfs/` est FatFs R0.11a (ChaN), copié du
+SDK AE350 (`ff.c`, `ff.h`, `diskio.h`, `integer.h`) ; `integer.h` y définit
+LONG/DWORD sur 32 bits pour la compilation sur PC 64 bits, `ffconf.h` et
+`diskio.c` sont propres au projet.
+
+Disque USB : sources ouvertes Gowin/Sipeed modifiées, netlists du contrôleur
+et du PHY inchangées.
+- `usb/sync_fifo/usb_fifo.v` : EP1 IN et OUT activés ; mode `EP1_IN_PACKET`
+  (longueur proposée = min(validé − acquitté, taille de paquet), purge EP1).
+  Les chemins EP2/EP3 ne sont pas réécrits : les cinq bancs USB existants
+  donnent des journaux identiques à ceux des sources précédentes.
+- `usb/usb_descriptor.v` : paramètre `MSC` (composite CDC + stockage de masse) ;
+  `MSC = 0` conserve les octets d'origine.
+- `usb/uart/usb_uart_config.v` : paramètre `MSC` (Get Max LUN, signalement du
+  Bulk-Only Reset) ; sans lui l'automate EP0 est inchangé.
+- Sources originales du projet : `usb/usb_msc_port.v` (port AHB du firmware,
+  FIFO double horloge `ddr_dcfifo`, passage de main) et `usb/usb_msc_empty.v`
+  (lecteur sans carte servi par le matériel).
+Contrat dans `ARCHI/SD_USB_DISQUE.md`, preuves et limites dans
+`TESTS/TESTS_SD_USB.md`.
+
+### Reprise vidéo / SD / USB — 7 octobre 2026
+
+C22 est qualifié sur carte le 8 octobre : trois rechargements HS, échos et
+EP0, SD en lecture, douze reprises BOT et disque DDR en écriture/lecture.
+Archive `bitstreams/console_gpu_sdusb_800.fs`, preuves et limites dans la
+fiche de reprise. Les netlists fournisseur n'ont pas été modifiées.
+
+Les corrections des sources ouvertes sont détaillées et suivies dans
+`TESTS/TESTS_REPRISE_20261007.md`. `usb/usb_msc_port.v` acquitte la purge
+aller-retour entre AHB et USB avant de libérer le port, y compris si
+l'horloge USB s'arrête. Son indicateur d'indisponibilité est enregistré ;
+la charge utile TX, sa validation et le compteur de données engagées sont
+retardés ensemble d'un cycle USB. Les FIFO restent à deux horloges.
+Les essais couvrent resets, horloges décalées/arrêtées, ACK perdus et
+débordement du compteur 16 bits. L'audit SDF contrôle séparément les
+84 liaisons Gray et les cinq liaisons d'acquittement de purge.
+
+`console_top.v` factorise la sélection AHB du GPU : son attente locale est
+déjà traitée dans `gpu_accel`, sans reboucler par le multiplexeur global.
+Les attentes des autres esclaves restent prises en compte, avec priorité
+au sous-espace USB. Preuves : 512 combinaisons de sélection et comparaison
+intégrée au cycle près avec plus de 1,2 million de cycles d'attente.
+Les modifications vidéo sont décrites dans `video/PROVENANCE.md`.
+
+Les changements CST retirent des placements hérités devenus pénalisants
+et rapprochent les décodages ITCM et le multiplexeur HREADY de leurs
+destinations, d'après les chemins routés. Les fréquences et le SDC sont
+conservés. Les IP fermées ne sont pas éditées : AE350, contrôleur et PHY
+USB sont générés par les outils officiels. Les simulations réussies ne
+valident pas à elles seules un nouveau bitstream sur carte ; consulter
+la fiche de reprise pour le dernier état de qualification.

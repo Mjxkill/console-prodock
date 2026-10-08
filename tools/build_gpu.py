@@ -308,13 +308,18 @@ def main():
             elif (usb_phy_ip and phy_version == '3.5' and args.usb_phy_rx_mode == 'advance'
                   and relative == Path('tang/constr/gpu.cst')):
                 # The official 3.5 Advance export names this RX packet FIFO
-                # fifo_rx_pkt. Preserve the two physical locations; only the
-                # instance scope changes (RAM and reset FF, verified in VO).
+                # fifo_rx_pkt. Preserve the RAM location and, when present,
+                # the legacy reset-FF location. Only the instance scope
+                # changes. C11 deliberately removes the stale reset anchor.
                 snapshot(src, 'usb_phy_ip/gpu_base.cst')
                 original = src.read_text()
                 old = ('u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/'
                        'u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/')
-                if original.count(old) != 2:
+                rx_cells = re.findall(r'INS_LOC "' + re.escape(old) + r'([^"]+)"', original)
+                ram_cell = 'fifo_4to8_sub_inst/Equal.mem_Equal.mem_0_0_s'
+                reset_cell = 'fifo_4to8_sub_inst/reset_w_1_s0'
+                if (original.count(old) != len(rx_cells) or
+                        sorted(rx_cells) not in ([ram_cell], sorted([ram_cell, reset_cell]))):
                     raise SystemExit('Unexpected PHY RX placement constraints; review before retargeting')
                 src = stage / 'usb_phy35_advance.cst'
                 retargeted = original.replace(old, old.removesuffix('fifo_rx/')+'fifo_rx_pkt/')

@@ -1,0 +1,90 @@
+SEGGER J-Link Commander V9.50 (Compiled Jun 10 2026 12:27:02)
+DLL version V9.50, compiled Jun 10 2026 12:26:20
+
+J-Link Commander will now exit on Error
+
+J-Link Command File read successfully.
+Processing script file...
+J-Link>exec InhibitConnectRetries = 1
+J-Link connection not established yet but required for command.
+Connecting to J-Link ...O.K.
+Firmware: J-Link Ultra V6 compiled May 26 2026 15:15:26
+Hardware version: V6.00
+J-Link uptime (since boot): 2d 08h 11m 58s
+S/N: 506005083
+License(s): RDI,FlashBP,FlashDL,JFlash,GDB
+USB speed mode: High speed (480 MBit/s)
+VTref=3.217V
+J-Link>exec DisableFlashDL
+J-Link>exec DisableFlashBPs
+J-Link>exec SetAllowFlashCache = 0
+J-Link>connect
+Device "A25" selected.
+
+
+Connecting to target via JTAG
+ConfigTargetSettings() start
+ConfigTargetSettings() end - Took 7us
+TotalIRLen = 5, IRPrint = 0x01
+JTAG chain detection found 1 devices:
+ #0 Id: 0x1000563D, IRLen: 05, RV32
+Assuming RISC-V TAP with JTAG-DTM setup
+DTM architecture:
+  RISC-V JTAG-DTM version: 0.13
+  AddrBits: 7
+  DataBits: 32
+  IdleClks: 7
+RISC-V Debug Spec. Version: 0.13
+Memory access:
+  Via system bus: No
+  Via ProgBuf: Yes (8 ProgBuf entries)
+  Via abstract command (AAM): May be tried as last resort
+DataBuf: 4 entries
+  autoexec[0] implemented: Yes
+Detected: RV32 core
+Temp. halting CPU for feature detection...
+HW instruction/data BPs: 8
+Support set/clr BPs while running: No
+HW data BPs trigger before execution of inst
+CSR access via abs. commands: Yes
+Compressed instruction support: Yes
+Feature detection done. Restarting core...
+BG memory access support: No
+Memory zones:
+  Zone: "Default" Description: Default access mode
+RISC-V identified.
+J-Link>h
+pc = A0002CF2 sp = A0207E60 ra = A0002D1E 
+gp = A0200800 tp = 00000000 fp = FFFFFFFF 
+t0 = 00000000 t1 = A0006DFC t2 = 00090000 
+t3 = E9000FFC t4 = 00000000 t5 = 00000000 t6 = 00000000 
+a0 = 0000000A a1 = A0201158 a2 = 00000010 a3 = 00000010 
+a4 = F0300000 a5 = 00000060 a6 = 0000000A a7 = 80808080 
+s1 = FFFFFFFF s2 = 00000040 s3 = 00639329 s4 = 00000001 
+s5 = A0200570 s6 = A0200588 s7 = 00010000 s8 = A0200558 
+s9 = F0300000 s10 = A0006F64 s11 = A0200000 
+J-Link>speed 1000
+Selecting 1000 kHz as target interface speed
+J-Link>loadfile /home/michael/console-validation-20261001/assets/orbital/packed/orbital.bin 0x05000000 noreset
+'loadfile': Skipping reset & halt of MCU before download.
+Downloading file [/home/michael/console-validation-20261001/assets/orbital/packed/orbital.bin]...
+O.K.
+J-Link>verifybin /home/michael/console-validation-20261001/assets/orbital/packed/orbital.bin 0x05000000
+Loading binary file /home/michael/console-validation-20261001/assets/orbital/packed/orbital.bin
+Reading 4315328 bytes data from target memory @ 0x05000000.
+Verify successful.
+J-Link>loadfile /home/michael/console-validation-20261001/assets/orbital/packed/orbital_fw.bin 0xa0000000 noreset
+'loadfile': Skipping reset & halt of MCU before download.
+Downloading file [/home/michael/console-validation-20261001/assets/orbital/packed/orbital_fw.bin]...
+O.K.
+J-Link>verifybin /home/michael/console-validation-20261001/assets/orbital/packed/orbital_fw.bin 0xa0000000
+Loading binary file /home/michael/console-validation-20261001/assets/orbital/packed/orbital_fw.bin
+Reading 38432 bytes data from target memory @ 0xA0000000.
+Verify successful.
+J-Link>SetPC 0xa000000c
+J-Link>g
+Memory map 'after startup completion point' is active
+J-Link>q
+
+Script processing completed.
+

@@ -82,10 +82,17 @@ module gpu_v1(
         .addr(copy_addr),.wr_data(copy_data),.wr_mask(copy_mask),
         .ready(ready && state[COPY_WAIT]),.rd_valid(rd_valid && state[COPY_WAIT]),.rd_data(rd_data));
     assign valid=native_valid || cache_valid || copy_valid;
-    assign write=copy_valid ? copy_write:native_valid && native_write;
-    assign addr=copy_valid ? copy_addr:cache_valid ? cache_addr:native_addr;
-    assign wr_data=copy_valid ? copy_data:native_data;
-    assign wr_mask=copy_valid ? copy_mask:native_mask;
+    // Les multiplexeurs de sortie (adresse, 256 bits de données, masque : plus de 300 entrées) sont
+    // commandés par copy_sel, quatre copies d'un bit de phase (COPY_START/COPY_WAIT) qui couvre tous
+    // les cycles où copy_valid peut valoir 1, plutôt que par copy_valid lui-même : ce registre du
+    // moteur de copie, à 305 destinations, faisait un fil de 5,7 ns (r621). Hors de ces cycles, valid
+    // vaut 0 et la valeur des bus est sans effet ; les transactions DDR sont identiques.
+    reg [3:0] copy_sel /* synthesis syn_preserve=1 */;
+    always @(posedge clk) copy_sel<={4{state[COPY_START] || state[COPY_WAIT]}};
+    assign write=copy_sel[0] ? copy_write:native_valid && native_write;
+    assign addr=copy_sel[0] ? copy_addr:cache_valid ? cache_addr:native_addr;
+    assign wr_data={copy_sel[2] ? copy_data[255:128]:native_data[255:128],copy_sel[1] ? copy_data[127:0]:native_data[127:0]};
+    assign wr_mask=copy_sel[3] ? copy_mask:native_mask;
     gpu_texture_cache u_cache(.clk(clk),.rst(rst),.invalidate(cache_invalidate),.start(cache_start),
         .byte_address(cache_address),.busy(cache_busy),.done(cache_done),.texel(cached_texel),
         .hits(texture_hits),.misses(texture_misses),.valid(cache_valid),.addr(cache_addr),
@@ -181,8 +188,14 @@ module gpu_v1(
     reg [14:0] fog_r,fog_g,fog_b;
     reg [15:0] mix_r,mix_g,mix_b;
     reg pixel_visible;
-    wire sample_visible=rational_valid && (!(flags[1] || flags[2] || flags[7]) ||
-        (value[3]>=0 && value[3]<49'sh100000000)) && (!flags[1] || depth<z_buf[lane*16+:16]);
+    // z_sample et depth_in_range sont pris à PIX_BEGIN, en même temps que depth : lane et value[3] ne
+    // changent pas entre PIX_BEGIN et PIX_LOD, où sample_visible est lu, et z_buf n'y change que par la
+    // réponse DDR anticipée ci-dessous. Avant, le choix de la voie
+    // (16 x 16 bits) et la comparaison sur 49 bits se faisaient dans le cycle de PIX_LOD (r621 : 0,75 ns).
+    reg [15:0] z_sample;
+    reg depth_in_range;
+    wire sample_visible=rational_valid && (!(flags[1] || flags[2] || flags[7]) || depth_in_range) &&
+        (!flags[1] || depth<z_sample);
     reg sample_allowed;
     wire [4:0] unpack_r=flags[0] && tex_argb ? {pixel[11:8],pixel[11]}:pixel[15:11];
     wire [5:0] unpack_g=flags[0] && tex_argb ? {pixel[7:4],pixel[7:6]}:pixel[10:5];
@@ -259,9 +272,17 @@ module gpu_v1(
         end
     end
     // Plane arithmetic shares a multiplier pair across attributes at each span.
+    // px_mul/py_mul : copie de px/py prise un cycle plus tôt, entrée des multiplicateurs. Sans elle,
+    // la synthèse absorbe px dans le registre d'entrée du DSP, et toute la logique de mise à jour
+    // de px (comparaison clipped_left/clipped_right, multiplexeur) doit atteindre la colonne DSP en
+    // un cycle : c'était le seul chemin en défaut de la compilation r325 (0,49 ns). px et py sont
+    // écrits au moins deux cycles avant PLANE_MUL (SPAN_CLIP, ROW_ADDR), donc les produits sont
+    // identiques au cycle près.
+    reg [10:0] px_mul,py_mul;
     always @(posedge clk)begin
-        product_x<=$signed({1'b0,px})*dx[plane_index];
-        product_y<=$signed({1'b0,py})*dy[plane_index];
+        px_mul<=px;py_mul<=py;
+        product_x<=$signed({1'b0,px_mul})*dx[plane_index];
+        product_y<=$signed({1'b0,py_mul})*dy[plane_index];
         plane_sum<=product_x+origins[plane_index];
         if(state[PLANE_LOAD])value[plane_index]<=plane_sum+product_y;
         else if(state[PIX_NEXT])for(integer p=0;p<7;p=p+1)value[p]<=value[p]+dx[p];
@@ -413,6 +434,9 @@ module gpu_v1(
                 raw_v<=flags[4] ? per_v[per_select]:value[1]>>>16;
                 rational_valid<=!flags[4] || per_valid[per_select];
                 depth<=value[3][31:16];background<=color_buf[lane*16+:16];
+                // z_buf reçoit la réponse DDR (z_load) au premier cycle de PIX_BEGIN : anticiper cette valeur.
+                z_sample<=z_load ? returned_data[lane*16+:16]:z_buf[lane*16+:16];
+                depth_in_range<=value[3]>=0 && value[3]<49'sh100000000;
                 gain_r<=flags[6] ? gain(value[4]):tint_r;gain_g<=flags[6] ? gain(value[5]):tint_g;gain_b<=flags[6] ? gain(value[6]):tint_b;
                 state<=55'b1<<PIX_LOD;
             end

@@ -45,6 +45,10 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     localparam T_SETUP=0,T_SIZE=1,T_END=2,T_CHECK=3,T_APPLY=4,T_ROW=5,T_START=6;
     reg [2:0] tile_step;
     reg mode, bank;
+    // Copie de mode réservée au multiplexeur de données de 256 bits (syn_preserve : la synthèse ne doit
+    // pas la refondre avec mode). mode seul alimentait 256 entrées de LUT plus la commande : les fils
+    // s'allongeaient d'une compilation à l'autre (r601 : 0,74 ns en défaut vers les sommes de l'affichage).
+    reg mode_data /* synthesis syn_preserve=1 */;
     reg [8:0] y;
     reg [3:0] layer;
     reg [3:0] descriptor_word;
@@ -211,11 +215,20 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     reg write_valid=0;
     reg [4:0] write_block;
     reg [255:0] write_pixels;
+    // Anticiper CLEAR depuis ses deux prédécesseurs : ces copies locales
+    // valent state==CLEAR sans cycle supplémentaire. La remise à zéro des
+    // 288 bits ne dépend plus d'un décodage d'état à 293 destinations
+    // (r622 : 9,60 ns de routage vers write_coverage).
+    reg [2:0] clear_payload /* synthesis syn_preserve=1 */ =0;
+    always @(posedge clk)
+        clear_payload<={3{resetn && ((state==IDLE && start && layers) ||
+            (state==CLEAR && clear_block!=BLOCKS-1))}};
     always @(posedge clk) begin
         write_valid<=resetn && (state==CLEAR || p3_valid);
         write_block<=state==CLEAR ? clear_block : p3_block;
-        write_pixels<=state==CLEAR ? 256'd0 : merged;
-        write_coverage<=state==CLEAR ? 32'd0:merged_coverage;
+        write_pixels<={clear_payload[1] ? 128'd0 : merged[255:128],
+                       clear_payload[0] ? 128'd0 : merged[127:0]};
+        write_coverage<=clear_payload[2] ? 32'd0:merged_coverage;
         if(write_valid) begin composed[write_block]<=write_pixels;covered[write_block]<=write_coverage;end
     end
     reg emit_valid;
@@ -225,12 +238,12 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     reg framebuffer_fetch;
     assign block_valid=resetn && (mode ? emit_valid : framebuffer_fetch && fetch_data_valid);
     assign block_index=mode ? emit_index : received[4:0];
-    assign block_data=mode ? old_q : fetch_data;
+    assign block_data=mode_data ? old_q : fetch_data;
     assign block_coverage=mode ? old_coverage:32'hffffffff;
 
     always @(posedge clk) begin
         if(!resetn) begin
-            state<=IDLE;done<=0;mode<=0;bank<=0;y<=0;layer<=0;descriptor_word<=0;
+            state<=IDLE;done<=0;mode<=0;mode_data<=0;bank<=0;y<=0;layer<=0;descriptor_word<=0;
             surface_base<=0;source_w<=0;source_h<=0;view_w<=0;view_h<=0;scroll_x<=0;scroll_y<=0;stride<=0;
             pos_x<=0;pos_y<=0;flags<=0;left_x<=0;right_x<=0;relative_y<=0;window_w<=0;available_h<=0;
             source_x<=0;source_y<=0;row_offset<=0;byte_address<=0;visible_width<=0;
@@ -270,7 +283,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
             if(state==EMIT) emit_index<=emit_block;
             case(state)
                 IDLE: if(start) begin
-                    mode<=layers;bank<=config_bank;y<=line_y;elapsed<=0;layer<=0;
+                    mode<=layers;mode_data<=layers;bank<=config_bank;y<=line_y;elapsed<=0;layer<=0;
                     sprite_mode<=sprites;is_sprite<=0;line_sprites<=0;line_sprite_pixels<=0;
                     tile_layer<=0;tile_fetch<=0;
                     if(layers) begin clear_block<=0;state<=CLEAR;end

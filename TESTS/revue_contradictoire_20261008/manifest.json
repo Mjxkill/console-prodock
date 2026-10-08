@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-08",
+  "iterations_completed": 7,
+  "verdict": "findings_reproduced_not_error_free",
+  "production_modified_by_review": false,
+  "hardware_accessed_by_review": false,
+  "findings": [
+    {
+      "id": "F1",
+      "priority": "P1",
+      "name": "SD programming error reported as success",
+      "evidence": "05_sd_failures.log"
+    },
+    {
+      "id": "F2",
+      "priority": "P1",
+      "name": "CMD25 STOP timeout ignored",
+      "evidence": "05_sd_failures.log"
+    },
+    {
+      "id": "F3",
+      "priority": "P2",
+      "name": "Inconsistent CBW fields accepted for WRITE10",
+      "evidence": "04_malformed_cbw.log"
+    },
+    {
+      "id": "F4",
+      "priority": "P2",
+      "name": "Bad signature followed by WRITE10 without BOT reset",
+      "evidence": "04_malformed_cbw.log"
+    },
+    {
+      "id": "F5",
+      "priority": "P2",
+      "name": "ORBITAL minimum FPS false positive",
+      "evidence": "06_validator.json"
+    }
+  ],
+  "baseline_tests": {
+    "sd_fatfs": "PASS_ASAN_UBSAN",
+    "msc": "PASS_ASAN_UBSAN",
+    "gpu_address": "PASS_512",
+    "msc_cdc": "PASS_3_CASES"
+  },
+  "counterexample_exit_zero_means": "Defect reproduced; does not mean production safe",
+  "source_sha256": {
+    "fw_console/sd.c": "a7394195cf9ff2d15d3d1375f4662f1687280b129ca6d9025a6f5abbe3449f23",
+    "fw_console/sd.h": "4f1622577e5bbd393b663169400a248c534d1a6bae7871cb07492eb55c14e4c0",
+    "fw_console/sd_ae350.c": "93290b3f91fc72eab4bc01d0d085761306e46b4cc9b71d951ca2455e550dca55",
+    "fw_console/usb_msc.c": "24505a99510185935f6fbe6b49841ad8d211b4e9311e08fa2b06cdd656e38ff2",
+    "fw_console/usb_disk_main.c": "b3ddeccb57d358b35093b26a44eb148e5ac9eb76fc489cf84efebd5463c32edb",
+    "tools/check_orbital.py": "4ab3f7a357066fa9ee013873ad371c0174b73f21aa8bb406b9beaa43a154c51d",
+    "tools/load_ilm.py": "4f47a93f9eb198ece2585ec6fe3e1d3feede738f83b68e8d2d2835f28f947fb3",
+    "tools/load_orbital.py": "e5ca44041b34a1dc758925bda37bfae8349d8e4a08bf2d5b9c089037de97c468",
+    "tang/rtl/usb/usb_msc_port.v": "e136db2942c3bc60d871e15453c9b7a5f1240205a454881081f2360d67b99ae4",
+    "TESTS/host/sd_model.c": "0cd572e0b83aeee2ccd8013e91019dc7c225af6a09a3bd42e5ec4cf934ae8a68",
+    "TESTS/host/usb_msc_test.c": "0c520b163cba00bf96899e0d54d515bf413fd5b87a810cd453569307c7a566ab"
+  },
+  "evidence_sha256": {
+    "TESTS/revue_contradictoire_20261008/01_integrity.json": "6aecbf39ec5df8e66eba124bded03ae1b69bbd621df87e9d739c20a2da69caf9",
+    "TESTS/revue_contradictoire_20261008/02_address/bench.sv": "3b6fdbdafda96e8df088f4ac2f3fba3a38f9c6043a2041d2926f87792ec96e44",
+    "TESTS/revue_contradictoire_20261008/02_address/build.log": "4c440f8b2b765c08bd5ba0b8b76c6cc4314b4e2b456ed8aaa03c75c2fcd01f06",
+    "TESTS/revue_contradictoire_20261008/02_address/result.json": "c12a84ca5920f2ba938e12796952ae512d7e0ff6167e5f4c6bee4e465b8913b1",
+    "TESTS/revue_contradictoire_20261008/02_address/simulation.log": "53e1c17c0d668ae5683258a482af8cc17e6abb7425545c705d04f9827766491b",
+    "TESTS/revue_contradictoire_20261008/02_copy_bounds.json": "b5e95fe7ca6b2ec7453572176e9bd357d6198f21c6f741891fb880562fbb2959",
+    "TESTS/revue_contradictoire_20261008/03_cdc/nominal/build.log": "a6d64ca96484a6c9adaf2b12df6d564a88e730eec5e3cb01f131cb76e861b3d9",
+    "TESTS/revue_contradictoire_20261008/03_cdc/nominal/simulation.log": "cfd2272cb75153709f5fedcc24b276da89e503ba17b96109c895a587ff06902c",
+    "TESTS/revue_contradictoire_20261008/03_cdc/result.json": "d8f70b2d59fa51c04b781e2fad6b0a966859e586500befdcf6d5a5e359808f80",
+    "TESTS/revue_contradictoire_20261008/03_cdc/usb_lent/build.log": "6d39a4e85e20c8c5892012bbc40a52a93bdd98a1253d32020689608248110160",
+    "TESTS/revue_contradictoire_20261008/03_cdc/usb_lent/simulation.log": "3ec70ba6bfc93ebdfda4cd4ca3cdfed86ebf10fb7fdbf2e6057da4a86517cfe8",
+    "TESTS/revue_contradictoire_20261008/03_cdc/usb_rapide/build.log": "0b0dfd629b48be791f4d2ea7c6ed083d026bbb953dc1e2ad426b8581704695a4",
+    "TESTS/revue_contradictoire_20261008/03_cdc/usb_rapide/simulation.log": "d8c93680346753233b33cacaa575838ff6b5afdf63548e5c03cb9d75f9fc41be",
+    "TESTS/revue_contradictoire_20261008/03_cdc_timing.json": "670569388da74b5e26960bbdf575e0c2e383ed749cbe6c5c4dda6bc3fd38ec80",
+    "TESTS/revue_contradictoire_20261008/04_malformed_cbw.c": "f31c4feb5fb1a7eaf79f9c01d3441e04fdc63b17fdf4c24de5ac46e88f338dd5",
+    "TESTS/revue_contradictoire_20261008/04_malformed_cbw.log": "38f0dfa28cb4b0829637e9e85565eb90d612b76a8c2e6040c4194c4fb881a36c",
+    "TESTS/revue_contradictoire_20261008/05_sd_failures.c": "a8b51675ca972a85ef6cf981dedda3cd55e59891dd0c823d76afd17f05dfdba1",
+    "TESTS/revue_contradictoire_20261008/05_sd_failures.log": "2bf81a56bae8dce569dfd2b49b12f2b161944ad423835a8bfd5413ae90296206",
+    "TESTS/revue_contradictoire_20261008/06_validator.json": "0a3d03023d1eaad5efb34a77db95c596736d415bac5e8d3686cec73bf58abd6c",
+    "TESTS/revue_contradictoire_20261008/06_validator.py": "a4b53bea3558c664341e38ad5668bc003c53aae7a5ffea7dc149802fe0c2d429",
+    "TESTS/revue_contradictoire_20261008/07_actual_c22_endurance.json": "234c9531e4b5eac1d331dd67e6d975f948e9cd38d81ba08e029d706acb4227f7",
+    "TESTS/revue_contradictoire_20261008/07_baseline_msc.log": "53d2109aece3f95eff207dfdf19d088218e39fc3708d4337cb1123f5a0527f91",
+    "TESTS/revue_contradictoire_20261008/07_baseline_sd.log": "c7bcc97e26cba5d2bcc9dd089bcf23d79de8e65af45db16f481d7554489bd429",
+    "TESTS/REVUE_CONTRADICTOIRE_20261008.md": "38dc6c2c9466eb3601fde512f4db9c71edbd0e9ccec0c12912d96273a96eabe5"
+  }
+}

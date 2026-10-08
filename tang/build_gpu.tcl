@@ -29,6 +29,9 @@ add_file rtl/usb/usb_device_controller.v
 add_file rtl/usb/usb_descriptor.v
 add_file rtl/usb/usb_packet_trace.v
 add_file rtl/usb/usb_idle_trace.v
+add_file rtl/usb/usb_msc_port.v
+add_file rtl/usb/usb_msc_guard.v
+add_file rtl/usb/usb_msc_empty.v
 add_file rtl/usb/usb_reset_release.v
 add_file rtl/usb/sync_fifo/sync_rx_pkt_fifo.v
 add_file rtl/usb/sync_fifo/sync_tx_pkt_fifo.v

@@ -19,12 +19,21 @@ module gpu_accel #(
     input wire [255:0] rd_data,
     input wire rd_valid
 );
-    reg [1:0] mrst = 0;
+    reg [1:0] mrst /* synthesis syn_preserve=1 */ = 0;   // voir gpu_scanout.v
     always @(posedge mem_clk or negedge hresetn)
         if (!hresetn) mrst <= 0; else mrst <= {mrst[0], 1'b1};
+    // Copies du dernier étage, avec exactement les mêmes cycles que mrst[1].
+    // Le registre unique alimentait 11 871 charges dans c2, dont les resets
+    // DSP du raster à l'autre bout du circuit. Garder une sortie par moteur.
+    // Le DMA possède aussi sa copie : partager celle du blitter créait
+    // un aller-retour reset -> DMA -> adresses BSRAM du blitter (C19).
+    reg [3:0] engine_resetn /* synthesis syn_preserve=1 */ = 0;
+    always @(posedge mem_clk or negedge hresetn)
+        if (!hresetn) engine_resetn <= 0;
+        else engine_resetn <= {4{mrst[0]}};
     reg [7:0] bus_addr;
     reg bus_write,bus_command;
-    wire queue_ready,queue_full;
+    wire queue_full;
     // Register command-port decode during the AHB address phase, keeping
     // the address comparator off the CPU's HREADY feedback path.
     // AHB master and this FIFO share reset. Use registered fullness here:
@@ -48,7 +57,7 @@ module gpu_accel #(
     wire [7:0] queue_count, queue_rd_count;
     ddr_dcfifo #(.WIDTH(32), .DEPTH_LOG2(7)) u_commands (
         .wr_clk(hclk), .wr_rst(!hresetn), .wr_valid(bus_command && !queue_full),
-        .wr_data(hwdata), .wr_ready(queue_ready), .wr_full(queue_full), .wr_lost(queue_lost), .wr_count(queue_count),
+        .wr_data(hwdata), .wr_ready(), .wr_full(queue_full), .wr_lost(queue_lost), .wr_count(queue_count),
         .rd_clk(mem_clk), .rd_rst(!mrst[1]), .rd_valid(queue_valid), .rd_data(queue_data),
         .rd_ready(queue_pop), .rd_count(queue_rd_count));
     wire command_full, blitter_busy;
@@ -83,30 +92,48 @@ module gpu_accel #(
     end
     // Decode in the existing AHB address phase, keeping the return-data
     // path to the CPU bridge to an AND/OR selection with unchanged latency.
-    reg [17:0] read_select;
+    // Une copie par octet de réponse : le sélecteur ne doit pas piloter
+    // les 32 bits dispersés du mux de statistiques. Les quatre copies
+    // capturent la même adresse sur le même front, sans cycle ajouté.
+    reg [71:0] read_select /* synthesis syn_preserve=1 */;
     genvar reg_index;
-    generate for(reg_index=0;reg_index<18;reg_index=reg_index+1)begin: read_decode
+    generate for(reg_index=0;reg_index<72;reg_index=reg_index+1)begin: read_decode
         always @(posedge hclk)
-            if(!hresetn)read_select[reg_index]<=(reg_index==0);
-            else if(hready)read_select[reg_index]<=(haddr[7:0]==reg_index*4);
+            if(!hresetn)read_select[reg_index]<=(reg_index%18==0);
+            else if(hready)read_select[reg_index]<=(haddr[7:0]==(reg_index%18)*4);
     end endgenerate
-    always @* hrdata=
-        ({32{read_select[0]}} & 32'h424c5432) |
-        ({32{read_select[1]}} & {30'b0,!queue_ready,busy_sync[1]}) |
-        ({32{read_select[2]}} & {16'b0,r_done}) |
-        ({32{read_select[3]}} & r_errors) |
-        ({32{read_select[5]}} & {20'b0,font_write_addr}) |
-        ({32{read_select[7]}} & queue_lost) |
-        ({32{read_select[8]}} & 32'h0000001f) |
-        ({32{read_select[9]}} & r_rejected) |
-        ({32{read_select[10]}} & r_fragments) |
-        ({32{read_select[11]}} & r_passed) |
-        ({32{read_select[12]}} & 32'h000001ff) |
-        ({32{read_select[13]}} & v1r_rejected) |
-        ({32{read_select[14]}} & v1r_fragments) |
-        ({32{read_select[15]}} & v1r_passed) |
-        ({32{read_select[16]}} & v1r_hits) |
-        ({32{read_select[17]}} & v1r_misses);
+    // Comme HREADY, le statut utilise FULL enregistré. Le maître partage
+    // HRESETn : toute lecture valide voit FULL == !READY, sans propager
+    // le réseau de reset dans le retour de données du pont CPU.
+    wire [31:0] register_value [0:17];
+    assign register_value[0]=32'h424c5432;
+    assign register_value[1]={30'b0,queue_full,busy_sync[1]};
+    assign register_value[2]={16'b0,r_done};
+    assign register_value[3]=r_errors;
+    assign register_value[4]=32'd0;
+    assign register_value[5]={20'b0,font_write_addr};
+    assign register_value[6]=32'd0;
+    assign register_value[7]=queue_lost;
+    assign register_value[8]=32'h0000001f;
+    assign register_value[9]=r_rejected;
+    assign register_value[10]=r_fragments;
+    assign register_value[11]=r_passed;
+    assign register_value[12]=32'h000001ff;
+    assign register_value[13]=v1r_rejected;
+    assign register_value[14]=v1r_fragments;
+    assign register_value[15]=v1r_passed;
+    assign register_value[16]=v1r_hits;
+    assign register_value[17]=v1r_misses;
+    genvar response_byte;
+    generate for(response_byte=0;response_byte<4;response_byte=response_byte+1)begin: read_response
+        integer k;
+        always @* begin
+            hrdata[response_byte*8+:8]=8'd0;
+            for(k=0;k<18;k=k+1)
+                hrdata[response_byte*8+:8]=hrdata[response_byte*8+:8] |
+                    ({8{read_select[response_byte*18+k]}} & register_value[k][response_byte*8+:8]);
+        end
+    end endgenerate
     wire [11:0] font_addr;
     wire [7:0] font_q;
     font_ram #(.FONT_FILE(FONT_FILE)) u_font (
@@ -136,7 +163,9 @@ module gpu_accel #(
     wire old_done,v1_done,v1_valid,v1_write,v1_request;
     reg v1_accepted,v1_pending,v1_tx_write,v1_rx_valid;
     reg [28:0] v1_tx_addr;
-    reg [255:0] v1_tx_data,v1_rx_data;
+    reg [255:0] v1_tx_data;
+    // (syn_preserve : voir gpu_raster.v, copie locale du bus de lecture DDR)
+    reg [255:0] v1_rx_data /* synthesis syn_preserve=1 */;
     reg [31:0] v1_tx_mask;
     wire [28:0] v1_addr;
     wire [255:0] v1_data;
@@ -163,7 +192,7 @@ module gpu_accel #(
     end
     assign v1_valid=v1_pending;
     assign ext_done=v1_select ? v1_done:old_done;
-    gpu_v1 u_v1(.clk(mem_clk),.rst(!mrst[1]),.start(ext_start && v1_select),.command(ext_command),
+    gpu_v1 u_v1(.clk(mem_clk),.rst(!engine_resetn[2]),.start(ext_start && v1_select),.command(ext_command),
         .busy(),.done(v1_done),.rejected(v1_rejected),.fragments(v1_fragments),.passed(v1_passed),
         .texture_hits(v1_hits),.texture_misses(v1_misses),.valid(v1_request),.write(v1_write),
         .addr(v1_addr),.wr_data(v1_data),.wr_mask(v1_mask),
@@ -179,12 +208,12 @@ module gpu_accel #(
     assign wr_data=ext_active ? (v1_select ? v1_tx_data:raster_data):legacy_data;
     assign wr_mask=ext_active ? (v1_select ? v1_tx_mask:raster_mask):legacy_mask;
     gpu_raster u_raster (
-        .clk(mem_clk),.rst(!mrst[1]),.start(ext_start && !v1_select),.command(ext_command),.busy(),.done(old_done),
+        .clk(mem_clk),.rst(!engine_resetn[1]),.start(ext_start && !v1_select),.command(ext_command),.busy(),.done(old_done),
         .rejected(raster_rejected),.fragments(raster_fragments),.passed(raster_passed),
         .valid(raster_valid),.write(raster_write),.addr(raster_addr),.wr_data(raster_data),.wr_mask(raster_mask),
         .ready(ready),.rd_data(rd_data),.rd_valid(rd_valid && ext_active && !v1_select));
     blitter u_blitter (
-        .clk(mem_clk), .rst(!mrst[1]), .cmd_we(command_we), .cmd_data(queue_data), .cmd_full(command_full),
+        .clk(mem_clk), .rst(!engine_resetn[0]), .cmd_we(command_we), .cmd_data(queue_data), .cmd_full(command_full),
         .err_cmd_lost(command_lost), .err_cmd_bad(command_bad), .cmd_done(done_count), .busy(blitter_busy),
         .ext_start(ext_start),.ext_active(ext_active),.ext_command(ext_command),.ext_done(ext_done),
         .s_req(s_req), .s_addr(s_addr), .s_len(s_len), .s_valid(s_valid), .s_data(s_data), .s_done(s_done),
@@ -193,7 +222,7 @@ module gpu_accel #(
         .c_req(c_req), .c_addr(c_addr), .c_wdata(c_data), .c_wmask(c_mask), .c_ack(c_ack),
         .font_addr(font_addr), .font_q(font_q));
     gpu_blit_dma u_dma (
-        .clk(mem_clk), .rst(!mrst[1]),
+        .clk(mem_clk), .rst(!engine_resetn[3]),
         .s_req(s_req), .s_addr(s_addr), .s_len(s_len), .s_valid(s_valid), .s_data(s_data), .s_done(s_done),
         .w_req(w_req), .w_addr(w_addr), .w_len(w_len), .w_data(w_data), .w_mask(w_mask), .w_ready(w_ready), .w_done(w_done),
         .f_req(f_req),.f_addr(f_addr),.f_len(f_len),.f_color(f_color),.f_done(f_done),

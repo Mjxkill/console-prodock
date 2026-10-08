@@ -53,7 +53,11 @@ module ddr_gpu_arb (
     reg prefer_blitter = 1;
     reg take_blitter = 0;
     assign g_ready = issue && m_ready;
-    assign b_ready = issue && !g_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
+    // b_grant est gardé tel quel par la synthèse (syn_keep) : sans cela, la LUT de b_ready était partagée
+    // avec m_wr_en, qui dépend de b_valid, et l'analyse de timing comptait une boucle combinatoire
+    // b_valid -> arbitre -> b_ready -> blitter/V1 qui n'existe pas logiquement (r600, -0,47 ns).
+    wire b_grant /* synthesis syn_keep=1 */ = issue && !g_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
+    assign b_ready = b_grant;
     assign c_ready = rst_n && !cpu_pending;
     assign c_wr_ready = c_ready;
     wire cpu_fire = issue && !g_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);

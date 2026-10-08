@@ -6,7 +6,7 @@
 `define AE350_APB_PIT_EN
 `define AE350_APB_UART2_EN
 `define AE350_APB_GPIO_EN
-`define AE350_GPIO_IOPORT_EN
+`define AE350_APB_SPI_EN
 `define AE350_APB_WDT_EN
 `define AE350_APB_RTC_EN
 `define AE350_APB_SMU_EN

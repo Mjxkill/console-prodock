@@ -24,6 +24,19 @@ Documents de référence, à lire avant toute évolution :
 
 ## Commandes
 
+Référence intégrée GPU/SD/USB au 9 octobre 2026 : **`gpu_sdusb_c37`**,
+archivée sous `bitstreams/console_gpu_sdusb_guard_800.fs`. Timing minimal
++0,071 ns, trois rechargements HS, suite GPU complète, SD en lecture,
+neuf cas USB malformés, douze reprises BOT, disque DDR en écriture/lecture
+et ORBITAL R6 qualifiés. ORBITAL passe 51 poses exactes et 28 546 images
+en 520,8 s sans erreur ; la confirmation visuelle utilisateur concerne C22.
+Sources, options, mesures et limites : `TESTS/CORRECTIONS_REVUE_20261008.md`
+et `bitstreams/console_gpu_sdusb_guard_800.md`. C22 et R31 restent des
+références historiques.
+`load_orbital.py --reload` restaure spécifiquement R31 : omettre cette option
+pour garder C37 déjà chargé. USBDISK R4/C4b peut sélectionner la DDR avec `d` ;
+les tests restent en lecture seule sur la SD physique sans autorisation.
+
 ### Build complet (firmware + IP AE350 + FPGA + contrôle du timing)
 
 ```sh
@@ -36,6 +49,13 @@ python3 tools/build_gpu.py --name gpu_xxx_r1
   la démo autonome Luma en ILM/DLM, puis `tools/load_luma.py` la charge par J-Link
   sur le R31 inchangé, avec ses ressources en DDR. Ce chargement est volatile ;
   il ne remplace pas l'initialisation ITCM de l'archive. Voir `assets/luma/README.md`.
+  La démo Orbital (tir à la première personne automatique) suit le même
+  principe : `tools/build_orbital.py`, `tools/load_orbital.py`, puis
+  `tools/check_orbital.py`. Voir `assets/orbital/README.md` et
+  `TESTS/TESTS_ORBITAL.md`, qui donne aussi le coût mesuré de chaque mode de
+  dessin de R31 : un rectangle effacé (opcode 28) coûte environ vingt fois
+  moins par pixel qu'un triangle, d'où le tracé du sol par lignes et des murs
+  par barres.
 - `tang/impl/<name>` ne doit pas déjà exister : chaque build utilise un nom
   nouveau (`…_r1`, `…_r2`). Les sources sont figées dans `tang/impl/<name>/source`
   avec leur SHA-256 dans `sources.json`.

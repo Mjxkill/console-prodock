@@ -22,6 +22,10 @@ def main():
     p.add_argument('--reference-root', type=Path, required=True)
     p.add_argument('--reference-video', action='store_true',
                    help='also freeze all video children, rather than only the integration')
+    p.add_argument('--reference-self-ready', action='store_true',
+                   help='compare old HREADY-masked HSEL with a pending address during each stall')
+    p.add_argument('--sweep-registers', action='store_true',
+                   help='read all 256 byte addresses after drawing, including holes and unaligned addresses')
     p.add_argument('--vectors', type=Path, required=True)
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--commands', type=int, required=True)
@@ -60,15 +64,25 @@ def main():
     outputs = dict(hrdata=32, hready=1, valid=1, write=1, addr=29, wr_data=256, wr_mask=32)
     body = ''.join(f'    wire [{width-1}:0] ref_{name};\n' for name, width in outputs.items())
     for typ, prefix in [('current', ''), ('reference', 'ref_')]:
-        ports = [f'.{name}({name})' for name in inputs]
+        actual = {name: name for name in inputs}
+        if a.reference_self_ready:
+            # Présenter une nouvelle adresse tant que la précédente attend :
+            # l'ancien top masque HSEL, le nouveau laisse le GPU ignorer
+            # cette adresse grâce à son HREADY local. Aucun transfert ajouté.
+            actual.update(hsel='hsel || !hready', haddr="hready ? haddr : 32'h10",
+                          htrans="hready ? htrans : 2'b10", hwrite="hready ? hwrite : 1'b1")
+            if typ == 'reference':
+                actual['hsel'] = '(hsel || !hready) && ref_hready'
+        ports = [f'.{name}({actual[name]})' for name in inputs]
         ports += [f'.{name}({prefix}{name})' for name in outputs]
         body += f'    gpu_accel_{typ} #(.FONT_FILE(FONT_FILE)) u_{typ} ('+', '.join(ports)+');\n'
     body += '''
-    integer ahb_cycles=0,ddr_cycles=0,transactions=0;
+    integer ahb_cycles=0,ddr_cycles=0,transactions=0,self_stalls=0;
     reg [255:0] previous_raster_command;
     always @(posedge mem_clk) previous_raster_command<=u_current.ext_command;
     always @(posedge hclk) if(hresetn)begin
         ahb_cycles<=ahb_cycles+1;
+        if(!hready)self_stalls<=self_stalls+1;
         if({hready,hrdata} !== {ref_hready,ref_hrdata})
             $fatal(1,"AHB integration mismatch at %0d",ahb_cycles);
     end
@@ -94,12 +108,21 @@ def main():
             $fatal(1,"Concurrent graphics engines at %0d",ddr_cycles);
     end
     final $display("ACCEL EQUIVALENCE: AHB=%0d DDR=%0d transactions=%0d",ahb_cycles,ddr_cycles,transactions);
+    final $display("ACCEL SELF STALLS: %0d",self_stalls);
 endmodule
 `default_nettype wire
 '''
     (out/'wrapper.sv').write_text(header+body)
     bench = ROOT/'TESTS/rtl/gpu_accel_tb.sv'
-    (out/'bench.sv').write_text(bench.read_text().replace('dut.', 'dut.u_current.'))
+    bench_text = bench.read_text().replace('dut.', 'dut.u_current.')
+    if a.sweep_registers:
+        marker = '        $display("PASS: %0d commands'
+        if bench_text.count(marker) != 1:
+            raise RuntimeError('Register sweep insertion point missing or ambiguous')
+        bench_text = bench_text.replace(marker,
+            '        for(integer byte_address=0;byte_address<256;byte_address++) read_reg(byte_address,value);\n'
+            '        $display("ACCEL REGISTER SWEEP: 256");\n' + marker)
+    (out/'bench.sv').write_text(bench_text)
     sources = [out/'bench.sv']
     sources += [ROOT/f'tang/rtl/video/{s}.v' for s in video_names]
     sources += reference_sources
@@ -120,9 +143,16 @@ endmodule
     log = (out/'simulation.log').read_text()
     match = re.search(r'ACCEL EQUIVALENCE: AHB=(\d+) DDR=(\d+) transactions=(\d+)',log)
     if not match:raise RuntimeError('Missing cycle comparison result')
+    stalls = int(re.search(r'ACCEL SELF STALLS: (\d+)', log)[1])
+    if a.reference_self_ready and not stalls:
+        raise RuntimeError('Self-ready comparison did not exercise an HSEL stall')
+    if a.sweep_registers and 'ACCEL REGISTER SWEEP: 256' not in log:
+        raise RuntimeError('Register sweep did not complete')
     files=[path,reference,bench,*sources,*reference_inputs,out/'commands.hex',out/'expected.hex']
     result=dict(pass_cycle_equivalence=True,ahb_cycles=int(match[1]),ddr_cycles=int(match[2]),
                 transactions=int(match[3]),commands=a.commands,reference_video=a.reference_video,
+                reference_self_ready=a.reference_self_ready,self_stalls=stalls,
+                register_addresses=256 if a.sweep_registers else 0,
                 sha256={str(s):hashlib.sha256(s.read_bytes()).hexdigest() for s in files})
     (out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
     print(log,end='')

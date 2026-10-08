@@ -40,8 +40,18 @@ module console_top (
     input  wire       ae350_tms,
     input  wire       ae350_tdi,
      output wire       ae350_tdo,
-     output wire       ae350_tx_pin   // espion UART2 sur broche (comme l'analyseur : F19)
+     output wire       ae350_tx_pin,  // espion UART2 sur broche (comme l'analyseur : F19)
+    // Carte microSD du dock, en mode SPI (SPI de l'AE350). D1 et D2 inutilisés restent à 1.
+    output wire       sd_clk,
+    output wire       sd_cmd,
+    input  wire       sd_d0,
+    output wire       sd_d1,
+    output wire       sd_d2,
+    output wire       sd_d3,
+    input  wire       sd_det
 );
+    assign sd_d1 = 1'b1;
+    assign sd_d2 = 1'b1;
     assign ae350_tx_pin = ae350_tx;
     // ====================== LCD 800×480, 35 MHz ==========================
     wire lcd_clk_pix;
@@ -58,8 +68,12 @@ module console_top (
     wire [255:0] blit_wr_data, blit_rd_data;
     wire [31:0] blit_wr_mask;
 `ifdef CONSOLE_GPU
-    wire [31:0] scan_hrdata, blit_hrdata, usb_trace_hrdata;
-    wire scan_hready, blit_hready, usb_trace_hready;
+    wire [31:0] scan_hrdata, usb_trace_hrdata, usb_msc_hrdata;
+    // Conserver la frontière du mux de registres GPU : sans elle, la
+    // synthèse le disperse dans celui du pont CPU (r622 : fil de 11,63 ns
+    // depuis read_select[13]). Aucun registre ni cycle AHB supplémentaire.
+    wire [31:0] blit_hrdata /* synthesis syn_keep=1 */;
+    wire scan_hready, blit_hready, usb_trace_hready, usb_msc_hready;
     reg blit_selected, usb_trace_selected;
     always @(posedge vid_hclk) begin
         if (!vid_hrstn) begin blit_selected <= 1'b0; usb_trace_selected <= 1'b0; end
@@ -67,8 +81,20 @@ module console_top (
             blit_selected <= vid_haddr[12]; usb_trace_selected <= vid_haddr[13];
         end
     end
-    assign vid_hrdata = usb_trace_selected ? usb_trace_hrdata : (blit_selected ? blit_hrdata : scan_hrdata);
-    assign vid_hready = usb_trace_selected ? usb_trace_hready : (blit_selected ? blit_hready : scan_hready);
+    // E9002000 : trace USB ; E9003000 : disque USB (usb_msc_port). Les réponses de ces deux
+    // esclaves sortent de registres : elles sont réunies d'abord, puis prennent la place qu'avait
+    // la trace seule dans le multiplexeur. Les branches critiques (affichage, blitter) gardent
+    // ainsi exactement la profondeur logique du R31.
+    wire [31:0] usb_leg_hrdata = blit_selected ? usb_msc_hrdata : usb_trace_hrdata;
+    wire        usb_leg_hready = blit_selected ? usb_msc_hready : usb_trace_hready;
+    assign vid_hrdata = usb_trace_selected ? usb_leg_hrdata : (blit_selected ? blit_hrdata : scan_hrdata);
+    assign vid_hready = usb_trace_selected ? usb_leg_hready : (blit_selected ? blit_hready : scan_hready);
+    // gpu_accel ne capture une adresse que si son HREADY local vaut 1.
+    // Quand il est l'esclave de données, inutile de lui renvoyer ce même
+    // HREADY via le mux global et HSEL : cela créait une longue boucle
+    // bus_command -> HREADY -> HSEL -> bus_command (C13 : -0,369 ns).
+    // Les attentes des autres esclaves continuent à masquer son HSEL.
+    wire blit_address_ready = usb_trace_selected ? usb_leg_hready : (blit_selected || scan_hready);
     gpu_scanout u_gpu (
         .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel && !vid_haddr[13] && !vid_haddr[12] && vid_hready), .hwrite(vid_hwrite),
         .haddr(vid_haddr), .hwdata(vid_hwdata), .htrans(vid_htrans), .hrdata(scan_hrdata), .hready(scan_hready),
@@ -78,19 +104,39 @@ module console_top (
         .lcd_en(lcd_en), .lcd_hs(lcd_hs), .lcd_vs(lcd_vs), .lcd_r(lcd_r), .lcd_g(lcd_g), .lcd_b(lcd_b)
     );
     gpu_accel u_accel (
-        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel && !vid_haddr[13] && vid_haddr[12] && vid_hready), .hwrite(vid_hwrite),
+        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel && !vid_haddr[13] && vid_haddr[12] && blit_address_ready), .hwrite(vid_hwrite),
         .haddr(vid_haddr), .hwdata(vid_hwdata), .htrans(vid_htrans), .hrdata(blit_hrdata), .hready(blit_hready),
         .mem_clk(gpu_clk), .valid(blit_valid), .write(blit_write), .addr(blit_addr),
         .wr_data(blit_wr_data), .wr_mask(blit_wr_mask), .ready(blit_ready),
         .rd_data(blit_rd_data), .rd_valid(blit_rd_valid));
     // Read through AE350 JTAG even if the USB control endpoint is unusable.
     // The E9002000 window adds no control to the USB datapath.
+`ifndef CONSOLE_NO_USB_TRACE
     usb_idle_trace u_usb_idle_trace (
         .clk(phy_clk),.reset_n(vid_hrstn && !rst_usb),.bus_reset(usb_busreset),.sof(usb_sof),
         .rx_active(PHY_RXACTIVE),.rx_valid(PHY_RXVALID),.rx_error(PHY_RXERROR),.rx_data(PHY_DATAIN),
         .tx_valid(PHY_TXVALID),.tx_ready(PHY_TXREADY),.tx_data(PHY_DATAOUT),.endpoint(endpt_sel),.cork(usb_txcork),
-        .hclk(vid_hclk),.hsel(vid_hsel && vid_haddr[13] && vid_hready),.hwrite(vid_hwrite),
+        .hclk(vid_hclk),.hsel(vid_hsel && vid_haddr[13] && !vid_haddr[12] && vid_hready),.hwrite(vid_hwrite),
         .htrans(vid_htrans),.haddr(vid_haddr),.hwdata(vid_hwdata),.hrdata(usb_trace_hrdata),.hready(usb_trace_hready));
+`else
+    // Essai de fermeture du timing sans l'observateur de diagnostic USB (3 200 registres).
+    assign usb_trace_hrdata = 32'd0;
+    assign usb_trace_hready = 1'b1;
+`endif
+    // Disque USB : octets des endpoints bulk EP1 du stockage de masse.
+    wire        msc_flush, msc_tx_dval, msc_rx_rdy, msc_rx_dval, msc_bot_reset;
+    wire [7:0]  msc_tx_data, msc_rx_data;
+    wire [15:0] msc_tx_committed, msc_tx_sent;
+    wire msc_halted, msc_halt_request;
+    usb_msc_port u_usb_msc_port (
+        .clk(phy_clk),.reset_n(vid_hrstn && !rst_usb),.bus_reset(usb_busreset),.bot_reset(msc_bot_reset),
+        .online(usb_online),.highspeed(usb_highspeed),.ep_flush(msc_flush),
+        .ep_halted(msc_halted),.halt_request(msc_halt_request),
+        .ep_tx_dval(msc_tx_dval),.ep_tx_data(msc_tx_data),
+        .ep_tx_committed(msc_tx_committed),.ep_tx_sent(msc_tx_sent),
+        .ep_rx_rdy(msc_rx_rdy),.ep_rx_dval(msc_rx_dval && !msc_halted),.ep_rx_data(msc_rx_data),
+        .hclk(vid_hclk),.hsel(vid_hsel && vid_haddr[13] && vid_haddr[12] && vid_hready),.hwrite(vid_hwrite),
+        .htrans(vid_htrans),.haddr(vid_haddr),.hwdata(vid_hwdata),.hrdata(usb_msc_hrdata),.hready(usb_msc_hready));
 `else
     lcd_timing u_lcd (
         .lcd_clk(lcd_clk_pix), .rst_n(rst_n), .lcd_en(lcd_en), .lcd_hs(lcd_hs), .lcd_vs(lcd_vs),
@@ -202,6 +248,31 @@ module console_top (
         .o_usb_txcork  (ep_usb_txcork),
         .o_usb_txlen   (ep_usb_txlen),
         .o_usb_txdat   (ep_usb_txdat),
+`ifdef CONSOLE_GPU
+        .i_ep1_tx_clk  (phy_clk),
+        .i_ep1_tx_max  (usb_highspeed ? 12'd512 : 12'd64),
+        .i_ep1_tx_dval (msc_tx_dval),
+        .i_ep1_tx_data (msc_tx_data),
+        .i_ep1_flush   (msc_flush),
+        .i_ep1_tx_committed(msc_tx_committed),
+        .o_ep1_tx_sent (msc_tx_sent),
+        .i_ep1_rx_clk  (phy_clk),
+        .i_ep1_rx_rdy  (msc_rx_rdy && !msc_halted),
+        .o_ep1_rx_dval (msc_rx_dval),
+        .o_ep1_rx_data (msc_rx_data),
+`else
+        .i_ep1_tx_clk  (phy_clk),
+        .i_ep1_tx_max  (12'd64),
+        .i_ep1_tx_dval (1'b0),
+        .i_ep1_tx_data (8'd0),
+        .i_ep1_flush   (1'b0),
+        .i_ep1_tx_committed(16'd0),
+        .o_ep1_tx_sent (),
+        .i_ep1_rx_clk  (phy_clk),
+        .i_ep1_rx_rdy  (1'b0),
+        .o_ep1_rx_dval (),
+        .o_ep1_rx_data (),
+`endif
         .i_ep2_tx_clk  (phy_clk),
         .i_ep2_tx_max  (12'd64),
         .i_ep2_tx_dval (uart_rx_data_val & usb_online),
@@ -213,8 +284,10 @@ module console_top (
     );
     // EP0 status OUT must be accepted even for requests handled internally
     // by the controller. Controller 3.2 NAKs that status when RXRDY is low.
-    assign usb_rxrdy     = (endpt_sel == ENDPT_UART_CONFIG) ? 1'b1 : ep_usb_rxrdy;
-    assign usb_txcork    = (endpt_sel == ENDPT_UART_CONFIG) ? 1'b0 : ep_usb_txcork;
+    assign usb_rxrdy     = (endpt_sel == ENDPT_UART_CONFIG) ? 1'b1 :
+                          (endpt_sel == 1 && msc_halted) ? 1'b0 : ep_usb_rxrdy;
+    assign usb_txcork    = (endpt_sel == ENDPT_UART_CONFIG) ? 1'b0 :
+                          (endpt_sel == 1 && msc_halted) ? 1'b1 : ep_usb_txcork;
     assign usb_txdat     = (endpt_sel == ENDPT_UART_CONFIG) ? endpt0_dat : ep_usb_txdat;
     assign usb_txdat_len = (endpt_sel == ENDPT_UART_CONFIG) ? uart_config_txdat_len : ep_usb_txlen;
 
@@ -234,12 +307,20 @@ module console_top (
 `else
     localparam USB_HS_SUPPORT = 1;
 `endif
+`ifdef CONSOLE_GPU
+    localparam USB_MSC = 1;   // composite : port série CDC + disque (stockage de masse)
+`else
+    localparam USB_MSC = 0;
+    wire msc_bot_reset;
+    wire msc_halted=1'b0;
+`endif
     usb_desc #(
         .SERIALSTR("11252024"), .SERIALSTR_LEN(8),
         .VENDORSTR("Electrosens"), .VENDORSTR_LEN(11),
         .PRODUCTSTR("MegaPro Console"), .PRODUCTSTR_LEN(15),
         .VENDORID(16'h359F), .PRODUCTID(16'h2011),
-        .VERSIONBCD(16'h0112), .HSSUPPORT(USB_HS_SUPPORT), .SELFPOWERED(0)
+        .VERSIONBCD(USB_MSC ? 16'h0200 : 16'h0112), .HSSUPPORT(USB_HS_SUPPORT), .SELFPOWERED(0),
+        .MSC(USB_MSC)
     ) u_usb_desc (
         .CLK(phy_clk), .RESET(RESET), .i_pid(16'd0), .i_vid(16'd0),
         .i_descrom_raddr(DESCROM_RADDR), .o_descrom_rdat(DESCROM_RDAT),
@@ -255,6 +336,18 @@ module console_top (
         .o_descrom_have_strings(DESCROM_HAVE_STRINGS)
     );
 
+    wire [7:0] controller_dataout;
+`ifdef CONSOLE_GPU
+    usb_msc_guard u_usb_msc_guard (
+        .clk(phy_clk),.reset(usb_app_reset),.bot_reset(msc_bot_reset),.abort_request(msc_halt_request),
+        .highspeed(usb_highspeed),
+        .endpoint(endpt_sel),.rxact(usb_rxact),.rxval(usb_rxval),.rxpktval(usb_rxpktval),.setup(setup_active),.rxdata(usb_rxdat),
+        .txpktfin(usb_txpktfin),.txlen(ep_usb_txlen),
+        .utmi_data(controller_dataout),.utmi_valid(PHY_TXVALID),.utmi_ready(PHY_TXREADY),
+        .halted(msc_halted),.idle(),.phy_data(PHY_DATAOUT));
+`else
+    assign PHY_DATAOUT=controller_dataout;
+`endif
     USB_Device_Controller_Top u_usb_device_controller_top (
         .clk_i(phy_clk), .reset_i(RESET),
         .usbrst_o(usb_busreset), .highspeed_o(usb_highspeed),
@@ -279,7 +372,7 @@ module console_top (
         .desc_strproduct_addr_i(DESC_STRPRODUCT_ADDR), .desc_strproduct_len_i(DESC_STRPRODUCT_LEN),
         .desc_strserial_addr_i(DESC_STRSERIAL_ADDR), .desc_strserial_len_i(DESC_STRSERIAL_LEN),
         .desc_have_strings_i(DESCROM_HAVE_STRINGS),
-        .utmi_dataout_o(PHY_DATAOUT), .utmi_txvalid_o(PHY_TXVALID), .utmi_txready_i(PHY_TXREADY),
+        .utmi_dataout_o(controller_dataout), .utmi_txvalid_o(PHY_TXVALID), .utmi_txready_i(PHY_TXREADY),
         .utmi_datain_i(PHY_DATAIN), .utmi_rxactive_i(PHY_RXACTIVE), .utmi_rxvalid_i(PHY_RXVALID),
         .utmi_rxerror_i(PHY_RXERROR), .utmi_linestate_i(PHY_LINESTATE),
         .utmi_opmode_o(PHY_OPMODE), .utmi_xcvrselect_o(PHY_XCVRSELECT),
@@ -328,12 +421,13 @@ module console_top (
         .usb_txact(usb_txact), .usb_txpop(usb_txpop),
         .usb_txpktfin(usb_txpktfin),
         .usb_txdat_len_o(uart_config_txdat_len),
-        .endpt0_dat_o(endpt0_dat), .endpt0_send_o(endpt0_send),
+        .endpt0_dat_o(endpt0_dat), .endpt0_send_o(endpt0_send), .msc_reset_o(msc_bot_reset),
         .uart1_en_o(uart_en), .uart1_BAUD_RATE_o(uart_dte_rate),
         .uart1_PARITY_BIT_o(uart_parity_type), .uart1_STOP_BIT_o(uart_char_format),
         .uart1_DATA_BITS_o(uart_data_bits)
     );
     defparam u_usb_uart_config.ENDPT_UART_CONFIG = ENDPT_UART_CONFIG;
+    defparam u_usb_uart_config.MSC = USB_MSC;
 
 `ifdef CONSOLE_USB_DIAG
     // Observe only; the control endpoint remains usable when bulk CDC stalls.
@@ -430,6 +524,7 @@ module console_top (
         .ddr_addr(ddr_addr), .ddr_dm(ddr_dm), .ddr_dq(ddr_dq), .ddr_dqs(ddr_dqs), .ddr_dqs_n(ddr_dqs_n),
         .tck(ae350_tck), .tms(ae350_tms), .tdi(ae350_tdi), .tdo(ae350_tdo),
         .uart2_tx(ae350_tx), .uart2_rx(ae350_rx), .ddr_init(ddr_init), .dbg(soc_dbg),
+        .sd_clk(sd_clk), .sd_cmd(sd_cmd), .sd_miso(sd_d0), .sd_cs_n(sd_d3), .sd_detect(sd_det),
         .ahb_dbg(soc_ahb_dbg), .ddr_dbg(soc_ddr_dbg), .core_wfi_dbg(core_wfi_w),
         // Legacy acquisition inputs are inactive; video uses its own DDR port.
         .ev_clk(clk), .ev_valid(1'b0), .ev_data(64'd0),

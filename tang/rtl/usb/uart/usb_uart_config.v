@@ -28,6 +28,7 @@ module usb_uart_config
     output  [11:0]     usb_txdat_len_o   ,
     output  [7:0]      endpt0_dat_o      ,
     output             endpt0_send_o     ,
+    output             msc_reset_o       ,// one clock: Bulk-Only Mass Storage Reset received
     output             uart1_en_o        ,
     output  [31:0]     uart1_BAUD_RATE_o ,
     output  [7:0]      uart1_PARITY_BIT_o,
@@ -49,6 +50,12 @@ parameter ENDPT_PARALLEL20  =4'h8;
 localparam  SET_LINE_CODING = 8'h20;
 localparam  GET_LINE_CODING = 8'h21;
 localparam  SET_CONTROL_LINE_STATE = 8'h22;
+// Mass storage (Bulk-Only) class requests, answered only when MSC = 1.
+// Get Max LUN returns one zero octet through the GET_LINE_CODING path:
+// same early TXVAL, same replay after a lost ACK, same retirement on FIN.
+parameter   MSC = 0;
+localparam  GET_MAX_LUN = 8'hFE;
+localparam  BULK_ONLY_RESET = 8'hFF;
 
 reg [7:0] stage;
 reg [7:0] sub_stage;
@@ -82,6 +89,9 @@ wire diagnostic_request = diagnostic_key == 16'hd1a6 || diagnostic_key == 16'hd1
 wire [255:0] diagnostic_page = diagnostic_key[0] ? diagnostic_snapshot[511:256] : diagnostic_snapshot[255:0];
 `endif
 
+wire max_lun_request = MSC != 0 && s_req_type == 8'hA1 && s_req_code == GET_MAX_LUN;
+reg  msc_reset;
+assign msc_reset_o = msc_reset;
 assign uart1_en_o=s_uart1_en;
 assign uart1_BAUD_RATE_o=s_dte1_rate;
 assign uart1_PARITY_BIT_o=s_parity1_type;
@@ -90,9 +100,9 @@ assign uart1_DATA_BITS_o=s_data1_bits;
 assign endpt0_dat_o=endpt0_dat;
 assign endpt0_send_o=endpt0_send;
 `ifdef CONSOLE_USB_DIAG
-assign usb_txdat_len_o=diagnostic_request ? 12'd32 : 12'd7;
+assign usb_txdat_len_o=max_lun_request ? 12'd1 : diagnostic_request ? 12'd32 : 12'd7;
 `else
-assign usb_txdat_len_o=12'd7;
+assign usb_txdat_len_o=max_lun_request ? 12'd1 : 12'd7;
 `endif
 
 always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
@@ -112,12 +122,14 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
         endpt0_pending <= 1'b0;
         endpt0_dat  <= 8'd0;
         s_uart1_en <= 1'b0;
+        msc_reset <= 1'b0;
 `ifdef CONSOLE_USB_DIAG
         diagnostic_key <= 0;
         diagnostic_snapshot <= 0;
 `endif
     end
     else begin
+        msc_reset <= 1'b0;
         if (setup_active) begin
             if (usb_rxval) begin
                 case (stage)
@@ -188,6 +200,9 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
                                 s_uart1_en <= s_ctl_sig[0];
                             end
                         end
+                        else if (max_lun_request) begin
+                            endpt0_send <= 1'd1;
+                        end
                         stage <= stage + 8'd1;
                     end
                     8'd7 : begin
@@ -205,6 +220,14 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
 `endif
                             end
                         end
+                        else if (max_lun_request) begin
+                            endpt0_send <= 1'd1;
+                            endpt0_dat <= 8'd0;
+                            endpt0_pending <= 1'b1;
+                        end
+                        else if (MSC != 0 && s_req_type == 8'h21 && s_req_code == BULK_ONLY_RESET) begin
+                            msc_reset <= 1'b1;
+                        end
                         stage <= stage + 8'd1;
                         sub_stage <= 8'd0;
                     end
@@ -218,7 +241,7 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
         // response. Retain the snapshot separately from TXVAL, whose falling
         // edge terminates the attempt in this controller. SETUP has priority.
         else if (usb_txpktfin && endpt_sel == ENDPT_UART_CONFIG &&
-                 s_req_code == GET_LINE_CODING) begin
+                 (s_req_code == GET_LINE_CODING || max_lun_request)) begin
             stage <= 8'd0;
             sub_stage <= 8'd0;
             endpt0_send <= 1'b0;
@@ -324,6 +347,17 @@ always @(posedge PHY_CLKOUT,posedge RESET_IN) begin
 `ifdef CONSOLE_USB_DIAG
                 if(diagnostic_request)endpt0_dat <= diagnostic_page[7:0];
 `endif
+                if(endpt0_pending)endpt0_send <= 1'b1;
+            end
+        end
+        else if (max_lun_request) begin
+            stage <= 8'd0;
+            if ((usb_txact)&&(endpt_sel ==ENDPT_UART_CONFIG)) begin
+                if (endpt0_send && usb_txpop) endpt0_send <= 1'b0;
+            end
+            else begin
+                sub_stage <= 8'd0;
+                endpt0_dat <= 8'd0;
                 if(endpt0_pending)endpt0_send <= 1'b1;
             end
         end

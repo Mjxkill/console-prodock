@@ -11,7 +11,10 @@
 //                     
 //----------------------------------------------------------------------
 //===========================================
-//`define    EP1_IN_EN
+`define    EP1_IN_EN
+// EP1 IN carries mass-storage transfers: a short packet ends a data phase,
+// so only bytes the application has committed may be offered to the host.
+`define    EP1_IN_PACKET
 `define    EP2_IN_EN
 //`define    EP3_IN_EN
 //`define    EP4_IN_EN
@@ -26,7 +29,7 @@
 //`define    EP13_IN_EN
 //`define    EP14_IN_EN
 //`define    EP15_IN_EN
-//`define    EP1_OUT_EN
+`define    EP1_OUT_EN
 `define    EP2_OUT_EN
 //`define    EP3_OUT_EN
 //`define    EP4_OUT_EN
@@ -112,6 +115,11 @@ module usb_fifo
     ,input      [11:0]  i_ep1_tx_max //
     ,input              i_ep1_tx_dval //
     ,input      [7:0]   i_ep1_tx_data //
+    `ifdef EP1_IN_PACKET
+    ,input              i_ep1_flush        // i_clk, registered: empties both EP1 buffers
+    ,input      [15:0]  i_ep1_tx_committed // i_clk: running count of committed bytes
+    ,output     [15:0]  o_ep1_tx_sent      // i_clk: running count of acknowledged bytes
+    `endif
     `endif
     `ifdef EP1_OUT_EN
     ,input              i_ep1_rx_clk  //
@@ -354,6 +362,12 @@ always @(posedge i_clk or posedge i_reset) begin
         if (i_usb_txpktfin) begin
             tx_pending[i_usb_endpt] <= 1'b0;
         end
+`ifdef EP1_IN_PACKET
+        // A flushed packet must not be replayed with its old length.
+        else if (i_ep1_flush && i_usb_endpt == 4'd1) begin
+            tx_pending[1] <= 1'b0;
+        end
+`endif
         // An empty IN poll can strobe POP without transferring a payload.
         // Reserving its zero length would permanently block later arrivals.
         else if (usb_payload_pop && !tx_pending[i_usb_endpt]) begin
@@ -362,11 +376,43 @@ always @(posedge i_clk or posedge i_reset) begin
         end
     end
 end
+`ifdef EP1_IN_PACKET
+wire ep1_reset = i_reset | i_ep1_flush;
+`else
+wire ep1_reset = i_reset;
+`endif
 `ifdef EP1_IN_EN
 wire [ 7:0] ep1_txdat;
 wire        ep1_txcork;
 wire [`EP1_IN_BUF_ASIZE:0] ep1_txlen;
+`ifdef EP1_IN_PACKET
+// Offer min(committed - acknowledged, max), and only once those bytes have
+// reached the packet RAM. A partially written block is never visible, so
+// the host cannot take it for a short packet. tx_retire hides the three
+// clocks during which ep1_offer and ep1_txlen still describe the packet
+// that was just acknowledged.
+reg  [15:0] ep1_sent;
+reg  [11:0] ep1_offer;
+wire [15:0] ep1_remaining = i_ep1_tx_committed - ep1_sent;
+always @(posedge i_clk or posedge i_reset) begin
+    if (i_reset) begin
+        ep1_sent  <= 16'd0;
+        ep1_offer <= 12'd0;
+    end
+    else begin
+        if (i_ep1_flush)
+            ep1_sent <= 16'd0;
+        else if (i_usb_txpktfin && i_usb_endpt == 4'd1 && tx_pending[1])
+            ep1_sent <= ep1_sent + {4'd0, tx_saved_len[1]};
+        ep1_offer <= (i_ep1_flush || ep1_remaining >= 16'h8000) ? 12'd0 :
+                     (ep1_remaining >= {4'd0, i_ep1_tx_max}) ? i_ep1_tx_max : ep1_remaining[11:0];
+    end
+end
+assign o_ep1_tx_sent = ep1_sent;
+assign usb_txlen[1]  = (ep1_txlen >= {1'b0, ep1_offer}) ? ep1_offer : 12'd0;
+`else
 assign usb_txlen[1]  = (ep1_txlen >= i_ep1_tx_max) ? i_ep1_tx_max : ep1_txlen[11:0];
+`endif
 assign usb_txcork[1] = ep1_txcork;
 assign usb_txdat[1]  = ep1_txdat;
 `else
@@ -677,10 +723,11 @@ end
          .P_ENDPOINT (1               )
         ,.P_DSIZE    (8               )
         ,.P_ASIZE    (`EP1_IN_BUF_ASIZE)
+        ,.P_SYNC     (1  )
     )usb_tx_buf_ep1
     (
          .i_clk         (i_clk         )//clock
-        ,.i_reset       (i_reset       )//reset
+        ,.i_reset       (ep1_reset     )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_txact   (i_usb_txact   )//
         ,.i_usb_txpop   (usb_payload_pop)//
@@ -699,10 +746,11 @@ end
         ,.P_AFULL    (`EP1_OUT_BUF_AFULL)
         ,.P_DSIZE    (8  )
         ,.P_ASIZE    (`EP1_OUT_BUF_ASIZE)
+        ,.P_SYNC     (1  )
     )usb_rx_buf_ep1
     (
          .i_clk         (i_clk         )//clock
-        ,.i_reset       (i_reset       )//reset
+        ,.i_reset       (ep1_reset     )//reset
         ,.i_usb_endpt   (s_endpt_sel   )//
         ,.i_usb_rxact   (i_usb_rxact   )//
         ,.i_usb_rxval   (i_usb_rxval   )//
@@ -1336,7 +1384,10 @@ endmodule
 module usb_tx_buf #(
     parameter P_ENDPOINT = 1,
     parameter P_DSIZE    = 8,
-    parameter P_ASIZE    = 9
+    parameter P_ASIZE    = 9,
+    // 1 : l'application écrit avec l'horloge du contrôleur USB ; la FIFO de changement
+    // d'horloge (64 octets en registres) est alors supprimée. 0 : comportement d'origine.
+    parameter P_SYNC     = 0
 )
 (
     input                      i_clk         ,//clock
@@ -1371,6 +1422,8 @@ module usb_tx_buf #(
     wire [P_DSIZE-1:0] c_fifo_rd_data;
     assign c_fifo_wr      = i_ep_tx_dval;
     assign c_fifo_wr_data = i_ep_tx_data;
+    wire c_fifo_empty;
+    generate if (P_SYNC == 0) begin : g_cross
     clk_cross_fifo #(
        .DSIZE (8  )
       ,.ASIZE (6  )
@@ -1394,6 +1447,10 @@ module usb_tx_buf #(
 
 
 
+    end else begin : g_sync
+        assign c_fifo_empty   = 1'b1;
+        assign c_fifo_rd_data = {P_DSIZE{1'b0}};
+    end endgenerate
     always@(posedge i_clk, posedge i_reset) begin
         if (i_reset) begin
             c_fifo_rd <= 1'b0;
@@ -1418,8 +1475,8 @@ module usb_tx_buf #(
 
 //==============================================================
 //======usb packet crc check fifo
-assign pkt_fifo_wr        = c_fifo_rd_dval;
-assign pkt_fifo_wr_data   = c_fifo_rd_data;
+assign pkt_fifo_wr        = P_SYNC ? i_ep_tx_dval : c_fifo_rd_dval;
+assign pkt_fifo_wr_data   = P_SYNC ? i_ep_tx_data : c_fifo_rd_data;
 assign pkt_fifo_rd_pktfin = i_usb_txpktfin&(i_usb_endpt==P_ENDPOINT);
 assign pkt_fifo_rd_act    = i_usb_txact&(i_usb_endpt==P_ENDPOINT);
 assign pkt_fifo_rd        = i_usb_txpop&(i_usb_endpt==P_ENDPOINT);
@@ -1460,7 +1517,10 @@ module usb_rx_buf #(
     parameter P_ENDPOINT = 1,
     parameter P_AFULL    = 400,
     parameter P_DSIZE    = 8,
-    parameter P_ASIZE    = 9
+    parameter P_ASIZE    = 9,
+    // 1 : l'application lit avec l'horloge du contrôleur USB, sans FIFO de changement
+    // d'horloge : un octet peut encore sortir le cycle qui suit la retombée de rdy.
+    parameter P_SYNC     = 0
 )
 (
     input                  i_clk         ,//clock
@@ -1551,6 +1611,8 @@ module usb_rx_buf #(
 //======cross fifo
 assign c_fifo_wr      = pkt_fifo_rd_dval;
 assign c_fifo_wr_data = pkt_fifo_rd_data;
+    wire c_fifo_empty;
+    generate if (P_SYNC == 0) begin : g_cross
     clk_cross_fifo #(
        .DSIZE (8  )
       ,.ASIZE (6  )
@@ -1571,6 +1633,11 @@ assign c_fifo_wr_data = pkt_fifo_rd_data;
         ,.AlmostEmpty()
         ,.Empty      (c_fifo_empty  )
     );
+    end else begin : g_sync
+        assign c_fifo_afull   = !i_ep_rx_rdy;
+        assign c_fifo_empty   = 1'b1;
+        assign c_fifo_rd_data = {P_DSIZE{1'b0}};
+    end endgenerate
     //dual_fifo_top dual_fifo_top(
     //    .WrClk      (i_clk          ), //input WrClk
     //    .WrReset    (i_reset        ), //input WrReset
@@ -1616,8 +1683,8 @@ assign c_fifo_wr_data = pkt_fifo_rd_data;
         end
     end
     assign o_usb_rxrdy  = pkt_fifo_wr_num < P_AFULL;
-    assign o_ep_rx_dval = c_fifo_dval;
-    assign o_ep_rx_data = c_fifo_rd_data;
+    assign o_ep_rx_dval = P_SYNC ? pkt_fifo_rd_dval : c_fifo_dval;
+    assign o_ep_rx_data = P_SYNC ? pkt_fifo_rd_data : c_fifo_rd_data;
 
 endmodule
 

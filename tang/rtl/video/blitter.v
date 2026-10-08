@@ -162,6 +162,14 @@ module blitter #(
     reg signed [18:0] ccx, ccy, cxv, cyv, cerr; reg [2:0] cpt;              // cercle (point médian)
     reg signed [18:0] px, py;                                               // pixel isolé
     reg signed [18:0] sp_y, sp_xa, sp_xb; reg sp_vis;                       // segment de disque : bornes (M_CFILL_CALC), découpe (M_CFILL), décision (M_CFILL_GO)
+    wire signed [18:0] sp_left_clipped=sp_xa<0 ? 19'sd0:sp_xa;
+    wire signed [18:0] sp_right_clipped=sp_xb>X_MAX ? X_MAX:sp_xb;
+    reg [10:0] sp_width;
+    // Le cycle de découpe prépare aussi la largeur. CFILL_GO ne chaîne
+    // plus soustraction, incrément et sélection devant rw (r622 : -1,39 ns).
+    // Les bornes et la décision de visibilité gardent leur cycle d'origine.
+    always @(posedge clk)
+        if(st[$clog2(M_CFILL)])sp_width<=sp_right_clipped[10:0]-sp_left_clipped[10:0]+11'd1;
     // texte : 16 caractères, glyphe 8 × 16 (font_ram), échelle 1 ou 2
     reg  [127:0] txt; reg [4:0] tn, tci; reg tscale, tsub, tdup, text_last_char; reg [3:0] trow; reg [2:0] tbit; reg [8:0] tpix;
     wire [7:0]  tchar = txt[tci * 8 +: 8];
@@ -183,6 +191,12 @@ module blitter #(
     wire [10:0] row_last = rx + rw - 11'd1;                                    // dernier pixel de la ligne
     wire [10:0] row_words = {1'b0, row_last[10:1]} - {1'b0, rx[10:1]} + 11'd1;   // mots couverts
     reg  [9:0]  cn; reg [10:0] copy_left; reg signed [15:0] sxx;             // copie : mot source n, mots restants, colonne source découpée
+    // Fin de la copie dans le bloc de 512 mots. Calculer la longueur
+    // restante directement évite soustraction -> comparaison -> mux ->
+    // soustraction sur le chemin s_addr -> copy_left (c3 : 13 niveaux).
+    wire [11:0] copy_segment_end={1'b0,copy_left}+{3'd0,s_addr[8:0]};
+    wire copy_segment_crosses=|copy_segment_end[11:9];
+    wire [11:0] copy_segment_remaining=copy_segment_end-12'd512;
     reg [9:0] source_row;
     // valeur de pixel du générateur : constante (FILL, disque) ou dégradé
     wire [25:0] prod = {18'd0, dabs} * {8'd0, t_acc};
@@ -553,12 +567,12 @@ module blitter #(
                     st <= M_CFILL;
                 end
                 st[$clog2(M_CFILL)]: begin                                                   // découpe (registrée), décision au cycle suivant
-                    sp_xa <= (sp_xa < 0) ? 16'sd0 : sp_xa; sp_xb <= (sp_xb > X_MAX) ? X_MAX : sp_xb;
-                    sp_vis <= !(sp_y < 0 || sp_y > Y_MAX); st <= M_CFILL_GO;
+                    sp_xa <= sp_left_clipped; sp_xb <= sp_right_clipped;
+                    sp_vis <= !(sp_y < 0 || sp_y > Y_MAX) && sp_left_clipped<=sp_right_clipped; st <= M_CFILL_GO;
                 end
                 st[$clog2(M_CFILL_GO)]: begin                                                // segment visible → la ligne l'écrit ; sinon le suivant
-                    if (!sp_vis || sp_xa > sp_xb) st <= M_CFILL_NEXT;
-                    else begin ry <= sp_y[9:0]; rx <= sp_xa[10:0]; rw <= sp_xb[10:0] - sp_xa[10:0] + 11'd1; gi <= 11'd0; t_acc <= 18'd0; ret <= M_CFILL_NEXT; st <= M_FILL_START; end
+                    if (!sp_vis) st <= M_CFILL_NEXT;
+                    else begin ry <= sp_y[9:0]; rx <= sp_xa[10:0]; rw <= sp_width; gi <= 11'd0; t_acc <= 18'd0; ret <= M_CFILL_NEXT; st <= M_FILL_START; end
                 end
                 st[$clog2(M_CFILL_NEXT)]: begin cpt <= cpt + 3'd1; st <= (cpt == 3'd3) ? M_CIRC_STEP : M_CFILL_CALC; end
                 st[$clog2(M_CIRC_STEP)]: begin                                               // pas suivant du point médian
@@ -584,8 +598,10 @@ module blitter #(
                     st <= M_COPY_SEG;
                 end
                 st[$clog2(M_COPY_SEG)]: begin : seg
-                    reg [9:0] smax, slen; smax = 10'd512 - {1'b0, s_addr[8:0]}; slen = (copy_left > {1'b0, smax}) ? smax : copy_left[9:0];
-                    s_req <= 1'b1; s_len <= slen; copy_left <= copy_left - {1'b0, slen}; st <= M_COPY_WAIT;
+                    s_req <= 1'b1;
+                    s_len <= copy_segment_crosses ? 10'd512-{1'b0,s_addr[8:0]} : copy_left[9:0];
+                    copy_left <= copy_segment_crosses ? copy_segment_remaining[10:0] : 11'd0;
+                    st <= M_COPY_WAIT;
                 end
                 st[$clog2(M_COPY_WAIT)]: begin
                     if (s_valid) begin : cw                                      // mot n : pixels 2n − sxx[0] (octet bas) et +1, à la position + rx[0]

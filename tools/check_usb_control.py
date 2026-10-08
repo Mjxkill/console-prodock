@@ -27,7 +27,7 @@ def main():
         parser.error('rounds: 1..1000')
     device = console_snapshot()
     if (not device or device['speed_mbps'] != 480 or
-            device['configuration'] != '1' or device['interfaces'] != 2):
+            device['configuration'] != '1' or device['interfaces'] not in (2, 3)):
         raise SystemExit(f'Console HS configurée requise : {device}')
     path = Path('/sys/bus/usb/devices') / device['topology']
     ports = list((path / (path.name + ':1.0')).glob('tty/ttyACM*'))

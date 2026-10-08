@@ -24,7 +24,10 @@ module gpu_scanout #(
 );
     localparam BURSTS = WIDTH / 32;
     // G1 requires WIDTH divisible by 32 and <=1024; pitch equals WIDTH.
-    reg [1:0] prst = 0, mrst = 0;
+    // syn_preserve : le même synchroniseur de reset existe dans gpu_accel ; fusionnés, l'un des deux
+    // modules recevrait son reset de l'autre bout de la puce.
+    reg [1:0] prst = 0;
+    reg [1:0] mrst /* synthesis syn_preserve=1 */ = 0;
     always @(posedge pixel_clk or negedge hresetn)
         if (!hresetn) prst <= 0; else prst <= {prst[0], 1'b1};
     always @(posedge mem_clk or negedge hresetn)
@@ -319,7 +322,8 @@ module gpu_scanout #(
     wire [255:0] block_data;
     // Cut the DDR arbiter's tag decode from the high-fanout line RAM enables.
     // Data runs continuously so the tag decode only drives one valid register.
-    reg [255:0] returned_data;
+    // (syn_preserve : voir gpu_raster.v, copie locale du bus de lecture DDR)
+    reg [255:0] returned_data /* synthesis syn_preserve=1 */;
     reg returned_valid=0;
     reg [2:0] clear_sync=0;
     wire clear_maxima=clear_sync[2]!=clear_sync[1];

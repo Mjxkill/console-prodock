@@ -18,7 +18,7 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def expected_paths(model):
+def expected_paths(model, instance_prefix='u_usb_softphy_top/'):
     cells, drivers = {}, {}
     text = model.read_text()
     for match in re.finditer(r'(?m)^(DFF\w*)\s+(\\\S+)\s+\(\n(.*?)\n\);', text, re.S):
@@ -42,8 +42,8 @@ def expected_paths(model):
         group = fifo + '_' + stage
         if ports['D'] not in drivers:
             raise ValueError(f'Cannot find original register driving {name}/D: {ports["D"]}')
-        source = 'u_usb_softphy_top/' + drivers[ports['D']]
-        target = 'u_usb_softphy_top/' + name + '/D'
+        source = instance_prefix + drivers[ports['D']]
+        target = instance_prefix + name + '/D'
         wanted[(source, target)] = dict(group=group, bit=int(match[3]))
     counts = {g: sum(x['group'] == g for x in wanted.values()) for g in {x['group'] for x in wanted.values()}}
     if len(wanted) != 44 or sorted(counts.values()) != [5]*4 + [6]*4:

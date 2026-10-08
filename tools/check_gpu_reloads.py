@@ -55,7 +55,8 @@ def console_snapshot():
 
 
 def fresh_configuration(before, after):
-    if not after or after['configuration'] != '1' or after['interfaces'] != 2 or after['authorized'] != '1':
+    # Deux interfaces : port série CDC seul. Trois : composite avec le disque USB (stockage de masse).
+    if not after or after['configuration'] != '1' or after['interfaces'] not in (2, 3) or after['authorized'] != '1':
         return False
     return before is None or (before['bus'], before['address']) != (after['bus'], after['address'])
 

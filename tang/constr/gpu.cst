@@ -252,6 +252,14 @@ IO_LOC "ae350_tck" C24;  IO_PORT "ae350_tck" IO_TYPE=LVCMOS33 PULL_MODE=DOWN;  /
 IO_LOC "ae350_tdo" H14;  IO_PORT "ae350_tdo" IO_TYPE=LVCMOS33 DRIVE=8;         // J7 IO3 (J-Link TDO)
 IO_LOC "ae350_tdi" L18;  IO_PORT "ae350_tdi" IO_TYPE=LVCMOS33 PULL_MODE=UP;    // J7 IO6 (J-Link TDI)
 IO_LOC "ae350_tx_pin" H15;  IO_PORT "ae350_tx_pin" IO_TYPE=LVCMOS33 DRIVE=8;   // J7 IO7 : espion UART2 TX (mesurable)
+// ---------- carte microSD du dock, mode SPI (schéma 4071f : SDIO.CLK D23, CMD D24, D0 H23, D1 J23, D2 A25, D3 B25, détection J15) ----------
+IO_LOC "sd_clk" D23;  IO_PORT "sd_clk" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "sd_cmd" D24;  IO_PORT "sd_cmd" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;      // MOSI
+IO_LOC "sd_d0"  H23;  IO_PORT "sd_d0"  IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;              // MISO
+IO_LOC "sd_d1"  J23;  IO_PORT "sd_d1"  IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "sd_d2"  A25;  IO_PORT "sd_d2"  IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "sd_d3"  B25;  IO_PORT "sd_d3"  IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;      // CS
+IO_LOC "sd_det" J15;  IO_PORT "sd_det" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
 
 // ---------- E2 : CLOCK_LOC du socle analyseur (la16.cst V3, adapté : u_soc) ----------
 CLOCK_LOC "u_soc/hrst_sync[1]" LOCAL_CLOCK;
@@ -271,21 +279,25 @@ INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv" LEFTSIDE[4];
 // Fix the encrypted CPU memory cells before placing the graphics caches.
 // G4: address/read/write decode moved towards the hard CPU to shorten the
 // direct ROM_HADDR/HWRITE/HTRANS -> fabric LUT -> ITCM control paths.
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_10_s12" R24C90[0][A];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_11_s12" R24C90[0][B];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_12_s12" R24C90[1][A];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_13_s12" R24C90[1][B];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_14_s12" R24C91[0][A];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_15_s12" R24C91[0][B];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_2_s12" R24C88[0][A];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_3_s12" R24C88[0][B];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_4_s12" R24C88[1][A];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_5_s12" R24C88[1][B];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_6_s12" R24C89[0][A];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_7_s12" R24C89[0][B];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_8_s12" R24C89[1][A];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_9_s12" R24C89[1][B];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMBYTEWR_0_s" R24C92[0][B];
+// C5 : rapprocher les 16 décodeurs combinatoires du CPU R0C160. C3
+// dépensait jusqu’à 6,147 ns avant la première LUT (R24C88..92).
+// C6 : sites R11C112..116 (la rangée 10 de C5 est une rangée BSRAM,
+// refusée pour les LUT). Aucune cellule ni latence IP modifiée.
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_10_s12" R11C114[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_11_s12" R11C114[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_12_s12" R11C114[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_13_s12" R11C114[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_14_s12" R11C115[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_15_s12" R11C115[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_2_s12" R11C112[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_3_s12" R11C112[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_4_s12" R11C112[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_5_s12" R11C112[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_6_s12" R11C113[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_7_s12" R11C113[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_8_s12" R11C113[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_9_s12" R11C113[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMBYTEWR_0_s" R11C116[0][B];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_0_s1" R27C70[0][B];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_10_s0" R6C57[0][A];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_11_s0" R6C77[0][A];
@@ -318,7 +330,7 @@ INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/RO
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_7_s0" R20C80[3][A];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_8_s0" R20C59[0][B];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_9_s0" R20C80[1][B];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ahb_read_s1" R24C92[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ahb_read_s1" R11C116[0][A];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ahb_write_s0" R24C92[1][A];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_0_s0" R22C94[1][B];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_10_s0" R26C93[1][B];
@@ -388,7 +400,7 @@ INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n2
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n262_s0" R25C95[2][B];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s" BSRAM_R28[22];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_1_s" BSRAM_R28[21];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_3_s" BSRAM_R28[14];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_3_s" BSRAM_R46[37];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_4_s" BSRAM_R10[21];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_5_s" BSRAM_R10[14];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_6_s" BSRAM_R28[23];
@@ -397,11 +409,18 @@ INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/me
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_2_s" BSRAM_R46[20];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_3_s" BSRAM_R46[17];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_5_s" BSRAM_R46[21];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_6_s" BSRAM_R28[13];
+// SD/USB (7 octobre 2026, r609) : les deux mémoires ITCM les plus à gauche de la rangée 28 rataient de 0,74 et
+// 0,12 ns (fil de 7 ns depuis la LUT d'écriture R24C92) ; déplacées sur deux sites libres à droite, côté processeur.
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_6_s" BSRAM_R28[35];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_2_s" BSRAM_R10[15];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_3_s" BSRAM_R46[13];
+// (7 octobre 2026, r618 à r620 : échanger des sites ITCM/sprites a fait passer le bus en routage 2 (r619) mais a
+// déplacé la logique du lecteur de lignes ou congestionné la rangée 10 ; non retenu. En routage 1 (R31), l'ITCM
+// tient sans cela : r617, bus à 91 MHz.)
+// SD/USB (6 octobre 2026) : les deux mémoires ITCM les plus éloignées de la LUT d'adresse (R24C90) rataient de
+// 0,96 ns dans r605 (fil de 7,7 ns) ; déplacées sur deux emplacements libres de la rangée 10, plus proches.
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_3_s" BSRAM_R10[24];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_4_s" BSRAM_R46[18];
-INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_5_s" BSRAM_R46[14];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_5_s" BSRAM_R10[25];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_7_s" BSRAM_R10[18];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_0_s" BSRAM_R10[22];
 INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_4_s" BSRAM_R10[19];
@@ -431,6 +450,26 @@ INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/me
 INS_LOC "u_soc/u_bridge/m_hready_s0" R4C150[0][A];
 INS_LOC "u_soc/u_bridge/st_0_s0" R4C150[1][A];
 INS_LOC "u_soc/u_bridge/st_1_s5" R4C150[2][A];
+// SD/USB (6 octobre 2026, r606/r607) : le multiplexeur HREADY des esclaves vidéo et la LUT qui alimente
+// m_hready s'étaient posés en C86 et C112, loin de l'affichage (C140) et de m_hready (R4C150) : 0,31 ns en
+// défaut, dont 4,3 ns sur le dernier fil. Tenus au milieu de leurs trois extrémités (accélérateur C60,
+// affichage C140, pont R4C150) ; en C148 le côté accélérateur ratait (r607).
+// C17 : le décodage HREADY/HSEL a été factorisé (équivalence C16).
+// L'ancienne LUT vid_hready_s1 n'existe plus ; laisser placer le nouveau
+// réseau HREADY avec ses consommateurs, sans ancrages nominaux hérités.
+// C18 : C17 place les deux LUT du retour vers le CPU en R17C83, entre
+// le contrôle vidéo R35C153 et le pont R21C141 : 4,854 + 2,866 ns de fil,
+// marge -0,687 ns. Regrouper ce nouveau mux près de ces deux extrémités.
+// Instances et fonctions vérifiées dans la netlist figée de C17.
+// C19 : C132 corrige le retour CPU mais éloigne trop le retour HSEL MSC
+// (C18 : C59 -> C132 -> C72 -> C48, marge -0,694 ns). C110 conserve
+// une position intermédiaire entre les contrôles de gauche et le pont CPU.
+// C28 : avec le garde BOT, C27 place la source GPU en R62 et le retour
+// AHB en R50. L'ancien ancrage R20 impose deux détours verticaux.
+INS_LOC "vid_hready_s0" R40C110[0][A];
+INS_LOC "vid_hready_s2" R40C110[0][B];
+// @driver module=ahb_exts_bridge instance=m_hready_s0 pin=D
+INS_LOC "u_soc/u_bridge/n47_s2" R4C150[0][B];
 
 // G4: all 32 banks use rows 10/28/46, columns 13..23,
 // around the relocated address decoder; distant outliers caused marginal paths.
@@ -606,8 +645,9 @@ INS_LOC "u_usb_fifo/usb_tx_buf_ep2/sync_tx_pkt_fifo/RAM_RAM_0_1_s0" BSRAM_R28[34
 INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/Equal.mem_Equal.mem_0_0_s" BSRAM_R82[30];
 INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.mem_Small.mem_0_0_s" BSRAM_R82[31][B];
 
-// Diagnostic L12 : conserver le placement du reset PHY de r6 (+1,048 ns).
-INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx/fifo_4to8_sub_inst/reset_w_1_s0" R72C172[0][A];
+// C11 : le reset FIFO PHY hérité de L12 n'est plus fixé à R72C172.
+// En C9 ses pointeurs se trouvent près de R22C166 ; le fil de 4,054 ns
+// dépasse le budget du trajet entre front descendant et front montant.
 // L12 diagnostic r16: the unchanged blitter's shared row-end decode drove
 // 45 loads through a 5.145 ns net from R20C134 to the state machine near
 // R32C121. Place its final LUT beside those loads; no logic/timing exception.
@@ -616,10 +656,9 @@ INS_LOC "u_accel/u_blitter/n4837_s0" R32C121[0][A];
 // r17: rw[1]'s final mux was at R24C156, its destination at R26C102
 // (2.996 ns net). Place the destination between that mux and its consumers.
 INS_LOC "u_accel/u_blitter/rw_1_s2" R24C130[0][A];
-// Multiplexeur source sprite/image : rapprocher le decodeur des 256 bits.
-// Resoudre le selecteur I2 du mux qui alimente une bascule stable.
-// @driver module=gpu_line_reader instance=source_write_data_205_s0 pin=D via=I2
-INS_LOC "u_gpu/u_reader/n777_s3" R70C110[0][A];
+// C11 : le multiplexeur sprite/image est placé avec ses 262 destinations.
+// L'ancrage R70C110 imposait en C9 un détour de 5,863 + 7,158 ns entre
+// la commande R53C176 et les registres proches de R61C170.
 
 // r28: triangle signed step decode at R24C108 drove the DSP input path
 // near R40C140 through a 4.565 ns net, after another 2.347 ns from R38C143.
@@ -627,23 +666,78 @@ INS_LOC "u_gpu/u_reader/n777_s3" R70C110[0][A];
 // Cell verified in the frozen r28 blitter netlist; no timing exception.
 INS_LOC "u_accel/u_blitter/t_step_16_s3" R39C140[0][A];
 
-// Shadow-base enable: 4.422 ns final wire from R88C134 to R81C114,
-// setup -0.046 ns. Place its driver between decode and register bank.
-// @driver module=gpu_scanout instance=shadow_base_5_s0 pin=CE
-INS_LOC "u_gpu/n8555_s0" R85C120[0][A];
+// C9 : laisser placer la validation shadow_base avec ses registres.
+// L'ancien point R85C120 les éloignait en C7 (registres R26C158),
+// avec 7,043 ns de fil final et une marge de -2,773 ns.
 
-// CDC r3: UTMI TXREADY at R33C174 returns to controller at R41C113
-// through 5.409 ns of routing; three setup violations (min -0.246 ns).
-// Place its final LUT between the PHY and controller; vendor RTL unchanged.
-INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/utmi_txready_o_d_s" R38C142[0][A];
+// C11 : TXREADY est lui aussi libéré de l'ancrage de CDC r3.
+// En C9, la liaison R8C165 -> R38C142 -> R8C107 perdait 6,316 ns de fil,
+// pour une marge de -1,988 ns. Aucune logique fournisseur n'est changée.
 
-// Perspective r9: the PHY alignment enable ended with a 0.759 ns wire
-// from R45C176 to R51C172 (setup -0.297 ns). Keep its destination beside
-// the control cluster; vendor logic and timing constraints are unchanged.
-INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/bit_align_wr_act_s1" R45C176[2][A];
+// C9 : retirer aussi l'ancrage d'alignement du PHY hérité de Perspective r9.
+// Le contrôle est désormais autour de R12C174 ; la bascule imposée R45C176
+// donnait -0,954 ns en C7. La logique fournisseur reste inchangée.
 
 // GPU V1 r9: RXACTIVE's 34-load output at R17C171 reached the controller
 // at R7C126 through a 5.461 ns wire (setup -1.059 ns). Place this output
 // mux between PHY and controller. Only placement changes; no vendor logic,
 // USB speed selection, clock period or timing exception is modified.
 INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/utmi_rxactive_o_d_s" R12C148[0][A];
+
+// (7 octobre 2026, r615/r616 : tenir l'arbitre DDR au milieu, ou seulement la LUT de demande de l'affichage,
+// a déplacé les défauts vers l'ITCM ou le reste du GPU ; non retenu, l'état des contraintes est celui de r614.)
+
+// C22 : chaîne d'alignement RX 120 MHz, trois extrémités négatives en C20.
+// Huit LUT simples vérifiées dans la netlist de simulation officielle C20,
+// dispersées de R14C173 à R16C173 et C175. Regrouper la chaîne pour
+// raccourcir ses sept liaisons internes ; aucun changement de logique IP.
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s19" R15C171[0][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s16" R15C171[0][B];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s10" R15C171[1][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s14" R15C171[1][B];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n2989_s8" R15C171[2][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n3096_s4" R15C171[2][B];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n3096_s1" R15C171[3][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/hs_rx_sel_3_s3" R15C171[3][B];
+
+// C28 : rapprocher le suivi des octets UTMI de TXREADY (PHY à C172).
+// C27 le place à C80, ajoutant 5,415 ns sur le retour TXREADY -> CE.
+// Les cellules et leur fonction sont vérifiées dans la netlist C27.
+INS_LOC "u_usb_msc_guard/in_packet_s0" R8C159[0][A];
+// C29 : CE de patch_status distinct de in_packet ; ces bascules ne
+// peuvent pas partager la même paire A/B. Le compteur partage son CE.
+INS_LOC "u_usb_msc_guard/patch_status_s0" R8C159[1][A];
+INS_LOC "u_usb_msc_guard/tx_index_0_s0" R8C159[2][A];
+INS_LOC "u_usb_msc_guard/tx_index_1_s0" R8C159[2][B];
+INS_LOC "u_usb_msc_guard/tx_index_2_s0" R8C159[3][A];
+
+// C30 : C29 rapproche les FF, mais leurs CE restent à C94. Placer aussi
+// les deux LUT de contrôle ; seules des cellules observées dans C29.
+// @driver module=usb_msc_guard instance=tx_index_0_s0 pin=CE
+INS_LOC "u_usb_msc_guard/tx_index_2_s2" R8C159[3][B];
+// @driver module=usb_msc_guard instance=patch_status_s0 pin=CE
+INS_LOC "u_usb_msc_guard/n2443_s1" R8C159[1][B];
+INS_LOC "u_usb_msc_guard/PHY_DATAOUT_5_s0" R9C145[0][A];
+INS_LOC "u_usb_msc_guard/PHY_DATAOUT_2_s" R9C145[1][A];
+// Départ des diviseurs du triangle raster : 5,922 ns de fil vers le
+// diviseur 1 dans C29. Rapprocher l'état, sans changer sa logique.
+INS_LOC "u_accel/u_raster/u_triangle/state_6_s0" R98C134[0][A];
+// Retour CE du calcul de ligne texture : détour par R85C93 dans C29.
+// @driver module=gpu_raster instance=texture_row_24_s2 pin=CE
+INS_LOC "u_accel/u_raster/texture_row_24_s4" R76C118[3][A];
+
+// C32 : C31 fait traverser tout le FPGA au reset EP1 avant de revenir
+// aux FIFO (7,220 + 7,246 ns de fil). Garder cette LUT près des FIFO.
+INS_LOC "u_usb_fifo/ep1_reset_s2" R68C72[0][A];
+// C36 : C33 conserve la commande CEA à R27C166, loin du reset EP1
+// et des BSRAM R64[12]. Éliminer l'aller-retour de 6,814 + 4,946 ns.
+// R64C74 n'accepte pas cette LUT (C35) ; R66C72 héberge déjà les FIFO.
+INS_LOC "u_usb_fifo/usb_rx_buf_ep1/sync_rx_pkt_fifo/RAM_s6" R66C72[0][A];
+// Seconde branche d'alignement RX : C31 l'éloigne de R15 à R48 puis
+// revient à R15. Compléter le groupe C22 avec les cellules de ce trajet.
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s20" R16C171[0][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s22" R16C171[0][B];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s7" R16C171[1][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/hs_rx_sel_2_s6" R16C171[1][B];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/bit_align_wr_act_s4" R16C171[2][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/bit_align_wr_act_s1" R16C171[2][B];

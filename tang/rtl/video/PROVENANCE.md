@@ -278,3 +278,33 @@ du cœur dur, en R4C150 ; les noms sont vérifiés dans la netlist r31. Le SDC
 reste identique. R31 passe le timing, la suite complète sur carte et
 30 minutes d'endurance (58 680 images) ; les scènes sont confirmées
 visuellement. Image et sources archivées, bilan dans `TESTS/TESTS_GPU_V1.md`.
+
+### Reprise SD/USB et fermeture du timing — 7 octobre 2026
+
+Livraison retenue : C22, qualifié et archivé le 8 octobre sous
+`bitstreams/console_gpu_sdusb_800.fs`. Suite GPU complète et ORBITAL R6
+(51 références, 28 549 images d'endurance) passent sur carte ; confirmation
+visuelle utilisateur. Pire marge +0,009 ns, fréquences inchangées.
+
+Corrections des moteurs originaux, sans changement de l'ABI, des pixels
+ni des cycles visibles :
+
+- `gpu_line_reader.v` : trois registres locaux anticipent le nettoyage des
+  pixels et de la couverture, pour retirer un décodage à fort fanout.
+- `blitter.v` : préparation des bornes des disques pleins dans l'état
+  précédent ; calcul direct de la fin de segment de copie, vérifié sur
+  les 1 048 576 couples position/longueur représentables.
+- `gpu_raster.v` : adresse du cache de texture enregistrée dans PRIME,
+  lecture dans SAMPLE et consommation dans TEST, états déjà existants.
+- `gpu_accel.v` : copies distinctes du dernier étage de reset pour les
+  moteurs, DMA compris, avec les mêmes cycles d'assertion et de retrait ;
+  lecture du drapeau de file pleine enregistré sans dépendance au masque
+  de reset. Quatre copies du décodage de registres AHB alimentent chacune
+  un octet de réponse, sans changer l'instant d'échantillonnage.
+
+Les comparaisons avec les sources figées R31 portent sur les transactions
+AHB/DDR, les pixels et les gardes : chemins indexé, perspective, V1 et
+composition de 16 couches/64 sprites. La comparaison V1 inclut aussi la
+factorisation HSEL du top, avec une adresse présentée pendant chaque
+attente locale du GPU. Preuves chiffrées, rapports de routage et état réel
+de la validation matérielle : `TESTS/TESTS_REPRISE_20261007.md`.

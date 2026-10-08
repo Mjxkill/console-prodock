@@ -28,9 +28,15 @@ module gpu_raster #(
     // One-hot state bits keep DDR READY/VALID off a deep binary decode.
     reg [32:0] state;
     assign busy=!state[IDLE];
-    wire [31:0] w0=command[31:0], w1=command[63:32], w2=command[95:64],
-        w3=command[127:96], w4=command[159:128], w5=command[191:160],
-        w6=command[223:192], w7=command[255:224];
+    // Copie locale du mot de commande. Le blitter écrit son dernier mot (txt[127:96]) un cycle avant de lever
+    // start : la copie prise à chaque cycle est donc égale au mot au moment du départ, sans cycle ajouté.
+    // Sans elle, l'opcode du blitter (registre op, module voisin) décodait directement les enables de ce
+    // module : chemin inter-modules en défaut de 0,4 ns dans r617.
+    reg [255:0] command_r /* synthesis syn_preserve=1 */;
+    always @(posedge clk) command_r<=command;
+    wire [31:0] w0=command_r[31:0], w1=command_r[63:32], w2=command_r[95:64],
+        w3=command_r[127:96], w4=command_r[159:128], w5=command_r[191:160],
+        w6=command_r[223:192], w7=command_r[255:224];
     reg configured, texture_valid;
     reg [3:0] plane_valid;
     reg [3:0] color_page, z_page;
@@ -70,6 +76,8 @@ module gpu_raster #(
     reg [255:0] texture_buffer;
     reg [15:0] texture [0:16383];
     reg [15:0] texel;
+    reg [13:0] texture_sample_address;
+    wire [15:0] sampled_source=flags[0] ? texel:solid;
     // Two look-ahead samples hide exact division behind fragment processing.
     // A slow, far-out repeated coordinate simply holds PIX_PRIME.
     reg per_select;
@@ -114,7 +122,10 @@ module gpu_raster #(
         reg in_bounds;
         reg [6:0] position;
         begin
-            in_bounds=coordinate>=0 && coordinate<$signed({1'b0,size});
+            // coordinate < size (taille sur 8 bits) <=> coordonnée positive, bits 48:8 nuls et bits 7:0 < size.
+            // Équivalent au comparateur signé de 49 bits, mais la chaîne de retenue n'a plus que 8 étages :
+            // l'adresse des 16 mémoires du cache en dépend directement (r604 : 2,8 ns en défaut).
+            in_bounds=!coordinate[48] && coordinate[47:8]==40'd0 && coordinate[7:0]<size;
             position=mode==1 ? (coordinate[6:0] & (size[6:0]-7'd1)) :
                 coordinate<0 ? 7'd0 : !in_bounds ? size[6:0]-7'd1 : coordinate[6:0];
             texture_axis={in_bounds || mode!=0,position};
@@ -137,7 +148,12 @@ module gpu_raster #(
     end
     always @(posedge clk) begin
         if(state[TEX_COPY])texture[{load_y,load_x}]<=texture_buffer[load_lane*16+:16];
-        texel<=texture[{tex_v,tex_u}];
+        // PRIME enregistre l'adresse ; SAMPLE lit la BSRAM ; TEST utilise
+        // le texel. Ces trois états existaient déjà : aucun cycle de pixel
+        // ajouté. La comparaison/bouclage des coordonnées ne précède plus
+        // directement les seize ports d'adresse du cache (c2 : -1,920 ns).
+        texture_sample_address<={tex_v,tex_u};
+        texel<=texture[texture_sample_address];
     end
 
     reg triangle_start;
@@ -198,7 +214,9 @@ module gpu_raster #(
     // the wide, per-lane buffer enables; PIX_PRIME leaves a settling cycle
     // before either buffer is sampled, so command timing stays unchanged.
     reg color_load,z_load;
-    reg [255:0] returned_data;
+    // Copie locale du bus de lecture DDR. Sans syn_preserve, la synthèse fusionne les copies identiques des
+    // différents modules en un seul registre, placé chez l'un d'eux : les autres le lisent par de longs fils.
+    reg [255:0] returned_data /* synthesis syn_preserve=1 */;
     always @(posedge clk)begin
         returned_data<=rd_data;
         if(rst)begin color_load<=0;z_load<=0;end
@@ -352,13 +370,13 @@ module gpu_raster #(
             end
             state[PIX_PRIME]:if(!flags[4] || per_ready[per_select])state<=33'b1 << (PIX_SAMPLE);
             state[PIX_SAMPLE]:begin
-                source_pixel<=flags[0] ? texel:solid;
                 depth<=z[31:16];sample_depth_ok<=z>=0 && z<48'sh000100000000;
                 sample_inside<=!flags[0] || texture_inside;state<=33'b1 << (PIX_TEST);
             end
             state[PIX_TEST]:begin
+                source_pixel<=sampled_source;
                 background<=sampled_background;
-                visible<=sample_inside && !(flags[3] && source_pixel==0) &&
+                visible<=sample_inside && !(flags[3] && sampled_source==0) &&
                     (!(flags[1] || flags[2]) || sample_depth_ok) &&
                     (!flags[1] || depth<sampled_depth);
                 fragments<=fragments+1'b1;state<=33'b1 << (PIX_BLEND);
