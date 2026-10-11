@@ -117,23 +117,26 @@ module usb_msc_port #(
     (* ASYNC_REG="TRUE" *) reg [1:0] want_s = 0, owner_s = 0, abandoned_s = 0;
     reg        owner_u;
     reg  [5:0] handback;                 // purge côté USB quand le firmware rend ou perd le disque
+    reg        handback_active /* synthesis syn_preserve=1 */;
     wire       empty_idle;               // le lecteur vide est entre deux commandes, émission terminée
     wire       owner_h = owner_s[1];
     always @(posedge clk) begin want_s <= {want_s[0], want_h}; abandoned_s <= {abandoned_s[0], abandoned}; end
     always @(posedge hclk) owner_s <= {owner_s[0], owner_u};
     wire ubase  = !ur[2] || !hu[1] || bus_reset;
-    wire uflush = flush_u || handback != 0;
+    wire uflush = flush_u || handback_active;
     assign ep_flush = uflush;
     always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin owner_u <= 1'b0; handback <= 6'd0; end
+        if (!reset_n) begin owner_u <= 1'b0; handback <= 6'd0; handback_active<=0; end
         else begin
-            if (handback != 0) handback <= handback - 1'b1;
+            // Same cycles as (handback != 0), without a counter reduction
+            // in front of the distributed endpoint/FIFO reset and enables.
+            if (handback != 0) begin handback <= handback - 1'b1; handback_active<=handback!=1; end
             // Un reset du bus ne retire pas le disque au firmware : il le voit et purge.
             if (!ur[2] || !hu[1]) owner_u <= 1'b0;
             else if (!owner_u) begin
-                if (want_s[1] && empty_idle && handback == 0) owner_u <= 1'b1;
-                else if (bot_reset) handback <= 6'd63;
-            end else if (!want_s[1]) begin owner_u <= 1'b0; if (abandoned_s[1]) handback <= 6'd63; end
+                if (want_s[1] && empty_idle && !handback_active) owner_u <= 1'b1;
+                else if (bot_reset) begin handback <= 6'd63; handback_active<=1; end
+            end else if (!want_s[1]) begin owner_u <= 1'b0; if (abandoned_s[1]) begin handback <= 6'd63; handback_active<=1; end end
         end
     end
     // Les FIFO vers le firmware restent en reset tant qu'il n'a pas le disque.

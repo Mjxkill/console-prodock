@@ -36,7 +36,7 @@ def main():
     subprocess.run(['cc','-O2','-Wall','-Wextra','-Werror','-fsanitize=undefined','-fno-sanitize-recover=all','-I'+str(ROOT/'fw_console'),str(out/'harness.c'),str(ROOT/'fw_console/gpu_v1.c'),'-o',str(out/'scene')],check=True)
     executable=None
     if a.rtl:
-        sources=['TESTS/rtl/gpu_accel_tb.sv']+['tang/rtl/video/'+s+'.v' for s in ['gpu_accel','blitter','gpu_raster','gpu_v1','gpu_texture_cache','gpu_copy565','gpu_perspective','gpu_triangle','gpu_blit_dma','font_ram']]+['tang/rtl/board/'+s+'.v' for s in ['ddr_dcfifo','cdc_word','ddr_gpu_arb']]
+        sources=['TESTS/rtl/gpu_accel_tb.sv']+['tang/rtl/video/'+s+'.v' for s in ['gpu_accel','gpu_geometry','gpu_geom_div','blitter','gpu_raster','gpu_v1','gpu_texture_cache','gpu_copy565','gpu_perspective','gpu_triangle','gpu_blit_dma','font_ram']]+['tang/rtl/board/'+s+'.v' for s in ['ddr_dcfifo','cdc_word','ddr_gpu_arb']]
         with (out/'build.log').open('w') as log:subprocess.run(['verilator','--binary','-j','4','--timing','-Wno-fatal','--top-module','gpu_accel_tb','-GDEPTH_SLOT=2','--Mdir',str(out/'obj')]+[str(ROOT/s) for s in sources],stdout=log,stderr=log,check=True)
         executable=out/'obj/Vgpu_accel_tb'
     font=[int(s,16) for s in (ROOT/'tang/rtl/video/font8x16.hex').read_text().split()]

@@ -5,7 +5,8 @@
 // sont celles que le firmware a validées : jamais de paquet court au milieu
 // d'un bloc en cours d'écriture, même longueur et mêmes octets en reprise.
 module usb_msc_port_tb #(
-    parameter real USB_HALF_NS=8.333, BUS_HALF_NS=6.25, BUS_PHASE_NS=0.0
+    parameter real USB_HALF_NS=8.333, BUS_HALF_NS=6.25, BUS_PHASE_NS=0.0,
+    parameter BUS_STAGE=0
 );
     reg clk = 0, hclk = 0;
     reg usb_clock_running=1;
@@ -30,6 +31,17 @@ module usb_msc_port_tb #(
     reg [31:0] haddr = 0, hwdata = 0;
     wire [31:0] hrdata;
     wire hready;
+    wire p_hsel,p_hwrite,p_hready;
+    wire [1:0] p_htrans;
+    wire [31:0] p_haddr,p_hwdata,p_hrdata;
+    generate if(BUS_STAGE)begin: registered_bus
+        video_bus_stage stage(.clk(hclk),.resetn(!reset),
+            .s_hsel(hsel),.s_hwrite(hwrite),.s_htrans(htrans),.s_haddr(haddr),.s_hwdata(hwdata),.s_hready(hready),.s_hrdata(hrdata),
+            .m_hsel(p_hsel),.m_hwrite(p_hwrite),.m_htrans(p_htrans),.m_haddr(p_haddr),.m_hwdata(p_hwdata),.m_hready(p_hready),.m_hrdata(p_hrdata));
+    end else begin: direct_bus
+        assign p_hsel=hsel;assign p_hwrite=hwrite;assign p_htrans=htrans;
+        assign p_haddr=haddr;assign p_hwdata=hwdata;assign hready=p_hready;assign hrdata=p_hrdata;
+    end endgenerate
     wire fifo_reset = reset | bus_reset;
     usb_fifo u_fifo (.i_clk(clk), .i_reset(fifo_reset), .i_usb_endpt(endpoint),
         .i_usb_rxact(rxact), .i_usb_rxval(rxval), .i_usb_rxpktval(rxpktval), .i_usb_rxdat(rxdat),
@@ -45,10 +57,15 @@ module usb_msc_port_tb #(
         .online(1'b1), .highspeed(1'b1), .ep_flush(flush),.ep_halted(ep_halted),.halt_request(halt_request),
         .ep_tx_dval(tx_dval), .ep_tx_data(tx_data), .ep_tx_committed(committed), .ep_tx_sent(sent),
         .ep_rx_rdy(rx_rdy), .ep_rx_dval(rx_dval), .ep_rx_data(rx_data),
-        .hclk(hclk), .hsel(hsel), .hwrite(hwrite), .htrans(htrans), .haddr(haddr), .hwdata(hwdata),
-        .hrdata(hrdata), .hready(hready));
+        .hclk(hclk), .hsel(p_hsel), .hwrite(p_hwrite), .htrans(p_htrans), .haddr(p_haddr), .hwdata(p_hwdata),
+        .hrdata(p_hrdata), .hready(p_hready));
 
     function automatic [7:0] pattern(input integer n); return 8'((n * 73) ^ (n >> 8) ^ 8'h5a); endfunction
+    // G22 replaces only the combinational zero-decode of this counter.
+    // Check every active USB cycle, including reset and owner transitions.
+    always @(negedge clk) if(!reset)
+        if(u_port.handback_active !== (u_port.handback != 0))
+            $fatal(1,"Handback flush duration changed: counter=%0d flag=%0b",u_port.handback,u_port.handback_active);
     reg [31:0] rng_h = 32'h2468ace1, rng_u = 32'h13579bdf;
     function automatic [31:0] step(input [31:0] v); return (v << 1) ^ (v[31] ? 32'h04c11db7 : 0); endfunction
 

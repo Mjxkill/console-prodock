@@ -1,6 +1,7 @@
 // Exact floor(UQ/Q), floor(VQ/Q), signed 49-bit inputs. Q must be positive.
 // Two quotient bits/cycle with parallel radix-four subtraction; the common |coordinate|<256 case skips the
-// known-zero high quotient bits. Large/repeated coordinates remain exact.
+// known-zero high quotient bits. Repeated coordinates below 4096 use twelve
+// quotient bits rather than the full fifty-bit path. All results remain exact.
 `default_nettype none
 module gpu_perspective (
     input wire clk,rst,start,
@@ -18,6 +19,7 @@ module gpu_perspective (
     reg neg_u,neg_v,positive;
     reg [5:0] bits_left;
     wire fast=(au>>8)<den && (av>>8)<den;
+    wire fast12=(au>>12)<den && (av>>12)<den;
     // A leading zero makes the full-width path exactly 25 radix-four steps.
     // No separate odd final bit or extra remainder multiplexer is needed.
     wire [49:0] up={ru,nu[49:48]},vp={rv,nv[49:48]};
@@ -55,9 +57,10 @@ module gpu_perspective (
             end
             SETUP:begin
                 qu<=0;qv<=0;valid<=positive;den3<={2'b0,den}+{1'b0,den,1'b0};
-                ru<=fast ? au>>8:49'd0;rv<=fast ? av>>8:49'd0;
-                nu<=fast ? {au[7:0],42'd0}:{1'b0,au};nv<=fast ? {av[7:0],42'd0}:{1'b0,av};
-                bits_left<=fast ? 6'd8:6'd50;state<=positive ? DIVIDE:SIGN;
+                ru<=fast ? au>>8:fast12 ? au>>12:49'd0;rv<=fast ? av>>8:fast12 ? av>>12:49'd0;
+                nu<=fast ? {au[7:0],42'd0}:fast12 ? {au[11:0],38'd0}:{1'b0,au};
+                nv<=fast ? {av[7:0],42'd0}:fast12 ? {av[11:0],38'd0}:{1'b0,av};
+                bits_left<=fast ? 6'd8:fast12 ? 6'd12:6'd50;state<=positive ? DIVIDE:SIGN;
             end
             DIVIDE:begin
                 ru<=ur2;rv<=vr2;

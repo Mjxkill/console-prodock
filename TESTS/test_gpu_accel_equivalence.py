@@ -42,12 +42,12 @@ def main():
     current, old = path.read_text(), reference.read_text()
     declaration = 'module gpu_accel #('
     (out/'current.v').write_text(current.replace(declaration, 'module gpu_accel_current #(', 1))
-    video_names=['blitter','gpu_raster','gpu_v1','gpu_texture_cache','gpu_copy565',
+    video_names=['gpu_geometry','gpu_geom_div','blitter','gpu_raster','gpu_v1','gpu_texture_cache','gpu_copy565',
                  'gpu_perspective','gpu_triangle','gpu_blit_dma','font_ram']
     reference_sources=[]
     reference_inputs=[]
     if a.reference_video:
-        originals={name:(a.reference_root/f'tang/rtl/video/{name}.v') for name in video_names}
+        originals={name:(a.reference_root/f'tang/rtl/video/{name}.v') for name in video_names if (a.reference_root/f'tang/rtl/video/{name}.v').exists()}
         modules=[module for source in originals.values()
                  for module in re.findall(r'^module\s+(\w+)',source.read_text(),re.M)]
         pattern=re.compile(r'\b('+('|'.join(re.escape(n) for n in modules))+r')\b')

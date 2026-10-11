@@ -15,8 +15,12 @@ $(BUILD)/%.o: %.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 $(BUILD)/gpu.o: gpu.h gpu_v1.h
 $(BUILD)/gpu_v1.o: gpu.h gpu_v1.h
+$(BUILD)/gpu_geometry.o: gpu_geometry.h gpu_v1.h gpu.h
 $(BUILD)/luma_main.o: luma_scene.h luma_fx_scene.h luma_assets.h gpu.h gpu_v1.h
 $(BUILD)/orbital_main.o: orbital_scene.h orbital_assets.h gpu.h gpu_v1.h
+$(BUILD)/astra_main.o: astra_scene.h astra_assets.h gpu.h gpu_v1.h
+$(BUILD)/astrilla_main.o: astrilla_geometry.h gpu_geometry.h astrilla_hud.h astrilla_hud_font.h astrilla_scene.h astrilla_assets.h astrilla_meshes.h astrilla_3d.h astrilla_flight.h gpu.h gpu_v1.h
+$(BUILD)/world3d_main.o: world3d_scene.h astrilla_geometry.h gpu_geometry.h astrilla_hud.h astrilla_hud_font.h astrilla_scene.h astrilla_assets.h astrilla_meshes.h astrilla_3d.h astrilla_flight.h gpu.h gpu_v1.h
 $(BUILD)/sd.o $(BUILD)/sd_ae350.o $(BUILD)/sd_test_main.o $(BUILD)/diskio.o $(BUILD)/usb_disk_main.o: sd.h
 $(BUILD)/usb_msc.o $(BUILD)/usb_disk_main.o: usb_msc.h
 $(BUILD)/ff.o $(BUILD)/diskio.o $(BUILD)/sd_test_main.o: fatfs/ff.h fatfs/ffconf.h fatfs/diskio.h fatfs/integer.h

@@ -13,7 +13,8 @@ W,H,SLOT=800,480,1<<20
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out',type=Path,required=True)
-    args=parser.parse_args();out=args.out;out.mkdir(parents=True,exist_ok=True)
+    parser.add_argument('--read-min',type=int,choices=(1,3,11),default=3)
+    args=parser.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=True)
     memory=bytearray((i*29+(i>>11))&255 for i in range(3*SLOT))
     def base(page):return {0:0,1:SLOT,15:2*SLOT}[page]
     def get(page,x,y):
@@ -199,12 +200,12 @@ def main():
     (out/'expected.hex').write_text(''.join(f'{v:02x}\n' for v in memory))
     shutil.copy2(ROOT/'tang/rtl/video/font8x16.hex',out/'font8x16.hex')
     sources=['TESTS/rtl/gpu_accel_tb.sv','tang/rtl/video/gpu_accel.v','tang/rtl/video/blitter.v',
-        'tang/rtl/video/gpu_raster.v','tang/rtl/video/gpu_v1.v','tang/rtl/video/gpu_texture_cache.v','tang/rtl/video/gpu_copy565.v','tang/rtl/video/gpu_perspective.v','tang/rtl/video/gpu_triangle.v','tang/rtl/video/gpu_blit_dma.v',
+        'tang/rtl/video/gpu_raster.v','tang/rtl/video/gpu_geometry.v','tang/rtl/video/gpu_geom_div.v','tang/rtl/video/gpu_v1.v','tang/rtl/video/gpu_texture_cache.v','tang/rtl/video/gpu_copy565.v','tang/rtl/video/gpu_perspective.v','tang/rtl/video/gpu_triangle.v','tang/rtl/video/gpu_blit_dma.v',
         'tang/rtl/video/font_ram.v','tang/rtl/board/ddr_dcfifo.v','tang/rtl/board/cdc_word.v',
         'tang/rtl/board/ddr_gpu_arb.v']
     with (out/'build.log').open('w') as log:
         subprocess.run(['verilator','--binary','--timing','-Wno-fatal','--top-module','gpu_accel_tb',
-            '--Mdir',str(out/'obj')]+[str(ROOT/s) for s in sources],stdout=log,stderr=log,check=True)
+            f'-GREAD_MIN={args.read_min}','--Mdir',str(out/'obj')]+[str(ROOT/s) for s in sources],stdout=log,stderr=log,check=True)
     command=[str(out/'obj/Vgpu_accel_tb'),f'+ncmd={len(commands)//8}',f'+raster_bad={rejected}','+rgbinit=1']
     with (out/'simulation.log').open('w') as log:
         p=subprocess.run(command,cwd=out,stdout=log,stderr=subprocess.STDOUT)

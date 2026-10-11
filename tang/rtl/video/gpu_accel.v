@@ -32,13 +32,20 @@ module gpu_accel #(
         if (!hresetn) engine_resetn <= 0;
         else engine_resetn <= {4{mrst[0]}};
     reg [7:0] bus_addr;
-    reg bus_write,bus_command;
+    reg bus_write,bus_command,read_wait;
     wire queue_full;
     // Register command-port decode during the AHB address phase, keeping
     // the address comparator off the CPU's HREADY feedback path.
     // AHB master and this FIFO share reset. Use registered fullness here:
     // the generic FIFO's reset-gated READY must not enter CPU feedback.
-    assign hready = !(bus_command && queue_full);
+    assign hready = !(bus_command && queue_full) && !read_wait;
+    // Capture CSR data locally before crossing the chip to the peripheral
+    // bridge. Each read inserts one AHB wait state; writes are unchanged.
+    always @(posedge hclk)begin
+        if(!hresetn)read_wait<=0;
+        else if(read_wait)read_wait<=0;
+        else if(hready)read_wait<=hsel && htrans[1] && !hwrite;
+    end
     wire write_fire = bus_write && hready && hresetn;
     reg [11:0] font_write_addr;
     always @(posedge hclk) begin
@@ -90,22 +97,21 @@ module gpu_accel #(
         if (!hresetn) busy_sync <= 0;
         else busy_sync <= {busy_sync[0], blitter_busy || queue_valid || command_word != 0};
     end
-    // Decode in the existing AHB address phase, keeping the return-data
-    // path to the CPU bridge to an AND/OR selection with unchanged latency.
+    // Decode in the AHB address phase, then register the selected response.
     // Une copie par octet de réponse : le sélecteur ne doit pas piloter
     // les 32 bits dispersés du mux de statistiques. Les quatre copies
     // capturent la même adresse sur le même front, sans cycle ajouté.
-    reg [71:0] read_select /* synthesis syn_preserve=1 */;
+    reg [103:0] read_select /* synthesis syn_preserve=1 */;
     genvar reg_index;
-    generate for(reg_index=0;reg_index<72;reg_index=reg_index+1)begin: read_decode
+    generate for(reg_index=0;reg_index<104;reg_index=reg_index+1)begin: read_decode
         always @(posedge hclk)
-            if(!hresetn)read_select[reg_index]<=(reg_index%18==0);
-            else if(hready)read_select[reg_index]<=(haddr[7:0]==(reg_index%18)*4);
+            if(!hresetn)read_select[reg_index]<=(reg_index%26==0);
+            else if(hready)read_select[reg_index]<=(haddr[7:0]==(reg_index%26)*4);
     end endgenerate
     // Comme HREADY, le statut utilise FULL enregistré. Le maître partage
     // HRESETn : toute lecture valide voit FULL == !READY, sans propager
     // le réseau de reset dans le retour de données du pont CPU.
-    wire [31:0] register_value [0:17];
+    wire [31:0] register_value [0:25];
     assign register_value[0]=32'h424c5432;
     assign register_value[1]={30'b0,queue_full,busy_sync[1]};
     assign register_value[2]={16'b0,r_done};
@@ -124,14 +130,26 @@ module gpu_accel #(
     assign register_value[15]=v1r_passed;
     assign register_value[16]=v1r_hits;
     assign register_value[17]=v1r_misses;
+    wire [31:0] geometry_stat [0:6];
+    wire [31:0] geometry_read [0:6];
+    genvar geometry_index;
+    generate for(geometry_index=0;geometry_index<7;geometry_index=geometry_index+1)begin: geometry_cdc
+        cdc_word u_stat(.src_clk(mem_clk),.src_data(geometry_stat[geometry_index]),.dst_clk(hclk),.dst_data(geometry_read[geometry_index]));
+        assign register_value[19+geometry_index]=geometry_read[geometry_index];
+    end endgenerate
+    assign register_value[18]=32'h47334431; // G3D1 geometry ABI; legacy V1 capability remains unchanged.
+    reg [31:0] response_data;
+    always @(posedge hclk)
+        if(!hresetn)hrdata<=0;
+        else hrdata<=response_data;
     genvar response_byte;
     generate for(response_byte=0;response_byte<4;response_byte=response_byte+1)begin: read_response
         integer k;
         always @* begin
-            hrdata[response_byte*8+:8]=8'd0;
-            for(k=0;k<18;k=k+1)
-                hrdata[response_byte*8+:8]=hrdata[response_byte*8+:8] |
-                    ({8{read_select[response_byte*18+k]}} & register_value[k][response_byte*8+:8]);
+            response_data[response_byte*8+:8]=8'd0;
+            for(k=0;k<26;k=k+1)
+                response_data[response_byte*8+:8]=response_data[response_byte*8+:8] |
+                    ({8{read_select[response_byte*26+k]}} & register_value[k][response_byte*8+:8]);
         end
     end endgenerate
     wire [11:0] font_addr;
@@ -170,7 +188,10 @@ module gpu_accel #(
     wire [28:0] v1_addr;
     wire [255:0] v1_data;
     wire [31:0] v1_mask;
-    // Isolate the extended shader's request multiplexers and wide reply loads
+    // Both extended raster engines share one registered DDR transaction stage.
+    // This also cuts scanout arbitration -> legacy raster next-state paths.
+    wire extended_request=v1_select ? v1_request:raster_valid;
+    // Isolate the extended shaders' request multiplexers and wide reply loads
     // from the shared DDR arbiter. Hold one complete transaction until accepted.
     // The acknowledgement guard prevents recapturing the engine's old VALID
     // on the cycle in which it observes the registered acceptance pulse.
@@ -181,37 +202,40 @@ module gpu_accel #(
             v1_tx_addr<=0;v1_tx_data<=0;v1_tx_mask<=-1;v1_tx_write<=0;
         end else begin
             v1_accepted<=v1_pending && ready;
-            v1_rx_valid<=rd_valid && ext_active && v1_select;
+            v1_rx_valid<=rd_valid && ext_active;
             if(v1_pending)begin
                 if(ready)v1_pending<=0;
-            end else if(v1_request && !v1_accepted)begin
-                v1_pending<=1;v1_tx_addr<=v1_addr;v1_tx_data<=v1_data;
-                v1_tx_mask<=v1_mask;v1_tx_write<=v1_write;
+            end else if(extended_request && !v1_accepted)begin
+                v1_pending<=1;v1_tx_addr<=v1_select ? v1_addr:raster_addr;
+                v1_tx_data<=v1_select ? v1_data:raster_data;
+                v1_tx_mask<=v1_select ? v1_mask:raster_mask;
+                v1_tx_write<=v1_select ? v1_write:raster_write;
             end
         end
     end
     assign v1_valid=v1_pending;
     assign ext_done=v1_select ? v1_done:old_done;
-    gpu_v1 u_v1(.clk(mem_clk),.rst(!engine_resetn[2]),.start(ext_start && v1_select),.command(ext_command),
-        .busy(),.done(v1_done),.rejected(v1_rejected),.fragments(v1_fragments),.passed(v1_passed),
+    gpu_geometry u_v1(.clk(mem_clk),.rst(!engine_resetn[2]),.start(ext_start && v1_select),.command(ext_command),
+        .busy(),.done(v1_done),
+        .geom_errors(geometry_stat[0]),.vertices(geometry_stat[1]),.triangles(geometry_stat[2]),
+        .culled(geometry_stat[3]),.clipped(geometry_stat[4]),.slivers(geometry_stat[5]),.geom_cycles(geometry_stat[6]),.rejected(v1_rejected),.fragments(v1_fragments),.passed(v1_passed),
         .texture_hits(v1_hits),.texture_misses(v1_misses),.valid(v1_request),.write(v1_write),
         .addr(v1_addr),.wr_data(v1_data),.wr_mask(v1_mask),
-        .ready(v1_accepted),.rd_valid(v1_rx_valid),.rd_data(v1_rx_data));
+        .ready(v1_accepted && v1_select),.rd_valid(v1_rx_valid && v1_select),.rd_data(v1_rx_data));
     // The ordered command queue starts only one engine at a time; each engine
     // drops VALID before completion. Use those registered request flags for
     // transaction control. The wide payload's owner mux must not feed WRITE
     // and then loop through arbiter READY into the engine state machines.
-    assign valid=legacy_valid || raster_valid || v1_valid;
-    assign write=(legacy_valid && legacy_write) || (raster_valid && raster_write) ||
-                 (v1_valid && v1_tx_write);
-    assign addr=ext_active ? (v1_select ? v1_tx_addr:raster_addr):legacy_addr;
-    assign wr_data=ext_active ? (v1_select ? v1_tx_data:raster_data):legacy_data;
-    assign wr_mask=ext_active ? (v1_select ? v1_tx_mask:raster_mask):legacy_mask;
+    assign valid=legacy_valid || v1_valid;
+    assign write=(legacy_valid && legacy_write) || (v1_valid && v1_tx_write);
+    assign addr=ext_active ? v1_tx_addr:legacy_addr;
+    assign wr_data=ext_active ? v1_tx_data:legacy_data;
+    assign wr_mask=ext_active ? v1_tx_mask:legacy_mask;
     gpu_raster u_raster (
         .clk(mem_clk),.rst(!engine_resetn[1]),.start(ext_start && !v1_select),.command(ext_command),.busy(),.done(old_done),
         .rejected(raster_rejected),.fragments(raster_fragments),.passed(raster_passed),
         .valid(raster_valid),.write(raster_write),.addr(raster_addr),.wr_data(raster_data),.wr_mask(raster_mask),
-        .ready(ready),.rd_data(rd_data),.rd_valid(rd_valid && ext_active && !v1_select));
+        .ready(v1_accepted && !v1_select),.rd_data(v1_rx_data),.rd_valid(v1_rx_valid && !v1_select));
     blitter u_blitter (
         .clk(mem_clk), .rst(!engine_resetn[0]), .cmd_we(command_we), .cmd_data(queue_data), .cmd_full(command_full),
         .err_cmd_lost(command_lost), .err_cmd_bad(command_bad), .cmd_done(done_count), .busy(blitter_busy),

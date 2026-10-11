@@ -60,7 +60,7 @@ endmodule
     assert 'gpu_raster u_raster (' in accel
     (out/'accel.v').write_text(accel.replace('gpu_raster u_raster (', 'gpu_raster_equiv u_raster (', 1))
     sources = ['TESTS/rtl/gpu_accel_tb.sv', 'tang/rtl/video/blitter.v',
-               'tang/rtl/video/gpu_raster.v','tang/rtl/video/gpu_v1.v','tang/rtl/video/gpu_texture_cache.v','tang/rtl/video/gpu_copy565.v', 'tang/rtl/video/gpu_perspective.v',
+               'tang/rtl/video/gpu_raster.v','tang/rtl/video/gpu_geometry.v','tang/rtl/video/gpu_geom_div.v','tang/rtl/video/gpu_v1.v','tang/rtl/video/gpu_texture_cache.v','tang/rtl/video/gpu_copy565.v', 'tang/rtl/video/gpu_perspective.v',
                'tang/rtl/video/gpu_triangle.v', 'tang/rtl/video/gpu_blit_dma.v',
                'tang/rtl/video/font_ram.v', 'tang/rtl/board/ddr_dcfifo.v',
                'tang/rtl/board/cdc_word.v', 'tang/rtl/board/ddr_gpu_arb.v']

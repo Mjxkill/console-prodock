@@ -54,7 +54,18 @@ module gpu_blit_dma (
     // Keep the global reset/state decode off the arbiter's ready/tag paths.
     // This register changes on the same edges as entry/exit of SEND states.
     assign write = state == W_SEND;
-    assign w_ready = !rst && state == W_PACK;
+    // Predict W_PACK on the same edge as the state transition. The blitter
+    // shares this synchronous reset, so it never consumes READY during reset.
+    // Do not put the high-fanout reset net back into the line-RAM address path.
+    reg write_active /* synthesis syn_preserve=1 */;
+    always @(posedge clk)begin
+        if(rst)write_active<=0;
+        else write_active<=
+            (state==IDLE && !c_req && !(f_req && f_len!=0) && w_req && w_len!=0) ||
+            (state==W_PACK && lane!=15 && remaining!=1) ||
+            (state==W_SEND && ready && !fill_write && remaining!=0);
+    end
+    assign w_ready = write_active;
     // Acknowledge on the cycle AFTER native acceptance. This cuts the long
     // scanout valid -> DDR ready -> blitter next-state path. Completion still
     // means the final DDR write was accepted; no buffered write is hidden.

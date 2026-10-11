@@ -466,8 +466,8 @@ INS_LOC "u_soc/u_bridge/st_1_s5" R4C150[2][A];
 // une position intermédiaire entre les contrôles de gauche et le pont CPU.
 // C28 : avec le garde BOT, C27 place la source GPU en R62 et le retour
 // AHB en R50. L'ancien ancrage R20 impose deux détours verticaux.
-INS_LOC "vid_hready_s0" R40C110[0][A];
-INS_LOC "vid_hready_s2" R40C110[0][B];
+// G3D1: video_bus_stage replaces these two combinational HREADY LUTs.
+// Their old instance-name placement anchors no longer apply.
 // @driver module=ahb_exts_bridge instance=m_hready_s0 pin=D
 INS_LOC "u_soc/u_bridge/n47_s2" R4C150[0][B];
 
@@ -721,14 +721,16 @@ INS_LOC "u_usb_msc_guard/PHY_DATAOUT_5_s0" R9C145[0][A];
 INS_LOC "u_usb_msc_guard/PHY_DATAOUT_2_s" R9C145[1][A];
 // Départ des diviseurs du triangle raster : 5,922 ns de fil vers le
 // diviseur 1 dans C29. Rapprocher l'état, sans changer sa logique.
-INS_LOC "u_accel/u_raster/u_triangle/state_6_s0" R98C134[0][A];
+// G3D1 G22: release triangle state placement. G21 measured a 7.919 ns
+// route to the divider near R14C9 from this former R98C134 anchor.
 // Retour CE du calcul de ligne texture : détour par R85C93 dans C29.
 // @driver module=gpu_raster instance=texture_row_24_s2 pin=CE
-INS_LOC "u_accel/u_raster/texture_row_24_s4" R76C118[3][A];
+// G3D1: let the texture-row enable follow its new cluster (G13: -3.913 ns).
 
 // C32 : C31 fait traverser tout le FPGA au reset EP1 avant de revenir
 // aux FIFO (7,220 + 7,246 ns de fil). Garder cette LUT près des FIFO.
-INS_LOC "u_usb_fifo/ep1_reset_s2" R68C72[0][A];
+// G3D1 G22: this combinational reset decode no longer exists after the
+// handback flag is registered. Let P&R place the remaining reset logic.
 // C36 : C33 conserve la commande CEA à R27C166, loin du reset EP1
 // et des BSRAM R64[12]. Éliminer l'aller-retour de 6,814 + 4,946 ns.
 // R64C74 n'accepte pas cette LUT (C35) ; R66C72 héberge déjà les FIFO.

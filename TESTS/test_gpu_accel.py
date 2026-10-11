@@ -37,7 +37,7 @@ def main():
     parser.add_argument('--equiv-blitter-root',type=Path,help='Compare every blitter interface cycle with an unchanged RTL snapshot')
     parser.add_argument('--equiv-dma-delay',type=int,choices=(0,1),default=1)
     parser.add_argument('--affine',action='store_true',help='Exercise L12 inverse affine sampling and invalid descriptors')
-    args=parser.parse_args();OUT=args.out
+    args=parser.parse_args();OUT=args.out.resolve()
     OUT.mkdir(exist_ok=True)
     font = [int(v,16) for v in (ROOT/'tang/rtl/video/font8x16.hex').read_text().split()]
     shutil.copy2(ROOT/'tang/rtl/video/font8x16.hex',OUT/'font8x16.hex')
@@ -255,7 +255,7 @@ def main():
              'tang/rtl/board/ddr_dcfifo.v','tang/rtl/board/cdc_word.v','tang/rtl/board/ddr_gpu_arb.v']
     if (args.rtl_root/'tang/rtl/video/gpu_perspective.v').exists():
         sources.append('tang/rtl/video/gpu_perspective.v')
-    for new_rtl in ('gpu_v1.v','gpu_texture_cache.v','gpu_copy565.v'):
+    for new_rtl in ('gpu_v1.v','gpu_texture_cache.v','gpu_copy565.v','gpu_geometry.v','gpu_geom_div.v'):
         if (args.rtl_root/('tang/rtl/video/'+new_rtl)).exists():sources.append('tang/rtl/video/'+new_rtl)
     if (args.rtl_root/'tang/rtl/video/gpu_raster.v').exists():
         sources.append('tang/rtl/video/gpu_raster.v')

@@ -36,7 +36,7 @@ def build():
     tb = tb.replace('repeat(100) @(posedge hc);', 'repeat(10) @(posedge hc);')
     tb = tb.replace('reg [31:0] commands [0:8191];', 'reg [31:0] commands [0:65535];')
     (OUT / 'tb.sv').write_text(tb)
-    sources = ['tang/rtl/video/gpu_accel.v', 'tang/rtl/video/blitter.v', 'tang/rtl/video/gpu_blit_dma.v',
+    sources = [f'tang/rtl/video/{n}.v' for n in ('gpu_geometry','gpu_geom_div','gpu_v1','gpu_raster','gpu_texture_cache','gpu_copy565','gpu_perspective')]+['tang/rtl/video/gpu_accel.v', 'tang/rtl/video/blitter.v', 'tang/rtl/video/gpu_blit_dma.v',
                'tang/rtl/video/font_ram.v', 'tang/rtl/video/gpu_triangle.v', 'tang/rtl/board/ddr_dcfifo.v',
                'tang/rtl/board/cdc_word.v', 'tang/rtl/board/ddr_gpu_arb.v']
     (OUT / 'font8x16.hex').write_text((ROOT / 'tang/rtl/video/font8x16.hex').read_text())

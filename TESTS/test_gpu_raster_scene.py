@@ -10,9 +10,9 @@ ROOT=Path(__file__).resolve().parents[1]
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',type=Path,required=True)
     p.add_argument('--perspective',action='store_true')
-    args=p.parse_args();out=args.out;out.mkdir(parents=True,exist_ok=True)
+    args=p.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=True)
     sources=['TESTS/rtl/gpu_accel_tb.sv','tang/rtl/video/gpu_accel.v','tang/rtl/video/blitter.v',
-        'tang/rtl/video/gpu_raster.v','tang/rtl/video/gpu_v1.v','tang/rtl/video/gpu_texture_cache.v','tang/rtl/video/gpu_copy565.v','tang/rtl/video/gpu_perspective.v','tang/rtl/video/gpu_triangle.v','tang/rtl/video/gpu_blit_dma.v',
+        'tang/rtl/video/gpu_raster.v','tang/rtl/video/gpu_geometry.v','tang/rtl/video/gpu_geom_div.v','tang/rtl/video/gpu_v1.v','tang/rtl/video/gpu_texture_cache.v','tang/rtl/video/gpu_copy565.v','tang/rtl/video/gpu_perspective.v','tang/rtl/video/gpu_triangle.v','tang/rtl/video/gpu_blit_dma.v',
         'tang/rtl/video/font_ram.v','tang/rtl/board/ddr_dcfifo.v','tang/rtl/board/cdc_word.v',
         'tang/rtl/board/ddr_gpu_arb.v']
     with (out/'build.log').open('w') as log:

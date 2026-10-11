@@ -193,7 +193,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     // fetched source interval, including the unused neighbor of an edge word.
     wire [255:0] low_word=p1_odd ? odd_q : even_q;
     wire [255:0] high_word=p1_odd ? even_q : odd_q;
-    wire [511:0] aligned_pair=p2_pair>>({shift_bytes[4:1],4'b0});
+    wire [511:0] aligned_pair=p2_pair>>({shift_bytes[4:2],5'b0});
     reg [255:0] merged;
     integer lane;
     always @* begin
@@ -209,7 +209,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     // shift_bytes is stable until DRAIN empties
     // the pipeline. No extra merge cycle or reset/enable tree is introduced.
     always @(posedge clk) begin
-        p2_pair<=({high_word,low_word}>>{shift_bytes[0],3'b0});p2_old<=old_q;p2_coverage<=old_coverage;
+        p2_pair<=({high_word,low_word}>>{shift_bytes[1:0],3'b0});p2_old<=old_q;p2_coverage<=old_coverage;
         p3_pixels<=aligned_pair[255:0];p3_old<=p2_old;p3_coverage<=p2_coverage;
     end
     reg write_valid=0;

@@ -148,7 +148,7 @@ module blitter #(
             8'd10:triangle_opcode<=1;
             8'd12:affine_setup_opcode<=1;
             8'd14,8'd15,8'd16,8'd17,8'd18,8'd19,8'd20,8'd21,
-            8'd22,8'd23,8'd24,8'd25,8'd26,8'd27,8'd28,8'd29,8'd30:extended_opcode<=1;
+            8'd22,8'd23,8'd24,8'd25,8'd26,8'd27,8'd28,8'd29,8'd30,8'd31,8'd32,8'd33,8'd34:extended_opcode<=1;
             default:begin end
         endcase
     end

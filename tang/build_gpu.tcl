@@ -9,6 +9,9 @@ add_file rtl/video/gpu_tile_row.v
 add_file rtl/video/gpu_accel.v
 add_file rtl/video/gpu_raster.v
 add_file rtl/video/gpu_v1.v
+add_file rtl/video/gpu_geometry.v
+add_file rtl/video/video_bus_stage.v
+add_file rtl/video/gpu_geom_div.v
 add_file rtl/video/gpu_texture_cache.v
 add_file rtl/video/gpu_copy565.v
 add_file rtl/video/gpu_perspective.v

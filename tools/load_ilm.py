@@ -24,7 +24,7 @@ def identify_console(uart):
         for line in bytes(response).split(b'\n')[:-1]:
             if b'USBDISK R' in line:return bytes(response),b'q'
             if b'MegaPro GPU' in line:return bytes(response),b'c'
-            if b'LUMA R' in line or b'ORBITAL R' in line:return bytes(response),b'P'
+            if b'LUMA R' in line or b'ORBITAL R' in line or b'ASTRA R' in line or b'ASTRILLA R' in line:return bytes(response),b'P'
     raise RuntimeError(f'Identité console absente ; aucun chargement effectué : {bytes(response[-2000:])!r}')
 
 def quiesce_console(uart, pause, timeout=8):
@@ -34,12 +34,16 @@ def quiesce_console(uart, pause, timeout=8):
     when it was already released. GPU command c stops all animation modes.
     No J-Link action may follow a timeout or an incomplete acknowledgement.
     """
-    markers={b'P': (b'LUMA PAUSED', b'ORBITAL PAUSED'), b'c': (b'RASTER PAUSED',)}
+    markers={b'P': (b'LUMA PAUSED', b'ORBITAL PAUSED', b'ASTRA PAUSED', b'ASTRILLA PAUSED'), b'c': (b'RASTER PAUSED',)}
     if pause not in (*markers,b'q'):
         raise RuntimeError(f'Commande de pause inconnue : {pause!r}')
     uart.reset_input_buffer();uart.write(pause);uart.flush()
-    answer=bytearray();deadline=time.monotonic()+timeout;next_query=0.0
+    answer=bytearray();deadline=time.monotonic()+timeout;next_query=time.monotonic()+(.5 if pause!=b'q' else 0)
     while time.monotonic()<deadline and len(answer)<262144:
+        # Pause/release are idempotent. Retrying tolerates a dropped CDC OUT
+        # around a host USB reset, but never bypasses the exact ACK below.
+        if pause!=b'q' and time.monotonic()>=next_query:
+            uart.write(pause);uart.flush();next_query=time.monotonic()+.5
         if pause==b'q' and time.monotonic()>=next_query:
             uart.write(b's');uart.flush();next_query=time.monotonic()+.2
         answer.extend(uart.read(4096))

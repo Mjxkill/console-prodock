@@ -68,6 +68,15 @@ module console_top (
     wire [255:0] blit_wr_data, blit_rd_data;
     wire [31:0] blit_wr_mask;
 `ifdef CONSOLE_GPU
+    wire bus_hsel,bus_hwrite,bus_hready;
+    wire [31:0] bus_haddr,bus_hwdata,bus_hrdata;
+    wire [1:0] bus_htrans;
+    video_bus_stage u_video_bus (
+        .clk(vid_hclk),.resetn(vid_hrstn),
+        .s_hsel(vid_hsel),.s_hwrite(vid_hwrite),.s_htrans(vid_htrans),
+        .s_haddr(vid_haddr),.s_hwdata(vid_hwdata),.s_hready(vid_hready),.s_hrdata(vid_hrdata),
+        .m_hsel(bus_hsel),.m_hwrite(bus_hwrite),.m_htrans(bus_htrans),
+        .m_haddr(bus_haddr),.m_hwdata(bus_hwdata),.m_hready(bus_hready),.m_hrdata(bus_hrdata));
     wire [31:0] scan_hrdata, usb_trace_hrdata, usb_msc_hrdata;
     // Conserver la frontière du mux de registres GPU : sans elle, la
     // synthèse le disperse dans celui du pont CPU (r622 : fil de 11,63 ns
@@ -77,8 +86,8 @@ module console_top (
     reg blit_selected, usb_trace_selected;
     always @(posedge vid_hclk) begin
         if (!vid_hrstn) begin blit_selected <= 1'b0; usb_trace_selected <= 1'b0; end
-        else if (vid_hready) begin
-            blit_selected <= vid_haddr[12]; usb_trace_selected <= vid_haddr[13];
+        else if (bus_hsel) begin
+            blit_selected <= bus_haddr[12]; usb_trace_selected <= bus_haddr[13];
         end
     end
     // E9002000 : trace USB ; E9003000 : disque USB (usb_msc_port). Les réponses de ces deux
@@ -87,25 +96,21 @@ module console_top (
     // ainsi exactement la profondeur logique du R31.
     wire [31:0] usb_leg_hrdata = blit_selected ? usb_msc_hrdata : usb_trace_hrdata;
     wire        usb_leg_hready = blit_selected ? usb_msc_hready : usb_trace_hready;
-    assign vid_hrdata = usb_trace_selected ? usb_leg_hrdata : (blit_selected ? blit_hrdata : scan_hrdata);
-    assign vid_hready = usb_trace_selected ? usb_leg_hready : (blit_selected ? blit_hready : scan_hready);
-    // gpu_accel ne capture une adresse que si son HREADY local vaut 1.
-    // Quand il est l'esclave de données, inutile de lui renvoyer ce même
-    // HREADY via le mux global et HSEL : cela créait une longue boucle
-    // bus_command -> HREADY -> HSEL -> bus_command (C13 : -0,369 ns).
-    // Les attentes des autres esclaves continuent à masquer son HSEL.
-    wire blit_address_ready = usb_trace_selected ? usb_leg_hready : (blit_selected || scan_hready);
+    assign bus_hrdata = usb_trace_selected ? usb_leg_hrdata : (blit_selected ? blit_hrdata : scan_hrdata);
+    assign bus_hready = usb_trace_selected ? usb_leg_hready : (blit_selected ? blit_hready : scan_hready);
+    // The stage emits exactly one address pulse after the previous backend
+    // transaction and idle gap. No slave-ready feedback enters another HSEL.
     gpu_scanout u_gpu (
-        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel && !vid_haddr[13] && !vid_haddr[12] && vid_hready), .hwrite(vid_hwrite),
-        .haddr(vid_haddr), .hwdata(vid_hwdata), .htrans(vid_htrans), .hrdata(scan_hrdata), .hready(scan_hready),
+        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(bus_hsel && !bus_haddr[13] && !bus_haddr[12]), .hwrite(bus_hwrite),
+        .haddr(bus_haddr), .hwdata(bus_hwdata), .htrans(bus_htrans), .hrdata(scan_hrdata), .hready(scan_hready),
         .pixel_clk(lcd_clk_pix), .mem_clk(gpu_clk),
         .fetch_valid(gpu_valid), .fetch_addr(gpu_addr), .fetch_ready(gpu_ready),
         .fetch_data(gpu_data), .fetch_data_valid(gpu_data_valid),
         .lcd_en(lcd_en), .lcd_hs(lcd_hs), .lcd_vs(lcd_vs), .lcd_r(lcd_r), .lcd_g(lcd_g), .lcd_b(lcd_b)
     );
     gpu_accel u_accel (
-        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(vid_hsel && !vid_haddr[13] && vid_haddr[12] && blit_address_ready), .hwrite(vid_hwrite),
-        .haddr(vid_haddr), .hwdata(vid_hwdata), .htrans(vid_htrans), .hrdata(blit_hrdata), .hready(blit_hready),
+        .hclk(vid_hclk), .hresetn(vid_hrstn), .hsel(bus_hsel && !bus_haddr[13] && bus_haddr[12]), .hwrite(bus_hwrite),
+        .haddr(bus_haddr), .hwdata(bus_hwdata), .htrans(bus_htrans), .hrdata(blit_hrdata), .hready(blit_hready),
         .mem_clk(gpu_clk), .valid(blit_valid), .write(blit_write), .addr(blit_addr),
         .wr_data(blit_wr_data), .wr_mask(blit_wr_mask), .ready(blit_ready),
         .rd_data(blit_rd_data), .rd_valid(blit_rd_valid));
@@ -116,8 +121,8 @@ module console_top (
         .clk(phy_clk),.reset_n(vid_hrstn && !rst_usb),.bus_reset(usb_busreset),.sof(usb_sof),
         .rx_active(PHY_RXACTIVE),.rx_valid(PHY_RXVALID),.rx_error(PHY_RXERROR),.rx_data(PHY_DATAIN),
         .tx_valid(PHY_TXVALID),.tx_ready(PHY_TXREADY),.tx_data(PHY_DATAOUT),.endpoint(endpt_sel),.cork(usb_txcork),
-        .hclk(vid_hclk),.hsel(vid_hsel && vid_haddr[13] && !vid_haddr[12] && vid_hready),.hwrite(vid_hwrite),
-        .htrans(vid_htrans),.haddr(vid_haddr),.hwdata(vid_hwdata),.hrdata(usb_trace_hrdata),.hready(usb_trace_hready));
+        .hclk(vid_hclk),.hsel(bus_hsel && bus_haddr[13] && !bus_haddr[12]),.hwrite(bus_hwrite),
+        .htrans(bus_htrans),.haddr(bus_haddr),.hwdata(bus_hwdata),.hrdata(usb_trace_hrdata),.hready(usb_trace_hready));
 `else
     // Essai de fermeture du timing sans l'observateur de diagnostic USB (3 200 registres).
     assign usb_trace_hrdata = 32'd0;
@@ -135,8 +140,8 @@ module console_top (
         .ep_tx_dval(msc_tx_dval),.ep_tx_data(msc_tx_data),
         .ep_tx_committed(msc_tx_committed),.ep_tx_sent(msc_tx_sent),
         .ep_rx_rdy(msc_rx_rdy),.ep_rx_dval(msc_rx_dval && !msc_halted),.ep_rx_data(msc_rx_data),
-        .hclk(vid_hclk),.hsel(vid_hsel && vid_haddr[13] && vid_haddr[12] && vid_hready),.hwrite(vid_hwrite),
-        .htrans(vid_htrans),.haddr(vid_haddr),.hwdata(vid_hwdata),.hrdata(usb_msc_hrdata),.hready(usb_msc_hready));
+        .hclk(vid_hclk),.hsel(bus_hsel && bus_haddr[13] && bus_haddr[12]),.hwrite(bus_hwrite),
+        .htrans(bus_htrans),.haddr(bus_haddr),.hwdata(bus_hwdata),.hrdata(usb_msc_hrdata),.hready(usb_msc_hready));
 `else
     lcd_timing u_lcd (
         .lcd_clk(lcd_clk_pix), .rst_n(rst_n), .lcd_en(lcd_en), .lcd_hs(lcd_hs), .lcd_vs(lcd_vs),

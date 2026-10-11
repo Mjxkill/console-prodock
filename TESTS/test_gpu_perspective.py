@@ -28,6 +28,13 @@ def main():
         else:
             u, v = (rng.randrange(-limit, limit) for _ in range(2))
         cases.append((u, v, q))
+    # Exact transitions between the 8-, 12- and 50-bit quotient paths, including
+    # negative numerators with a nonzero remainder (floor, not truncation).
+    for q in (1, 3, 65536, 1 << 30):
+        for coordinate in (255, 256, 257, 4095, 4096, 4097):
+            for epsilon in (-1, 0, 1):
+                u = coordinate*q+epsilon
+                cases.extend(((u, -u, q), (1, -u, q), (-u, 1, q)))
     vectors = []
     for u, v, q in cases:
         word = int(q > 0)
@@ -44,7 +51,7 @@ wire done,valid;
 wire signed [48:0] tu,tv;
 gpu_perspective dut(.*);
 reg [245:0] vectors[0:''' + str(len(cases)-1) + '''];
-integer count,cycles,max_cycles=0;
+integer count,cycles,max_cycles=0,fast12_count=0;
 initial begin
     $readmemh("vectors.hex",vectors);
     repeat(3)@(negedge clk);rst=0;
@@ -54,6 +61,10 @@ initial begin
         while(!done && cycles<32)begin @(negedge clk);cycles++;end
         if(!done || valid!==vectors[i][245])$fatal(1,"Validity/timeout case=%0d",i);
         if(valid && {tu,tv}!==vectors[i][97:0])$fatal(1,"Quotient case=%0d U=%0d V=%0d Q=%0d got=%0d,%0d",i,uq,vq,q,tu,tv);
+        if(valid && !dut.fast && dut.fast12)begin
+            if(cycles!=9)$fatal(1,"12-bit path latency %0d",cycles);
+            fast12_count++;
+        end
         if(cycles>max_cycles)max_cycles=cycles;
         if(i%100==0)begin
             @(negedge clk);uq=49'sh0ffffffffffff;vq=-uq;q=1;start=1;
@@ -63,7 +74,8 @@ initial begin
             repeat(30)begin @(negedge clk);if(done)$fatal(1,"Old result replayed after reset");end
         end
     end
-    $display("PASS: ''' + str(len(cases)) + ''' signed rational pairs, extrema, zero/negative Q, reset during division; max latency=%0d cycles",max_cycles);
+    if(fast12_count==0)$fatal(1,"12-bit path not covered");
+    $display("PASS: ''' + str(len(cases)) + ''' signed rational pairs, extrema, zero/negative Q, reset during division; max latency=%0d cycles, 12-bit cases=%0d",max_cycles,fast12_count);
     $finish;
 end
 endmodule

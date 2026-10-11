@@ -104,8 +104,10 @@ module gpu_accel_tb #(parameter DEPTH_SLOT=1, READ_MIN=3);
     endtask
     task automatic read_reg(input [31:0] a, output [31:0] d);
         @(negedge hc); sel=1; wr=0; trans=2; address=a;
-        @(posedge hc);
-        @(negedge hc); sel=0; trans=0; d=result;
+        do @(posedge hc); while(!hready);
+        @(negedge hc); sel=0; trans=0;
+        do @(posedge hc); while(!hready);
+        d=result;
     endtask
     reg [31:0] value;
     integer errors=0;

@@ -45,7 +45,7 @@ class IdentityTests(unittest.TestCase):
 
     def test_application_pause_commands(self):
         for banner, expected in ((b'USBDISK R1 CDC + MSC', b'q'),
-                                 (b'LUMA R4', b'P'), (b'ORBITAL R6', b'P')):
+                                 (b'LUMA R4', b'P'), (b'ORBITAL R6', b'P'), (b'ASTRA R1', b'P'), (b'ASTRILLA R1', b'P')):
             with self.subTest(banner=banner):
                 self.assertEqual(identify_console(SerialQueue(banner+b'\r\n'))[1], expected)
 
@@ -58,7 +58,7 @@ class IdentityTests(unittest.TestCase):
             self.assertEqual(uart.writes, [b'?'])
 
     def test_pause_acknowledgements(self):
-        for pause, ack in ((b'P', b'ORBITAL PAUSED'), (b'P', b'LUMA PAUSED'),
+        for pause, ack in ((b'P', b'ORBITAL PAUSED'), (b'P', b'LUMA PAUSED'), (b'P', b'ASTRA PAUSED'), (b'P', b'ASTRILLA PAUSED'),
                            (b'c', b'RASTER PAUSED'),
                            (b'q', b'USBDISK MEDIA=DDR SERVING=0 ONLINE=1')):
             with self.subTest(pause=pause,ack=ack):

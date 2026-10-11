@@ -18,16 +18,18 @@ SOURCES = [
     'tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v',
     'tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v',
     'tang/rtl/board/ddr_dcfifo.v', 'tang/rtl/board/cdc_word.v',
+    'tang/rtl/video/video_bus_stage.v',
 ]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--bus-stage', action='store_true')
     args = parser.parse_args()
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=False)
-    report = dict(pass_all=False, cases=[], sha256={
+    report = dict(pass_all=False, bus_stage=args.bus_stage, cases=[], sha256={
         name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
         for name in SOURCES + ['TESTS/test_usb_msc_port.py']})
     try:
@@ -45,7 +47,7 @@ def main():
                 'verilator', '--binary', '-j', '4', '--timing', '-Wno-fatal',
                 '--top-module', 'usb_msc_port_tb', '--Mdir', str(stage / 'obj'),
                 f'-GUSB_HALF_NS={usb_half}', f'-GBUS_HALF_NS={bus_half}',
-                f'-GBUS_PHASE_NS={phase}', *[str(ROOT / s) for s in SOURCES],
+                f'-GBUS_PHASE_NS={phase}', f'-GBUS_STAGE={int(args.bus_stage)}', *[str(ROOT / s) for s in SOURCES],
             ]
             with (stage / 'build.log').open('w') as log:
                 subprocess.run(command, stdout=log, stderr=log, check=True)

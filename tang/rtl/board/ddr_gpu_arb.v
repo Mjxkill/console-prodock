@@ -52,23 +52,46 @@ module ddr_gpu_arb (
     reg [31:0] cpu_mask;
     reg prefer_blitter = 1;
     reg take_blitter = 0;
-    assign g_ready = issue && m_ready;
+    // Two scanout request slots isolate its distant owner/request decode
+    // from DDR arbitration. READY acknowledges enqueueing; responses still
+    // follow DDR issue order. The FIFO sustains one request per cycle when
+    // DDR accepts continuously, and never depends on DDR READY at its input.
+    reg [28:0] scan_addresses [0:1];
+    reg scan_wp=0,scan_rp=0;
+    reg [1:0] scan_count=0;
+    wire scan_valid=scan_count!=0;
+    wire [28:0] scan_addr=scan_addresses[scan_rp];
+    assign g_ready = rst_n && scan_count!=2;
+    wire scan_enqueue=g_valid && g_ready;
+    wire scan_issue=scan_valid && issue && m_ready;
+    always @(posedge clk)begin
+        if(!rst_n)begin scan_wp<=0;scan_rp<=0;scan_count<=0;end
+        else begin
+            if(scan_enqueue)begin scan_addresses[scan_wp]<=g_addr;scan_wp<=!scan_wp;end
+            if(scan_issue)scan_rp<=!scan_rp;
+            case({scan_enqueue,scan_issue})
+                2'b10:scan_count<=scan_count+1'b1;
+                2'b01:scan_count<=scan_count-1'b1;
+                default:;
+            endcase
+        end
+    end
     // b_grant est gardé tel quel par la synthèse (syn_keep) : sans cela, la LUT de b_ready était partagée
     // avec m_wr_en, qui dépend de b_valid, et l'analyse de timing comptait une boucle combinatoire
     // b_valid -> arbitre -> b_ready -> blitter/V1 qui n'existe pas logiquement (r600, -0,47 ns).
-    wire b_grant /* synthesis syn_keep=1 */ = issue && !g_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
+    wire b_grant /* synthesis syn_keep=1 */ = issue && !scan_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
     assign b_ready = b_grant;
     assign c_ready = rst_n && !cpu_pending;
     assign c_wr_ready = c_ready;
-    wire cpu_fire = issue && !g_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);
-    assign m_en = (g_valid && g_ready) || (b_valid && b_ready) || cpu_fire;
-    assign m_cmd = g_valid ? 3'b001 : take_blitter ? {2'b0,!b_write} : cpu_cmd;
-    assign m_addr = g_valid ? g_addr : take_blitter ? b_addr : cpu_addr;
+    wire cpu_fire = issue && !scan_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);
+    assign m_en = scan_issue || (b_valid && b_ready) || cpu_fire;
+    assign m_cmd = scan_valid ? 3'b001 : take_blitter ? {2'b0,!b_write} : cpu_cmd;
+    assign m_addr = scan_valid ? scan_addr : take_blitter ? b_addr : cpu_addr;
     assign m_wr_en = (b_valid && b_ready && b_write) || (cpu_fire && cpu_cmd == 0);
     assign m_wr_end = m_wr_en;
     assign m_wr_data = take_blitter ? b_wr_data : cpu_data;
     assign m_wr_mask = take_blitter ? b_wr_mask : cpu_mask;
-    wire push = (g_valid && g_ready) || (b_valid && b_ready && !b_write) || (cpu_fire && cpu_cmd == 1);
+    wire push = scan_issue || (b_valid && b_ready && !b_write) || (cpu_fire && cpu_cmd == 1);
     wire pop = m_rd_valid && !empty;
     wire [4:0] next_wp = wp + {4'b0, push};
     wire [4:0] next_rp = rp + {4'b0, pop};
@@ -96,11 +119,11 @@ module ddr_gpu_arb (
             end
             if (c_en && c_ready) cpu_pending <= 1;
             else if (cpu_fire) cpu_pending <= 0;
-            if (!g_valid) begin
+            if (!scan_valid) begin
                 if (b_valid && b_ready) prefer_blitter <= 0;
                 else if (cpu_fire) prefer_blitter <= 1;
             end
-            if (push) tags[wp[3:0]] <= g_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;
+            if (push) tags[wp[3:0]] <= scan_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;
             wp <= next_wp; rp <= next_rp;
             // Compare stable pointers before the late command acceptance.
             // Simultaneous push/pop leaves occupancy unchanged.

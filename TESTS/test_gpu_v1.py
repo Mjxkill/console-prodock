@@ -180,7 +180,7 @@ def main():
     m.invalid(27,0,xy(4,0),xy(0,4))
     (out/'commands.hex').write_text(''.join(f'{w:08x}\n' for w in m.commands))
     (out/'expected.hex').write_text(''.join(f'{v:02x}\n' for v in m.memory));shutil.copy2(ROOT/'tang/rtl/video/font8x16.hex',out/'font8x16.hex')
-    sources=['TESTS/rtl/gpu_accel_tb.sv']+['tang/rtl/video/'+s+'.v' for s in ['gpu_accel','blitter','gpu_raster','gpu_v1','gpu_texture_cache','gpu_copy565','gpu_perspective','gpu_triangle','gpu_blit_dma','font_ram']]+['tang/rtl/board/'+s+'.v' for s in ['ddr_dcfifo','cdc_word','ddr_gpu_arb']]
+    sources=['TESTS/rtl/gpu_accel_tb.sv']+['tang/rtl/video/'+s+'.v' for s in ['gpu_accel','gpu_geometry','gpu_geom_div','blitter','gpu_raster','gpu_v1','gpu_texture_cache','gpu_copy565','gpu_perspective','gpu_triangle','gpu_blit_dma','font_ram']]+['tang/rtl/board/'+s+'.v' for s in ['ddr_dcfifo','cdc_word','ddr_gpu_arb']]
     if not args.reuse:
         with (out/'build.log').open('w') as log:subprocess.run(['verilator','--binary','-j','4','--timing','-Wno-fatal','--top-module','gpu_accel_tb',f'-GREAD_MIN={args.read_min}','--Mdir',str(out/'obj')]+[str(ROOT/s) for s in sources],stdout=log,stderr=log,check=True)
     with (out/'simulation.log').open('w') as log:p=subprocess.run([str(out/'obj/Vgpu_accel_tb'),f'+ncmd={len(m.commands)//8}',f'+v1_bad={m.rejected}',f'+v1_pass={m.passed}'],cwd=out,stdout=log,stderr=subprocess.STDOUT)

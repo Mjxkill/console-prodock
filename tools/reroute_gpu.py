@@ -35,7 +35,10 @@ def main():
     reuse.add_argument('--incremental-placement',action='store_true',
                        help='reuse only the parent .p placement, reroute connections')
     p.add_argument('--cst',type=Path,default=ROOT/'tang/constr/gpu.cst')
+    p.add_argument('--timing-paths',type=int,default=200,
+                   help='Number of reported paths per clock group; changes no timing constraint')
     a=p.parse_args()
+    if not 200<=a.timing_paths<=5000:p.error('timing-paths must be in 200..5000')
     if not re.fullmatch(r'[A-Za-z0-9_-]+',a.name):p.error('Invalid stage name')
     src=a.stage.resolve(strict=True);dst=ROOT/'tang/impl'/a.name
     if not src.is_relative_to(ROOT/'tang/impl'):p.error('Source must be a GPU build stage')
@@ -67,14 +70,23 @@ def main():
     net=dst/'impl/gwsynthesis'/(new_name+'.vg');shutil.copyfile(old_net,net)
     if sha(net)!=net_digest:raise RuntimeError('Netlist copy differs')
     shutil.copytree(src/'rtl',dst/'rtl')
-    for name in ('usb_controller.json','usb_phy.json','build_options.json'):
-        shutil.copyfile(src/name,dst/name)
+    for name in ('usb_controller.json','usb_phy.json','build_options.json','geometry_build.json'):
+        if (src/name).exists():shutil.copyfile(src/name,dst/name)
     (dst/'source'/raw_rel).write_text(new)
     constraints=dst/'source/tang/constr/gpu.cst';constraints.write_text(effective)
     for name in (raw_rel,'tang/constr/gpu.cst'):manifest[name]=sha(dst/'source'/name)
     provenance=dict(parent=str(src),parent_manifest_sha256=sha(src/'sources.json'),
                     reused_netlist_sha256=net_digest,changes=changes,
                     scope='placement only; identical synthesized netlist; no SDC change')
+    if a.timing_paths!=200:
+        sdc=dst/'source/diagnostics/timing_reports.sdc'
+        text=sdc.read_text()
+        text,count=re.subn(r'(?<=-max_paths )\d+\b',str(a.timing_paths),text)
+        if not count:raise RuntimeError('Expected timing report settings not found')
+        sdc.write_text(text)
+        manifest['diagnostics/timing_reports.sdc']=sha(sdc)
+        provenance.update(timing_report_paths=a.timing_paths,
+                          scope='identical synthesized netlist; placement/report settings only; clocks and timing exceptions unchanged')
     incremental=None
     if a.incremental or a.incremental_placement:
         suffix='.pr' if a.incremental else '.p'
