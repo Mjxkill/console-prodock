@@ -1,0 +1,51 @@
+make : on entre dans le répertoire « /home/michael/console/linux/uboot »
+python3 prepare.py /tmp/la16-u-boot-2025.10.tar.bz2 /home/michael/console/linux/uboot/../build/uboot/src
+patching file drivers/mmc/mmc_spi.c
+make -C /home/michael/console/linux/uboot/../build/uboot/src O=/home/michael/console/linux/uboot/../build/uboot/out CROSS_COMPILE=/home/michael/console/linux/build/riscv32-ilp32d--musl--stable-2025.08-1/bin/riscv32-buildroot-linux-musl- prodock_console_defconfig
+make[1] : on entre dans le répertoire « /home/michael/console/linux/build/uboot/src »
+make[2] : on entre dans le répertoire « /home/michael/console/linux/build/uboot/out »
+  GEN     Makefile
+#
+# configuration written to .config
+#
+make[2] : on quitte le répertoire « /home/michael/console/linux/build/uboot/out »
+make[1] : on quitte le répertoire « /home/michael/console/linux/build/uboot/src »
+python3 ../tests/test_uboot_config.py
+PASS: U-Boot timer, SPI, menu, M-mode/RV32 and read-only SD configuration
+make -C /home/michael/console/linux/uboot/../build/uboot/src O=/home/michael/console/linux/uboot/../build/uboot/out CROSS_COMPILE=/home/michael/console/linux/build/riscv32-ilp32d--musl--stable-2025.08-1/bin/riscv32-buildroot-linux-musl- -j4
+make[1] : on entre dans le répertoire « /home/michael/console/linux/build/uboot/src »
+make[2] : on entre dans le répertoire « /home/michael/console/linux/build/uboot/out »
+  GEN     Makefile
+scripts/kconfig/conf  --syncconfig Kconfig
+  CFG     u-boot.cfg
+  GEN     include/autoconf.mk.dep
+  GEN     include/autoconf.mk
+  GEN     Makefile
+  ENVC    include/generated/env.txt
+  Using /home/michael/console/linux/build/uboot/src as source for U-Boot
+  ENVP    include/generated/env.in
+  ENVT    include/generated/environment.h
+  LDS     u-boot.lds
+  CC      board/prodock/console/board.o
+  CC      board/prodock/console/image.o
+  CC      drivers/mmc/mmc_spi.o
+  AR      board/prodock/console/built-in.a
+  CC      drivers/spi/prodock_spi.o
+  CC      env/common.o
+  AR      drivers/spi/built-in.a
+  AR      drivers/mmc/built-in.a
+  AR      drivers/built-in.a
+  AR      env/built-in.a
+  LD      u-boot
+  OBJCOPY u-boot.srec
+  OBJCOPY u-boot-nodtb.bin
+  SYM     u-boot.sym
+  DTC     arch/riscv/dts/prodock-console.dtb
+  SHIPPED dts/dt.dtb
+  CAT     u-boot-dtb.bin
+  COPY    u-boot.dtb
+  COPY    u-boot.bin
+  OFCHK   .config
+make[2] : on quitte le répertoire « /home/michael/console/linux/build/uboot/out »
+make[1] : on quitte le répertoire « /home/michael/console/linux/build/uboot/src »
+make : on quitte le répertoire « /home/michael/console/linux/uboot »

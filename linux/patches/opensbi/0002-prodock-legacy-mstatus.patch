@@ -1,0 +1,23 @@
+Subject: [PATCH] Pro Dock A25: do not access absent mstatush/Smdbltrp
+
+The CPU predates mstatush and Smdbltrp. It traps before SBI setup
+when CLEAR_MDT touches CSR 0x310. Other platforms retain the code.
+
+--- a/firmware/fw_base.S
++++ b/firmware/fw_base.S
+@@ -32,6 +32,7 @@
+ .endm
+ 
+ .macro CLEAR_MDT tmp
++#ifndef CONFIG_PLATFORM_PRODOCK
+ #if __riscv_xlen == 32
+ 	li 	\tmp, MSTATUSH_MDT
+ 	csrc	CSR_MSTATUSH, \tmp
+@@ -39,6 +40,7 @@
+ 	li 	\tmp, MSTATUS_MDT
+ 	csrc	CSR_MSTATUS, \tmp
+ #endif
++#endif /* legacy A25 has no mstatush */
+ .endm
+ 
+ 	.section .entry, "ax", %progbits

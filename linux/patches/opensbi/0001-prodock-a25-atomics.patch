@@ -1,0 +1,161 @@
+From: Pro Dock console port
+Subject: [PATCH] Pro Dock A25: preload atomic targets and clear BRPE
+
+Adapted for OpenSBI 1.6 from Florent Kermarrec, LiteX PR 463, commit
+889016988ac5bfc50219984e4a28c182b4dd286c. BSD-2-Clause as upstream.
+The single-hart M-mode handler runs with interrupts disabled.
+
+--- a/firmware/fw_base.S
++++ b/firmware/fw_base.S
+@@ -46,6 +46,14 @@
+ 	.globl _start
+ 	.globl _start_warm
+ _start:
++#ifdef CONFIG_PLATFORM_PRODOCK
++	/* Gowin A25: cold atomics stall. Preserve dirty loader data. */
++	csrci 0x7d0, 8
++	li t0, 6
++	csrw 0x7cc, t0
++	csrsi 0x7ca, 3
++	csrsi 0x7d0, 4
++#endif
+ 	/* Find preferred boot HART id */
+ 	MOV_3R	s0, a0, s1, a1, s2, a2
+ 	call	fw_boot_hart
+@@ -59,6 +67,10 @@
+ 	/* Jump to relocation wait loop if we don't get relocation lottery */
+ 	lla	a6, _boot_lottery
+ 	li	a7, BOOT_LOTTERY_ACQUIRED
++#ifdef CONFIG_PLATFORM_PRODOCK
++	lw zero, (a6)
++	fence r, rw
++#endif
+ 	amoswap.w a6, a7, (a6)
+ 	bnez	a6, _wait_for_boot_hart
+ 
+--- a/include/sbi/riscv_atomic.h
++++ b/include/sbi/riscv_atomic.h
+@@ -9,6 +9,19 @@
+ 
+ #ifndef __RISCV_ATOMIC_H__
+ #define __RISCV_ATOMIC_H__
++#ifdef CONFIG_PLATFORM_PRODOCK
++#define RISCV_ATOMIC_PRELOAD(addr) "lw zero, " addr "\n\tfence r, rw\n\t"
++static inline unsigned long prodock_atomic_or(volatile unsigned long *ptr, unsigned long value)
++{
++ unsigned long old;
++ __asm__ volatile(RISCV_ATOMIC_PRELOAD("%1") "amoor.w %0,%2,%1"
++                  : "=r"(old), "+A"(*ptr) : "r"(value) : "memory");
++ return old;
++}
++#else
++#define RISCV_ATOMIC_PRELOAD(addr) ""
++#endif
++
+ 
+ typedef struct {
+ 	volatile long counter;
+--- a/lib/sbi/riscv_atomic.c
++++ b/lib/sbi/riscv_atomic.c
+@@ -33,7 +33,7 @@
+ {
+ 	long ret;
+ #if __SIZEOF_LONG__ == 4
+-	__asm__ __volatile__("	amoadd.w.aqrl  %1, %2, %0"
++	__asm__ __volatile__(RISCV_ATOMIC_PRELOAD("%0") "	amoadd.w.aqrl  %1, %2, %0"
+ 			     : "+A"(atom->counter), "=r"(ret)
+ 			     : "r"(value)
+ 			     : "memory");
+@@ -59,7 +59,7 @@
+ 		switch (size) {							\
+ 		case 4:								\
+ 			__asm__ __volatile__ (					\
+-				"	amoswap.w.aqrl %0, %2, %1\n"		\
++				RISCV_ATOMIC_PRELOAD("%1") "	amoswap.w.aqrl %0, %2, %1\n"		\
+ 				: "=r" (__ret), "+A" (*__ptr)			\
+ 				: "r" (__new)					\
+ 				: "memory");					\
+@@ -85,7 +85,16 @@
+ 
+ long atomic_cmpxchg(atomic_t *atom, long oldval, long newval)
+ {
++#ifdef CONFIG_PLATFORM_PRODOCK
++ long old, status;
++ __asm__ volatile("0: " RISCV_ATOMIC_PRELOAD("%2")
++   "lr.w.aqrl %0,%2\n\tbne %0,%3,1f\n\tsc.w.aqrl %1,%4,%2\n\tbnez %1,0b\n1: fence rw,rw"
++   : "=&r"(old), "=&r"(status), "+A"(atom->counter)
++   : "r"(oldval), "r"(newval) : "memory");
++ return old;
++#else
+ 	return __sync_val_compare_and_swap(&atom->counter, oldval, newval);
++#endif
+ }
+ 
+ long atomic_xchg(atomic_t *atom, long newval)
+@@ -111,14 +120,23 @@
+ int atomic_raw_set_bit(int nr, volatile unsigned long *addr)
+ {
+ 	unsigned long res, mask = BIT_MASK(nr);
++#ifdef CONFIG_PLATFORM_PRODOCK
++ res = prodock_atomic_or(&addr[BIT_WORD(nr)], mask);
++#else
+ 	res = __atomic_fetch_or(&addr[BIT_WORD(nr)], mask, __ATOMIC_RELAXED);
++#endif
+ 	return res & mask ? 1 : 0;
+ }
+ 
+ int atomic_raw_clear_bit(int nr, volatile unsigned long *addr)
+ {
+ 	unsigned long res, mask = BIT_MASK(nr);
++#ifdef CONFIG_PLATFORM_PRODOCK
++ __asm__ volatile(RISCV_ATOMIC_PRELOAD("%1") "amoand.w %0,%2,%1"
++                  : "=r"(res), "+A"(addr[BIT_WORD(nr)]) : "r"(~mask) : "memory");
++#else
+ 	res = __atomic_fetch_and(&addr[BIT_WORD(nr)], ~mask, __ATOMIC_RELAXED);
++#endif
+ 	return res & mask ? 1 : 0;
+ }
+ 
+--- a/lib/sbi/riscv_locks.c
++++ b/lib/sbi/riscv_locks.c
+@@ -5,6 +5,7 @@
+  * Copyright (c) 2021 Christoph Müllner <cmuellner@linux.com>
+  */
+ 
++#include <sbi/riscv_atomic.h>
+ #include <sbi/riscv_barrier.h>
+ #include <sbi/riscv_locks.h>
+ 
+@@ -27,7 +28,7 @@
+ 
+ 	__asm__ __volatile__(
+ 		/* Get the current lock counters. */
+-		"1:	lr.w.aq	%0, %3\n"
++		"1:" RISCV_ATOMIC_PRELOAD("%3") "	lr.w.aq	%0, %3\n"
+ 		"	slli	%2, %0, %6\n"
+ 		"	and	%2, %2, %5\n"
+ 		"	and	%1, %0, %5\n"
+@@ -53,7 +54,7 @@
+ 
+ 	__asm__ __volatile__(
+ 		/* Atomically increment the next ticket. */
+-		"	amoadd.w.aqrl	%0, %4, %3\n"
++		RISCV_ATOMIC_PRELOAD("%3") "	amoadd.w.aqrl	%0, %4, %3\n"
+ 
+ 		/* Did we get the lock? */
+ 		"	srli	%1, %0, %6\n"
+--- a/lib/sbi/sbi_ipi.c
++++ b/lib/sbi/sbi_ipi.c
+@@ -78,8 +78,12 @@
+ 	 * remote hart so call sbi_ipi_raw_send() only when
+ 	 * the ipi_type was previously zero.
+ 	 */
++#ifdef CONFIG_PLATFORM_PRODOCK
++ if (!prodock_atomic_or(&ipi_data->ipi_type, BIT(event)))
++#else
+ 	if (!__atomic_fetch_or(&ipi_data->ipi_type,
+ 				BIT(event), __ATOMIC_RELAXED))
++#endif
+ 		ret = sbi_ipi_raw_send(remote_hartindex);
+ 
+ 	sbi_pmu_ctr_incr_fw(SBI_PMU_FW_IPI_SENT);

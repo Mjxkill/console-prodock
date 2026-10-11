@@ -1,0 +1,46 @@
+prodockctl display; printf '\n__PD_RC_%s__\n' "$?"
+DISPLAY mode=0 cols=50 rows=15 text=333 presents=90 sent=4439 frames=6717 done=4439 errors=0 uf=0 line=1612 invalid=0 sprites=0 usb=00000062 fault=0 crc=178143cb feed_us=129790 wait_us=42293 cache_us=70167 present_us=7546930
+
+__PD_RC_0__
+prodock# 
+uname -a; ls /dev/prodock-display /dev/prodock-gpu /dev/tty1; printf '\n__PD_RC_%s__\n' "$?"
+Linux prodock 6.12.112-prodock #1 2026-10-08 00:00:00 UTC riscv32
+/dev/tty1             /dev/prodock-gpu      /dev/prodock-display
+
+__PD_RC_0__
+prodock# 
+if dd if=/dev/fb0 of=/tmp/fb-probe bs=1 count=1 2>/tmp/fb-error; then false; else grep -i "not supported" /tmp/fb-error; fi; printf '\n__PD_RC_%s__\n' "$?"
+dd: can't open '/dev/fb0': Not supported
+
+__PD_RC_0__
+prodock# 
+prodock-text-test > /tmp/text-test.log; rc=$?; cat /tmp/text-test.log; test "$rc" = 0; printf '\n__PD_RC_%s__\n' "$?"
+TEXT_CRC_OK trial=0 crc=241e36f8 pixels=384000
+TEXT_CRC_OK trial=1 crc=cf213080 pixels=384000
+TEXT_CRC_OK trial=2 crc=b45e8900 pixels=384000
+TEXT_CRC_OK trial=3 crc=62761800 pixels=384000
+PRODOCK_TEXT_PIXELS_OK poses=4 pixels=1536000
+
+__PD_RC_0__
+prodock# 
+prodock-game --demo --frames 180; printf '\n__PD_RC_%s__\n' "$?"
+PRODOCK_GAME_START mode=demo - A/D ou fleches, Q pour quitter
+PRODOCK_GAME_RATE frames=180 seconds=4.308 fps=41.78
+PRODOCK_GAME_TIME submit=0.759 present=3.423
+PRODOCK_GAME_DONE frames=180 score=2 status=0
+
+__PD_RC_0__
+prodock# 
+prodockctl display; printf '\n__PD_RC_%s__\n' "$?"
+DISPLAY mode=0 cols=50 rows=15 text=548 presents=270 sent=13220 frames=7934 done=13220 errors=0 uf=0 line=1612 invalid=0 sprites=0 usb=00000062 fault=0 crc=185698eb feed_us=392848 wait_us=114098 cache_us=210080 present_us=15422079
+
+__PD_RC_0__
+prodock# 
+Traceback (most recent call last):
+  File "/home/michael/console-validation-20261001/tools/check_linux_desktop.py", line 90, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/home/michael/console-validation-20261001/tools/check_linux_desktop.py", line 54, in main
+    if report['game_fps']<45:raise RuntimeError('Game below 45 FPS')
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Game below 45 FPS

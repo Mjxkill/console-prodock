@@ -90,7 +90,10 @@ def main():
     answer=bytearray();deadline=time.monotonic()+a.seconds
     while time.monotonic()<deadline:
         answer.extend(uart.read(4000))
-        if a.expect.encode() in answer and answer.endswith(b'\n'):time.sleep(.5);answer.extend(uart.read(4000));break
+        # The AE350 printf stream can end each LF with an additional CR.
+        # Match a completed line instead of waiting out the whole timeout.
+        if any(a.expect.encode() in line for line in bytes(answer).replace(b'\r',b'').split(b'\n')[:-1]):
+            time.sleep(.5);answer.extend(uart.read(4000));break
     uart.close();(out/'console.txt').write_bytes(answer);print(answer.decode(errors='replace'),flush=True)
     require(a.expect.encode() in answer,'texte attendu absent')
     (out/'result.json').write_text(json.dumps(dict(status='started',usb=snap,sha256=hashlib.sha256(program).hexdigest(),fs=str(a.fs) if a.fs else None),indent=2)+'\n')

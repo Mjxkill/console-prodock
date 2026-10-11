@@ -1,0 +1,14 @@
+config PRODOCK
+    bool "Tang Mega 138K Pro Dock console drivers"
+    depends on OF && SPI && FB
+    select FB_SYSMEM_HELPERS_DEFERRED
+    select FB_CFB_FILLRECT
+    select FB_CFB_COPYAREA
+    select FB_CFB_IMAGEBLIT
+    select FB_TILEBLITTING
+    help
+      ATCSPI200 SPI/MMC and C37 GPU with fbdev and exclusive accelerator API.
+      No competing firmware runs while Linux owns the peripherals.
+config PRODOCK_KUNIT_TEST
+    bool "Pro Dock GPU memory boundary tests"
+    depends on PRODOCK && KUNIT

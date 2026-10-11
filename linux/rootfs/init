@@ -1,0 +1,17 @@
+#!/bin/sh
+mount -t devtmpfs devtmpfs /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t tmpfs tmpfs /tmp
+mkdir -p /dev/pts /run /mnt/sd
+mount -t devpts devpts /dev/pts
+uname -a
+if grep -q 'prodock.selftest=1' /proc/cmdline; then
+    /bin/prodockctl selftest || { echo PRODOCK_SELFTEST_FAILED; poweroff -f; exit 1; }
+    /bin/prodock-runtime || { echo PRODOCK_RUNTIME_FAILED; poweroff -f; exit 1; }
+    test -r /proc/interrupts && test -d /sys/bus/platform || exit 1
+    echo PRODOCK_LINUX_BOOT_OK
+    poweroff -f
+fi
+echo 'PRODOCK_LINUX_READY - SD non montee; prodockctl info'
+exec /sbin/init

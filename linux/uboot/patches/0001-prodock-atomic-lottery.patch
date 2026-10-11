@@ -1,0 +1,57 @@
+Subject: [PATCH] Pro Dock A25: preload the four early boot atomics
+
+Boot runs on one hart with interrupts disabled. Reuse the cache-preload
+principle characterized by LiteX PR 463 and the local cold-cache probe.
+
+--- a/arch/riscv/cpu/start.S
++++ b/arch/riscv/cpu/start.S
+@@ -151,6 +151,11 @@
+ 	 */
+ 	la	t0, hart_lottery
+ 	li	t1, 1
++
++#ifdef CONFIG_TARGET_PRODOCK_CONSOLE
++	lw zero, 0(t0)
++	fence r,rw
++#endif
+ 	amoswap.w s2, t1, 0(t0)
+ 	bnez	s2, wait_for_gd_init
+ #else
+@@ -177,6 +182,11 @@
+ #if !CONFIG_IS_ENABLED(XIP)
+ #ifdef CONFIG_AVAILABLE_HARTS
+ 	la	t0, available_harts_lock
++
++#ifdef CONFIG_TARGET_PRODOCK_CONSOLE
++	lw zero, 0(t0)
++	fence r,rw
++#endif
+ 	amoswap.w.rl zero, zero, 0(t0)
+ #endif
+ 
+@@ -190,7 +200,12 @@
+ #ifdef CONFIG_AVAILABLE_HARTS
+ 	la	t0, available_harts_lock
+ 	li	t1, 1
+-1:	amoswap.w.aq t1, t1, 0(t0)
++1:
++#ifdef CONFIG_TARGET_PRODOCK_CONSOLE
++	lw zero, 0(t0)
++	fence r,rw
++#endif
++	amoswap.w.aq t1, t1, 0(t0)
+ 	bnez	t1, 1b
+ 
+ 	/* register available harts in the available_harts mask */
+@@ -200,6 +215,11 @@
+ 	or	t2, t2, t1
+ 	SREG	t2, GD_AVAILABLE_HARTS(gp)
+ 
++
++#ifdef CONFIG_TARGET_PRODOCK_CONSOLE
++	lw zero, 0(t0)
++	fence r,rw
++#endif
+ 	amoswap.w.rl zero, zero, 0(t0)
+ #endif
+ 

@@ -1,0 +1,49 @@
++ make -C /home/michael/console/linux/build/src/linux-6.12.112 O=/home/michael/console/linux/build/kernel ARCH=riscv CROSS_COMPILE=/home/michael/console/linux/build/riscv32-ilp32d--musl--stable-2025.08-1/bin/riscv32-buildroot-linux-musl- allnoconfig KCONFIG_ALLCONFIG=/home/michael/console/linux/build/linux.config
+make : on entre dans le répertoire « /home/michael/console/linux/build/src/linux-6.12.112 »
+make[1] : on entre dans le répertoire « /home/michael/console/linux/build/kernel »
+  GEN     Makefile
+#
+# No change to .config
+#
+make[1] : on quitte le répertoire « /home/michael/console/linux/build/kernel »
+make : on quitte le répertoire « /home/michael/console/linux/build/src/linux-6.12.112 »
++ make -C /home/michael/console/linux/build/src/linux-6.12.112 O=/home/michael/console/linux/build/kernel ARCH=riscv CROSS_COMPILE=/home/michael/console/linux/build/riscv32-ilp32d--musl--stable-2025.08-1/bin/riscv32-buildroot-linux-musl- -j4 Image
+make : on entre dans le répertoire « /home/michael/console/linux/build/src/linux-6.12.112 »
+make[1] : on entre dans le répertoire « /home/michael/console/linux/build/kernel »
+  GEN     Makefile
+  CALL    /home/michael/console/linux/build/src/linux-6.12.112/scripts/checksyscalls.sh
+  CC      drivers/prodock/prodock-gpu.o
+/home/michael/console/linux/build/src/linux-6.12.112/drivers/prodock/prodock-gpu.c: Dans la fonction «prodock_gpu_probe»:
+/home/michael/console/linux/build/src/linux-6.12.112/drivers/prodock/prodock-gpu.c:404:19: attention: l'affectation abandonne le qualificatif «const» du type pointé [-Wdiscarded-qualifiers]
+  404 |     info->tileops = &prodock_tile_ops;
+      |                   ^
+Dans le fichier inclus depuis /home/michael/console/linux/build/src/linux-6.12.112/drivers/prodock/prodock-gpu.c:71:
+/home/michael/console/linux/build/src/linux-6.12.112/drivers/prodock/prodock-text.h: Dans la fonction «text_present»:
+/home/michael/console/linux/build/src/linux-6.12.112/drivers/prodock/prodock-text.h:140:1: attention: la taille de trame de 1640 octets est plus grande que 1024 octets [-Wframe-larger-than=]
+  140 | }
+      | ^
+  AR      drivers/prodock/built-in.a
+  AR      drivers/built-in.a
+  AR      built-in.a
+  AR      vmlinux.a
+  LD      vmlinux.o
+  OBJCOPY modules.builtin.modinfo
+  GEN     modules.builtin
+  MODPOST vmlinux.symvers
+  KSYMS   .tmp_vmlinux0.kallsyms.S
+  AS      .tmp_vmlinux0.kallsyms.o
+  LD      .tmp_vmlinux1
+  NM      .tmp_vmlinux1.syms
+  KSYMS   .tmp_vmlinux1.kallsyms.S
+  AS      .tmp_vmlinux1.kallsyms.o
+  LD      .tmp_vmlinux2
+  NM      .tmp_vmlinux2.syms
+  KSYMS   .tmp_vmlinux2.kallsyms.S
+  AS      .tmp_vmlinux2.kallsyms.o
+  LD      vmlinux
+  NM      System.map
+  SORTTAB vmlinux
+  OBJCOPY arch/riscv/boot/Image
+  Kernel: arch/riscv/boot/Image is ready
+make[1] : on quitte le répertoire « /home/michael/console/linux/build/kernel »
+make : on quitte le répertoire « /home/michael/console/linux/build/src/linux-6.12.112 »

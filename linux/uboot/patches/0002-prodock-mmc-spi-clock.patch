@@ -1,0 +1,16 @@
+--- a/drivers/mmc/mmc_spi.c
++++ b/drivers/mmc/mmc_spi.c
+@@ -312,6 +312,13 @@
+ 
+ static int dm_mmc_spi_set_ios(struct udevice *dev)
+ {
++#ifdef CONFIG_TARGET_PRODOCK_CONSOLE
++	struct mmc_spi_priv *priv = dev_get_priv(dev);
++	struct mmc_uclass_priv *upriv = dev_get_uclass_priv(dev);
++
++	/* The next dm_spi_claim_bus applies the MMC-selected clock. */
++	priv->spi->max_hz = upriv->mmc->clock ? upriv->mmc->clock : 400000;
++#endif
+ 	return 0;
+ }
+ 

@@ -1,0 +1,12 @@
+exec InhibitConnectRetries = 1
+exec DisableFlashDL
+exec DisableFlashBPs
+exec SetAllowFlashCache = 0
+connect
+h
+speed 1000
+loadfile /home/michael/console-validation-20261001/linux/desktop_r5/launch_usb.bin 0xa0000000 noreset
+verifybin /home/michael/console-validation-20261001/linux/desktop_r5/launch_usb.bin 0xa0000000
+SetPC 0xa000000c
+g
+q

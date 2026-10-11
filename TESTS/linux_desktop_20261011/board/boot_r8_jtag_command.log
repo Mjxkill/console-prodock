@@ -1,0 +1,23 @@
+Target Pro Dock 3:67
+Linux payload download into DDR...
+Traceback (most recent call last):
+  File "/home/michael/console-validation-20261001/tools/load_linux.py", line 75, in <module>
+    if __name__ == '__main__': main()
+                               ^^^^^^
+  File "/home/michael/console-validation-20261001/tools/load_linux.py", line 56, in main
+    r = subprocess.run(['JLinkExe', '-SelectEmuBySN', '506005083', '-Device', 'A25',
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2141, in _communicate
+    self.wait(timeout=self._remaining_time(endtime))
+  File "/usr/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2045, in _wait
+    raise TimeoutExpired(self.args, timeout)
+subprocess.TimeoutExpired: Command '['JLinkExe', '-SelectEmuBySN', '506005083', '-Device', 'A25', '-If', 'JTAG', '-Speed', '100', '-JTAGConf', '-1,-1', '-NoGui', '1', '-ExitOnError', '1', '-CommanderScript', '/home/michael/console-validation-20261001/TESTS/linux_desktop_20261011/boot_r8_jtag/load.jlink']' timed out after 1199.9999815411866 seconds
