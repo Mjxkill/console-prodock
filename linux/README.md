@@ -13,6 +13,11 @@ Le chargement actuel utilise J-Link compact (`--packed --jtag-speed 4000`) ;
 les gros transferts MSC décrits plus bas ont rencontré des échecs et restent
 à fiabiliser. Le terminal CDC HS est testé séparément.
 
+Le jeu natif **NEBULA — Rift Raiders** ajoute une campagne spatiale jouable,
+des boss, des sprites matériels, des tuiles et des effets lumineux additifs.
+Voir [les commandes et les détails du jeu](NEBULA.md) et
+[les résultats de validation](../TESTS/NEBULA_20261012.md).
+
 Port expérimental de **Linux 6.12.112, OpenSBI 1.6, BusyBox 1.37.0 et
 musl 1.2.5**, pour le matériel C37. Le cœur reste à **800 MHz** et les
 horloges bus/GPU/LCD restent à **80/75/35 MHz**.
@@ -47,6 +52,7 @@ historiques restent hors de la mémoire allouée à Linux.
 | Accélérateur | `/dev/prodock-gpu` | Un propriétaire, accès root/CAP_SYS_RAWIO, ioctl et mmap |
 | Contrôle utilisateur | `prodockctl` | `selftest`, `info`, `demo`, `display`, `layout` |
 | Jeu Linux | `prodock-game` | Casse-briques GPU, clavier ou `--demo`, lancé depuis le shell |
+| Jeu spatial Linux | `nebula` | Trois secteurs, boss, novas ; clavier ou `--demo`, plein écran ou partagé |
 | Test du système | `prodock-runtime` | Threads/mutex, fork, mmap, mprotect, copie à l'écriture |
 
 Le GPU conserve ses opcodes 1–30, 16 couches, 64 sprites, tuiles, palette,

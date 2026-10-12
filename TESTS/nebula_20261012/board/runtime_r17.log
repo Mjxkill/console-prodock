@@ -1,0 +1,20 @@
+NEBULA_AUTOPLAY_RUNNING
+Traceback (most recent call last):
+  File "/home/michael/console-validation-20261001/tools/check_nebula.py", line 171, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/home/michael/console-validation-20261001/tools/check_nebula.py", line 138, in main
+    s=state(f'sample_{i}');healthy(s)
+      ^^^^^^^^^^^^^^^^^^^^
+  File "/home/michael/console-validation-20261001/tools/check_nebula.py", line 60, in state
+    def state(name):return reading(name,'prodockctl display',display)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michael/console-validation-20261001/tools/check_nebula.py", line 53, in reading
+    data=run(name+f'_read{attempt}',cmd)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michael/console-validation-20261001/tools/check_nebula.py", line 43, in run
+    status,data=command(uart,text,timeout);(a.out/(name+'.log')).write_bytes(data)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/michael/console-validation-20261001/tools/check_linux.py", line 36, in command
+    raise CommandTimeout(data)
+check_linux.CommandTimeout: b'prodockcl displlay; printf \'\\n__PD_RC_%s__\\n\'  "$?"\r\nDISPLAY mode=1 ccols=50 rrows=15 text=3357 preesents=6092sent=129868 frames=26015 done=64332 errors=0 uf=0 line=22180 innvalid=0 sprites=0 usb=00000062 fault=0 crc=2ec61cad feed_us=5286149 waait_us=317741844 cache_us=5421609 present_us=84279032 text_us=14464752\r\n\r\n__PD_RCC_0__\r\nprodock# '

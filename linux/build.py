@@ -105,7 +105,10 @@ def rootfs():
              '-I', HERE / 'drivers', HERE / 'userspace/prodockctl.c', '-lm', '-o', root / 'bin/prodockctl'])
     run([str(USER_TC) + 'gcc', '-O2', '-static', '-pthread', '-Wall', '-Wextra', '-Werror',
          HERE / 'userspace/prodock-runtime.c', '-o', root / 'bin/prodock-runtime'])
-    for name in ['prodock-terminal', 'prodock-game', 'prodock-text-test']:
+    run(['python3', HERE.parent / 'tools/build_nebula_assets.py'])
+    (root / 'usr/share/nebula').mkdir(parents=True, exist_ok=True)
+    shutil.copy2(HERE.parent / 'assets/nebula/packed/nebula.bin', root / 'usr/share/nebula/nebula.bin')
+    for name in ['prodock-terminal', 'prodock-game', 'prodock-text-test', 'nebula']:
         run([str(USER_TC) + 'gcc', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
              '-I', HERE / 'drivers', HERE / f'userspace/{name}.c', '-lm', '-o', root / f'bin/{name}'])
     # gen_init_cpio describes device nodes without requiring mknod/root.

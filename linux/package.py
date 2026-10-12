@@ -24,7 +24,8 @@ def pack_zero_runs(data):
 def main():
     paths = ['opensbi/platform/generic/firmware/fw_payload.bin',
              'kernel/arch/riscv/boot/Image', 'prodock-linux.dtb', 'rootfs/bin/prodockctl', 'rootfs/bin/prodock-terminal',
-             'rootfs/bin/prodock-game', 'rootfs/bin/prodock-text-test']
+             'rootfs/bin/prodock-game', 'rootfs/bin/prodock-text-test',
+             'rootfs/bin/nebula', 'rootfs/usr/share/nebula/nebula.bin']
     result = {'board': 'Tang Mega 138K Pro Dock', 'abi': 1,
               'load': 0x07c00000, 'entry': 0x07c00000, 'kernel': 0x08000000,
               'gpu_memory': [0x00800000, 0x05800000], 'files': {}}

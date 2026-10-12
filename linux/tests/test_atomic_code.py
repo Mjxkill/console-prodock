@@ -10,7 +10,7 @@ files = [('kernel/vmlinux', True), ('opensbi/platform/generic/firmware/fw_payloa
          ('busybox/busybox_unstripped', False), ('rootfs/bin/prodockctl', False),
          ('rootfs/bin/prodock-runtime', False), ('uboot/out/u-boot', False)]
 files += [('rootfs/bin/' + name, False) for name in
-          ['prodock-terminal', 'prodock-game', 'prodock-text-test']]
+          ['prodock-terminal', 'prodock-game', 'prodock-text-test', 'nebula']]
 total = 0
 for name, kernel in files:
     # SBI's executable .payload embeds the kernel/initramfs as raw bytes;
