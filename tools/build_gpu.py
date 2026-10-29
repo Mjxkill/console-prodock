@@ -10,9 +10,10 @@ import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from gowin_toolchain import IDE, environment
+from board_contract import before_build, record_build
 
 ROOT = Path(__file__).resolve().parents[1]
-IDE = Path('/home/michael/gowin/Gowin_V1.9.12_linux/IDE')
 
 
 def generate_usb_phy(stage, env, rx_mode='normal', phy_ide=IDE, system_freetype=False):
@@ -161,6 +162,8 @@ def resolve_constraints(netlist, constraints, resolved):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--name', default='gpu_g5')
+    parser.add_argument('--candidate', action='store_true',
+                        help='Explicit Pro Dock candidate; local dual-board checks required, hardware validation pending')
     parser.add_argument('--place-option', type=int, choices=range(5), default=0,
                         help='Gowin placement algorithm; clocks and timing exceptions are unchanged')
     parser.add_argument('--route-option', type=int, choices=range(3), default=1,
@@ -236,15 +239,26 @@ def main():
         phy_version = info.get('version')
     if args.usb_capture_first and not args.usb_diagnostic:
         parser.error('--usb-capture-first requires --usb-diagnostic')
+    contract = before_build('prodock', candidate=args.candidate)
     stage = ROOT / 'tang/impl' / args.name
     stage.mkdir(exist_ok=False)
+    record_build(stage, contract)
     ipdir = stage / 'ip'
     ipdir.mkdir()
     run(['make', '-B', '-C', str(ROOT / 'fw_console'), 'MAIN=gpu_diag.c',
          f'LD={ROOT / "fw_console/itcm.ld"}', 'CFLAGS_EXTRA=-DCONSOLE_GPU'], ROOT, stage / 'firmware.log')
     cfg = ROOT / 'tang/rtl/board/riscv_ae350_soc_ext/cfg'
-    shutil.copy2(cfg / 'riscv_ae350_soc.prj', ipdir)
-    env = dict(os.environ, LD_LIBRARY_PATH=str(IDE / 'lib'), QT_QPA_PLATFORM='offscreen', DISPLAY='')
+    project = ET.parse(cfg / 'riscv_ae350_soc.prj')
+    for node in project.findall('.//File'):
+        vendor_path = IDE / 'ipcore' / node.get('path').split('/IDE/ipcore/')[1]
+        if not vendor_path.is_file():
+            raise FileNotFoundError(vendor_path)
+        node.set('path', str(vendor_path))
+    for node in project.findall(".//Option[@type='include_path']"):
+        if '/IDE/ipcore/' in node.get('value'):
+            node.set('value', str(IDE / 'ipcore' / node.get('value').split('/IDE/ipcore/')[1]))
+    project.write(ipdir / 'riscv_ae350_soc.prj', encoding='UTF-8', xml_declaration=True)
+    env = environment()
     run([str(IDE / 'bin/GowinSynthesis'), '-prj', 'riscv_ae350_soc.prj'], ipdir, ipdir / 'synth.log', env)
     if 'GowinSynthesis finish' not in (ipdir / 'synth.log').read_text():
         raise SystemExit('AE350 IP generation incomplete')
@@ -428,7 +442,7 @@ def main():
     assert lines.count(replication) == 1
     lines[lines.index(replication)] = f'set_option -replicate_resources {args.replicate_resources}'
     build_options = stage / 'build_options.json'
-    build_options.write_text(json.dumps(dict(arguments=sys.argv[1:],
+    build_options.write_text(json.dumps(dict(arguments=sys.argv[1:],ide=str(IDE),
         placement_algorithm=args.place_option,
         routing_algorithm=args.route_option,
         replicate_resources=args.replicate_resources), indent=2) + '\n')

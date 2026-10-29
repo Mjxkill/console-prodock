@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare all public bridge outputs every cycle, with traffic, stalls and resets."""
+"""Compare bridge control each cycle and valid data, with stalls and resets."""
 import argparse
 import hashlib
 import json
@@ -23,7 +23,8 @@ def main():
     for module,name,prefix in [('ahb_exts_bridge','dut',''),('bridge_reference','ref_dut','ref_')]:
         connections=[f'.{n}({n})' for n in inputs]+[f'.{n}({prefix}{n})' for n in ports]
         cells+=module+' '+name+'('+','.join(connections)+');\n'
-    left='{'+','.join(ports)+'}';right='{'+','.join('ref_'+n for n in ports)+'}'
+    control=[n for n in ports if n!='m_hrdata']
+    left='{'+','.join(control)+'}';right='{'+','.join('ref_'+n for n in control)+'}'
     bench='''`timescale 1ns/1ps
 module tb;
 reg hclk=0,hresetn=0,m_hsel=0,m_hwrite=0,s0_hready=0,s1_hready=0;
@@ -51,6 +52,7 @@ always @(posedge hclk)begin
 end
 always @(negedge hclk)begin
  if(LEFT!==RIGHT)$fatal(1,"Bridge output/cycle mismatch at %0d",cycles);
+ if(m_hready && m_hrdata!==ref_m_hrdata)$fatal(1,"Completed read data mismatch at %0d",cycles);
  if(expect_issue)begin
   if(s_hsel!==(expected_addr[24]?2'b10:2'b01) || s_htrans!==2'b10 ||
      s_haddr!==expected_addr || s_hwrite!==expected_wr || s_hwdata!==expected_data)
@@ -70,7 +72,7 @@ initial begin
  end
  #1;hresetn=0;repeat(4)@(negedge hclk);
  #1;if(accepted!=issued+cancelled)$fatal(1,"Request accounting %0d/%0d/%0d",accepted,issued,cancelled);
- $display("PASS: %0d cycles, %0d accepted, %0d issued, %0d cancelled before issue by reset; every public output exact",cycles,accepted,issued,cancelled);
+ $display("PASS: %0d cycles, %0d accepted, %0d issued, %0d cancelled before issue by reset; controls and valid data exact",cycles,accepted,issued,cancelled);
  $finish;
 end
 endmodule

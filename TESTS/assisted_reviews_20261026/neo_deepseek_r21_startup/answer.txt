@@ -1,0 +1,111 @@
+## Conclusion courte
+
+Le packet ne permet pas de nommer une cause unique, mais il permet de **réfuter deux explications simples** :
+
+1. **Le lien JTAG TAP/IDCODE n’est pas mort à 100 kHz** : `r21_read100k.log` trouve bien `0x1000563d`, exactement comme `baseline_r19.log`, puis échoue sur le **DMI**. Le problème est donc **en aval du TAP**, dans l’accès au module debug / domaine CPU, pas dans le simple scan JTAG.
+2. **Le fallback 1 MHz ne suffit plus** : R21 échoue aussi à 100 kHz, et le retour R19 à 100 kHz sans reload redonne immédiatement `PC 0x80000004` + `STARTUP_READ_OK` (`baseline_r19.log`, `fallback_read100k.log`, même SHA `6959…`). L’A/B/A à 100 kHz est donc le fait central.
+
+La branche la plus directement testable est **DDR-ready / reset CPU**, via la broche `V13 = led_n = ~ddr_init` (`console_neo.v:205`). La branche **prst/mire** peut expliquer l’écran noir, mais **aucun lien retour vers le CPU/DMI n’est identifié** dans le packet. La branche **PLL** reste, elle, **non observable avec les seuls signaux fournis** : il n’y a pas de pin exposé de `pll_ae350_lock` ou `ae350_rstn`, pas de GAO, et l’EP0 du SOFT-USB n’est pas présumé accessible.
+
+---
+
+## 1. Faits établis par le packet
+
+### JTAG / DMI
+- `baseline_r19.log` : TAP `0x1000563d`, `datacount=4`, `Target successfully examined`, `PARKED_CPU 0x80000004`, `STARTUP_READ_OK`.
+- `r21_read100k.log` : TAP `0x1000563d` correct, puis **huit erreurs** `DMI operation didn't complete in 2 seconds`, `target nds.cpu examination failed`. Aucun `PARKED_CPU` ni `STARTUP_READ_OK`.
+- `fallback_read100k.log` : contenu identique à `baseline_r19.log` (même SHA `6959…`), donc le retour R19 à 100 kHz redonne bien le même résultat.
+
+**Interprétation factuelle** : à 100 kHz, le TAP et le scan d’IDCODE fonctionnent sur R21. Le DMI ne répond pas. Cela exclut un TAP totalement muet ou un simple problème de câblage TCK/TMS/TDI/TDO, mais **pas** un problème de domaine debug, de reset CPU ou d’horloge du module DMI.
+
+### Chaîne de reset / DDR-ready
+- `neo_reset_trial.v:102` :
+  `release_request = ddr_ready && !holding && (!delay_mode || delay_done);`
+- `ae350_soc.v:151-156` :
+  `init_sync <= {init_sync[0], trial_release};`
+  `ae350_rstn = init_sync[1];`
+  `ddr_init = ddr3_init_completed;`
+- `ae350_soc.v:380` : `POR_RSTN(ae350_rstn), HW_RSTN(ae350_rstn)`.
+- `console_neo.v:148-152` : `ae350_rst_sync` est tenu à `2'b11` si `pll_ae350_lock` est bas ; `ae350_por_n = ~ae350_rst_sync[1]`.
+- `console_neo.v:205` : `assign led_n = ~ddr_init;`
+
+Donc :
+- si `ddr_init = 0`, `release_request = 0`, `init_sync` reste à 0, `ae350_rstn = 0` : le CPU et le module debug peuvent être tenus en reset, ce qui explique un timeout DMI ;
+- si `ddr_init = 1`, le chemin DDR-ready n’est plus bloquant, mais `ae350_rstn` peut encore être bloqué par `pll_ae350_lock` ou l’horloge AHB.
+
+### prst / mire
+- `gpu_scanout.v:35-40` : `prst` est un synchroniseur 2 FF sur `pixel_clk`, remis à 0 par `hresetn`.
+- `gpu_scanout.v:522` : `de1 <= visible && prst[1];`
+- `gpu_scanout.v:244-254` : si `!prst[1]`, compteurs et état scanout sont remis à zéro.
+- `gpu_scanout.v:527,540` : si le scanout tourne sans `active_enable`, la sortie bascule sur un motif de repli `fallback2 = {6{x[7:5]}}`, pas nécessairement du noir pur.
+
+**Conséquence** : un écran noir R21 est compatible avec `prst[1]` bloqué, ou avec une absence d’horloge pixel, mais aussi avec un CPU qui n’a pas initialisé le GPU. La photo seule ne tranche pas. Le packet indique explicitement qu’aucun lien retour `prst -> CPU/DMI` n’est identifié ; `prst` ne peut donc pas être retenu comme cause du timeout DMI sans mécanisme partagé (par exemple `hresetn`).
+
+### Timing / STA
+- R19 passe avec un global FAIL (`setup −2.888`, etc.) ; R21 échoue avec un global FAIL (`setup −2.602`). Le statut global FAIL n’est donc pas discriminant à lui seul.
+- Le chemin négatif R21 cité est `u_pll_ae350/u_pll_init/state_0_s0/Q -> diag_board_meta_3_s0/D` à `−2.602 ns` ; il s’agit d’un capture de diagnostic USB (`soft_usb.vh:311-317`), pas de la chaîne `POR_RSTN/HW_RSTN`. Il ne peut pas être présenté comme preuve du blocage CPU.
+- Les arcs PLL fournis changent peu : `PLL_inst/RESET` max 9.253 → 9.570 ns ; `init_sync_0_s0/CLEAR` max 3.867 → 2.907 ns ; `HW_RSTN/POR_N` max 9.531 → 9.733 ns. Les cellules, INIT, PLL et reset trial sont décrits comme identiques. Ce sont des estimations SDF, **pas des mesures**. Elles ne prouvent ni un échec PLL ni un verrouillage correct.
+
+---
+
+## 2. Hypothèses et réfutabilité
+
+| Hypothèse | Statut dans le packet | Réfutation avec observable existant |
+|---|---|---|
+| H1 — transport JTAG/TAP ou DMI non séquencé à 100 kHz | Peu probable pour le TAP : IDCODE correct à 100 kHz ; TDO_OUT et TDI_IN ont des arcs identiques R19/R21 ; TMS varie de quelques dixièmes de ns. Le DMI reste possiblement concerné. | Si à 10 kHz l’IDCODE reste correct et le DMI échoue encore, le transport TCK/TAP seul est réfuté. Si le DMI passe à 10 kHz mais pas à 100 kHz, H1 devient crédible. |
+| H2 — `ddr_init = 0`, donc CPU tenu en reset | Plausible et directement testable. `release_request` dépend de `ddr_ready` (`neo_reset_trial.v:102`), et `led_n = ~ddr_init` est sur V13 (`console_neo.v:205`). | Si V13 indique `ddr_init = 1` pendant le timeout DMI, H2 est réfutée. Si V13 indique `ddr_init = 0` alors que R19 donne l’inverse, H2 est suffisante pour expliquer le timeout, sans encore distinguer calibration DDR et PLL DDR. |
+| H3 — PLL AE350 non verrouillée / reset synchronizer bloqué | Ouverte, mais **non réfutable avec les observables fournis** : `pll_ae350_lock` et `ae350_rstn` ne sont pas exposés ; `diag_board_meta` n’est lisible que par EP0, non présumé accessible. | Aucun test valide sans nouvelle instrumentation ou sans hypothèse supplémentaire. À classer en preuve manquante, pas en conclusion. |
+| H4 — `prst[1]` bloqué / domaine pixel mort, d’où écran noir | Plausible pour la mire, pas pour le DMI : `gpu_scanout.v:522` et reset des compteurs `244-254`. Aucun lien retour CPU identifié. | Si le TMDS clock et le DE/sync sont présents en R21, `prst[1]` est released et H4 comme cause du noir est réfutée. Si le TMDS clock manque, le domaine pixel est en cause, mais pas nécessairement le CPU. |
+| H5 — reroutage complet / marge STA | Corrélation seulement. R19 passe avec global FAIL ; le chemin négatif R21 est un capture de diagnostic. | Non réfutable par les STA fournis ; ne pas l’utiliser comme preuve matérielle. |
+
+---
+
+## 3. Deux tests discriminants, sans nouveau RTL/PnR ni GAO
+
+### Test 1 — A/B/A instrumenté : V13 + OpenOCD 100 kHz puis 10 kHz
+
+**But** : séparer transport TAP/DMI, DDR-ready et reset CPU.
+
+**Procédure, avec les bitstreams existants et le même Tcl, aucun reload FPGA entre les deux vitesses** :
+1. Programmer R19, attendre DONE, mesurer **directement la broche V13** (multimètre/scope, pas une photo de LED non identifiée). Lancer OpenOCD à 100 kHz, relever IDCODE et DMI.
+2. Programmer R21, attendre DONE, mesurer V13, lancer OpenOCD à 100 kHz avec le même timeout, puis **sans reconfigurer**, passer à `adapter speed 10` et `riscv set_command_timeout_sec 30`, relancer l’examen DMI.
+3. Restaurer R19 et refaire la mesure V13 + IDCODE/DMI à 100 kHz.
+
+**Lecture** :
+- V13 = niveau correspondant à `ddr_init = 0` sur R21, et V13 inverse sur R19 → DDR-ready non atteint ; le CPU peut être tenu en reset. H2 est soutenue.
+- V13 = niveau correspondant à `ddr_init = 1` sur R21 alors que le DMI timeout → H2 est **réfutée** ; le blocage est en aval de `ddr_ready`, donc plutôt `ae350_rstn`, PLL ou module debug.
+- DMI OK à 10 kHz mais pas à 100 kHz → H1 transport/séquencement DMI soutenue.
+- IDCODE correct et DMI toujours timeout à 10 kHz → H1 « transport TCK brut » réfutée ; le problème est dans le domaine debug/CPU, pas dans le lien TCK.
+
+**Limite explicite** : ce test ne prouve pas la PLL. Même avec V13 actif et DMI en échec à 10 kHz, on ne peut pas distinguer `pll_ae350_lock` bas, `ae350_rstn` bloqué ou module debug non horlogé. Il manque un observable direct.
+
+---
+
+### Test 2 — A/B/A avec analyseur HDMI : TMDS clock, sync, DE
+
+**But** : réfuter ou soutenir `prst[1]` comme cause de l’écran noir, sans confondre avec le CPU.
+
+**Procédure** :
+1. Programmer R21, attendre DONE, **sans lancer OpenOCD**, capturer le HDMI avec un analyseur/capture qui donne : présence du TMDS clock, verrouillage du récepteur, résolution/timing, présence de DE/sync, contenu de trame.
+2. Refaire la même capture avec R19, puis revenir à R21.
+3. Ne pas conclure sur une simple photo noire.
+
+**Lecture** :
+- Pas de TMDS clock en R21 → horloge pixel/output morte ; `prst` n’est même pas évaluable, le domaine pixel est en cause.
+- TMDS clock présent mais pas de DE/sync → `prst[1]` ou `hresetn` probablement bloqué ; H4 soutenue pour le noir. Il faudra vérifier si `hresetn` est lui-même retenu par le reset CPU, ce que le packet ne montre pas.
+- TMDS clock + DE/sync valides + trame noire ou sans mire → `prst[1]` est released ; H4 comme cause du noir est **réfutée**. Le problème est alors dans les données/`active_enable`/GPU, pas dans le reset pixel. Le timeout DMI reste un problème séparé.
+
+Ce test est le seul moyen propre de distinguer « écran noir par reset pixel » de « écran noir parce que le CPU n’a rien initialisé », sans nouveau RTL et sans GAO.
+
+---
+
+## 4. Preuves manquantes à ne pas transformer en conclusions
+
+- **Pas de relecture complète / CRC du SRAM R21** : `DONE` sans erreur ne prouve pas à lui seul l’intégrité complète du bitstream chargé. À clôturer avant d’attribuer le comportement au design.
+- **Pas de mesure directe de `pll_ae350_lock`, `ae350_rstn`, `hresetn`, `pixel_clk`** : le packet ne fournit que des arcs SDF et des états internes non exposés.
+- **Pas de trace DMI détaillée** au-delà du timeout : on ne sait pas si le DMI est clocké, si le module debug est en reset, ou si le CPU répond.
+- **Pas de timing HDMI** : la photo noire avant DMI ne prouve ni `prst` ni `ddr_init`.
+- **SOFT-USB EP0 non présumé accessible** : `diag_board_meta` (`soft_usb.vh:303-318`) ne doit pas être utilisé comme preuve de `pll_lock` ou `ddr_init` dans l’état actuel.
+- **Aucun GAO** : l’absence de GAO et l’interdiction de nouveau PnR empêchent toute observation interne supplémentaire.
+
+En l’état, la formulation correcte est : **R21 échoue après le TAP, sur le DMI, et la branche la plus probablement responsable est la chaîne reset/clock du sous-système CPU, avec `ddr_init` comme premier point de contrôle ; `prst` explique possiblement la mire noire mais n’a pas de lien CPU démontré ; la PLL reste non testable avec le packet.** Il n’y a pas de preuve suffisante pour conclure à un erratum.

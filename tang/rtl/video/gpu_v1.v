@@ -26,8 +26,8 @@ module gpu_v1(
       RECT_ROW=34,RECT_CHUNK=35,RECT_COLOR=36,RECT_CSENT=37,
       RECT_Z=38,RECT_ZSENT=39,RECT_NEXT=40,COPY_START=41,COPY_WAIT=42,RECT_BOUNDS=43,RECT_CLIP=44,DECODE=45,TARGET_WAIT=46,TEX_WAIT=47,
       DECODE_WAIT=48,TARGET_VALIDATE=49,TEX_VALIDATE=50,SPAN_BOUNDS=51,
-      PIX_LOD=52,PIX_OFFSET=53,PIX_FETCH=54,PIX_OPAQUE=55;
-    reg [55:0] state;
+      PIX_LOD=52,PIX_OFFSET=53,PIX_FETCH=54,PIX_OPAQUE=55,DECODE_PIPE=56,TARGET_PIPE=57;
+    reg [57:0] state;
     assign busy=!state[IDLE];
     // Gowin 1.9.12 can absorb consecutive, independently enabled command
     // registers into a DSP C pipeline with the enables reversed. This affects
@@ -64,6 +64,9 @@ module gpu_v1(
     reg [28:0] color_addr,z_addr;
     reg [255:0] color_buf,z_buf;
     reg [31:0] pixel_mask;
+    // Track whether this chunk contains a stored pixel. Do not reduce the
+    // 32-bit byte mask in the wide native-request enable path.
+    reg chunk_dirty;
     reg native_valid,native_write;
     reg [28:0] native_addr;
     reg [255:0] native_data;
@@ -114,7 +117,7 @@ module gpu_v1(
     // These issue/wait states are mutually exclusive in the one-hot machine.
     wire native_issue=(state[COLOR_REQ] && need_background) ||
         (state[Z_REQ] && flags[1]) ||
-        (state[COLOR_WRITE] && pixel_mask!=32'hffffffff) || state[Z_WRITE] ||
+        (state[COLOR_WRITE] && chunk_dirty) || state[Z_WRITE] ||
         (state[RECT_COLOR] && clear_flags[0]) || (state[RECT_Z] && clear_flags[1]);
     wire native_wait=state[COLOR_WAIT] || state[Z_WAIT] || state[COLOR_SENT] ||
         state[Z_SENT] || state[RECT_CSENT] || state[RECT_ZSENT];
@@ -235,25 +238,36 @@ module gpu_v1(
     // comparators must not drive hundreds of descriptor FF clock enables.
     reg bad_header,bad_scissor,bad_material,bad_plane,bad_triangle,bad_clear,
         bad_invalidate,bad_target,bad_texture;
+    reg [2:0] scissor_bad,material_bad;
+    reg [5:0] target_bad;
+    reg [7:1] word_nonzero;
     always @(posedge clk)begin
+        // DECODE_WAIT/DECODE_PIPE cover both reduction stages. These reserved
+        // words otherwise feed several wide zero tests directly from packet.
+        for(integer w=1;w<8;w=w+1)word_nonzero[w]<=|packet[w*32+:32];
         bad_header<=w0[23:0]!=0 && !(w0[31:24]==26 && w0[23:3]==0 && w0[2:0]<7);
-        bad_scissor<=!target_valid || w1[31:16]>w2[31:16] || w1[15:0]>w2[15:0] ||
-            w2[31:16]>width || w2[15:0]>height || w3!=0 || w4!=0 || w5!=0 || w6!=0 || w7!=0;
-        bad_material<=w1>255 || (w1[4] && !w1[0]) || w2>256 || w3>65535 ||
-            w4[31:27]!=0 || w4[8:0]>256 || w4[17:9]>256 || w4[26:18]>256 ||
-            w6>32'h01000000 || w7!=0;
-        bad_plane<=w0[2:0]>=7 || w4[31:16]!=0 || w5!=0 || w6!=0 || w7!=0;
-        bad_triangle<=!target_valid || !material_valid || w4!=0 || w5!=0 || w6!=0 || w7!=0 ||
+        scissor_bad[0]<=w1[31:16]>w2[31:16] || w2[31:16]>width;
+        scissor_bad[1]<=w1[15:0]>w2[15:0] || w2[15:0]>height;
+        scissor_bad[2]<=!target_valid || w3!=0 || w4!=0 || w5!=0 || w6!=0 || w7!=0;
+        bad_scissor<=|scissor_bad;
+        material_bad[0]<=w1>255 || (w1[4] && !w1[0]) || w2>256 || w3>65535;
+        material_bad[1]<=w4[31:27]!=0 || w4[8:0]>256 || w4[17:9]>256 || w4[26:18]>256;
+        material_bad[2]<=w6>32'h01000000 || w7!=0;
+        bad_material<=|material_bad;
+        bad_plane<=w0[2:0]>=7 || w4[31:16]!=0 || (|word_nonzero[7:5]);
+        bad_triangle<=!target_valid || !material_valid || (|word_nonzero[7:4]) ||
             (flags[0] && (!texture_valid || plane_valid[1:0]!=3 || texture_alias)) ||
             (flags[4] && !plane_valid[2]) || ((flags[1] || flags[2] || flags[7]) && !plane_valid[3]) ||
             (flags[6] && plane_valid[6:4]!=7);
-        bad_clear<=!target_valid || w1>3 || w2>65535 || w3>65535 || w6!=0 || w7!=0;
-        bad_invalidate<=w1!=0 || w2!=0 || w3!=0 || w4!=0 || w5!=0 || w6!=0 || w7!=0;
-        bad_target<=w1[31:30]!=0 || w2[31:30]!=0 || color_base[4:0]!=0 || z_base[4:0]!=0 ||
-            width==0 || width>1024 || height==0 || height>512 ||
-            color_stride[4:0]!=0 || z_stride[4:0]!=0 || color_stride<width*2 || z_stride<width*2 ||
-            color_end>33'h040000000 || z_end>33'h040000000 ||
-            (color_base<z_end && z_base<color_end) || w5!=0 || w6!=0 || w7!=0;
+        bad_clear<=!target_valid || w1>3 || w2>65535 || w3>65535 || (|word_nonzero[7:6]);
+        bad_invalidate<=|word_nonzero;
+        target_bad[0]<=w1[31:30]!=0 || w2[31:30]!=0 || color_base[4:0]!=0 || z_base[4:0]!=0;
+        target_bad[1]<=width==0 || width>1024 || height==0 || height>512;
+        target_bad[2]<=color_stride[4:0]!=0 || z_stride[4:0]!=0 || color_stride<width*2 || z_stride<width*2;
+        target_bad[3]<=color_end>33'h040000000 || z_end>33'h040000000;
+        target_bad[4]<=color_base<z_end && z_base<color_end;
+        target_bad[5]<=w5!=0 || w6!=0 || w7!=0;
+        bad_target<=|target_bad;
         bad_texture<=w1[31:30]!=0 || texture_base[4:0]!=0 || tex_width==0 || tex_width>512 || tex_height==0 || tex_height>512 ||
             tex_stride[4:0]!=0 || tex_stride<tex_width*2 || texture_end>33'h040000000 ||
             w3[31:17]!=0 || w4[31:8]!=0 || mip_level>9 || mode_u==3 || mode_v==3 ||
@@ -273,23 +287,28 @@ module gpu_v1(
         else begin color_load<=state[COLOR_WAIT] && rd_valid;z_load<=state[Z_WAIT] && rd_valid;end
     end
     always @(posedge clk)begin
-        if(rst)begin color_buf<=0;z_buf<=0;pixel_mask<=-1;end
-        else if(state[CHUNK])begin color_buf<=0;z_buf<=0;pixel_mask<=-1;end
+        if(rst)begin color_buf<=0;z_buf<=0;pixel_mask<=-1;chunk_dirty<=0;end
+        else if(state[CHUNK])begin color_buf<=0;z_buf<=0;pixel_mask<=-1;chunk_dirty<=0;end
         else begin
             if(color_load)color_buf<=returned_data;
-            else if(state[PIX_STORE] && pixel_visible && effective_alpha!=0)begin
+            // PIX_MOD sends zero effective alpha directly to PIX_NEXT.
+            // Every path to PIX_STORE has already passed that guard; do not
+            // repeat its nine-bit reduction on the wide buffer enables.
+            else if(state[PIX_STORE] && pixel_visible)begin
                 color_buf[lane*16+:16]<={mix_r>=16'd8192 ? 5'd31:mix_r[12:8],
                     mix_g>=16'd16384 ? 6'd63:mix_g[13:8],mix_b>=16'd8192 ? 5'd31:mix_b[12:8]};
                 pixel_mask[lane*2+:2]<=0;
+                chunk_dirty<=1;
             end
             else if(state[PIX_OPAQUE] && pixel_visible)begin
                 // No fog or blending: their identity operations leave the
                 // rounded modulation unchanged, for RGB565 and solid colors.
                 color_buf[lane*16+:16]<={mod_r[12:8],mod_g[13:8],mod_b[12:8]};
                 pixel_mask[lane*2+:2]<=0;
+                chunk_dirty<=1;
             end
             if(z_load)z_buf<=returned_data;
-            else if(state[PIX_STORE] && pixel_visible && effective_alpha!=0)z_buf[lane*16+:16]<=depth;
+            else if(state[PIX_STORE] && pixel_visible)z_buf[lane*16+:16]<=depth;
             else if(state[PIX_OPAQUE] && pixel_visible)z_buf[lane*16+:16]<=depth;
         end
     end
@@ -311,7 +330,7 @@ module gpu_v1(
     end
     always @(posedge clk)begin
         if(rst)begin
-            packet<=0;plane_write<=0;state<=56'b1<<IDLE;done<=0;native_write<=0;native_addr<=0;native_data<=0;native_mask<=-1;
+            packet<=0;plane_write<=0;state<=58'b1<<IDLE;done<=0;native_write<=0;native_addr<=0;native_data<=0;native_mask<=-1;
             target_valid<=0;texture_valid<=0;material_valid<=0;plane_valid<=0;fast_shade<=1;opaque_shade<=0;
             rejected<=0;fragments<=0;passed<=0;cache_start<=0;cache_invalidate<=0;cache_address<=0;
             color_base<=0;z_base<=0;texture_base<=0;width<=0;height<=0;color_stride<=0;z_stride<=0;
@@ -331,12 +350,14 @@ module gpu_v1(
         end else begin
             done<=0;plane_write<=0;cache_start<=0;cache_invalidate<=0;triangle_start<=0;
             case(1'b1) // synthesis parallel_case
-            state[IDLE]:if(start)begin packet<=command;state<=56'b1<<DECODE_WAIT;end
-            state[DECODE_WAIT]:state<=56'b1<<DECODE;
-            state[TARGET_WAIT]:state<=56'b1<<TARGET_CHECK;
-            state[TEX_WAIT]:state<=56'b1<<TEX_CHECK;
-            state[TARGET_CHECK]:state<=56'b1<<TARGET_VALIDATE;
-            state[TEX_CHECK]:state<=56'b1<<TEX_VALIDATE;
+            state[IDLE]:if(start)begin packet<=command;state<=58'b1<<DECODE_WAIT;end
+            state[DECODE_WAIT]:state<=58'b1<<DECODE_PIPE;
+            state[DECODE_PIPE]:state<=58'b1<<DECODE;
+            state[TARGET_WAIT]:state<=58'b1<<TARGET_CHECK;
+            state[TEX_WAIT]:state<=58'b1<<TEX_CHECK;
+            state[TARGET_CHECK]:state<=58'b1<<TARGET_PIPE;
+            state[TARGET_PIPE]:state<=58'b1<<TARGET_VALIDATE;
+            state[TEX_CHECK]:state<=58'b1<<TEX_VALIDATE;
             state[DECODE]:begin
                 if(bad_header)begin
                     // A malformed descriptor must not leave the previous one usable.
@@ -346,109 +367,109 @@ module gpu_v1(
                     25:material_valid<=0;
                     26:if(w0[2:0]<7)plane_valid[w0[2:0]]<=0;
                     endcase
-                    state<=56'b1<<BAD;
+                    state<=58'b1<<BAD;
                 end
                 else case(w0[31:24])
                 22:begin
                     target_valid<=0;color_base<=w1[29:0];z_base<=w2[29:0];width<=w3[31:16];height<=w3[15:0];
                     color_stride<=w4[31:16];z_stride<=w4[15:0];
-                    state<=56'b1<<TARGET_WAIT;
+                    state<=58'b1<<TARGET_WAIT;
                 end
                 23:begin
-                    if(bad_scissor)state<=56'b1<<BAD;
-                    else begin left<=w1[31:16];top<=w1[15:0];right<=w2[31:16];bottom<=w2[15:0];state<=56'b1<<FINISH;end
+                    if(bad_scissor)state<=58'b1<<BAD;
+                    else begin left<=w1[31:16];top<=w1[15:0];right<=w2[31:16];bottom<=w2[15:0];state<=58'b1<<FINISH;end
                 end
                 24:begin
                     texture_valid<=0;texture_base<=w1[29:0];tex_width<=w2[31:16];tex_height<=w2[15:0];
                     tex_stride<=w3[15:0];tex_argb<=w3[16];mode_u<=w4[1:0];mode_v<=w4[3:2];mip_level<=w4[7:4];
-                    state<=56'b1<<TEX_WAIT;
+                    state<=58'b1<<TEX_WAIT;
                 end
                 25:begin
                     material_valid<=0;
-                    if(bad_material)state<=56'b1<<BAD;
+                    if(bad_material)state<=58'b1<<BAD;
                     else begin
                         fast_shade<=w1[7:6]==0 && w4==32'h04020100;
                         opaque_shade<=w2==256 && !w1[5] && !w1[7];
                         flags<=w1[7:0];alpha<=w2[8:0];solid<=w3[15:0];
                         tint_r<=w4[8:0];tint_g<=w4[17:9];tint_b<=w4[26:18];
                         fog_near<=w5[31:16];fog_color<=w5[15:0];fog_scale<=w6[24:0];
-                        material_valid<=1;state<=56'b1<<FINISH;
+                        material_valid<=1;state<=58'b1<<FINISH;
                     end
                 end
                 26:begin
                     if(bad_plane)begin
-                        if(w0[2:0]<7)plane_valid[w0[2:0]]<=0;state<=56'b1<<BAD;
+                        if(w0[2:0]<7)plane_valid[w0[2:0]]<=0;state<=58'b1<<BAD;
                     end else begin
                         plane_write<=7'b1<<w0[2:0];
-                        plane_valid[w0[2:0]]<=1;state<=56'b1<<FINISH;
+                        plane_valid[w0[2:0]]<=1;state<=58'b1<<FINISH;
                     end
                 end
                 27:begin
-                    if(bad_triangle)state<=56'b1<<BAD;
-                    else state<=56'b1<<(alpha==0 || left==right || top==bottom ? FINISH:TRI_START);
+                    if(bad_triangle)state<=58'b1<<BAD;
+                    else state<=58'b1<<(alpha==0 || left==right || top==bottom ? FINISH:TRI_START);
                 end
                 28:begin
-                    if(bad_clear)state<=56'b1<<BAD;
-                    else begin clear_flags<=w1[1:0];clear_color<=w2[15:0];clear_depth<=w3[15:0];state<=56'b1<<RECT_BOUNDS;end
+                    if(bad_clear)state<=58'b1<<BAD;
+                    else begin clear_flags<=w1[1:0];clear_color<=w2[15:0];clear_depth<=w3[15:0];state<=58'b1<<RECT_BOUNDS;end
                 end
-                29:state<=56'b1<<(target_valid ? COPY_START:BAD);
+                29:state<=58'b1<<(target_valid ? COPY_START:BAD);
                 30:begin
-                    if(bad_invalidate)state<=56'b1<<BAD;
-                    else begin cache_invalidate<=1;state<=56'b1<<FINISH;end
+                    if(bad_invalidate)state<=58'b1<<BAD;
+                    else begin cache_invalidate<=1;state<=58'b1<<FINISH;end
                 end
-                default:state<=56'b1<<BAD;
+                default:state<=58'b1<<BAD;
                 endcase
             end
-            state[COPY_START]:state<=56'b1<<COPY_WAIT;
-            state[COPY_WAIT]:if(copy_done)begin cache_invalidate<=1;state<=56'b1<<(copy_bad ? BAD:FINISH);end
-            state[BAD]:begin rejected<=rejected+1'b1;state<=56'b1<<FINISH;end
-            state[FINISH]:begin done<=1;state<=56'b1<<IDLE;end
+            state[COPY_START]:state<=58'b1<<COPY_WAIT;
+            state[COPY_WAIT]:if(copy_done)begin cache_invalidate<=1;state<=58'b1<<(copy_bad ? BAD:FINISH);end
+            state[BAD]:begin rejected<=rejected+1'b1;state<=58'b1<<FINISH;end
+            state[FINISH]:begin done<=1;state<=58'b1<<IDLE;end
             state[TARGET_VALIDATE]:begin
-                if(bad_target)state<=56'b1<<BAD;
-                else begin target_valid<=1;left<=0;top<=0;right<=width;bottom<=height;state<=56'b1<<FINISH;end
+                if(bad_target)state<=58'b1<<BAD;
+                else begin target_valid<=1;left<=0;top<=0;right<=width;bottom<=height;state<=58'b1<<FINISH;end
             end
             state[TEX_VALIDATE]:begin
-                if(bad_texture)state<=56'b1<<BAD;
-                else begin texture_valid<=1;state<=56'b1<<FINISH;end
+                if(bad_texture)state<=58'b1<<BAD;
+                else begin texture_valid<=1;state<=58'b1<<FINISH;end
             end
-            state[TRI_START]:begin triangle_start<=1;state<=56'b1<<TRI_BOOT;end
-            state[TRI_BOOT]:state<=56'b1<<TRI_WAIT;
+            state[TRI_START]:begin triangle_start<=1;state<=58'b1<<TRI_BOOT;end
+            state[TRI_BOOT]:state<=58'b1<<TRI_WAIT;
             state[TRI_WAIT]:begin
-                if(triangle_valid)begin px<=triangle_x;py<=triangle_y;unclipped_end<=triangle_x+triangle_width;state<=56'b1<<SPAN_BOUNDS;end
-                else if(!triangle_busy)state<=56'b1<<FINISH;
+                if(triangle_valid)begin px<=triangle_x;py<=triangle_y;unclipped_end<=triangle_x+triangle_width;state<=58'b1<<SPAN_BOUNDS;end
+                else if(!triangle_busy)state<=58'b1<<FINISH;
             end
-            state[SPAN_BOUNDS]:state<=56'b1<<SPAN_CLIP;
+            state[SPAN_BOUNDS]:state<=58'b1<<SPAN_CLIP;
             state[SPAN_CLIP]:begin
-                if(py<top || py>=bottom || clipped_left>=clipped_right)state<=56'b1<<TRI_WAIT;
-                else begin px<=clipped_left;span_left<=clipped_right-clipped_left;state<=56'b1<<ROW_ADDR;end
+                if(py<top || py>=bottom || clipped_left>=clipped_right)state<=58'b1<<TRI_WAIT;
+                else begin px<=clipped_left;span_left<=clipped_right-clipped_left;state<=58'b1<<ROW_ADDR;end
             end
             state[ROW_ADDR]:begin
-                color_row<=color_base+py*color_stride;z_row<=z_base+py*z_stride;plane_index<=0;state<=56'b1<<PLANE_MUL;
+                color_row<=color_base+py*color_stride;z_row<=z_base+py*z_stride;plane_index<=0;state<=58'b1<<PLANE_MUL;
             end
-            state[PLANE_MUL]:state<=56'b1<<PLANE_SUM;
-            state[PLANE_SUM]:state<=56'b1<<PLANE_LOAD;
+            state[PLANE_MUL]:state<=58'b1<<PLANE_SUM;
+            state[PLANE_SUM]:state<=58'b1<<PLANE_LOAD;
             state[PLANE_LOAD]:begin
-                if(plane_index==6)state<=56'b1<<CHUNK;
-                else begin plane_index<=plane_index+1'b1;state<=56'b1<<PLANE_MUL;end
+                if(plane_index==6)state<=58'b1<<CHUNK;
+                else begin plane_index<=plane_index+1'b1;state<=58'b1<<PLANE_MUL;end
             end
             state[CHUNK]:begin
                 color_addr<=(color_row+({21'd0,px}<<1))>>2;z_addr<=(z_row+({21'd0,px}<<1))>>2;
                 lane<=px[3:0];chunk_count<=span_left>room ? room:span_left[4:0];chunk_left<=span_left>room ? room:span_left[4:0];
-                state<=56'b1<<COLOR_REQ;
+                state<=58'b1<<COLOR_REQ;
             end
             state[COLOR_REQ]:begin
-                if(need_background)begin native_addr<={color_addr[28:3],3'b0};native_write<=0;state<=56'b1<<COLOR_WAIT;end
-                else state<=56'b1<<Z_REQ;
+                if(need_background)begin native_addr<={color_addr[28:3],3'b0};native_write<=0;state<=58'b1<<COLOR_WAIT;end
+                else state<=58'b1<<Z_REQ;
             end
             state[COLOR_WAIT]:begin
-                if(rd_valid)state<=56'b1<<Z_REQ;
+                if(rd_valid)state<=58'b1<<Z_REQ;
             end
             state[Z_REQ]:begin
-                if(flags[1])begin native_addr<={z_addr[28:3],3'b0};native_write<=0;state<=56'b1<<Z_WAIT;end
-                else state<=56'b1<<PIX_BEGIN;
+                if(flags[1])begin native_addr<={z_addr[28:3],3'b0};native_write<=0;state<=58'b1<<Z_WAIT;end
+                else state<=58'b1<<PIX_BEGIN;
             end
             state[Z_WAIT]:begin
-                if(rd_valid)state<=56'b1<<PIX_BEGIN;
+                if(rd_valid)state<=58'b1<<PIX_BEGIN;
             end
             state[PIX_BEGIN]:if(!flags[4] || per_ready[per_select])begin
                 raw_u<=flags[4] ? per_u[per_select]:value[0]>>>16;
@@ -459,34 +480,34 @@ module gpu_v1(
                 z_sample<=z_load ? returned_data[lane*16+:16]:z_buf[lane*16+:16];
                 depth_in_range<=value[3]>=0 && value[3]<49'sh100000000;
                 gain_r<=flags[6] ? gain(value[4]):tint_r;gain_g<=flags[6] ? gain(value[5]):tint_g;gain_b<=flags[6] ? gain(value[6]):tint_b;
-                state<=56'b1<<PIX_LOD;
+                state<=58'b1<<PIX_LOD;
             end
             state[PIX_LOD]:begin
                 coord_u<=raw_u>>>mip_level;coord_v<=raw_v>>>mip_level;
                 sample_allowed<=sample_visible;
-                state<=56'b1<<PIX_ADDR;
+                state<=58'b1<<PIX_ADDR;
             end
             state[PIX_ADDR]:begin
                 fragments<=fragments+1'b1;
                 pixel_visible<=sample_allowed;
-                if(!sample_allowed || (flags[0] && (!addressed_u[16] || !addressed_v[16])))state<=56'b1<<PIX_NEXT;
+                if(!sample_allowed || (flags[0] && (!addressed_u[16] || !addressed_v[16])))state<=58'b1<<PIX_NEXT;
                 else if(flags[0])begin
-                    tex_u<=addressed_u[8:0];tex_v<=addressed_v[8:0];state<=56'b1<<PIX_OFFSET;
+                    tex_u<=addressed_u[8:0];tex_v<=addressed_v[8:0];state<=58'b1<<PIX_OFFSET;
                 end else begin
                     pixel<=solid;
                     if(flags[0])pixel_visible<=0;
-                    state<=56'b1<<PIX_UNPACK;
+                    state<=58'b1<<PIX_UNPACK;
                 end
             end
             state[PIX_OFFSET]:begin
                 texture_offset<=tex_v*tex_stride;
-                texture_column<=texture_base+{tex_u,1'b0};state<=56'b1<<PIX_FETCH;
+                texture_column<=texture_base+{tex_u,1'b0};state<=58'b1<<PIX_FETCH;
             end
             state[PIX_FETCH]:begin
                 cache_address<=texture_column+texture_offset;
-                cache_start<=1;state<=56'b1<<PIX_TEX;
+                cache_start<=1;state<=58'b1<<PIX_TEX;
             end
-            state[PIX_TEX]:if(cache_done)begin pixel<=cached_texel;state<=56'b1<<PIX_UNPACK;end
+            state[PIX_TEX]:if(cache_done)begin pixel<=cached_texel;state<=58'b1<<PIX_UNPACK;end
             state[PIX_UNPACK]:begin
                 if(flags[3] && pixel==0)pixel_visible<=0;
                 mod_r<=unpack_r*gain_r+15'd128;mod_g<=unpack_g*gain_g+15'd128;mod_b<=unpack_b*gain_b+15'd128;
@@ -495,99 +516,99 @@ module gpu_v1(
                 end
                 alpha_product<=alpha*texture_alpha+18'd128;
                 fog_delta<=$signed({1'b0,depth})-$signed({1'b0,fog_near});
-                state<=56'b1<<((flags[3] && pixel==0) || texture_alpha==0 ? PIX_NEXT:
+                state<=58'b1<<((flags[3] && pixel==0) || texture_alpha==0 ? PIX_NEXT:
                     opaque_shade && !(flags[0] && tex_argb) ? PIX_OPAQUE:PIX_MOD);
             end
             state[PIX_MOD]:begin
                 effective_alpha<=alpha_product[16:8];
                 fog_product<=fog_delta<0 ? 42'd0:fog_delta*fog_scale;
                 if(!flags[7])fog_factor<=0;
-                state<=56'b1<<(alpha_product[16:8]==0 ? PIX_NEXT:fast_shade ? PIX_BLEND:flags[7] ? PIX_FOG:PIX_FOG_MIX);
+                state<=58'b1<<(alpha_product[16:8]==0 ? PIX_NEXT:fast_shade ? PIX_BLEND:flags[7] ? PIX_FOG:PIX_FOG_MIX);
             end
             state[PIX_FOG]:begin
                 fog_factor<=!flags[7] ? 9'd0:fog_product>=42'd16777216 ? 9'd256:fog_product[24:16];
-                state<=56'b1<<PIX_FOG_MIX;
+                state<=58'b1<<PIX_FOG_MIX;
             end
             state[PIX_FOG_MIX]:begin
                 fog_r<=mod_r[12:8]*inverse_fog+fog_color[15:11]*fog_factor+15'd128;
                 fog_g<=mod_g[13:8]*inverse_fog+fog_color[10:5]*fog_factor+15'd128;
                 fog_b<=mod_b[12:8]*inverse_fog+fog_color[4:0]*fog_factor+15'd128;
-                state<=56'b1<<PIX_BLEND;
+                state<=58'b1<<PIX_BLEND;
             end
             state[PIX_BLEND]:begin
                 mix_r<=fog_r[12:8]*effective_alpha+background[15:11]*(flags[5] ? 9'd256:inverse_alpha)+16'd128;
                 mix_g<=fog_g[13:8]*effective_alpha+background[10:5]*(flags[5] ? 9'd256:inverse_alpha)+16'd128;
                 mix_b<=fog_b[12:8]*effective_alpha+background[4:0]*(flags[5] ? 9'd256:inverse_alpha)+16'd128;
-                state<=56'b1<<PIX_STORE;
+                state<=58'b1<<PIX_STORE;
             end
             state[PIX_STORE]:begin
-                if(pixel_visible && effective_alpha!=0)passed<=passed+1'b1;
-                lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=56'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
+                if(pixel_visible)passed<=passed+1'b1;
+                lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=58'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
             end
             state[PIX_OPAQUE]:begin
                 if(pixel_visible)passed<=passed+1'b1;
-                lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=56'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
+                lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=58'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
             end
             state[PIX_NEXT]:begin
-                lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=56'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
+                lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=58'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
             end
             state[COLOR_WRITE]:begin
-                if(pixel_mask==32'hffffffff)state<=56'b1<<ADVANCE;
+                if(!chunk_dirty)state<=58'b1<<ADVANCE;
                 else begin native_addr<={color_addr[28:3],3'b0};native_data<=color_buf;native_mask<=pixel_mask;
-                    native_write<=1;state<=56'b1<<COLOR_SENT;end
+                    native_write<=1;state<=58'b1<<COLOR_SENT;end
             end
-            state[COLOR_SENT]:if(ready)begin state<=56'b1<<(flags[2] ? Z_WRITE:ADVANCE);end
+            state[COLOR_SENT]:if(ready)begin state<=58'b1<<(flags[2] ? Z_WRITE:ADVANCE);end
             state[Z_WRITE]:begin native_addr<={z_addr[28:3],3'b0};native_data<=z_buf;native_mask<=pixel_mask;
-                native_write<=1;state<=56'b1<<Z_SENT;end
-            state[Z_SENT]:if(ready)begin state<=56'b1<<ADVANCE;end
-            state[ADVANCE]:begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=56'b1<<(span_left==chunk_count ? TRI_WAIT:CHUNK);end
+                native_write<=1;state<=58'b1<<Z_SENT;end
+            state[Z_SENT]:if(ready)begin state<=58'b1<<ADVANCE;end
+            state[ADVANCE]:begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=58'b1<<(span_left==chunk_count ? TRI_WAIT:CHUNK);end
             state[RECT_BOUNDS]:begin
                 rect_request_l<=rect_x;rect_request_t<=rect_y;rect_request_r<=rect_end_x;rect_request_b<=rect_end_y;
-                state<=56'b1<<RECT_CLIP;
+                state<=58'b1<<RECT_CLIP;
             end
             state[RECT_CLIP]:begin
                 rect_l<=rect_request_l<$signed({1'b0,left}) ? $signed({1'b0,left}):rect_request_l;
                 rect_t<=rect_request_t<$signed({1'b0,top}) ? $signed({1'b0,top}):rect_request_t;
                 rect_r<=rect_request_r>$signed({1'b0,right}) ? $signed({1'b0,right}):rect_request_r;
                 rect_b<=rect_request_b>$signed({1'b0,bottom}) ? $signed({1'b0,bottom}):rect_request_b;
-                state<=56'b1<<RECT_SETUP;
+                state<=58'b1<<RECT_SETUP;
             end
             state[RECT_SETUP]:begin
                 // Empty rectangles may update these private temporaries, but
                 // never issue DDR traffic. Keep the wide emptiness comparison
                 // out of py's data/enable path (also absorbed into DSP inputs).
                 rect_left<=rect_l[15:0];rect_right<=rect_r[15:0];rect_bottom<=rect_b[15:0];py<=rect_t[9:0];
-                if(clear_flags==0 || rect_l>=rect_r || rect_t>=rect_b)state<=56'b1<<FINISH;
-                else state<=56'b1<<RECT_ROW;
+                if(clear_flags==0 || rect_l>=rect_r || rect_t>=rect_b)state<=58'b1<<FINISH;
+                else state<=58'b1<<RECT_ROW;
             end
             state[RECT_ROW]:begin
                 px<=rect_left[10:0];span_left<=rect_right-rect_left;
-                color_row<=color_base+py*color_stride;z_row<=z_base+py*z_stride;state<=56'b1<<RECT_CHUNK;
+                color_row<=color_base+py*color_stride;z_row<=z_base+py*z_stride;state<=58'b1<<RECT_CHUNK;
             end
             state[RECT_CHUNK]:begin
                 color_addr<=(color_row+({21'd0,px}<<1))>>2;z_addr<=(z_row+({21'd0,px}<<1))>>2;
-                chunk_count<=span_left>room ? room:span_left[4:0];state<=56'b1<<RECT_COLOR;
+                chunk_count<=span_left>room ? room:span_left[4:0];state<=58'b1<<RECT_COLOR;
             end
             state[RECT_COLOR]:begin
                 if(clear_flags[0])begin native_addr<={color_addr[28:3],3'b0};native_data<={16{clear_color}};native_mask<=rect_mask;
-                    native_write<=1;state<=56'b1<<RECT_CSENT;end
-                else state<=56'b1<<RECT_Z;
+                    native_write<=1;state<=58'b1<<RECT_CSENT;end
+                else state<=58'b1<<RECT_Z;
             end
-            state[RECT_CSENT]:if(ready)begin state<=56'b1<<RECT_Z;end
+            state[RECT_CSENT]:if(ready)begin state<=58'b1<<RECT_Z;end
             state[RECT_Z]:begin
                 if(clear_flags[1])begin native_addr<={z_addr[28:3],3'b0};native_data<={16{clear_depth}};native_mask<=rect_mask;
-                    native_write<=1;state<=56'b1<<RECT_ZSENT;end
-                else state<=56'b1<<RECT_NEXT;
+                    native_write<=1;state<=58'b1<<RECT_ZSENT;end
+                else state<=58'b1<<RECT_NEXT;
             end
-            state[RECT_ZSENT]:if(ready)begin state<=56'b1<<RECT_NEXT;end
+            state[RECT_ZSENT]:if(ready)begin state<=58'b1<<RECT_NEXT;end
             state[RECT_NEXT]:begin
-                if(span_left>chunk_count)begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=56'b1<<RECT_CHUNK;end
+                if(span_left>chunk_count)begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=58'b1<<RECT_CHUNK;end
                 else begin
                     py<=py+1'b1;
-                    state<=56'b1<<(py+1>=rect_bottom ? FINISH:RECT_ROW);
+                    state<=58'b1<<(py+1>=rect_bottom ? FINISH:RECT_ROW);
                 end
             end
-            default:begin state<=56'b1<<BAD;end
+            default:begin state<=58'b1<<BAD;end
             endcase
         end
     end

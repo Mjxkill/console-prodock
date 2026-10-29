@@ -1,0 +1,113 @@
+{
+  "schema": 2,
+  "candidate": "trial_20261024_r9b: exact reflections_20261024 game plus separate functional input probe",
+  "base_local_result_sha256": "2dc223889b809090ab406ef249e62a811fb610df9389e3551d4d5e348dd28927",
+  "base_local_source_manifest_sha256": "034c1d7721be7f1d4467fea8c543208c76c38c05a4bbd27efe5cceb78719f104",
+  "intended_boards": [
+    "prodock",
+    "neo"
+  ],
+  "hardware_validation": "pending",
+  "regions": [
+    "world_02.lz4",
+    "world_22.lz4",
+    "world_26.lz4",
+    "world_27.lz4",
+    "world_35.lz4"
+  ],
+  "scenarios": [
+    {
+      "name": "control_room",
+      "world": 22,
+      "coverage": "R5 room22 control: direct start, automatic motion/archery; no puzzle solution"
+    },
+    {
+      "name": "optics_first",
+      "world": 26,
+      "coverage": "First optical room: direct start, automatic motion/archery with initial optical network; no puzzle solution"
+    },
+    {
+      "name": "optics_final",
+      "world": 35,
+      "coverage": "Last optical room: direct start, automatic motion/archery with initial optical network; no puzzle solution"
+    }
+  ],
+  "probes": [
+    {
+      "name": "first_inputs",
+      "case": "first",
+      "coverage": "Separate executable, real mirror input and first room exit to room27. Direct-start fixture; render every fourth simulation step and every interaction. Not a cadence benchmark."
+    },
+    {
+      "name": "final_inputs",
+      "case": "final",
+      "coverage": "Separate executable, last-room mirror/crate solution then real return to chapter3 and gallery both ways. Direct start and previous chapter prerequisites seeded. No full campaign or normal cadence claim."
+    }
+  ],
+  "runtime": {
+    "luma-riscv": {
+      "bytes": 473292,
+      "sha256": "23f096f081d81d958a81f911a9b30441d51f27f0e377f10682f0bd7024ad7218"
+    },
+    "luma.lz4": {
+      "bytes": 136637,
+      "sha256": "11309f1676757c64c907304fe16c69b47b790f58ecbef05dc9a1e170c0852c1b"
+    },
+    "world_02.lz4": {
+      "bytes": 838910,
+      "sha256": "6ca43179b7f8310bea57179648e61d04fd470a3eb112fe91fca3964972f764d3"
+    },
+    "world_22.lz4": {
+      "bytes": 21663,
+      "sha256": "4d68634e352f4203cbea1cc7e6d2a8bea78c02eb613e27d6c4e689dd14e8338c"
+    },
+    "world_26.lz4": {
+      "bytes": 11256,
+      "sha256": "fe83de3d36d15c0e7a86dfa6c3170331334c5be53f50a140903e7ed254bc48c6"
+    },
+    "world_27.lz4": {
+      "bytes": 11688,
+      "sha256": "050089f7051732c057520c8d8f603c585ca458a5b84553595291be75d1fa2c33"
+    },
+    "world_35.lz4": {
+      "bytes": 11311,
+      "sha256": "ed3934a4fda263ad643de9adb4d5350ee59ba29f9f81bb3c6a898f8bab52911f"
+    },
+    "luma-probe": {
+      "bytes": 468976,
+      "sha256": "7912ed8abc5d03d196df23dd4377c792b28ab70b0573542b692a11fecb0a1c82"
+    },
+    "uart-receiver": {
+      "bytes": 1464,
+      "sha256": "5964389b8244dc73b58bf916a7856da3cc3aba2c2efa58779d1f755bb8410ae4"
+    },
+    "prodock_scene_trial.py": {
+      "bytes": 15707,
+      "sha256": "67a88986c880e66c56f1e9620ad7ffe219ef24540d0d6d858637e4f937f0477f"
+    }
+  },
+  "probe_shared_inputs": {
+    "games/luma_adventure/src/game.c": "98f4bb36833d9d486686eac2bdd1df0884526fa0c176ba5ca24a1216550a7125",
+    "games/luma_adventure/src/missions.c": "2395c0169a6565b6f3120641f0dfeee63ab2842b5369b842e463dda303138801",
+    "games/luma_adventure/src/light.c": "b129908841546e66a00f5ada2a5ff8d0fc3c3aa8092c41287495c3aba5e31a20",
+    "games/luma_adventure/src/save.c": "caf0e2cde39a6a47215eb11f1282e15ab2be4a99150a0fe2f1cd84f2ee2840b5",
+    "games/luma_adventure/src/video.c": "2ff96de19dc425910e7bd9670ca475c9c047c639ddec62caee2ad9c493281cae",
+    "games/luma_adventure/include/luma.h": "382caf0a04dfeca7a031f7e115832edc848d1820e62cebe4f5caa01bf71cabc8",
+    "games/luma_adventure/include/video.h": "861c89da0ad584f1b7048899cf7c581389886e4c4efd48251232dad10be6380d",
+    "games/luma_adventure/tests/play_input.h": "8bc60d9d1779cd982433e90a23df4a512d3a2e7f8c8d9295a6e0ac6413893214",
+    "games/luma_adventure/tests/play_dungeon.h": "1f4920f928058c39802d467811338cc41bc569834d7b7a0d8a5dc817f8537906",
+    "games/luma_adventure/build/indexed/world.c": "16fa43b6e169187ac36c677203d06ee2d278d6282c8cc5d51fcf91bdfb392f2b",
+    "games/luma_adventure/build/indexed/assets.h": "6b1d6fbf6bf5df97706f06d9c29dda892eae94289bb3164b82a0d7cf035b1fee"
+  },
+  "probe_evidence": {
+    "prodock_optics_probe.c": "a8f7edbb14f48dc5ecb9d867fb1a6fbc7b59c6b4638e8ee6069c0e76ebe5997b",
+    "puzzle_witness.h": "e26ed628f54dd54465fdbc9474a4a4e3389e41244cb411c18a65e52a0186f7b4",
+    "witness_26.json": "e2daff25ccbf0d7aa7c9448b95f0a9a266ab6abe8e4d8ac6d57b75057abdbb95",
+    "witness_35.json": "8da68a436642acff8afe077d0f0df8da6f6157ea0ea8bcaa3883af231f91e5b7",
+    "first_pc.log": "a31fb1c5052fce7e82e106b64782a7b5464ad3459c0d3a900c34a655d58aab2e",
+    "final_pc.log": "5b58b8bdf4681a9873d731d63a581e44aa02f0a66bd74d247f29b918dbf02350",
+    "probe-pc": "8689f95fbacf299382639d0af1d6cacafc50cbc2822d5e8fe75414339c3e1c82",
+    "test_trial_controller.py": "48ee9c0cffcba49de72e9f512b8e7980e8e33a721cd57039ab46a9b0296601d3",
+    "controller.log": "fe6d611618410ca4a0454f1de4cfeacc7eb28a1249a21e803b78114f02a6f75c"
+  }
+}

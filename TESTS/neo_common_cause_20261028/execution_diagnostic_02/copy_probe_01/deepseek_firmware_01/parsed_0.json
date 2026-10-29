@@ -1,0 +1,428 @@
+{
+  "session_id": "ses_e7b5d8103ffeEFbkYoByi3fRMw",
+  "complete": true,
+  "errors": [],
+  "model_steps_started": 11,
+  "model_steps_finished": 11,
+  "tool_invocations_observed": 16,
+  "tools": [
+    {
+      "call_id": "call_z77370na",
+      "name": "taskbox_read_file",
+      "message_id": "msg_184a28060001DTQN9Jig7X6zJM",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "CONTRACT.md"
+      },
+      "output": "{\"content\": \"# Bounded COPY565 firmware derived from frozen BIN02\\n\\nAllowed edits only: microdma.S, copy_model.py, ANALYSIS.md. No hardware, no RTL\\nor protected-test changes. Run fixed MCP run_tests before edit and after all\\nwrites. Use official run_tests rather than manual repeated builds. Toolchain\\nand full assembly have already passed the actual isolated preflight. Don't\\nspend steps re-discovering git/environment; they are deliberately absent.\\n\\n## Concrete changes\\n\\nmicrodma.S is exact BIN02,928B compiled. Keep same code4000/journal6000 and\\nscratch[12000000,12000080). TARGET same16x1 withcolor12000020,Z12000040,stride32.\\nReplace CLEAR packet with COPY words:\\n1d000000 12000000 00100001 00000020 00000000 00000000 00100001 00000000\\nSource12000000,16x1,stride32; src/dst positions0,0; copy16x1 toTARGET+0.\\nThis writes only32B at12000020; other96B unchanged. Keep source operands and\\npacket label positions so binary remains928B. Keep exact guards/polling/errors.\\n\\nFinal verify_memory a1=1 must expect source seed in offsets32..63 instead of\\nconstantCLEAR. Two instructions suffice in place of the old li t3,6b4d6b4d:\\n addi t3,t0,-32\\n xor t3,t3,t2\\nEverything else stays identical. Allowed code offsets2b8/2bc and data380..39f;\\nprotected validator enforces same other bytes and correct packet, not merely\\nsource string matching. Update comments accurately without changing layout.\\n\\n## Separate model, no copied RTL implementation\\n\\ncopy_model.py: class CopyCPU(RV32) deriving the protected rv32_model.py.\\nKeep TARGET and nonCOPY behavior through super().command(). Add original,\\npublic-ABI COPY semantics: decode source width HIGH16, height LOW16, stride,\\nsigned source/dst coordinates, requestedextentHIGH16/LOW16. Clip against\\nsource extent and target (target bounds default full), use a byte copy model.\\nThe only exercised layouts are nonoverlapping valid descriptors; explicitly\\nreject unsupported malformed/overlap, don't silently emulate unknown cases.\\n\\nAPI for independent injected faults in protected tests:\\n- __init__ exposes lists `gpu_reads` and `gpu_byte_writes`, BYTE addresses.\\n- gpu_read(address,size): validate entire requested range within scratch128B\\n  before touching memory, log every byteaddress, return bytes. Range failures\\n  raise ValueError/AssertionError with 'scratch' in message.\\n- gpu_write(address,data): validate entire range first, log BYTE addresses,\\n  write bytes. No out-of-range effects before rejection.\\n- command(COPY) calls these methods (never inline inaccessible memory accesses).\\n  This is a logical byte-level model, not native bus transactions. The precise\\n  1native-read/1native-write footprint comes from the separate exact RTL bench.\\n- Model copies rows after clipping; requested1x16 clips to1x1=2bytes with the\\n  valid16x1source/target. Preserve source before writing. done increments after\\n  legal completion, rejected increments for invalid descriptor (no nativeIO).\\n\\nProtected tests compare compiled execution, all32CPU loads/images/canaries,\\n32CPU stores, no access outsideILM/MMIO/scratch. Fault subclasses inject wrong\\nread data, missingwrite, canary corruption, native read/write outside scratch,\\nlate completion and done2butbusy1. They also retain guards/trap/seed failures.\\nDo not weaken tests or claim hardware modeled. Diagnostic BIN revision has\\nsame journal layout but new expected COPY data, distinct from oldCLEAR decoder.\\n\\n## Context and deliverable\\n\\nHardware: flags1CLEARstalls; CPUreadback32 succeeds withseedunchanged. flags0\\nCLEAR hardware succeeds done2/busy0. NewCOPY compares a distinct request engine\\nagainst shared GPUstage/arb and the same destination. COPY adds GPUread return,\\nso its failure would not alone prove the shared stage faulty. Plan.md details.\\n\\nReturn working source/model and concise report including exact binarySHA,\\ntest cases, differences, bounds and limits. The final action after report must\\nbe successful fixed MCP run_tests; do not edit afterward. Supervisor creates\\npersistent ELF/bin after reviewing source. Codefiles\u22641000physical lines.\\n\"}",
+      "time": {
+        "start": 1793226605586,
+        "end": 1793226605596
+      }
+    },
+    {
+      "call_id": "call_pl1j40np",
+      "name": "taskbox_read_file",
+      "message_id": "msg_184a28060001DTQN9Jig7X6zJM",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "validate.py"
+      },
+      "output": "{\"content\": \"#!/usr/bin/env python3\\n\\\"\\\"\\\"Protected firmware, range, latency and return-data counterexamples.\\\"\\\"\\\"\\nimport hashlib\\nimport json\\nfrom pathlib import Path\\nimport struct\\nimport sys\\nimport tempfile\\nfrom build_local import build\\nfrom rv32_model import GPU,MASK,SCRATCH\\nfrom copy_model import CopyCPU\\n\\nHERE=Path(__file__).resolve().parent\\nTARGET=[0x16000000,SCRATCH+32,SCRATCH+64,0x100001,0x200020,0,0,0]\\nCOPY=[0x1d000000,SCRATCH,0x100001,32,0,0,0x100001,0]\\nSEED=[(SCRATCH+4*i)^0xa5396c17 for i in range(32)]\\n\\nclass ReturnWrong(CopyCPU):\\n    def gpu_read(self,address,size):\\n        data=bytearray(super().gpu_read(address,size));data[0]^=1\\n        return bytes(data)\\nclass CanaryWrong(CopyCPU):\\n    def gpu_write(self,address,data):\\n        super().gpu_write(address,data)\\n        self.put(SCRATCH+64,self.word(SCRATCH+64)^1)\\nclass MissingWrite(CopyCPU):\\n    def gpu_write(self,address,data):pass\\nclass ReadOutside(CopyCPU):\\n    def gpu_read(self,address,size):return super().gpu_read(address+128,size)\\nclass WriteOutside(CopyCPU):\\n    def gpu_write(self,address,data):return super().gpu_write(address+128,data)\\nclass DelayCopy(CopyCPU):\\n    delay=25\\n    def __init__(self,*args,**kwargs):\\n        super().__init__(*args,**kwargs);self.pending_copy=None;self.remaining=0\\n    def command(self,words):\\n        if words[0]==COPY[0]:\\n            self.pending_copy=words[:];self.remaining=self.delay\\n        else:super().command(words)\\n    def access(self,address,write=False,value=0):\\n        if not write and address==GPU+8 and self.pending_copy is not None:\\n            self.remaining-=1\\n            if self.remaining<=0:\\n                packet=self.pending_copy;self.pending_copy=None\\n                super().command(packet)\\n        result=super().access(address,write,value)\\n        return 1 if not write and address==GPU+4 and self.pending_copy is not None else result\\nclass LateCopy(DelayCopy):delay=50001\\nclass BusyDone(CopyCPU):\\n    def access(self,address,write=False,value=0):\\n        result=super().access(address,write,value)\\n        return 1 if not write and address==GPU+4 and self.done==2 else result\\n\\ndef main():\\n    with tempfile.TemporaryDirectory(prefix='copy-fw-') as tmp:\\n        binary=build(Path(tmp)/'out').read_bytes();old=(HERE/'baseline.bin').read_bytes()\\n        assert hashlib.sha256(old).hexdigest()=='dbf293d4ed9c739e4641f0ff531374c5fb9ad8ec7b2b7795f0bf4e609baa934c'\\n        if '--infra' in sys.argv:\\n            assert binary==old,'Installed assembler does not reproduce BIN02'\\n            print('INFRA_PASS exact928B BIN02 reconstructed');return\\n        assert len(binary)==len(old)==928\\n        differences=[i for i in range(0,len(old),4) if binary[i:i+4]!=old[i:i+4]]\\n        assert differences and set(differences)<=({0x2b8,0x2bc}|set(range(0x380,0x3a0,4))),differences\\n        assert list(struct.unpack_from('<8I',binary,0x360))==TARGET\\n        assert list(struct.unpack_from('<8I',binary,0x380))==COPY\\n        results=[]\\n        variants=[('healthy',CopyCPU,None,1),('delayed',DelayCopy,None,1),\\n                  ('late_completion',LateCopy,None,-5),('done_but_busy',BusyDone,None,-5),\\n                  ('wrong_return',ReturnWrong,None,-6),('missing_write',MissingWrite,None,-6),\\n                  ('canary',CanaryWrong,None,-6),('bad_seed',CopyCPU,'seed_corrupt',-2),\\n                  ('target_touch',CopyCPU,'target_touch',-4),('target_timeout',CopyCPU,'target_timeout',-3),\\n                  ('cache_on',CopyCPU,'cache_on',-1),('ilm_bad',CopyCPU,'ilm_bad',-1),\\n                  ('load_trap',CopyCPU,'load_trap',-7)]\\n        for name,kind,fault,want in variants:\\n            cpu=kind(binary,fault,cache=2 if fault=='cache_on' else 0,\\n                     milmb=0xa0000000 if fault=='ilm_bad' else 0xa0000001)\\n            journal=cpu.run();assert journal[:2]==[0x4d443132,1]\\n            assert journal[3]==(want&MASK),(name,journal[:32])\\n            writes=[a for w,a,v in cpu.accesses if w and SCRATCH<=a<SCRATCH+128]\\n            assert writes==([] if fault in ('cache_on','ilm_bad') else list(range(SCRATCH,SCRATCH+128,4)))\\n            assert cpu.csr[0x305]==0x80000000\\n            if want==1:\\n                assert journal[2]==10 and journal[18:21]==[0,1,2] and journal[28:31]==[32]*3\\n                assert journal[32:64]==journal[64:96]==SEED\\n                assert journal[96:128]==SEED[:8]+SEED[:8]+SEED[16:]\\n                assert cpu.commands==[TARGET,COPY]\\n                assert cpu.gpu_reads==list(range(SCRATCH,SCRATCH+32))\\n                assert cpu.gpu_byte_writes==list(range(SCRATCH+32,SCRATCH+64))\\n            if name=='wrong_return':assert journal[13]==SCRATCH+32 and journal[16]==1\\n            if name=='missing_write':assert journal[16]==8\\n            if name=='canary':assert journal[13]==SCRATCH+64 and journal[16]==1\\n            results.append({'name':name,'passed':True,'result':want,'steps':cpu.steps})\\n        for name,kind in [('native_read_outside',ReadOutside),('native_write_outside',WriteOutside)]:\\n            try:kind(binary).run()\\n            except (ValueError,AssertionError) as exc:\\n                assert 'scratch' in str(exc).lower(),(name,str(exc))\\n                results.append({'name':name,'passed':True,'bounded_rejection':str(exc)})\\n            else:raise AssertionError(name+' silently accepted out-of-range access')\\n        # Public ABI test, independent of this firmware's packet constants:\\n        # source16x1, requested1x16 clips to1x1 (2B), high16 is width.\\n        cpu=CopyCPU(binary)\\n        for i,value in enumerate(SEED):cpu.put(SCRATCH+4*i,value)\\n        cpu.command(TARGET);transpose=COPY[:];transpose[6]=0x00010010;cpu.command(transpose)\\n        assert cpu.gpu_reads==[SCRATCH,SCRATCH+1]\\n        assert cpu.gpu_byte_writes==[SCRATCH+32,SCRATCH+33]\\n        results.append({'name':'transposed_dimensions_clip_one_pixel','passed':True})\\n        print(json.dumps({'passed':True,'cases':results,'binary_sha256':hashlib.sha256(binary).hexdigest(),\\n                          'word_offsets_changed':differences,'hardware':False},indent=2))\\n\\nif __name__=='__main__':main()\\n\"}",
+      "time": {
+        "start": 1793226605589,
+        "end": 1793226605597
+      }
+    },
+    {
+      "call_id": "call_804yksyt",
+      "name": "taskbox_exec",
+      "message_id": "msg_184a2845b001zu1wWQ2jRtIaUZ",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "argv": [
+          "ls",
+          "-la"
+        ]
+      },
+      "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.00442550890147686, \"stdout\": \"total 60\\ndrwxrwxr-x  2 1000 1000 4096 Oct 28 22:30 .\\ndrwxr-xr-x 11 1000 1000  240 Oct 28 22:30 ..\\n-rw-------  1 1000 1000   49 Oct 28 22:30 ANALYSIS.md\\n-r--------  1 1000 1000 4029 Oct 28 22:30 CONTRACT.md\\n-r--------  1 1000 1000 3104 Oct 28 22:30 PLAN.md\\n-r--------  1 1000 1000  928 Oct 28 22:30 baseline.bin\\n-r--------  1 1000 1000 1091 Oct 28 22:30 build_local.py\\n-rw-------  1 1000 1000  141 Oct 28 22:30 copy_model.py\\n-r--------  1 1000 1000 7892 Oct 28 22:30 gpu_copy565.v\\n-rw-------  1 1000 1000 5728 Oct 28 22:30 microdma.S\\n-r--------  1 1000 1000 8016 Oct 28 22:30 rv32_model.py\\n-r--------  1 1000 1000 6055 Oct 28 22:30 validate.py\\n\"}",
+      "time": {
+        "start": 1793226606374,
+        "end": 1793226606388
+      }
+    },
+    {
+      "call_id": "call_ntgel6r6",
+      "name": "taskbox_read_file",
+      "message_id": "msg_184a2845b001zu1wWQ2jRtIaUZ",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "microdma.S"
+      },
+      "output": "{\"content\": \"/* R19 diagnostic only. CPU executes from ILM with NO stack and NO DDR code.\\n * Exact DDR footprint: [0x12000000,0x12000080), thirty-two words.\\n * Journal512B at0xa0006000; code linked at0xa0004000, must fit4096B.\\n * Fresh parked CPU, MCACHE_CTL==0 and MILMB==a0000001 are prerequisites.\\n * Finite poll loops cannot bound a hung AHB transaction: host watchdog required.\\n */\\n.option norvc\\n.option norelax\\n.section .text\\n.global _start\\n_start:\\n    li s0, 0xa0006000\\n    mv t0, s0\\n    li t1, 128\\nzero_journal:\\n    sw zero, 0(t0)\\n    addi t0, t0, 4\\n    addi t1, t1, -1\\n    bnez t1, zero_journal\\n    li t0, 0x4d443132\\n    sw t0, 0(s0)\\n    li t0, 1\\n    sw t0, 4(s0)\\n    sw t0, 8(s0)\\n    csrr s7, mtvec\\n    sw s7, 28(s0)\\n    csrr s8, mstatus\\n    sw s8, 32(s0)\\n    csrr s9, mie\\n    sw s9, 36(s0)\\n    la t0, trap\\n    csrw mtvec, t0\\n    /* Do not flush a possibly dirty foreign cache. Refuse if either cache\\n     * is enabled: root already measured this register as zero on parked R19. */\\n    csrr t0, 0x7ca\\n    sw t0, 16(s0)\\n    bnez t0, bad_guard\\n    csrr t0, 0x7c0\\n    sw t0, 24(s0)\\n    li t1, 0xa0000001\\n    bne t0, t1, bad_guard\\n    csrr t0, satp\\n    bnez t0, bad_guard\\n    bnez s9, bad_guard\\n    andi t0, s8, 8\\n    bnez t0, bad_guard\\n    fence iorw, iorw\\n    fence.i\\n    li s1, 0xe9001000\\n    lw t0, 0(s1)\\n    sw t0, 68(s0)\\n    li t1, 0x424c5432\\n    bne t0, t1, bad_guard\\n    lw t0, 4(s1)\\n    bnez t0, bad_guard\\n    lw t0, 8(s1)\\n    sw t0, 72(s0)\\n    bnez t0, bad_guard\\n    jal ra, check_gpu_errors\\n    bnez a0, bad_guard\\n    li t0, 0xe9000000\\n    lw t1, 8(t0)\\n    bnez t1, bad_guard\\n    lw t1, 12(t0)\\n    bnez t1, bad_guard\\n    lw t1, 20(t0)\\n    bnez t1, bad_guard\\n    /* CPU seeds every word. Address-derived words make aliases observable. */\\n    li t0, 2\\n    sw t0, 8(s0)\\n    li t0, 0x12000000\\n    li t1, 32\\n    li t2, 0xa5396c17\\nseed:\\n    sw t0, 100(s0)\\n    xor t3, t0, t2\\n    sw t3, 0(t0)\\n    addi t0, t0, 4\\n    addi t1, t1, -1\\n    bnez t1, seed\\n    fence iorw, iorw\\n    li t0, 3\\n    sw t0, 8(s0)\\n    li a1, 0\\n    addi a2, s0, 128\\n    jal ra, verify_memory\\n    sw a3, 112(s0)\\n    bnez a0, bad_seed\\n    /* TARGET is the negative control: it must not touch the DDR payload. */\\n    li t0, 4\\n    sw t0, 8(s0)\\n    la a0, target_words\\n    jal ra, send_packet\\n    li t0, 5\\n    sw t0, 8(s0)\\n    li a0, 1\\n    jal ra, wait_done\\n    sw a1, 76(s0)\\n    bnez a0, bad_target_wait\\n    li t0, 6\\n    sw t0, 8(s0)\\n    li a1, 0\\n    addi a2, s0, 256\\n    jal ra, verify_memory\\n    sw a3, 116(s0)\\n    bnez a0, bad_target_memory\\n    /* CLEAR is one32B native write. Z and the other96B remain canaries. */\\n    li t0, 7\\n    sw t0, 8(s0)\\n    la a0, clear_words\\n    jal ra, send_packet\\n    li t0, 8\\n    sw t0, 8(s0)\\n    li a0, 2\\n    jal ra, wait_done\\n    sw a1, 80(s0)\\n    bnez a0, bad_clear_wait\\n    li t0, 9\\n    sw t0, 8(s0)\\n    li a1, 1\\n    addi a2, s0, 384\\n    jal ra, verify_memory\\n    sw a3, 120(s0)\\n    bnez a0, bad_clear_memory\\n    csrr t0, 0x7ca\\n    sw t0, 20(s0)\\n    bnez t0, bad_guard\\n    li t0, 10\\n    sw t0, 8(s0)\\n    li t0, 1\\n    j finish\\n\\n/* a0 points to exactly8 words in ILM. No FIFO polling can block forever\\n * in software; a failed MMIO access itself still needs the host watchdog. */\\nsend_packet:\\n    li t0, 8\\nsend_word:\\n    li t1, 50000\\nsend_poll:\\n    lw t2, 4(s1)\\n    andi t2, t2, 2\\n    beqz t2, send_ready\\n    addi t1, t1, -1\\n    bnez t1, send_poll\\n    li t0, -9\\n    j finish\\nsend_ready:\\n    sw t0, 96(s0)\\n    lw t2, 0(a0)\\n    sw t2, 16(s1)\\n    addi a0, a0, 4\\n    addi t0, t0, -1\\n    bnez t0, send_word\\n    fence iorw, iorw\\n    ret\\n\\n/* a0 expected done count. Require that count AND BUSY/FULL==0; CSR values\\n * cross domains independently, so neither observation alone is a fence. */\\nwait_done:\\n    li t0, 50000\\nwait_poll:\\n    lw a1, 8(s1)\\n    bne a1, a0, wait_more\\n    lw t1, 4(s1)\\n    beqz t1, wait_success\\nwait_more:\\n    addi t0, t0, -1\\n    bnez t0, wait_poll\\n    li a0, 1\\n    ret\\nwait_success:\\n    /* Tail-call retains caller return address. */\\n    j check_gpu_errors\\ncheck_gpu_errors:\\n    lw t1, 12(s1)\\n    sw t1, 84(s0)\\n    lw t2, 28(s1)\\n    sw t2, 88(s0)\\n    lw t3, 52(s1)\\n    sw t3, 92(s0)\\n    or a0, t1, t2\\n    or a0, a0, t3\\n    ret\\n\\n/* a1=0 expects seed everywhere; a1=1 expects CLEAR at offsets32..63.\\n * a2 is one128B ILM image. Return a0=error count,a3=words compared.\\n * This is a CPU load path: debugger transport never reads DDR for us. */\\nverify_memory:\\n    fence iorw, iorw\\n    li t0, 0x12000000\\n    li t1, 32\\n    li t2, 0xa5396c17\\n    li a0, 0\\n    li a3, 0\\nverify_word:\\n    sw t0, 100(s0)\\n    xor t3, t0, t2\\n    beqz a1, verify_load\\n    li t5, 0x12000020\\n    bltu t0, t5, verify_load\\n    li t5, 0x12000040\\n    bgeu t0, t5, verify_load\\n    li t3, 0x6b4d6b4d\\nverify_load:\\n    lw t4, 0(t0)\\n    sw t4, 0(a2)\\n    beq t3, t4, verify_next\\n    bnez a0, verify_count\\n    sw t0, 52(s0)\\n    sw t3, 56(s0)\\n    sw t4, 60(s0)\\nverify_count:\\n    addi a0, a0, 1\\nverify_next:\\n    addi a3, a3, 1\\n    addi t0, t0, 4\\n    addi a2, a2, 4\\n    addi t1, t1, -1\\n    bnez t1, verify_word\\n    sw a0, 64(s0)\\n    ret\\n\\nbad_guard:         li t0,-1; j finish\\nbad_seed:          li t0,-2; j finish\\nbad_target_wait:   li t0,-3; j finish\\nbad_target_memory: li t0,-4; j finish\\nbad_clear_wait:    li t0,-5; j finish\\nbad_clear_memory:  li t0,-6; j finish\\n.balign 4\\ntrap:\\n    li s0, 0xa0006000\\n    csrr t0, mcause\\n    sw t0, 40(s0)\\n    csrr t0, mtval\\n    sw t0, 44(s0)\\n    csrr t0, mepc\\n    sw t0, 48(s0)\\n    li t0, -7\\nfinish:\\n    sw t0, 12(s0)\\n    fence iorw, iorw\\n    csrw mtvec, s7\\n    /* mstatus/mie/cache have never been modified by the program. */\\n    li t0, 0x80000000\\n    jr t0\\n.balign 4\\ntarget_words:\\n    .word 0x16000000,0x12000020,0x12000040,0x00100001\\n    .word 0x00200020,0,0,0\\nclear_words:\\n    .word 0x1c000000,1,0x6b4d,0,0,0x00100001,0,0\\n\"}",
+      "time": {
+        "start": 1793226606377,
+        "end": 1793226606390
+      }
+    },
+    {
+      "call_id": "call_hx9r6v3b",
+      "name": "taskbox_read_file",
+      "message_id": "msg_184a2845b001zu1wWQ2jRtIaUZ",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "copy_model.py"
+      },
+      "output": "{\"content\": \"\\\"\\\"\\\"Implement COPY descriptor and bounded GPU byte accesses in a separate model.\\\"\\\"\\\"\\nfrom rv32_model import RV32\\nclass CopyCPU(RV32):\\n    pass\\n\"}",
+      "time": {
+        "start": 1793226606380,
+        "end": 1793226606391
+      }
+    },
+    {
+      "call_id": "call_r0raauxj",
+      "name": "taskbox_read_file",
+      "message_id": "msg_184a287c20012X9RS5LAc89BH2",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "build_local.py"
+      },
+      "output": "{\"content\": \"\\\"\\\"\\\"Fixed sandbox-compatible assembler; outputs only to an explicit fresh dir.\\\"\\\"\\\"\\nfrom pathlib import Path\\nimport subprocess\\n\\nHERE=Path(__file__).resolve().parent\\n\\ndef build(out):\\n    out=Path(out);out.mkdir()\\n    elf=out/'microdma.elf';binary=out/'microdma.bin'\\n    command=['/usr/bin/riscv64-unknown-elf-gcc','-march=rv32im_zicsr_zifencei','-mabi=ilp32',\\n             '-nostdlib','-nostartfiles','-Wl,--no-relax','-Wl,--build-id=none',\\n             '-Wl,-Ttext=0xa0004000',str(HERE/'microdma.S'),'-o',str(elf)]\\n    subprocess.run(command,check=True,capture_output=True,timeout=20)\\n    subprocess.run(['/usr/bin/riscv64-unknown-elf-objcopy','-O','binary',str(elf),str(binary)],\\n                   check=True,capture_output=True,timeout=10)\\n    listing=subprocess.run(['/usr/bin/riscv64-unknown-elf-objdump','-d','-s',str(elf)],\\n                           check=True,capture_output=True,text=True,timeout=10).stdout\\n    (out/'listing.txt').write_text(listing)\\n    assert 0<len(binary.read_bytes())<=4096\\n    assert 0xa0004000+len(binary.read_bytes())<=0xa0005000<0xa0006000\\n    return binary\\n\"}",
+      "time": {
+        "start": 1793226607798,
+        "end": 1793226607814
+      }
+    },
+    {
+      "call_id": "call_dyplvunh",
+      "name": "taskbox_read_file",
+      "message_id": "msg_184a287c20012X9RS5LAc89BH2",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "rv32_model.py"
+      },
+      "output": "{\"content\": \"\\\"\\\"\\\"Bounded interpreter for the exact RV32 diagnostic binary, not an AE350 model.\\n\\nOnly instructions present in this program are accepted. All bus accesses are\\nrecorded and restricted. Vendor CSRs are modeled registers: this checks payload\\ncontrol flow/footprint, not their physical operation or any FPGA timing.\\n\\\"\\\"\\\"\\nfrom pathlib import Path\\nimport struct\\n\\nBASE=0xa0004000\\nJOURNAL=0xa0006000\\nSCRATCH=0x12000000\\nGPU=0xe9001000\\nVIDEO=0xe9000000\\nMASK=0xffffffff\\n\\ndef signed(value,bits):\\n    sign=1<<(bits-1)\\n    return (value&(sign-1))-(value&sign)\\n\\nclass RV32:\\n    def __init__(self,binary,fault=None,cache=0,milmb=0xa0000001):\\n        self.code=bytes(binary);self.pc=BASE;self.reg=[0]*32;self.steps=0\\n        self.csr={0x305:0x80000000,0x300:0x1800,0x304:0,0x180:0,\\n                  0x7ca:cache,0x7c0:milmb,0x342:0,0x343:0,0x341:0}\\n        self.memory={};self.accesses=[];self.commands=[];self.packet=[]\\n        self.done=0;self.rejected=0;self.fault=fault;self.target=None;self.trapped=False\\n        self.gpu_writes=[]\\n\\n    def word(self,address):\\n        return sum(self.memory.get(address+i,0)<<(i*8) for i in range(4))\\n\\n    def put(self,address,value):\\n        for i in range(4):self.memory[address+i]=(value>>(i*8))&255\\n\\n    def access(self,address,write=False,value=0):\\n        if address&3:raise AssertionError('unaligned access')\\n        self.accesses.append((write,address,value))\\n        if BASE<=address<BASE+len(self.code):\\n            if write:raise AssertionError('code write')\\n            return struct.unpack_from('<I',self.code,address-BASE)[0]\\n        if JOURNAL<=address<JOURNAL+512:\\n            if write:self.put(address,value)\\n            return self.word(address)\\n        if SCRATCH<=address<SCRATCH+128:\\n            if self.fault=='load_trap' and not write and not self.trapped:\\n                self.trapped=True;self.csr[0x342]=5;self.csr[0x343]=address\\n                self.csr[0x341]=self.pc;self.pc=self.csr[0x305]\\n                raise Trap\\n            if write:self.put(address,value)\\n            value=self.word(address)\\n            if self.fault=='seed_corrupt' and not write and self.done==0 and address==SCRATCH+12:\\n                value^=1\\n            return value\\n        if address in (VIDEO+8,VIDEO+12,VIDEO+20):\\n            assert not write\\n            return 0\\n        if address in (GPU,GPU+4,GPU+8,GPU+12,GPU+28,GPU+52):\\n            assert not write\\n            return {GPU:0x424c5432,GPU+8:self.done,GPU+52:self.rejected}.get(address,0)\\n        if address==GPU+16 and write:\\n            self.packet.append(value)\\n            if len(self.packet)==8:\\n                self.command(self.packet);self.commands.append(self.packet[:]);self.packet=[]\\n            return 0\\n        raise AssertionError(f'unexpected {\\\"write\\\" if write else \\\"read\\\"} {address:#x}')\\n\\n    def command(self,words):\\n        if words[0]==0x16000000:\\n            # Decode the public ABI: width is HIGH16, height LOW16. Bounds\\n            # and overlap are computed, not inferred from expected literals.\\n            color,z=words[1:3];width=words[3]>>16;height=words[3]&65535\\n            color_stride=words[4]>>16;z_stride=words[4]&65535\\n            color_end=color+color_stride*height;z_end=z+z_stride*height\\n            valid=(color<0x40000000 and z<0x40000000 and color%32==0 and z%32==0\\n                and 1<=width<=1024 and 1<=height<=512 and color_stride%32==0\\n                and z_stride%32==0 and color_stride>=width*2 and z_stride>=width*2\\n                and color_end<=0x40000000 and z_end<=0x40000000\\n                and not(color<z_end and z<color_end) and words[5:]==[0,0,0])\\n            self.target=(color,z,width,height,color_stride,z_stride) if valid else None\\n            if not valid:self.rejected+=1;self.done+=1;return\\n            if self.fault=='target_touch':self.put(SCRATCH,self.word(SCRATCH)^1)\\n            if self.fault!='target_timeout':self.done+=1\\n        elif words[0]==0x1c000000:\\n            if not self.target or words[1]>3 or words[2]>65535 or words[3]>65535 or words[6:]!=[0,0]:\\n                self.rejected+=1;self.done+=1;return\\n            if self.fault=='clear_timeout':return\\n            color,z,width,height,color_stride,z_stride=self.target\\n            x=signed(words[4]>>16,16);y=signed(words[4]&65535,16)\\n            end_x=x+(words[5]>>16);end_y=y+(words[5]&65535)\\n            if self.fault!='clear_missing':\\n                for flag,base,stride,value in [(1,color,color_stride,words[2]),(2,z,z_stride,words[3])]:\\n                    if not words[1]&flag:continue\\n                    for row in range(max(0,y),min(height,end_y)):\\n                        for col in range(max(0,x),min(width,end_x)):\\n                            address=base+row*stride+2*col\\n                            if not SCRATCH<=address<SCRATCH+127:raise AssertionError('GPU outside scratch')\\n                            self.memory[address]=value&255;self.memory[address+1]=value>>8\\n                            self.gpu_writes.append(address)\\n            if self.fault=='clear_canary':self.put(SCRATCH+64,0)\\n            self.done+=1\\n        else:raise AssertionError('unexpected GPU command')\\n\\n    def run(self,limit=1500000):\\n        while self.pc!=0x80000000:\\n            if self.steps>=limit:raise AssertionError('CPU model instruction bound')\\n            if not BASE<=self.pc<BASE+len(self.code):raise AssertionError('PC outside payload')\\n            self.steps+=1\\n            ins=struct.unpack_from('<I',self.code,self.pc-BASE)[0]\\n            op=ins&127;rd=(ins>>7)&31;f3=(ins>>12)&7\\n            rs1=(ins>>15)&31;rs2=(ins>>20)&31;f7=ins>>25\\n            x,y=self.reg[rs1],self.reg[rs2];nextpc=(self.pc+4)&MASK;out=None\\n            try:\\n                if op==0x37:out=ins&0xfffff000\\n                elif op==0x17:out=self.pc+(ins&0xfffff000)\\n                elif op==0x13:\\n                    imm=signed(ins>>20,12)\\n                    if f3==0:out=x+imm\\n                    elif f3==7:out=x&imm\\n                    elif f3==1 and f7==0:out=x<<rs2\\n                    elif f3==5 and f7==0:out=x>>rs2\\n                    else:raise AssertionError(f'unsupported immediate {ins:08x}')\\n                elif op==0x33:\\n                    if f3==4 and f7==0:out=x^y\\n                    elif f3==6 and f7==0:out=x|y\\n                    elif f3==0 and f7==0:out=x+y\\n                    else:raise AssertionError('unsupported integer op')\\n                elif op==3 and f3==2:out=self.access((x+signed(ins>>20,12))&MASK)\\n                elif op==0x23 and f3==2:\\n                    imm=((ins>>25)<<5)|((ins>>7)&31)\\n                    self.access((x+signed(imm,12))&MASK,True,y)\\n                elif op==0x63:\\n                    imm=((ins>>31)<<12)|(((ins>>7)&1)<<11)|(((ins>>25)&63)<<5)|(((ins>>8)&15)<<1)\\n                    conditions={0:x==y,1:x!=y,4:signed(x,32)<signed(y,32),\\n                                5:signed(x,32)>=signed(y,32),6:x<y,7:x>=y}\\n                    if f3 not in conditions:raise AssertionError('branch opcode')\\n                    if conditions[f3]:nextpc=(self.pc+signed(imm,13))&MASK\\n                elif op==0x6f:\\n                    imm=((ins>>31)<<20)|(((ins>>12)&255)<<12)|(((ins>>20)&1)<<11)|(((ins>>21)&1023)<<1)\\n                    out=self.pc+4;nextpc=(self.pc+signed(imm,21))&MASK\\n                elif op==0x67 and f3==0:\\n                    out=self.pc+4;nextpc=(x+signed(ins>>20,12))&0xfffffffe\\n                elif op==0x0f and f3 in (0,1):pass\\n                elif op==0x73 and f3 in (1,2):\\n                    csr=ins>>20\\n                    if csr not in self.csr:raise AssertionError('unmodeled CSR')\\n                    out=self.csr[csr]\\n                    if f3==1:self.csr[csr]=x\\n                    elif rs1:self.csr[csr]|=x\\n                else:raise AssertionError(f'unsupported instruction {ins:08x} at {self.pc:08x}')\\n            except Trap:continue\\n            if rd and out is not None:self.reg[rd]=out&MASK\\n            self.reg[0]=0;self.pc=nextpc\\n        return [self.word(JOURNAL+4*i) for i in range(128)]\\n\\nclass Trap(Exception):pass\\n\"}",
+      "time": {
+        "start": 1793226607800,
+        "end": 1793226607816
+      }
+    },
+    {
+      "call_id": "call_568395vo",
+      "name": "taskbox_read_file",
+      "message_id": "msg_184a287c20012X9RS5LAc89BH2",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "PLAN.md"
+      },
+      "output": "{\"content\": \"# Prochain test unique propos\u00e9 : COPY565 dans les m\u00eames128B\\n\\n## Pourquoi celui-ci\\n\\nLe contr\u00f4le mat\u00e9riel CLEAR flags0 termine ; CLEAR flags1 reste bloqu\u00e9 et les\\nlectures CPU retrouvent le motif intact. Au sens du RTL, le trajet commun du\\nCLEAR atteint la bifurcation RECT_SETUP et peut terminer. Les \u00e9tats physiques\\ninternes ne sont pas tous observ\u00e9s : nous ne pr\u00e9tendons pas avoir captur\u00e9\\nRECT_SETUP lui-m\u00eame. La commande et le retour done ne sont donc pas bloqu\u00e9s\\npour toutes les op\u00e9rations, mais la branche de transaction reste \u00e0 d\u00e9partager.\\n\\nCOPY565 utilise un autre moteur de requ\u00eates (`u_copy`) \u00e0 la place du chemin\\nRECT_ROW/CHUNK/COLOR, puis partage la sortie du GPU, le staging v1_pending et\\nl\u2019arbitre. Sa destination garde exactement l\u2019adresse du CLEAR qui \u00e9choue.\\nLe FILL historique n\u2019est pas retenu : sa base fixe changerait la r\u00e9gion DDR.\\n\\n## Paquet exact et effet attendu\\n\\nTARGET inchang\u00e9 :\\n`16000000 12000020 12000040 00100001 00200020 00000000 00000000 00000000`\\n\\nCOPY :\\n`1d000000 12000000 00100001 00000020 00000000 00000000 00100001 00000000`\\n\\nSource :16x1 pixels RGB565, stride32B, \u00e012000000. Position source0,0,\\ndestination0,0, dimension copi\u00e9e16x1. Destination TARGET12000020, Z12000040.\\nSource et destination sont disjointes et align\u00e9es32B. Tous les acc\u00e8s restent\\n\u00e0 l\u2019int\u00e9rieur du scratch128B d\u00e9j\u00e0 utilis\u00e9 ; aucun parcours m\u00e9moire suppl\u00e9mentaire.\\n\\nApr\u00e8s le m\u00eame motif CPU XOR-adresse et contr\u00f4le TARGET, le r\u00e9sultat attendu :\\n- done2, busy/full0, erreurs/lost/rejected0,16mots de commande re\u00e7us ;\\n- une lecture native de32B \u00e012000000 puis une \u00e9criture de32B \u00e012000020 ;\\n- octets32..63 = copie exacte des octets0..31 initiaux ;\\n- les96autres octets restent le motif initial.\\n\\nLe banc complet R19 passe sur deux couples horloges/phases avec ces paquets.\\nL\u2019endpoint ind\u00e9pendant compare adresse/payload/masque et compte une lecture,\\nun retour, une \u00e9criture. Deux contr\u00f4les n\u00e9gatifs (commande jamais pr\u00eate,\\n\u00e9criture jamais pr\u00eate) donnent le timeout de completion attendu. Les sources\\nRTL sont inchang\u00e9es ; result.json lie leurs empreintes. Aucun firmware ou\\nchargement carte suppl\u00e9mentaire n\u2019est fait dans ce dossier \u00e0 ce stade.\\n\\n## Interpr\u00e9tation born\u00e9e\\n\\nSi COPY termine avec le contenu attendu, le trajet de requ\u00eate/retour et l\u2019acc\u00e8s\\n\u00e0 cette destination ont fonctionn\u00e9 pour COPY. Cela oriente vers les \u00e9tats et\\nsignaux sp\u00e9cifiques au CLEAR non vide ; cela ne qualifie pas toute la DDR ou\\ntout l\u2019arbitre et n\u2019exclut pas un d\u00e9faut de timing d\u00e9pendant du trajet.\\n\\nSi COPY bloque, ne pas en d\u00e9duire que le staging est fautif : COPY ajoute une\\nlecture GPU et son retour, absents du CLEAR. Le snapshot/counters et le contenu\\nCPU restent n\u00e9cessaires pour savoir si la lecture et/ou l\u2019\u00e9criture ont eu lieu.\\nLe mod\u00e8le ne reproduit ni les puces DDR, ni le PHY, ni le CPU/CDC physique.\\n\\nRoot garde le choix et l\u2019ex\u00e9cution du test. Il r\u00e9utilisera les gardes carteR19,\\nCPUROM/ILM/cache/FBoff, verrou, watchdog et restauration exacts. Aucun nouveau\\nbitstream, aucune modification des snapshots ou sources communes.\\n\"}",
+      "time": {
+        "start": 1793226607802,
+        "end": 1793226607817
+      }
+    },
+    {
+      "call_id": "call_4if98u8g",
+      "name": "taskbox_read_file",
+      "message_id": "msg_184a287c20012X9RS5LAc89BH2",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "ANALYSIS.md"
+      },
+      "output": "{\"content\": \"# Pending COPY firmware implementation and tests\\n\"}",
+      "time": {
+        "start": 1793226607804,
+        "end": 1793226607818
+      }
+    },
+    {
+      "call_id": "call_619q7omz",
+      "name": "taskbox_run_tests",
+      "message_id": "msg_184a28ccf001LJRZZxpHPgY84m",
+      "status": "completed",
+      "exit_code": null,
+      "input": {},
+      "output": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.03904298902489245, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 110, in <module>\\n    if __name__=='__main__':main()\\n                            ^^^^^^\\n  File \\\"/work/validate.py\\\", line 63, in main\\n    assert differences and set(differences)<=({0x2b8,0x2bc}|set(range(0x380,0x3a0,4))),differences\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: []\\n\"}], \"test_runs\": 1, \"test_failures\": 1, \"passed\": false}",
+      "time": {
+        "start": 1793226608823,
+        "end": 1793226608867
+      }
+    },
+    {
+      "call_id": "call_phwv03cn",
+      "name": "taskbox_exec",
+      "message_id": "msg_184a29105001IZuvaWNJxViSeb",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "argv": [
+          "/usr/bin/riscv64-unknown-elf-objdump",
+          "-D",
+          "-b",
+          "binary",
+          "-m",
+          "riscv:rv32",
+          "baseline.bin"
+        ]
+      },
+      "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.002312481985427439, \"stdout\": \"\\nbaseline.bin:     file format binary\\n\\n\\nDisassembly of section .data:\\n\\n00000000 <.data>:\\n   0:\\ta0006437          \\tlui\\ts0,0xa0006\\n   4:\\t00040293          \\tmv\\tt0,s0\\n   8:\\t08000313          \\tli\\tt1,128\\n   c:\\t0002a023          \\tsw\\tzero,0(t0)\\n  10:\\t00428293          \\taddi\\tt0,t0,4\\n  14:\\tfff30313          \\taddi\\tt1,t1,-1\\n  18:\\tfe031ae3          \\tbnez\\tt1,0xc\\n  1c:\\t4d4432b7          \\tlui\\tt0,0x4d443\\n  20:\\t13228293          \\taddi\\tt0,t0,306 # 0x4d443132\\n  24:\\t00542023          \\tsw\\tt0,0(s0) # 0xa0006000\\n  28:\\t00100293          \\tli\\tt0,1\\n  2c:\\t00542223          \\tsw\\tt0,4(s0)\\n  30:\\t00542423          \\tsw\\tt0,8(s0)\\n  34:\\t30502bf3          \\tcsrr\\ts7,mtvec\\n  38:\\t01742e23          \\tsw\\ts7,28(s0)\\n  3c:\\t30002c73          \\tcsrr\\ts8,mstatus\\n  40:\\t03842023          \\tsw\\ts8,32(s0)\\n  44:\\t30402cf3          \\tcsrr\\ts9,mie\\n  48:\\t03942223          \\tsw\\ts9,36(s0)\\n  4c:\\t00000297          \\tauipc\\tt0,0x0\\n  50:\\t2e028293          \\taddi\\tt0,t0,736 # 0x32c\\n  54:\\t30529073          \\tcsrw\\tmtvec,t0\\n  58:\\t7ca022f3          \\tcsrr\\tt0,0x7ca\\n  5c:\\t00542823          \\tsw\\tt0,16(s0)\\n  60:\\t28029e63          \\tbnez\\tt0,0x2fc\\n  64:\\t7c0022f3          \\tcsrr\\tt0,0x7c0\\n  68:\\t00542c23          \\tsw\\tt0,24(s0)\\n  6c:\\ta0000337          \\tlui\\tt1,0xa0000\\n  70:\\t00130313          \\taddi\\tt1,t1,1 # 0xa0000001\\n  74:\\t28629463          \\tbne\\tt0,t1,0x2fc\\n  78:\\t180022f3          \\tcsrr\\tt0,satp\\n  7c:\\t28029063          \\tbnez\\tt0,0x2fc\\n  80:\\t260c9e63          \\tbnez\\ts9,0x2fc\\n  84:\\t008c7293          \\tandi\\tt0,s8,8\\n  88:\\t26029a63          \\tbnez\\tt0,0x2fc\\n  8c:\\t0ff0000f          \\tfence\\n  90:\\t0000100f          \\tfence.i\\n  94:\\te90014b7          \\tlui\\ts1,0xe9001\\n  98:\\t0004a283          \\tlw\\tt0,0(s1) # 0xe9001000\\n  9c:\\t04542223          \\tsw\\tt0,68(s0)\\n  a0:\\t424c5337          \\tlui\\tt1,0x424c5\\n  a4:\\t43230313          \\taddi\\tt1,t1,1074 # 0x424c5432\\n  a8:\\t24629a63          \\tbne\\tt0,t1,0x2fc\\n  ac:\\t0044a283          \\tlw\\tt0,4(s1)\\n  b0:\\t24029663          \\tbnez\\tt0,0x2fc\\n  b4:\\t0084a283          \\tlw\\tt0,8(s1)\\n  b8:\\t04542423          \\tsw\\tt0,72(s0)\\n  bc:\\t24029063          \\tbnez\\tt0,0x2fc\\n  c0:\\t194000ef          \\tjal\\t0x254\\n  c4:\\t22051c63          \\tbnez\\ta0,0x2fc\\n  c8:\\te90002b7          \\tlui\\tt0,0xe9000\\n  cc:\\t0082a303          \\tlw\\tt1,8(t0) # 0xe9000008\\n  d0:\\t22031663          \\tbnez\\tt1,0x2fc\\n  d4:\\t00c2a303          \\tlw\\tt1,12(t0)\\n  d8:\\t22031263          \\tbnez\\tt1,0x2fc\\n  dc:\\t0142a303          \\tlw\\tt1,20(t0)\\n  e0:\\t20031e63          \\tbnez\\tt1,0x2fc\\n  e4:\\t00200293          \\tli\\tt0,2\\n  e8:\\t00542423          \\tsw\\tt0,8(s0)\\n  ec:\\t120002b7          \\tlui\\tt0,0x12000\\n  f0:\\t02000313          \\tli\\tt1,32\\n  f4:\\ta53973b7          \\tlui\\tt2,0xa5397\\n  f8:\\tc1738393          \\taddi\\tt2,t2,-1001 # 0xa5396c17\\n  fc:\\t06542223          \\tsw\\tt0,100(s0)\\n 100:\\t0072ce33          \\txor\\tt3,t0,t2\\n 104:\\t01c2a023          \\tsw\\tt3,0(t0) # 0x12000000\\n 108:\\t00428293          \\taddi\\tt0,t0,4\\n 10c:\\tfff30313          \\taddi\\tt1,t1,-1\\n 110:\\tfe0316e3          \\tbnez\\tt1,0xfc\\n 114:\\t0ff0000f          \\tfence\\n 118:\\t00300293          \\tli\\tt0,3\\n 11c:\\t00542423          \\tsw\\tt0,8(s0)\\n 120:\\t00000593          \\tli\\ta1,0\\n 124:\\t08040613          \\taddi\\ta2,s0,128\\n 128:\\t150000ef          \\tjal\\t0x278\\n 12c:\\t06d42823          \\tsw\\ta3,112(s0)\\n 130:\\t1c051a63          \\tbnez\\ta0,0x304\\n 134:\\t00400293          \\tli\\tt0,4\\n 138:\\t00542423          \\tsw\\tt0,8(s0)\\n 13c:\\t00000517          \\tauipc\\ta0,0x0\\n 140:\\t22450513          \\taddi\\ta0,a0,548 # 0x360\\n 144:\\t09c000ef          \\tjal\\t0x1e0\\n 148:\\t00500293          \\tli\\tt0,5\\n 14c:\\t00542423          \\tsw\\tt0,8(s0)\\n 150:\\t00100513          \\tli\\ta0,1\\n 154:\\t0d4000ef          \\tjal\\t0x228\\n 158:\\t04b42623          \\tsw\\ta1,76(s0)\\n 15c:\\t1a051863          \\tbnez\\ta0,0x30c\\n 160:\\t00600293          \\tli\\tt0,6\\n 164:\\t00542423          \\tsw\\tt0,8(s0)\\n 168:\\t00000593          \\tli\\ta1,0\\n 16c:\\t10040613          \\taddi\\ta2,s0,256\\n 170:\\t108000ef          \\tjal\\t0x278\\n 174:\\t06d42a23          \\tsw\\ta3,116(s0)\\n 178:\\t18051e63          \\tbnez\\ta0,0x314\\n 17c:\\t00700293          \\tli\\tt0,7\\n 180:\\t00542423          \\tsw\\tt0,8(s0)\\n 184:\\t00000517          \\tauipc\\ta0,0x0\\n 188:\\t1fc50513          \\taddi\\ta0,a0,508 # 0x380\\n 18c:\\t054000ef          \\tjal\\t0x1e0\\n 190:\\t00800293          \\tli\\tt0,8\\n 194:\\t00542423          \\tsw\\tt0,8(s0)\\n 198:\\t00200513          \\tli\\ta0,2\\n 19c:\\t08c000ef          \\tjal\\t0x228\\n 1a0:\\t04b42823          \\tsw\\ta1,80(s0)\\n 1a4:\\t16051c63          \\tbnez\\ta0,0x31c\\n 1a8:\\t00900293          \\tli\\tt0,9\\n 1ac:\\t00542423          \\tsw\\tt0,8(s0)\\n 1b0:\\t00100593          \\tli\\ta1,1\\n 1b4:\\t18040613          \\taddi\\ta2,s0,384\\n 1b8:\\t0c0000ef          \\tjal\\t0x278\\n 1bc:\\t06d42c23          \\tsw\\ta3,120(s0)\\n 1c0:\\t16051263          \\tbnez\\ta0,0x324\\n 1c4:\\t7ca022f3          \\tcsrr\\tt0,0x7ca\\n 1c8:\\t00542a23          \\tsw\\tt0,20(s0)\\n 1cc:\\t12029863          \\tbnez\\tt0,0x2fc\\n 1d0:\\t00a00293          \\tli\\tt0,10\\n 1d4:\\t00542423          \\tsw\\tt0,8(s0)\\n 1d8:\\t00100293          \\tli\\tt0,1\\n 1dc:\\t1700006f          \\tj\\t0x34c\\n 1e0:\\t00800293          \\tli\\tt0,8\\n 1e4:\\t0000c337          \\tlui\\tt1,0xc\\n 1e8:\\t35030313          \\taddi\\tt1,t1,848 # 0xc350\\n 1ec:\\t0044a383          \\tlw\\tt2,4(s1)\\n 1f0:\\t0023f393          \\tandi\\tt2,t2,2\\n 1f4:\\t00038a63          \\tbeqz\\tt2,0x208\\n 1f8:\\tfff30313          \\taddi\\tt1,t1,-1\\n 1fc:\\tfe0318e3          \\tbnez\\tt1,0x1ec\\n 200:\\tff700293          \\tli\\tt0,-9\\n 204:\\t1480006f          \\tj\\t0x34c\\n 208:\\t06542023          \\tsw\\tt0,96(s0)\\n 20c:\\t00052383          \\tlw\\tt2,0(a0)\\n 210:\\t0074a823          \\tsw\\tt2,16(s1)\\n 214:\\t00450513          \\taddi\\ta0,a0,4\\n 218:\\tfff28293          \\taddi\\tt0,t0,-1\\n 21c:\\tfc0294e3          \\tbnez\\tt0,0x1e4\\n 220:\\t0ff0000f          \\tfence\\n 224:\\t00008067          \\tret\\n 228:\\t0000c2b7          \\tlui\\tt0,0xc\\n 22c:\\t35028293          \\taddi\\tt0,t0,848 # 0xc350\\n 230:\\t0084a583          \\tlw\\ta1,8(s1)\\n 234:\\t00a59663          \\tbne\\ta1,a0,0x240\\n 238:\\t0044a303          \\tlw\\tt1,4(s1)\\n 23c:\\t00030a63          \\tbeqz\\tt1,0x250\\n 240:\\tfff28293          \\taddi\\tt0,t0,-1\\n 244:\\tfe0296e3          \\tbnez\\tt0,0x230\\n 248:\\t00100513          \\tli\\ta0,1\\n 24c:\\t00008067          \\tret\\n 250:\\t0040006f          \\tj\\t0x254\\n 254:\\t00c4a303          \\tlw\\tt1,12(s1)\\n 258:\\t04642a23          \\tsw\\tt1,84(s0)\\n 25c:\\t01c4a383          \\tlw\\tt2,28(s1)\\n 260:\\t04742c23          \\tsw\\tt2,88(s0)\\n 264:\\t0344ae03          \\tlw\\tt3,52(s1)\\n 268:\\t05c42e23          \\tsw\\tt3,92(s0)\\n 26c:\\t00736533          \\tor\\ta0,t1,t2\\n 270:\\t01c56533          \\tor\\ta0,a0,t3\\n 274:\\t00008067          \\tret\\n 278:\\t0ff0000f          \\tfence\\n 27c:\\t120002b7          \\tlui\\tt0,0x12000\\n 280:\\t02000313          \\tli\\tt1,32\\n 284:\\ta53973b7          \\tlui\\tt2,0xa5397\\n 288:\\tc1738393          \\taddi\\tt2,t2,-1001 # 0xa5396c17\\n 28c:\\t00000513          \\tli\\ta0,0\\n 290:\\t00000693          \\tli\\ta3,0\\n 294:\\t06542223          \\tsw\\tt0,100(s0)\\n 298:\\t0072ce33          \\txor\\tt3,t0,t2\\n 29c:\\t02058263          \\tbeqz\\ta1,0x2c0\\n 2a0:\\t12000f37          \\tlui\\tt5,0x12000\\n 2a4:\\t020f0f13          \\taddi\\tt5,t5,32 # 0x12000020\\n 2a8:\\t01e2ec63          \\tbltu\\tt0,t5,0x2c0\\n 2ac:\\t12000f37          \\tlui\\tt5,0x12000\\n 2b0:\\t040f0f13          \\taddi\\tt5,t5,64 # 0x12000040\\n 2b4:\\t01e2f663          \\tbgeu\\tt0,t5,0x2c0\\n 2b8:\\t6b4d7e37          \\tlui\\tt3,0x6b4d7\\n 2bc:\\tb4de0e13          \\taddi\\tt3,t3,-1203 # 0x6b4d6b4d\\n 2c0:\\t0002ae83          \\tlw\\tt4,0(t0) # 0x12000000\\n 2c4:\\t01d62023          \\tsw\\tt4,0(a2)\\n 2c8:\\t01de0c63          \\tbeq\\tt3,t4,0x2e0\\n 2cc:\\t00051863          \\tbnez\\ta0,0x2dc\\n 2d0:\\t02542a23          \\tsw\\tt0,52(s0)\\n 2d4:\\t03c42c23          \\tsw\\tt3,56(s0)\\n 2d8:\\t03d42e23          \\tsw\\tt4,60(s0)\\n 2dc:\\t00150513          \\taddi\\ta0,a0,1\\n 2e0:\\t00168693          \\taddi\\ta3,a3,1\\n 2e4:\\t00428293          \\taddi\\tt0,t0,4\\n 2e8:\\t00460613          \\taddi\\ta2,a2,4\\n 2ec:\\tfff30313          \\taddi\\tt1,t1,-1\\n 2f0:\\tfa0312e3          \\tbnez\\tt1,0x294\\n 2f4:\\t04a42023          \\tsw\\ta0,64(s0)\\n 2f8:\\t00008067          \\tret\\n 2fc:\\tfff00293          \\tli\\tt0,-1\\n 300:\\t04c0006f          \\tj\\t0x34c\\n 304:\\tffe00293          \\tli\\tt0,-2\\n 308:\\t0440006f          \\tj\\t0x34c\\n 30c:\\tffd00293          \\tli\\tt0,-3\\n 310:\\t03c0006f          \\tj\\t0x34c\\n 314:\\tffc00293          \\tli\\tt0,-4\\n 318:\\t0340006f          \\tj\\t0x34c\\n 31c:\\tffb00293          \\tli\\tt0,-5\\n 320:\\t02c0006f          \\tj\\t0x34c\\n 324:\\tffa00293          \\tli\\tt0,-6\\n 328:\\t0240006f          \\tj\\t0x34c\\n 32c:\\ta0006437          \\tlui\\ts0,0xa0006\\n 330:\\t342022f3          \\tcsrr\\tt0,mcause\\n 334:\\t02542423          \\tsw\\tt0,40(s0) # 0xa0006028\\n 338:\\t343022f3          \\tcsrr\\tt0,mtval\\n 33c:\\t02542623          \\tsw\\tt0,44(s0)\\n 340:\\t341022f3          \\tcsrr\\tt0,mepc\\n 344:\\t02542823          \\tsw\\tt0,48(s0)\\n 348:\\tff900293          \\tli\\tt0,-7\\n 34c:\\t00542623          \\tsw\\tt0,12(s0)\\n 350:\\t0ff0000f          \\tfence\\n 354:\\t305b9073          \\tcsrw\\tmtvec,s7\\n 358:\\t800002b7          \\tlui\\tt0,0x80000\\n 35c:\\t00028067          \\tjr\\tt0 # 0x80000000\\n 360:\\t0000                \\tunimp\\n 362:\\t1600                \\taddi\\ts0,sp,800\\n 364:\\t0020                \\taddi\\ts0,sp,8\\n 366:\\t1200                \\taddi\\ts0,sp,288\\n 368:\\t0040                \\taddi\\ts0,sp,4\\n 36a:\\t1200                \\taddi\\ts0,sp,288\\n 36c:\\t0001                \\tnop\\n 36e:\\t0010                \\t.insn\\t2, 0x0010\\n 370:\\t0020                \\taddi\\ts0,sp,8\\n 372:\\t0020                \\taddi\\ts0,sp,8\\n\\t...\\n 380:\\t0000                \\tunimp\\n 382:\\t1c00                \\taddi\\ts0,sp,560\\n 384:\\t0001                \\tnop\\n 386:\\t0000                \\tunimp\\n 388:\\t6b4d                \\tlui\\ts6,0x13\\n\\t...\\n 392:\\t0000                \\tunimp\\n 394:\\t0001                \\tnop\\n 396:\\t0010                \\t.insn\\t2, 0x0010\\n\\t...\\n\"}",
+      "time": {
+        "start": 1793226618685,
+        "end": 1793226618691
+      }
+    },
+    {
+      "call_id": "call_2fua2b2l",
+      "name": "taskbox_write_file",
+      "message_id": "msg_184a2b78a001yZQ4TtH6imwP6e",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "microdma.S",
+        "content": "/* R19 diagnostic only. CPU executes from ILM with NO stack and NO DDR code.\n * Exact DDR footprint: [0x12000000,0x12000080), thirty-two words.\n * Journal512B at0xa0006000; code linked at0xa0004000, must fit4096B.\n * Fresh parked CPU, MCACHE_CTL==0 and MILMB==a0000001 are prerequisites.\n * Finite poll loops cannot bound a hung AHB transaction: host watchdog required.\n */\n.option norvc\n.option norelax\n.section .text\n.global _start\n_start:\n    li s0, 0xa0006000\n    mv t0, s0\n    li t1, 128\nzero_journal:\n    sw zero, 0(t0)\n    addi t0, t0, 4\n    addi t1, t1, -1\n    bnez t1, zero_journal\n    li t0, 0x4d443132\n    sw t0, 0(s0)\n    li t0, 1\n    sw t0, 4(s0)\n    sw t0, 8(s0)\n    csrr s7, mtvec\n    sw s7, 28(s0)\n    csrr s8, mstatus\n    sw s8, 32(s0)\n    csrr s9, mie\n    sw s9, 36(s0)\n    la t0, trap\n    csrw mtvec, t0\n    /* Do not flush a possibly dirty foreign cache. Refuse if either cache\n     * is enabled: root already measured this register as zero on parked R19. */\n    csrr t0, 0x7ca\n    sw t0, 16(s0)\n    bnez t0, bad_guard\n    csrr t0, 0x7c0\n    sw t0, 24(s0)\n    li t1, 0xa0000001\n    bne t0, t1, bad_guard\n    csrr t0, satp\n    bnez t0, bad_guard\n    bnez s9, bad_guard\n    andi t0, s8, 8\n    bnez t0, bad_guard\n    fence iorw, iorw\n    fence.i\n    li s1, 0xe9001000\n    lw t0, 0(s1)\n    sw t0, 68(s0)\n    li t1, 0x424c5432\n    bne t0, t1, bad_guard\n    lw t0, 4(s1)\n    bnez t0, bad_guard\n    lw t0, 8(s1)\n    sw t0, 72(s0)\n    bnez t0, bad_guard\n    jal ra, check_gpu_errors\n    bnez a0, bad_guard\n    li t0, 0xe9000000\n    lw t1, 8(t0)\n    bnez t1, bad_guard\n    lw t1, 12(t0)\n    bnez t1, bad_guard\n    lw t1, 20(t0)\n    bnez t1, bad_guard\n    /* CPU seeds every word. Address-derived words make aliases observable. */\n    li t0, 2\n    sw t0, 8(s0)\n    li t0, 0x12000000\n    li t1, 32\n    li t2, 0xa5396c17\nseed:\n    sw t0, 100(s0)\n    xor t3, t0, t2\n    sw t3, 0(t0)\n    addi t0, t0, 4\n    addi t1, t1, -1\n    bnez t1, seed\n    fence iorw, iorw\n    li t0, 3\n    sw t0, 8(s0)\n    li a1, 0\n    addi a2, s0, 128\n    jal ra, verify_memory\n    sw a3, 112(s0)\n    bnez a0, bad_seed\n    /* TARGET is the negative control: it must not touch the DDR payload. */\n    li t0, 4\n    sw t0, 8(s0)\n    la a0, target_words\n    jal ra, send_packet\n    li t0, 5\n    sw t0, 8(s0)\n    li a0, 1\n    jal ra, wait_done\n    sw a1, 76(s0)\n    bnez a0, bad_target_wait\n    li t0, 6\n    sw t0, 8(s0)\n    li a1, 0\n    addi a2, s0, 256\n    jal ra, verify_memory\n    sw a3, 116(s0)\n    bnez a0, bad_target_memory\n    /* COPY reads32B from source and writes only32B at TARGET+0.\n     * Z and the other96B remain canaries. */\n    li t0, 7\n    sw t0, 8(s0)\n    la a0, copy_words\n    jal ra, send_packet\n    li t0, 8\n    sw t0, 8(s0)\n    li a0, 2\n    jal ra, wait_done\n    sw a1, 80(s0)\n    bnez a0, bad_copy_wait\n    li t0, 9\n    sw t0, 8(s0)\n    li a1, 1\n    addi a2, s0, 384\n    jal ra, verify_memory\n    sw a3, 120(s0)\n    bnez a0, bad_copy_memory\n    csrr t0, 0x7ca\n    sw t0, 20(s0)\n    bnez t0, bad_guard\n    li t0, 10\n    sw t0, 8(s0)\n    li t0, 1\n    j finish\n\n/* a0 points to exactly8 words in ILM. No FIFO polling can block forever\n * in software; a failed MMIO access itself still needs the host watchdog. */\nsend_packet:\n    li t0, 8\nsend_word:\n    li t1, 50000\nsend_poll:\n    lw t2, 4(s1)\n    andi t2, t2, 2\n    beqz t2, send_ready\n    addi t1, t1, -1\n    bnez t1, send_poll\n    li t0, -9\n    j finish\nsend_ready:\n    sw t0, 96(s0)\n    lw t2, 0(a0)\n    sw t2, 16(s1)\n    addi a0, a0, 4\n    addi t0, t0, -1\n    bnez t0, send_word\n    fence iorw, iorw\n    ret\n\n/* a0 expected done count. Require that count AND BUSY/FULL==0; CSR values\n * cross domains independently, so neither observation alone is a fence. */\nwait_done:\n    li t0, 50000\nwait_poll:\n    lw a1, 8(s1)\n    bne a1, a0, wait_more\n    lw t1, 4(s1)\n    beqz t1, wait_success\nwait_more:\n    addi t0, t0, -1\n    bnez t0, wait_poll\n    li a0, 1\n    ret\nwait_success:\n    /* Tail-call retains caller return address. */\n    j check_gpu_errors\ncheck_gpu_errors:\n    lw t1, 12(s1)\n    sw t1, 84(s0)\n    lw t2, 28(s1)\n    sw t2, 88(s0)\n    lw t3, 52(s1)\n    sw t3, 92(s0)\n    or a0, t1, t2\n    or a0, a0, t3\n    ret\n\n/* a1=0 expects seed everywhere; a1=1 expects the source seed at offsets32..63.\n * a2 is one128B ILM image. Return a0=error count,a3=words compared.\n * This is a CPU load path: debugger transport never reads DDR for us. */\nverify_memory:\n    fence iorw, iorw\n    li t0, 0x12000000\n    li t1, 32\n    li t2, 0xa5396c17\n    li a0, 0\n    li a3, 0\nverify_word:\n    sw t0, 100(s0)\n    xor t3, t0, t2\n    beqz a1, verify_load\n    li t5, 0x12000020\n    bltu t0, t5, verify_load\n    li t5, 0x12000040\n    bgeu t0, t5, verify_load\n    addi t3, t0, -32\n    xor t3, t3, t2\nverify_load:\n    lw t4, 0(t0)\n    sw t4, 0(a2)\n    beq t3, t4, verify_next\n    bnez a0, verify_count\n    sw t0, 52(s0)\n    sw t3, 56(s0)\n    sw t4, 60(s0)\nverify_count:\n    addi a0, a0, 1\nverify_next:\n    addi a3, a3, 1\n    addi t0, t0, 4\n    addi a2, a2, 4\n    addi t1, t1, -1\n    bnez t1, verify_word\n    sw a0, 64(s0)\n    ret\n\nbad_guard:         li t0,-1; j finish\nbad_seed:          li t0,-2; j finish\nbad_target_wait:   li t0,-3; j finish\nbad_target_memory: li t0,-4; j finish\nbad_copy_wait:     li t0,-5; j finish\nbad_copy_memory:   li t0,-6; j finish\n.balign 4\ntrap:\n    li s0, 0xa0006000\n    csrr t0, mcause\n    sw t0, 40(s0)\n    csrr t0, mtval\n    sw t0, 44(s0)\n    csrr t0, mepc\n    sw t0, 48(s0)\n    li t0, -7\nfinish:\n    sw t0, 12(s0)\n    fence iorw, iorw\n    csrw mtvec, s7\n    /* mstatus/mie/cache have never been modified by the program. */\n    li t0, 0x80000000\n    jr t0\n.balign 4\ntarget_words:\n    .word 0x16000000,0x12000020,0x12000040,0x00100001\n    .word 0x00200020,0,0,0\ncopy_words:\n    .word 0x1d000000,0x12000000,0x00100001,0x00000020\n    .word 0,0,0x00100001,0\n"
+      },
+      "output": "{\"written_bytes\": 5819}",
+      "time": {
+        "start": 1793226641522,
+        "end": 1793226641527
+      }
+    },
+    {
+      "call_id": "call_9db67rpc",
+      "name": "taskbox_write_file",
+      "message_id": "msg_184a310d3001rxvW54qExYPZuR",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "content": "\"\"\"Logical byte-copy model for the public COPY565 descriptor ABI.\n\nThis derives only the descriptor semantics: source base, packed source size,\nstride, signed source/destination pixel coordinates, and packed requested\nextent.  It is deliberately not a bus or RTL model.  GPU traffic is funnelled\nthrough gpu_read()/gpu_write(), which are byte addressed and range checked so\nprotected tests can inject independent read, write, canary and bounds faults.\n\"\"\"\nfrom rv32_model import RV32, SCRATCH, signed\n\nCOPY_OP = 0x1d000000\nSCRATCH_END = SCRATCH + 128\n\n\nclass CopyCPU(RV32):\n    \"\"\"RV32 plus a bounded, non-overlapping RGB565 rectangle copy.\n\n    gpu_reads/gpu_byte_writes hold byte addresses, not native transaction\n    records.  They are intentionally separate from the CPU's own accesses.\n    \"\"\"\n\n    def __init__(self, *args, **kwargs):\n        self.gpu_reads = []\n        self.gpu_byte_writes = []\n        super().__init__(*args, **kwargs)\n\n    @staticmethod\n    def _checked_range(address, size):\n        \"\"\"Return the byte-address range, rejecting any scratch overflow.\"\"\"\n        if not isinstance(size, int) or size < 0:\n            raise ValueError(\"invalid GPU scratch access size\")\n        if address < SCRATCH or address + size > SCRATCH_END:\n            raise ValueError(f\"GPU range {address:#x}+{size} outside scratch\")\n        return range(address, address + size)\n\n    def gpu_read(self, address, size):\n        \"\"\"Read bytes from scratch; validate the whole range before logging.\"\"\"\n        addresses = self._checked_range(address, size)\n        self.gpu_reads.extend(addresses)\n        return bytes(self.memory.get(a, 0) for a in addresses)\n\n    def gpu_write(self, address, data):\n        \"\"\"Write bytes to scratch; validate before logging or modifying.\"\"\"\n        data = bytes(data)\n        addresses = self._checked_range(address, len(data))\n        self.gpu_byte_writes.extend(addresses)\n        for offset, value in enumerate(data):\n            self.memory[address + offset] = value\n\n    def command(self, words):\n        \"\"\"Decode COPY locally; leave TARGET and every other command to RV32.\"\"\"\n        if words[0] != COPY_OP:\n            return super().command(words)\n        self._copy565(words)\n\n    def _reject(self):\n        \"\"\"Reject a malformed/unsupported descriptor without any GPU I/O.\"\"\"\n        self.rejected += 1\n\n    def _copy565(self, words):\n        # The public ABI is a full eight-word packet.  Reserved word 7 and the\n        # packed dimensions must be understood, otherwise reject the request.\n        if len(words) != 8 or words[7] != 0:\n            return self._reject()\n        width = words[2] >> 16\n        height = words[2] & 0xffff\n        stride = words[3]\n        req_width = words[6] >> 16\n        req_height = words[6] & 0xffff\n        if not (1 <= width <= 1024 and 1 <= height <= 512):\n            return self._reject()\n        if stride < width * 2 or stride % 2:\n            return self._reject()\n        if req_width == 0 or req_height == 0:\n            return self._reject()\n        if self.target is None:\n            return self._reject()\n\n        color, _z, target_width, target_height, color_stride, _z_stride = self.target\n        source_x = signed(words[4] >> 16, 16)\n        source_y = signed(words[4] & 0xffff, 16)\n        dest_x = signed(words[5] >> 16, 16)\n        dest_y = signed(words[5] & 0xffff, 16)\n\n        # Clip in request coordinates: every copied pixel must be inside both\n        # the source extent and the target rectangle.  Negative source or\n        # destination coordinates are handled by starting later in the request.\n        first_x = max(0, -source_x, -dest_x)\n        last_x = min(req_width, width - source_x, target_width - dest_x)\n        first_y = max(0, -source_y, -dest_y)\n        last_y = min(req_height, height - source_y, target_height - dest_y)\n        if last_x <= first_x or last_y <= first_y:\n            # A fully clipped request is a legal completion with no bytes.\n            self.done += 1\n            return\n\n        columns = last_x - first_x\n        row_bytes = columns * 2\n        source_base = words[1]\n        dest_base = color\n        source_rows = []\n        dest_rows = []\n        for row in range(first_y, last_y):\n            source_address = (source_base + (source_y + row) * stride\n                              + (source_x + first_x) * 2)\n            dest_address = (dest_base + (dest_y + row) * color_stride\n                            + (dest_x + first_x) * 2)\n            source_rows.append((source_address, source_address + row_bytes))\n            dest_rows.append((dest_address, dest_address + row_bytes))\n\n        # Only disjoint rectangles are supported.  Reject before any read so\n        # the model never has to invent an overlap order.\n        for source_start, source_end in source_rows:\n            for dest_start, dest_end in dest_rows:\n                if source_start < dest_end and dest_start < source_end:\n                    return self._reject()\n\n        # Read every source row first.  This preserves the source even if a\n        # future layout were to allow overlap, and it keeps the byte footprint\n        # independent of destination writes.\n        chunks = []\n        for index, (source_address, _source_end) in enumerate(source_rows):\n            chunks.append((dest_rows[index][0],\n                           self.gpu_read(source_address, row_bytes)))\n        for dest_address, data in chunks:\n            self.gpu_write(dest_address, data)\n        self.done += 1\n",
+        "path": "copy_model.py"
+      },
+      "output": "{\"written_bytes\": 5517}",
+      "time": {
+        "start": 1793226671112,
+        "end": 1793226671116
+      }
+    },
+    {
+      "call_id": "call_hjfj4hnn",
+      "name": "taskbox_run_tests",
+      "message_id": "msg_184a3845c001REAKrF2gTfxBzP",
+      "status": "completed",
+      "exit_code": null,
+      "input": {},
+      "output": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.6332496729446575, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"cases\\\": [\\n    {\\n      \\\"name\\\": \\\"healthy\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": 1,\\n      \\\"steps\\\": 2309\\n    },\\n    {\\n      \\\"name\\\": \\\"delayed\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": 1,\\n      \\\"steps\\\": 2405\\n    },\\n    {\\n      \\\"name\\\": \\\"late_completion\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -5,\\n      \\\"steps\\\": 201740\\n    },\\n    {\\n      \\\"name\\\": \\\"done_but_busy\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -5,\\n      \\\"steps\\\": 301740\\n    },\\n    {\\n      \\\"name\\\": \\\"wrong_return\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -6,\\n      \\\"steps\\\": 2309\\n    },\\n    {\\n      \\\"name\\\": \\\"missing_write\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -6,\\n      \\\"steps\\\": 2323\\n    },\\n    {\\n      \\\"name\\\": \\\"canary\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -6,\\n      \\\"steps\\\": 2309\\n    },\\n    {\\n      \\\"name\\\": \\\"bad_seed\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -2,\\n      \\\"steps\\\": 1153\\n    },\\n    {\\n      \\\"name\\\": \\\"target_touch\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -4,\\n      \\\"steps\\\": 1639\\n    },\\n    {\\n      \\\"name\\\": \\\"target_timeout\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -3,\\n      \\\"steps\\\": 201254\\n    },\\n    {\\n      \\\"name\\\": \\\"cache_on\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -1,\\n      \\\"steps\\\": 540\\n    },\\n    {\\n      \\\"name\\\": \\\"ilm_bad\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -1,\\n      \\\"steps\\\": 545\\n    },\\n    {\\n      \\\"name\\\": \\\"load_trap\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -7,\\n      \\\"steps\\\": 802\\n    },\\n    {\\n      \\\"name\\\": \\\"native_read_outside\\\",\\n      \\\"passed\\\": true,\\n      \\\"bounded_rejection\\\": \\\"GPU range 0x12000080+32 outside scratch\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"native_write_outside\\\",\\n      \\\"passed\\\": true,\\n      \\\"bounded_rejection\\\": \\\"GPU range 0x120000a0+32 outside scratch\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"transposed_dimensions_clip_one_pixel\\\",\\n      \\\"passed\\\": true\\n    }\\n  ],\\n  \\\"binary_sha256\\\": \\\"4d3b91ee5fd7aae44abd7d55ab712c24f78167ec1ac318f7a9a21aea000a8684\\\",\\n  \\\"word_offsets_changed\\\": [\\n    696,\\n    700,\\n    896,\\n    900,\\n    904,\\n    908,\\n    916,\\n    920\\n  ],\\n  \\\"hardware\\\": false\\n}\\n\"}], \"test_runs\": 1, \"test_failures\": 0, \"passed\": true}",
+      "time": {
+        "start": 1793226672030,
+        "end": 1793226672665
+      }
+    },
+    {
+      "call_id": "call_v7j1wrsk",
+      "name": "taskbox_write_file",
+      "message_id": "msg_184a38a1e001WUvK0nmWdPhYgd",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "content": "# COPY565 firmware, model, and bounded evidence\n\n## Firmware (`microdma.S`)\n\nBuilt from the frozen BIN02 diagnostic (928 bytes). Unchanged layout:\ncode at `0xa0004000` (4000 limit), journal at `0xa0006000` (512 B), and\nscratch `[0x12000000,0x12000080)`. TARGET remains the 16x1 descriptor with\ncolor `0x12000020`, Z `0x12000040`, stride 32. Guards, cache/ILM checks,\npolling limits, and result codes are unchanged.\n\nCLEAR was replaced by the COPY packet at the same eight-word data slot\n(`0x380..0x39f`):\n\n```\n1d000000 12000000 00100001 00000020 00000000 00000000 00100001 00000000\n```\n\nThis reads the 16x1 source at `0x12000000` (stride 32) and writes only 32\nbytes at `0x12000020`. The Z word and the other 96 scratch bytes remain\nuntouched canaries. `verify_memory` now expects the replicated source seed\nat offsets 32..63 using `addi t3,t0,-32; xor t3,t3,t2` in place of the old\nCLEAR constant.\n\nAllowed word offsets changed: `0x2b8,0x2bc` (the two verify instructions)\nand `0x380,0x384,0x388,0x38c,0x394,0x398` (packet data). `0x390` and\n`0x39c` are still zero and are therefore unchanged.\n\nExact binary SHA-256:\n`4d3b91ee5fd7aae44abd7d55ab712c24f78167ec1ac318f7a9a21aea000a8684`\n\n## COPY model (`copy_model.py`)\n\n`CopyCPU(RV32)` keeps TARGET and all non-COPY behavior through\n`super().command()`. It decodes the public ABI: source base, packed source\nwidth/height (HIGH16/LOW16), stride, signed source and destination pixel\ncoordinates, and packed requested width/height. It clips the request against\nboth the source extent and the TARGET rectangle, then copies RGB565 pixels as\nbytes. All source rows are read before destination writes.\n\n`gpu_reads` and `gpu_byte_writes` contain byte addresses. `gpu_read` and\n`gpu_write` validate the complete scratch range before logging or modifying\nmemory; failures raise with `scratch` in the message. Malformed descriptors\nand overlapping source/destination rectangles are rejected with no GPU I/O\nand increment `rejected`. A legal copy increments `done` after completion.\nA fully clipped request completes with no byte traffic.\n\nThe model is a logical byte-level checker, not a native bus/RTL model. The\none-native-read/one-native-write footprint must come from the separate exact\nRTL bench. It models neither DDR/PHY behavior nor physical CPU/CDC timing.\n\n## Observed fixed-test results\n\nOfficial `taskbox_run_tests` passed all cases:\n\n- healthy: result 1, done2/busy0, 16 command words, 32-byte read and write;\n- delayed completion: result 1;\n- late completion (delay 50001): result -5 timeout;\n- done2 but busy1: result -5;\n- wrong read return: result -6, first mismatch `0x12000020`, 1 bad word;\n- missing write: result -6, 8 bad words;\n- canary corruption: result -6, first mismatch `0x12000040`, 1 bad word;\n- bad seed: -2; target touch: -4; target timeout: -3;\n- cache enabled: -1; bad MILMB: -1; load trap: -7;\n- injected native read/write outside scratch: bounded rejection containing\n  `scratch`;\n- public-ABI transposed request: source 16x1, requested 1x16 clips to 1x1;\n  reads `0x12000000..01`, writes `0x12000020..21`.\n\nLimits: only the exercised non-overlapping descriptors in the 128-byte\nscratch are supported; unknown malformed layouts are rejected rather than\nemulated. No hardware result is claimed. Test success does not qualify all\nDDR, the arbiter, or timing-dependent faults.\n",
+        "path": "ANALYSIS.md"
+      },
+      "output": "{\"written_bytes\": 3348}",
+      "time": {
+        "start": 1793226677676,
+        "end": 1793226677682
+      }
+    },
+    {
+      "call_id": "call_qe3lhs1r",
+      "name": "taskbox_run_tests",
+      "message_id": "msg_184a39dfb001q3rTrKCNz8SZgC",
+      "status": "completed",
+      "exit_code": null,
+      "input": {},
+      "output": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.6492488259682432, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"cases\\\": [\\n    {\\n      \\\"name\\\": \\\"healthy\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": 1,\\n      \\\"steps\\\": 2309\\n    },\\n    {\\n      \\\"name\\\": \\\"delayed\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": 1,\\n      \\\"steps\\\": 2405\\n    },\\n    {\\n      \\\"name\\\": \\\"late_completion\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -5,\\n      \\\"steps\\\": 201740\\n    },\\n    {\\n      \\\"name\\\": \\\"done_but_busy\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -5,\\n      \\\"steps\\\": 301740\\n    },\\n    {\\n      \\\"name\\\": \\\"wrong_return\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -6,\\n      \\\"steps\\\": 2309\\n    },\\n    {\\n      \\\"name\\\": \\\"missing_write\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -6,\\n      \\\"steps\\\": 2323\\n    },\\n    {\\n      \\\"name\\\": \\\"canary\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -6,\\n      \\\"steps\\\": 2309\\n    },\\n    {\\n      \\\"name\\\": \\\"bad_seed\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -2,\\n      \\\"steps\\\": 1153\\n    },\\n    {\\n      \\\"name\\\": \\\"target_touch\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -4,\\n      \\\"steps\\\": 1639\\n    },\\n    {\\n      \\\"name\\\": \\\"target_timeout\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -3,\\n      \\\"steps\\\": 201254\\n    },\\n    {\\n      \\\"name\\\": \\\"cache_on\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -1,\\n      \\\"steps\\\": 540\\n    },\\n    {\\n      \\\"name\\\": \\\"ilm_bad\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -1,\\n      \\\"steps\\\": 545\\n    },\\n    {\\n      \\\"name\\\": \\\"load_trap\\\",\\n      \\\"passed\\\": true,\\n      \\\"result\\\": -7,\\n      \\\"steps\\\": 802\\n    },\\n    {\\n      \\\"name\\\": \\\"native_read_outside\\\",\\n      \\\"passed\\\": true,\\n      \\\"bounded_rejection\\\": \\\"GPU range 0x12000080+32 outside scratch\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"native_write_outside\\\",\\n      \\\"passed\\\": true,\\n      \\\"bounded_rejection\\\": \\\"GPU range 0x120000a0+32 outside scratch\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"transposed_dimensions_clip_one_pixel\\\",\\n      \\\"passed\\\": true\\n    }\\n  ],\\n  \\\"binary_sha256\\\": \\\"4d3b91ee5fd7aae44abd7d55ab712c24f78167ec1ac318f7a9a21aea000a8684\\\",\\n  \\\"word_offsets_changed\\\": [\\n    696,\\n    700,\\n    896,\\n    900,\\n    904,\\n    908,\\n    916,\\n    920\\n  ],\\n  \\\"hardware\\\": false\\n}\\n\"}], \"test_runs\": 1, \"test_failures\": 0, \"passed\": true}",
+      "time": {
+        "start": 1793226678584,
+        "end": 1793226679236
+      }
+    }
+  ],
+  "finishes": [
+    {
+      "message_id": "msg_184a28060001DTQN9Jig7X6zJM",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 956,
+        "input": 741,
+        "output": 85,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 130
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a2845b001zu1wWQ2jRtIaUZ",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 4025,
+        "input": 3140,
+        "output": 143,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 742
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a287c20012X9RS5LAc89BH2",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 7242,
+        "input": 3325,
+        "output": 165,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 3752
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a28ccf001LJRZZxpHPgY84m",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 11179,
+        "input": 11013,
+        "output": 36,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 130
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a29105001IZuvaWNJxViSeb",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 14375,
+        "input": 4436,
+        "output": 2991,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 6948
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a2b78a001yZQ4TtH6imwP6e",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 27041,
+        "input": 8021,
+        "output": 7766,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 11254
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a310d3001rxvW54qExYPZuR",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 34763,
+        "input": 16045,
+        "output": 7704,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 11014
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a3845c001REAKrF2gTfxBzP",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 34814,
+        "input": 7851,
+        "output": 33,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 26930
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a38a1e001WUvK0nmWdPhYgd",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 37237,
+        "input": 35673,
+        "output": 1564,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 0
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a39dfb001q3rTrKCNz8SZgC",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 37292,
+        "input": 2603,
+        "output": 37,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 34652
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_184a3a3ca00173UKTW189aisJq",
+      "reason": "stop",
+      "tokens": {
+        "total": 38625,
+        "input": 19005,
+        "output": 474,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 19146
+        }
+      },
+      "cost": 0
+    }
+  ],
+  "answer": "I'll start by reading the contract and protected test file.\nNow I'll implement the COPY packet in firmware, preserving instruction/data layout.\nNow the independent byte-level COPY model:\nAll official tests pass. Now I'll record the exact results in the report, then perform the final official run.\nImplemented the COPY565 firmware and independent model.\n\n**Files changed**\n- `microdma.S` \u2014 replaced CLEAR with the exact COPY packet at the same 8-word slot; changed only the allowed verify instructions at `0x2b8/0x2bc`; updated labels/comments. Layout remains 928 bytes, same code/journal/scratch regions and guards/polling/errors.\n- `copy_model.py` \u2014 added `CopyCPU(RV32)` with public-ABI COPY decoding, clipping, byte-level `gpu_read`/`gpu_write` logging and full-range validation, non-overlap/malformed rejection, and source-before-write behavior.\n- `ANALYSIS.md` \u2014 recorded binary hash, packet, changed offsets, test evidence, bounds, and limits.\n\n**Tests**\n- Before edit: official `run_tests` failed at the expected stale-binary assertion (`differences == []`).\n- After edits: official `run_tests` passed all 16 cases, including healthy/delayed COPY, late completion, done-but-busy, wrong return, missing write, canary corruption, seed/target/cache/ILM/trap faults, out-of-scratch rejection, and the 1x16\u21921x1 clipping case.\n- Final official `run_tests` after the report: **PASS**, 0 failures.\n\nFinal SHA-256: `4d3b91ee5fd7aae44abd7d55ab712c24f78167ec1ac318f7a9a21aea000a8684`\n\n**Limitations**\nThe model is a logical byte-level checker, not hardware/RTL; it supports only non-overlapping descriptors within the modeled 128-byte scratch and rejects unknown/malformed layouts. It does not model the native transaction footprint, DDR/PHY, arbiter, CDC, or timing behavior. No hardware result is claimed.",
+  "api_requests_observed": null,
+  "note": "API attempts are measured separately by the provider gateway"
+}

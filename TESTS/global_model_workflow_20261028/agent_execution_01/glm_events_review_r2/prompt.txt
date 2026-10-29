@@ -1,0 +1,258 @@
+You are an implementation or review assistant. Work ONLY from the supplied text packet. Tools, filesystem access and execution are unavailable. Produce the requested concrete artifact. Separate evidence from hypotheses. Never claim tests were run. Results require independent review and validation. Keep code modular, documented, and below 1000 physical lines per file.
+
+TASK:
+Produce concise code and5criticaltests. Previous generation ended length before any text; bounded output max65k now.
+
+ACCEPTANCE:
+Concrete pure parser/tests; sessions steps tools distinct from API attempts; no execution claims.
+
+PACKET:
+Implementation candidate for bounded multi-step OpenCode agents. This review call is text-only, not the autonomous demonstration. Root requires preserved old text-review mode and a new implementation mode on a copied allowlist of owned files, real OS isolation to forbid tools network/hardware/host secrets, final independent tests, bounded retries in same OpenCode session, <=1000 physical lines/module, no automatic source integration. OpenCode run --format json emits step_start, tool_use, step_finish, text events. Installed CLI version will be recorded separately. Agent config supports steps as max inference rounds (official docs https://opencode.ai/docs/agents/); --session resumes exact session (https://opencode.ai/docs/cli/). Permissions are action approval rules, not a kernel sandbox (https://opencode.ai/docs/permissions/). Agent shell must NOT inherit OLLAMA_API_KEY. Isolation teammate is designing actual OS execution wrapper/model gateway: do not invent its capability. Metrics must separate task_id/run_id/session_id, model request observed starts/finishes (not infer API HTTP attempts from text), completed steps, tool invocation count/name/status/exit code, multiple tool calls within one step. Exit0 from OpenCode alone is not success: final allowlist diff and independently launched tests must pass. No autonomous quality scores. A failed test corrected in same session must be proved by actual events and output, not synthesized.
+
+TASK: Propose pure Python parser and unittest cases for multi-step JSONL event accounting. Robust to chunk errors, duplicate IDs, mismatched session, incomplete step, tool failure, final stop versus max_steps, tools finished after matching start. Existing review parser below is context, not a contract to retain. Return concrete modular code only with explicit limits. Include counts that cannot equate task with request.
+
+"""Observed-only event decoding; based on Beam proposal, independently hardened.
+
+No execution or estimation. Invalid/partial streams remain errors. Duplicate
+finish IDs cannot inflate tokens; conflicting duplicates cannot hide truncation.
+"""
+import json
+import math
+
+
+def _valid_number(value, label, errors):
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        errors.append(f"invalid numeric field {label}: {value!r}")
+        return None
+    if value < 0 or value > 10**12 or not math.isfinite(value):
+        errors.append(f"invalid numeric field {label}: {value!r}")
+        return None
+    if label.startswith(('tokens.', 'usage.')) and not isinstance(value, int):
+        errors.append(f"noninteger token count {label}")
+        return None
+    return value
+
+
+def _result(answer, errors, finishes, truncated, tokens, cost):
+    return {
+        "answer": answer,
+        "errors": errors,
+        "finishes": finishes,
+        "truncated": truncated,
+        "tokens": tokens,
+        "cost": cost,
+    }
+
+
+def _empty_tokens():
+    return {
+        "input": None,
+        "output": None,
+        "reasoning": None,
+        "total": None,
+        "cache_read": None,
+        "cache_write": None,
+    }
+
+
+def _parse_opencode(stdout, errors):
+    texts = []
+    tokens = _empty_tokens()
+    cost = None
+    finishes = []
+    observations = []
+    seen_ids = {}
+    seen_texts = {}
+    truncated = False
+
+    for raw in (stdout or "").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except (json.JSONDecodeError, ValueError):
+            errors.append(f"invalid JSON: {raw.strip()}")
+            continue
+        if not isinstance(event, dict):
+            errors.append(f"invalid JSON event: {raw.strip()}")
+            continue
+
+        event_type = event.get("type")
+        if event_type == "text":
+            part = event.get("part")
+            if isinstance(part, dict) and isinstance(part.get("text"), str):
+                part_id = part.get('id')
+                if part_id is not None:
+                    if not isinstance(part_id, str):
+                        errors.append('invalid text part id')
+                        continue
+                    if part_id in seen_texts:
+                        if seen_texts[part_id] != part['text']:
+                            errors.append('conflicting repeated text part')
+                        continue
+                    seen_texts[part_id] = part['text']
+                texts.append(part["text"])
+
+        elif event_type == "error":
+            errors.append(event.get("error", event))
+
+        elif event_type == "step_finish":
+            part = event.get("part")
+            part = part if isinstance(part, dict) else {}
+            finish_id = part.get("id")
+            if finish_id is not None and not isinstance(finish_id, str):
+                errors.append('invalid finish id')
+                continue
+            # Even a conflicting duplicated finish cannot hide a length stop.
+            if part.get('reason', event.get('reason')) == 'length':
+                truncated = True
+            if finish_id is not None and finish_id in seen_ids:
+                if seen_ids[finish_id] != part:
+                    errors.append('conflicting repeated finish')
+                continue
+            if finish_id is not None:
+                seen_ids[finish_id] = part
+
+            reason = part.get("reason")
+            if reason is None:
+                reason = event.get("reason")
+            finishes.append(reason)
+            if reason == "length":
+                truncated = True
+
+            token_data = part.get("tokens")
+            if not isinstance(token_data, dict):
+                token_data = event.get("tokens")
+            token_data = token_data if isinstance(token_data, dict) else {}
+
+            cache = token_data.get("cache")
+            cache = cache if isinstance(cache, dict) else {}
+            cache_read = cache.get("read")
+            if cache_read is None:
+                cache_read = token_data.get("cache_read")
+            if cache_read is None:
+                cache_read = token_data.get("cacheRead")
+            cache_write = cache.get("write")
+            if cache_write is None:
+                cache_write = token_data.get("cache_write")
+            if cache_write is None:
+                cache_write = token_data.get("cacheWrite")
+
+            observed_tokens = {
+                name: _valid_number(token_data.get(name), 'tokens.' + name, errors)
+                for name in ('input', 'output', 'reasoning', 'total')
+            }
+            observed_tokens['cache_read'] = _valid_number(cache_read, 'tokens.cache.read', errors)
+            observed_tokens['cache_write'] = _valid_number(cache_write, 'tokens.cache.write', errors)
+            cost_value = part.get('cost', event.get('cost'))
+            observations.append(dict(id=finish_id, tokens=observed_tokens,
+                                     cost=_valid_number(cost_value, 'cost', errors)))
+
+    # A sum is a complete observed total only when every unique finish reports
+    # that field. Missing values cannot silently become zero or a partial sum.
+    for field in tokens:
+        values = [item['tokens'][field] for item in observations]
+        tokens[field] = sum(values) if values and all(value is not None for value in values) else None
+    costs = [item['cost'] for item in observations]
+    cost = sum(costs) if costs and all(value is not None for value in costs) else None
+
+    if texts and not finishes:
+        errors.append('missing completion event')
+    if finishes and finishes[-1] not in ('stop', 'length'):
+        errors.append('missing final stop event')
+    result = _result("".join(texts), errors, finishes, truncated, tokens, None)
+    # OpenCode exposes numeric cost without currency in this event. Preserve
+    # the observation without calling it USD or independently measured billing.
+    result['observations'] = observations
+    result['cost_observed'] = cost
+    result['cost_source'] = 'opencode.step_finish.cost'
+    return result
+
+
+def _parse_claude(stdout, errors):
+    tokens = _empty_tokens()
+    text = (stdout or "").strip()
+    if not text:
+        return _result("", errors, [], False, tokens, None)
+
+    data = None
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        candidates = []
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                candidate = json.loads(line)
+            except (json.JSONDecodeError, ValueError):
+                errors.append('invalid JSON in Claude stream')
+                continue
+            if isinstance(candidate, dict) and candidate.get("type") == "result":
+                candidates.append(candidate)
+        if len(candidates) != 1:
+            errors.append(f"invalid JSON: {text[:120]}")
+            return _result("", errors, [], False, tokens, None)
+        data = candidates[0]
+
+    if not isinstance(data, dict):
+        errors.append("invalid Claude result: expected object")
+        return _result("", errors, [], False, tokens, None)
+    if data.get("type") != "result":
+        return _result("", errors, [], False, tokens, None)
+
+    answer = data.get("result")
+    answer = answer if isinstance(answer, str) else ""
+
+    if data.get("is_error") is True or "error" in data:
+        error_value = data.get("error")
+        errors.append(
+            error_value if error_value is not None else "Claude result reported an error"
+        )
+
+    usage = data.get("usage")
+    if usage is None:
+        pass
+    elif not isinstance(usage, dict):
+        errors.append(f"invalid usage object: {usage!r}")
+    else:
+        tokens["input"] = _valid_number(
+            usage.get("input_tokens"), "usage.input_tokens", errors
+        )
+        tokens["output"] = _valid_number(
+            usage.get("output_tokens"), "usage.output_tokens", errors
+        )
+        tokens["cache_read"] = _valid_number(
+            usage.get("cache_read_input_tokens"),
+            "usage.cache_read_input_tokens",
+            errors,
+        )
+        tokens["cache_write"] = _valid_number(
+            usage.get("cache_creation_input_tokens"),
+            "usage.cache_creation_input_tokens",
+            errors,
+        )
+
+    raw_cost = _valid_number(data.get("total_cost_usd"), "total_cost_usd", errors)
+    cost = None if raw_cost is None else dict(value=raw_cost, currency='USD', source='claude.total_cost_usd')
+    reason = data.get('stop_reason', data.get('subtype'))
+    truncated = reason in ('max_tokens', 'length', 'error_max_turns')
+    if isinstance(reason, str) and reason.startswith('error_'):
+        errors.append('Claude error result subtype')
+    return _result(answer, errors, [reason] if reason else [], truncated, tokens, cost)
+
+
+def parse_events(stdout, provider):
+    """Return observations; caller still requires successful process exit."""
+    errors = []
+    if provider == 'claude-code':
+        return _parse_claude(stdout, errors)
+    if provider != 'ollama-cloud':
+        raise ValueError('Unknown provider')
+    return _parse_opencode(stdout, errors)
+
+

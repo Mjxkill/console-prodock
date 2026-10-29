@@ -1,0 +1,15 @@
+Changed `owned/analyse.py` and `owned/REPORT.md`.
+
+Implementation:
+- `analyse(facts)` derives all 11 required values from `facts.json` (return codes, artifact existence, SDC/VG hash comparisons, query count, incremental anchor comparison, and `root_cause_proven=False`).
+- Added structural/behavioral assertions and handled R3’s `returncode` vs R2/R4’s `tool_returncode`.
+- `REPORT.md` documents established vs unknown causes and a safe R4 VG/PR reuse/PnR-only experiment plan.
+
+Tests:
+- Baseline failed with `NotImplementedError` as expected.
+- After implementation, official validation passed: `PASS 11 factual checks; protected inputs unchanged; report still requires independent review`.
+- Line counts are below 1000 for both owned files.
+
+Limitations:
+- No timing/hardware proof is claimed; R4 still lacks `.tr`, `.sdf`, `.vo`, and bitstream.
+- No Gowin commands or hardware actions were run.

@@ -1,0 +1,309 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Max650words. Exact cutout/key0/ARGB4444 emitter countercheck. At most2concrete defects and1test<=35lines; no general review, no claim of viewing images or running code.
+
+EVIDENCE PACKET:
+Tâcheconcrète max650mots. Root a vu liserés pointillés noirs/verts surmonture au pic. Reproduction oracleV1 sanscache nihardware : masque floodfill noir seuil48 initial a vidé des sillonsnoirs légitimes reliésaubord, puis RGB565key0 a percé vraisnoirsinternes. Correctif :capsconvexes, remplirchaquespanrow du masque; texelsnoirsopaques codés1, zero réservé extérieur. Statistiquesréelles pixelsrétablis:[{'key': 0, 'false_transparent_pixels_restored': 99}, {'key': 1, 'false_transparent_pixels_restored': 99}, {'key': 2, 'false_transparent_pixels_restored': 113}, {'key': 3, 'false_transparent_pixels_restored': 104}]
+Cherche défautclip/échantillonnage danscodeexact ci-joint, donneauplus2contreexemples et1petit testPython/C <=35lignes pourmasque intérieur+clé. Pasvisuelleinventée, imagesnonfournies, pascodecopiétotal. CaptureGPU11frames déjàPASSguards32MiB; nouvellecapture aprèscorrection encours.
+
+FILE games/luma3d/candidates/puzzle_motion_r1/src/simon_gpu.c
+#include "l3_simon_gpu.h"
+static int quad(gpu_v1_context *g,int x,int y,int size,int u,int v,int texsize)
+{
+    gpu_vertex q[4]={{x,y,u,v,0,65536,256,256,256},{x+size,y,u+texsize,v,0,65536,256,256,256},
+                     {x+size,y+size,u+texsize,v+texsize,0,65536,256,256,256},{x,y+size,u,v+texsize,0,65536,256,256,256}};
+    return gpu_v1_quad(g,q);
+}
+int l3_simon_gpu_draw(gpu_v1_context *g,const L3SimonGpuAssets *a,const L3SimonLightFrame *f,uint32_t page,uint32_t depth,unsigned *quads)
+{
+    if(!g || !g->emit || !a || !f || !quads || (page!=0x800000u && page!=0x900000u) || depth!=0xa00000u)return 0;
+    for(unsigned i=0;i<4;i++)if(f->level_q8[i]>256 || f->radius_q8[i]>256 || f->press_q8[i]>256)return 0;
+    if(a->background.color!=0x1600000u || a->background.width!=480 || a->background.height!=448 || a->background.stride!=960 ||
+       a->keys.base!=0x1700000u || a->keys.width!=256 || a->keys.height!=256 || a->keys.stride!=512 || a->keys.format!=GPU_RGB565 ||
+       a->halo.base!=0x1800000u || a->halo.width!=128 || a->halo.height!=128 || a->halo.stride!=256 || a->halo.format!=GPU_ARGB4444 ||
+       a->shadow.base!=0x1808000u || a->shadow.width!=128 || a->shadow.height!=128 || a->shadow.stride!=256 || a->shadow.format!=GPU_ARGB4444)return 0;
+    const unsigned offset=24*1600+160*2;gpu_target t={page+offset,depth+offset,480,448,1600,1600};
+    if(!gpu_v1_target(g,&t) || !gpu_v1_scissor(g,0,0,480,448) || !gpu_v1_copy(g,&a->background,0,0,0,0,480,448))return 0;
+    const int x[4]={184,304,184,64},y[4]={42,166,290,166};
+    const unsigned rgb[4][3]={{256,48,24},{48,256,84},{48,100,256},{256,172,32}};*quads=0;
+    for(unsigned pass=0;pass<3;pass++){
+        if(!gpu_v1_texture(g,pass==0?&a->shadow:pass==1?&a->halo:&a->keys))return 0;
+        for(unsigned i=0;i<4;i++){
+            unsigned level=f->level_q8[i];if(pass==1 && !level)continue;
+            gpu_material m={0};m.flags=pass==2?9:1;m.alpha=pass==0?110:pass==1?level*200/256:256;
+            m.r=m.g=m.b=pass==2?144+level*112/256:256;
+            if(pass==1){m.r=rgb[i][0];m.g=rgb[i][1];m.b=rgb[i][2];}
+            if(!gpu_v1_material(g,&m))return 0;
+            int size=pass==0?130:pass==1?130+(int)(f->radius_q8[i]*40/256):112-(int)(f->press_q8[i]*3/256);
+            int dx=x[i]+(112-size)/2,dy=y[i]+(112-size)/2+(pass==1?0:pass==0?5:(int)(f->press_q8[i]*3/256));
+            if(!quad(g,dx,dy,size,pass==2?(int)(i%2)*128:0,pass==2?(int)(i/2)*128:0,pass==2?112:128))return 0;
+            (*quads)++;
+        }
+    }
+    return 1;
+}
+
+FILE games/luma3d/candidates/puzzle_motion_r1/tools/check_simon_gpu.py
+#!/usr/bin/env python3
+"""Real V1 emitter + integer oracle for the Simon attack/sustain/release preview."""
+import argparse,hashlib,json,struct,subprocess
+from pathlib import Path
+import numpy as np
+from PIL import Image,ImageDraw
+from check_gpu import NativeModel,rgb565,HERE,ROOT,GAME
+
+def packed(image):
+    a=np.asarray(image.convert('RGB')).astype(np.uint16);return (((a[:,:,0]*31+127)//255)<<11)|(((a[:,:,1]*63+127)//255)<<5)|((a[:,:,2]*31+127)//255)
+def main():
+    p=argparse.ArgumentParser();p.add_argument('--out',type=Path,required=True);args=p.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=False)
+    art=HERE/'art/simon_composition_r3';memory=bytearray([0xa5])*(32<<20);background=packed(Image.open(art/'static_base_800.png'))
+    for page in (0,1):memory[page*(1<<20):page*(1<<20)+800*480*2]=background.astype('<u2').tobytes()
+    memory[14<<20:(14<<20)+480*448*2]=background[24:472,160:640].astype('<u2').tobytes()
+    atlas=np.zeros((256,256),dtype=np.uint16)
+    for i in range(4):
+        key=Image.open(art/f'key{i}.png');values=packed(key);mask=np.asarray(key)[:,:,3]>=128;values[mask & (values==0)]=1;values[~mask]=0;y=i//2*128;x=i%2*128;atlas[y:y+112,x:x+112]=values
+    memory[15<<20:(15<<20)+atlas.nbytes]=atlas.astype('<u2').tobytes()
+    y,x=np.mgrid[:128,:128];distance=np.sqrt(((x-63.5)/63.5)**2+((y-63.5)/63.5)**2)
+    alpha=np.clip((1-distance)*1.7,0,1)**1.5;halo=(np.rint(alpha*15).astype(np.uint16)<<12)|0xfff
+    dx=np.maximum(np.abs(x-63.5)-40,0);dy=np.maximum(np.abs(y-63.5)-40,0);shadow=(np.rint(np.clip((20-np.sqrt(dx*dx+dy*dy))/20,0,1)*15).astype(np.uint16)<<12)
+    memory[16<<20:(16<<20)+32768]=halo.astype('<u2').tobytes();memory[(16<<20)+32768:(16<<20)+65536]=shadow.astype('<u2').tobytes();initial=bytes(memory)
+    (out/'initial.memory').write_bytes(initial)
+    sources=[HERE/'tests/capture_simon.c',HERE/'src/simon_gpu.c',HERE/'src/simon_light.c',GAME/'minigames/l3_simon.c',ROOT/'fw_console/gpu_v1.c']
+    inputs=[*sources,HERE/'include/l3_simon_gpu.h',HERE/'include/l3_simon_light.h',Path(__file__),*(art/f for f in ('static_base_800.png','key0.png','key1.png','key2.png','key3.png'))]
+    hashes={str(f):hashlib.sha256(f.read_bytes()).hexdigest() for f in inputs}
+    cmd=['cc','-std=c11','-O2','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-pedantic']
+    for d in (HERE/'include',GAME/'minigames',ROOT/'fw_console'):cmd+=['-I',str(d)]
+    cmd +=[*map(str,sources),'-lm','-o',str(out/'producer')]
+    r=subprocess.run(cmd,capture_output=True);(out/'compile.log').write_bytes(r.stdout+r.stderr);r.check_returncode()
+    r=subprocess.run([str(out/'producer'),str(out)],capture_output=True);(out/'producer.log').write_bytes(r.stdout+r.stderr);r.check_returncode()
+    frames=[];reports=[]
+    for path in sorted(out.glob('simon_*.json')):
+        meta=json.loads(path.read_text());model=NativeModel(initial);raw=path.with_suffix('.commands').read_bytes();assert len(raw)==meta['commands']*32
+        for w in struct.iter_unpack('<8I',raw):model.apply(list(w))
+        off=meta['page']*(1<<20);dirty=np.frombuffer(initial,dtype=np.uint8)!=np.frombuffer(model.memory,dtype=np.uint8);allow=np.zeros(len(initial),dtype=np.bool_)
+        for y in range(24,472):allow[off+(y*800+160)*2:off+(y*800+640)*2]=True
+        assert not np.any(dirty&~allow)
+        pixels=np.frombuffer(model.memory,dtype='<u2',count=800*480,offset=off).reshape(480,800);image=Image.fromarray(rgb565(pixels));image.save(path.with_suffix('.png'));frames.append(image)
+        reports.append({**meta,'checked_bytes':len(initial),'changed_bytes':int(np.sum(dirty)),'shaded_pixels':model.passed,'sha256':hashlib.sha256(path.with_suffix('.png').read_bytes()).hexdigest()});print(meta,flush=True)
+    assert np.array_equal(np.array(frames[0]),np.array(frames[-1])),'released exact resting pose'
+    assert len({f.tobytes() for f in frames})>=5,'progressive levels must be visibly distinct'
+    frames[0].save(out/'simon_gpu_envelope_800.gif',save_all=True,append_images=frames[1:],duration=[25,25,25,25,200,180,30,30,30,30,250],loop=0)
+    sheet=Image.new('RGB',(2400,510),(18,23,24));d=ImageDraw.Draw(sheet)
+    for i,(frame,label) in enumerate(zip((frames[2],frames[4],frames[8]),('Attaque50ms','Pic100ms','Décroissance540ms'))):d.text((800*i+12,10),label,fill='white');sheet.paste(frame,(800*i,30))
+    sheet.save(out/'contact_800.png')
+    assert hashes=={str(f):hashlib.sha256(f.read_bytes()).hexdigest() for f in inputs}
+    (out/'result.json').write_text(json.dumps({'passed':True,'hardware':False,'inputs':hashes,'frames':reports,'limits':['Native800 diagnostic through real V1 commands + integer oracle, not runtime/RTL or measuredFPS','Static instrument source rings already bright; dynamic halo separate and real alpha','Composition text is a mockup; runtime phase/round text still needs hookup','720 profile and runtime adapter pending']},indent=2)+'\n')
+if __name__=='__main__':main()
+
+FILE games/luma3d/candidates/puzzle_motion_r1/tools/compose_simon.py
+#!/usr/bin/env python3
+"""Asset assembly from recorded Comfy PNGs. Diagnostic composition, not game capture."""
+import hashlib,json
+from pathlib import Path
+from collections import deque
+import numpy as np
+from PIL import Image,ImageDraw,ImageFont,ImageFilter
+HERE=Path(__file__).resolve().parents[1];ART=HERE.parent/'art_refresh_20261027';OUT=HERE/'art/simon_composition_r3'
+OUT.mkdir(parents=True,exist_ok=False)
+source=ART/'jobs/flux2_simon_instrument_bronze_concept/image.png'
+def font(n,serif=False):return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/'+('DejaVuSerif.ttf' if serif else 'DejaVuSans.ttf'),n)
+def center(draw,xy,text,f,fill):
+    box=draw.textbbox((0,0),text,font=f);draw.text((xy[0]-(box[2]-box[0])/2,xy[1]),text,font=f,fill=fill)
+def cutout(im):
+    a=np.asarray(im.convert('RGB'));low=np.max(a,axis=2)<48;h,w=low.shape;outside=np.zeros((h,w),bool);todo=deque()
+    for x in range(w):todo.append((x,0));todo.append((x,h-1))
+    for y in range(h):todo.append((0,y));todo.append((w-1,y))
+    while todo:
+        x,y=todo.popleft()
+        if not(0<=x<w and 0<=y<h) or outside[y,x] or not low[y,x]:continue
+        outside[y,x]=True;todo.extend(((x-1,y),(x+1,y),(x,y-1),(x,y+1)))
+    inside=~outside
+    # These authored caps have a convex outer silhouette. Fill each interior
+    # row span so black grooves connected to the edge never become holes.
+    for row in inside:
+        xs=np.flatnonzero(row)
+        if len(xs):row[xs[0]:xs[-1]+1]=True
+    rgba=np.dstack((a,inside.astype(np.uint8)*255));return Image.fromarray(rgba,'RGBA')
+im=Image.open(source).convert('RGB');crop=im.crop((152,24,872,744)).convert('RGBA')
+mask=Image.new('L',(720,720));ImageDraw.Draw(mask).ellipse((13,13,707,707),fill=255);mask=mask.filter(ImageFilter.GaussianBlur(4));crop.putalpha(mask)
+instrument=crop.rotate(-45,resample=Image.Resampling.BICUBIC,expand=False).resize((432,432),Image.Resampling.LANCZOS)
+# Actual static generated wood, enlarged from a quiet corner; no painted fake controls.
+wood=im.crop((0,0,160,768)).resize((800,480),Image.Resampling.LANCZOS)
+shade=Image.new('RGBA',(800,480),(12,16,15,60));base=Image.alpha_composite(wood.convert('RGBA'),shade);base.alpha_composite(instrument,(184,28))
+draw=ImageDraw.Draw(base);center(draw,(400,10),'Le carillon des souvenirs',font(26,True),(246,224,171));
+draw.text((32,136),'LUMA',font=font(15),fill=(181,143,85));draw.text((32,163),'Mémoire',font=font(20,True),fill=(241,225,193));draw.text((32,193),'Manche 3 / 8',font=font(14),fill=(213,196,164));
+for i in range(8):draw.ellipse((33+i*15,225,39+i*15,231),fill=(219,177,99) if i<3 else (79,68,52))
+draw.text((650,157),'QUATRE',font=font(13),fill=(181,143,85));draw.text((650,180),'CRISTAUX',font=font(13),fill=(181,143,85));draw.text((650,217),'Observez.',font=font(15),fill=(227,215,187));draw.text((650,241),'Puis répétez.',font=font(15),fill=(227,215,187));
+center(draw,(400,218),'OBSERVEZ',font(16),(247,223,164));center(draw,(400,244),'3 notes',font(14),(177,202,193));
+center(draw,(400,452),'↑ rouge     → vert     ↓ bleu     ← or     ·     Q retour',font(13),(225,209,180))
+base.convert('RGB').save(OUT/'static_base_800.png')
+keys=[]
+for i in range(4):
+    p=ART/f'previews/comparison_r1/flux2_key{i}_192.png';key=cutout(Image.open(p)).resize((112,112),Image.Resampling.LANCZOS);key.save(OUT/f'key{i}.png');keys.append(key)
+positions=[(344,66),(464,190),(344,314),(224,190)]
+frames=[]
+for level in (0,64,128,256,256,128,32,0):
+    canvas=base.copy()
+    # Offline art preview only; actual GPU alpha preview is produced separately.
+    if level:
+        glow=Image.new('RGBA',(800,480));d=ImageDraw.Draw(glow);radius=62+level*13//256;cx,cy=400,122
+        d.ellipse((cx-radius,cy-radius,cx+radius,cy+radius),fill=(244,55,36,level*100//256));glow=glow.filter(ImageFilter.GaussianBlur(18));canvas=Image.alpha_composite(canvas,glow)
+    for i,((x,y),key) in enumerate(zip(positions,keys)):
+        scale=1-(level/256*.025 if i==0 else 0);size=round(112*scale);k=key.resize((size,size),Image.Resampling.LANCZOS)
+        canvas.alpha_composite(k,(x+(112-size)//2,y+(round(level/256*3) if i==0 else 0)+(112-size)//2))
+    frames.append(canvas.convert('RGB'))
+frames[0].save(OUT/'composition_800.png');frames[3].save(OUT/'peak_800.png');frames[0].save(OUT/'envelope_art_preview.gif',save_all=True,append_images=frames[1:],duration=[60,40,50,140,210,60,60,250],loop=0)
+report={'scope':'Pillow asset assembly and alpha design preview only; not GPU/runtime/FPS proof','sources':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source,*[ART/f'previews/comparison_r1/flux2_key{i}_192.png' for i in range(4)]]},'assembly':'bronze housing cropped720square and rotated45degrees, four separately composited keys, text by code','key_positions':positions,'key_size':112,'runtime_integrated':False,'artifacts':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in OUT.iterdir() if p.is_file()}}
+(OUT/'manifest.json').write_text(json.dumps(report,indent=2)+'\n');print(OUT)
+
+FILE fw_console/gpu_v1.c
+#include "gpu_v1.h"
+#include <limits.h>
+static uint32_t xy(int x,int y){return ((uint32_t)(uint16_t)x<<16)|(uint16_t)y;}
+static int region(uint32_t base,unsigned width,unsigned height,unsigned stride,unsigned maxw,unsigned maxh)
+{
+    return !(base&31) && width && width<=maxw && height && height<=maxh &&
+        !(stride&31) && stride>=width*2 && stride<=65535 && (uint64_t)base+(uint64_t)height*stride<=0x40000000ULL;
+}
+void gpu_v1_init(gpu_v1_context *c,void (*emit)(const gpu_command *))
+{ *c=(gpu_v1_context){0};c->emit=emit; }
+int gpu_v1_target(gpu_v1_context *c,const gpu_target *t)
+{
+    if(!region(t->color,t->width,t->height,t->stride,1024,512) || !region(t->depth,t->width,t->height,t->zstride,1024,512) ||
+       (t->color<t->depth+(uint32_t)t->zstride*t->height && t->depth<t->color+(uint32_t)t->stride*t->height))return 0;
+    gpu_command cmd={{22U<<24,t->color,t->depth,xy(t->width,t->height),xy(t->stride,t->zstride),0,0,0}};
+    c->emit(&cmd);c->target=*t;c->vx=c->vy=0;c->vw=t->width;c->vh=t->height;return 1;
+}
+int gpu_v1_scissor(gpu_v1_context *c,unsigned x,unsigned y,unsigned w,unsigned h)
+{
+    if(x>c->target.width || y>c->target.height || w>c->target.width-x || h>c->target.height-y)return 0;
+    gpu_command cmd={{23U<<24,xy(x,y),xy(x+w,y+h),0,0,0,0,0}};c->emit(&cmd);return 1;
+}
+int gpu_v1_viewport(gpu_v1_context *c,int x,int y,unsigned w,unsigned h)
+{
+    if(x<0 || y<0 || (unsigned)x>c->target.width || (unsigned)y>c->target.height || !w || !h ||
+        w>c->target.width-(unsigned)x || h>c->target.height-(unsigned)y)return 0;
+    c->vx=x;c->vy=y;c->vw=(int)w;c->vh=(int)h;return 1;
+}
+int gpu_v1_project(const gpu_v1_context *c,int nx,int ny,int *x,int *y)
+{
+    if(nx<-65536 || nx>65536 || ny<-65536 || ny>65536)return 0;
+    *x=c->vx+(int)((int64_t)(nx+65536)*c->vw/131072);
+    *y=c->vy+(int)((int64_t)(65536-ny)*c->vh/131072);return 1;
+}
+int gpu_v1_texture(gpu_v1_context *c,const gpu_texture_level *t)
+{
+    if(!region(t->base,t->width,t->height,t->stride,512,512) || t->format>1 || t->u_mode>2 || t->v_mode>2 || t->lod>9 ||
+       (t->u_mode==1 && (t->width&(t->width-1))) || (t->v_mode==1 && (t->height&(t->height-1))))return 0;
+    gpu_command cmd={{24U<<24,t->base,xy(t->width,t->height),t->stride|((unsigned)t->format<<16),
+        t->u_mode|(t->v_mode<<2)|(t->lod<<4),0,0,0}};c->emit(&cmd);return 1;
+}
+int gpu_v1_material(gpu_v1_context *c,const gpu_material *m)
+{
+    if(m->flags>255 || ((m->flags&16) && !(m->flags&1)) || m->alpha>256 || m->r>256 || m->g>256 || m->b>256 || m->fog_scale>0x1000000)return 0;
+    gpu_command cmd={{25U<<24,m->flags,m->alpha,m->color,m->r|(m->g<<9)|(m->b<<18),
+        ((uint32_t)m->fog_near<<16)|m->fog_color,m->fog_scale,0}};
+    c->emit(&cmd);c->flags=m->flags;return 1;
+}
+int gpu_v1_plane(gpu_v1_context *c,unsigned index,const gpu_raster_plane *p)
+{
+    if(index>6 || p->origin<-(1LL<<47) || p->origin>=(1LL<<47))return 0;
+    gpu_command cmd={{(26U<<24)|index,(uint32_t)p->origin,(uint32_t)p->dx,(uint32_t)p->dy,
+        (uint32_t)((uint64_t)p->origin>>32)&65535,0,0,0}};c->emit(&cmd);return 1;
+}
+static int triangle_planes(const gpu_v1_context *c,const gpu_vertex v[3],gpu_raster_plane p[7],unsigned *mask)
+{
+    for(unsigned i=0;i<3;++i)if(v[i].x<INT16_MIN || v[i].x>INT16_MAX || v[i].y<INT16_MIN || v[i].y>INT16_MAX ||
+        v[i].u<-32768 || v[i].u>32767 || v[i].v<-32768 || v[i].v>32767 || v[i].z<0 || v[i].z>65535 ||
+        v[i].q<0 || v[i].q>0xffffff || v[i].r<0 || v[i].r>256 || v[i].g<0 || v[i].g>256 || v[i].b<0 || v[i].b>256)return 0;
+    int64_t area=(int64_t)(v[1].x-v[0].x)*(v[2].y-v[0].y)-(int64_t)(v[1].y-v[0].y)*(v[2].x-v[0].x);
+    *mask=(c->flags&1 ? 3U:0U)|(c->flags&16 ? 4U:0U)|(c->flags&134 ? 8U:0U)|(c->flags&64 ? 112U:0U);
+    if(!area){*mask=0;return 1;}
+    for(unsigned k=0;k<7;++k)if(*mask&(1U<<k)) {
+        int64_t f[3];
+        for(unsigned i=0;i<3;++i) {
+            int value=k==0?v[i].u:k==1?v[i].v:k==2?v[i].q:k==3?v[i].z:k==4?v[i].r:k==5?v[i].g:v[i].b;
+            f[i]=k==2?value:(int64_t)value*(k<2 && (c->flags&16)?v[i].q:65536);
+        }
+        int64_t dx=((f[1]-f[0])*(v[2].y-v[0].y)-(f[2]-f[0])*(v[1].y-v[0].y))/area;
+        int64_t dy=((int64_t)(v[1].x-v[0].x)*(f[2]-f[0])-(int64_t)(v[2].x-v[0].x)*(f[1]-f[0]))/area;
+        // Reject extreme thin triangles before multiplying a gradient by x/y.
+        if(dx<INT32_MIN || dx>INT32_MAX || dy<INT32_MIN || dy>INT32_MAX)return 0;
+        int64_t origin=f[0]-dx*v[0].x-dy*v[0].y+(dx+dy)/2;
+        if(origin<-(1LL<<47) || origin>=(1LL<<47))return 0;
+        p[k]=(gpu_raster_plane){origin,(int32_t)dx,(int32_t)dy};
+    }
+    return 1;
+}
+int gpu_v1_triangle(gpu_v1_context *c,const gpu_vertex v[3])
+{
+    gpu_raster_plane p[7];unsigned mask;
+    if(!triangle_planes(c,v,p,&mask))return 0;
+    if(!((int64_t)(v[1].x-v[0].x)*(v[2].y-v[0].y)-(int64_t)(v[1].y-v[0].y)*(v[2].x-v[0].x)))return 1;
+    for(unsigned k=0;k<7;++k)if(mask&(1U<<k))gpu_v1_plane(c,k,&p[k]);
+    gpu_command cmd={{27U<<24,xy(v[0].x,v[0].y),xy(v[1].x,v[1].y),xy(v[2].x,v[2].y),0,0,0,0}};c->emit(&cmd);return 1;
+}
+int gpu_v1_quad(gpu_v1_context *c,const gpu_vertex v[4])
+{
+    gpu_vertex second[3]={v[0],v[2],v[3]};gpu_raster_plane p[7];unsigned mask;
+    if(!triangle_planes(c,v,p,&mask) || !triangle_planes(c,second,p,&mask))return 0;
+    return gpu_v1_triangle(c,v) && gpu_v1_triangle(c,second);
+}
+int gpu_v1_clear(gpu_v1_context *c,unsigned flags,unsigned color,unsigned depth,int x,int y,unsigned w,unsigned h)
+{
+    if(flags>3 || color>65535 || depth>65535 || x<INT16_MIN || x>INT16_MAX || y<INT16_MIN || y>INT16_MAX || w>65535 || h>65535)return 0;
+    gpu_command cmd={{28U<<24,flags,color,depth,xy(x,y),xy(w,h),0,0}};c->emit(&cmd);return 1;
+}
+int gpu_v1_copy(gpu_v1_context *c,const gpu_target *s,int sx,int sy,int x,int y,unsigned w,unsigned h)
+{
+    if(!region(s->color,s->width,s->height,s->stride,1024,512) || sx<INT16_MIN || sx>INT16_MAX || sy<INT16_MIN || sy>INT16_MAX ||
+       x<INT16_MIN || x>INT16_MAX || y<INT16_MIN || y>INT16_MAX || w>65535 || h>65535)return 0;
+    uint32_t src_end=s->color+(uint32_t)s->stride*s->height;
+    uint32_t dst_end=c->target.color+(uint32_t)c->target.stride*c->target.height;
+    if(s->color<dst_end && c->target.color<src_end && (s->color!=c->target.color || s->stride!=c->target.stride))return 0;
+    gpu_command cmd={{29U<<24,s->color,xy(s->width,s->height),s->stride,xy(sx,sy),xy(x,y),xy(w,h),0}};c->emit(&cmd);return 1;
+}
+void gpu_v1_invalidate(gpu_v1_context *c){gpu_command cmd={{30U<<24,0,0,0,0,0,0,0}};c->emit(&cmd);}
+void gpu_v1_font(uint16_t *atlas,const uint8_t font[4096])
+{
+    for(unsigned ch=0;ch<256;++ch)for(unsigned y=0;y<16;++y)for(unsigned x=0;x<8;++x)
+        atlas[((ch/16)*16+y)*128+(ch%16)*8+x]=(font[ch*16+y]&(128U>>x))?0xffff:0;
+}
+int gpu_v1_text(gpu_v1_context *c,uint32_t atlas,int x,int y,unsigned color,unsigned alpha,unsigned scale,const char *text)
+{
+    if(!scale || scale>16 || alpha>256 || color>65535)return 0;
+    gpu_texture_level t={atlas,128,256,256,GPU_ARGB4444,0,0,0};
+    gpu_material m={1,alpha,0,((color>>11)*256+15)/31,(((color>>5)&63)*256+31)/63,((color&31)*256+15)/31,0,0,0};
+    if(!gpu_v1_texture(c,&t) || !gpu_v1_material(c,&m))return 0;
+    for(;*text;++text,x+=8*(int)scale) {
+        if(x<INT16_MIN || x>INT16_MAX-8*(int)scale || y<INT16_MIN || y>INT16_MAX-16*(int)scale)return 0;
+        unsigned ch=(uint8_t)*text;int u=(ch%16)*8,v=(ch/16)*16;
+        gpu_vertex corners[4]={{x,y,u,v,0,0,256,256,256},{x+8*(int)scale,y,u+8,v,0,0,256,256,256},
+            {x+8*(int)scale,y+16*(int)scale,u+8,v+16,0,0,256,256,256},{x,y+16*(int)scale,u,v+16,0,0,256,256,256}};
+        if(!gpu_v1_quad(c,corners))return 0;
+    }
+    return 1;
+}
+int gpu_v1_image(gpu_v1_context *c,const gpu_texture_level *t,const gpu_vertex corners[4],unsigned alpha)
+{
+    gpu_material m={1,alpha,0,256,256,256,0,0,0};
+    if(alpha>256 || !gpu_v1_texture(c,t) || !gpu_v1_material(c,&m))return 0;
+    return gpu_v1_quad(c,corners);
+}
+
+int gpu_v1_asset_level(const void *data,unsigned bytes,uint32_t gpu_base,unsigned lod,unsigned u_mode,unsigned v_mode,gpu_texture_level *out)
+{
+    if(!data || !out || ((uintptr_t)data&3) || (gpu_base&31) || bytes<32 || u_mode>2 || v_mode>2)return 0;
+    const uint32_t *h=(const uint32_t *)data;
+    if(h[0]!=0x31545647 || h[1]!=1 || h[2]>1 || !h[3] || h[3]>10 || lod>=h[3] || h[4]>512 || !h[4] ||
+       h[5]>512 || !h[5] || h[6]>bytes || h[6]<32+h[3]*16 || h[7] || (uint64_t)gpu_base+h[6]>0x40000000ULL)return 0;
+    const uint32_t *l=h+8+lod*4;
+    unsigned width=l[1]>>16,height=l[1]&65535;
+    if(l[0]<((32+h[3]*16+31)&~31U) || l[3]!=lod || l[2]>65535 ||
+       width!=((h[4]+(1U<<lod)-1)>>lod) || height!=((h[5]+(1U<<lod)-1)>>lod) ||
+       (uint64_t)l[0]+(uint64_t)l[2]*height>h[6] ||
+       !region(gpu_base+l[0],width,height,l[2],512,512) ||
+       (u_mode==1 && (width&(width-1))) || (v_mode==1 && (height&(height-1))))return 0;
+    *out=(gpu_texture_level){gpu_base+l[0],width,height,l[2],h[2],u_mode,v_mode,lod};return 1;
+}

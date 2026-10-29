@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "module": "simon",
+  "source_sha256": {
+    "l3_simon.c": "94899e09081378c8692e470ae0e5c5c2974ff7dd7438942694f5c8fc0c43f252",
+    "l3_simon.h": "cd3ca7dbc31a7a7bdcf1613cedd0db26609857cb7b894ea3686074e3bce4e68a",
+    "l3_minigames.h": "a3bd99b497a1c0c965144a68c956e9232044752bf332ac2ebdac3a5115b92f0d",
+    "tests/test_simon.c": "45a7c7ba1645334715e7c2b1bde4c47d4d9ab15c02507031a571994ddf4d2b64",
+    "SIMON.md": "5cb75c1564747b84ba2fe30eed0d6ffcfbb7ac418d027596aad0d3fc87e27f78",
+    "tests/run_arcade_tests.py": "ab1dd3c98f9fb1aed1d44df0ef62d6e44a7f5597d6b71223a9b8f3e52f1ff1ce"
+  },
+  "inputs_stable": true,
+  "golden_trace_sha256": "1926000926da98750a479f23d7a00614a1379dcc456e1b853b479baacef9a07f",
+  "results": {
+    "strict": {
+      "compile_exit": 0,
+      "command": [
+        "cc",
+        "-std=c99",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-O2",
+        "/home/michael/console/games/luma3d/minigames/l3_simon.c",
+        "/home/michael/console/games/luma3d/minigames/tests/test_simon.c",
+        "-o",
+        "/tmp/luma-arcade-yuxazqgb/strict"
+      ],
+      "test_exit": 0,
+      "trace_sha256": "1926000926da98750a479f23d7a00614a1379dcc456e1b853b479baacef9a07f"
+    },
+    "asan_ubsan": {
+      "compile_exit": 0,
+      "command": [
+        "cc",
+        "-std=c99",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-O1",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/home/michael/console/games/luma3d/minigames/l3_simon.c",
+        "/home/michael/console/games/luma3d/minigames/tests/test_simon.c",
+        "-o",
+        "/tmp/luma-arcade-yuxazqgb/asan_ubsan"
+      ],
+      "test_exit": 0,
+      "trace_sha256": "1926000926da98750a479f23d7a00614a1379dcc456e1b853b479baacef9a07f"
+    }
+  },
+  "limitations": [
+    "LeakSanitizer disabled because ptrace monitor is incompatible",
+    "Host-only logic tests, no FPGA/timing/board qualification"
+  ]
+}

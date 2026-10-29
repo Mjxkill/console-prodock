@@ -1,0 +1,122 @@
+{
+  "unet": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "clip": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "vae": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "shift": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "lora",
+        0
+      ],
+      "shift": 3.0
+    }
+  },
+  "latent": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "positive": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "text": "Professional original cozy top-down adventure videogame asset sheet, 4 columns and 4 rows, exactly sixteen equal square cells, isolated object centered within each cell with generous padding. Warm hand-painted pixel-art with crisp deliberate clusters, 3/4 overhead camera, amber light from upper left and teal shadows, original handcrafted fantasy technology made of wood, copper, cream fabric and turquoise enamel. First row: chestnut horse and tiny rider facing down, same horse and rider facing up, facing left, facing right. The rider always has short apricot coat, teal scarf, dark curly hair. Second row: same rider suspended beneath leaf-shaped teal hang-glider; same rider beneath round cream-and-copper parachute; tiny cream-and-teal single propeller airplane with rider cockpit; tiny round copper and teal utility car with cream roof and gardening tools. Third row: rider on handcrafted orange kick scooter; rider on copper bicycle; small decorative wooden sailboat; two-wheel seed wagon. Fourth row: freestanding ceramic cyan lantern; terracotta pot overflowing with small cream flowers; small copper and wood windmill; brass telescope on a tripod. Each subject fits its own square cell, no overlaps, no cropped wings or wheels. Flat pure saturated MAGENTA background #ff00ff, no magenta in objects. No ground, no scenery, no text, no labels, no borders, no grid lines, no watermark. Beautiful readable silhouettes at 64px."
+    }
+  },
+  "negative": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "text": ""
+    }
+  },
+  "sample": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "shift",
+        0
+      ],
+      "seed": 2310261003,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": [
+        "positive",
+        0
+      ],
+      "negative": [
+        "negative",
+        0
+      ],
+      "latent_image": [
+        "latent",
+        0
+      ],
+      "denoise": 1.0
+    }
+  },
+  "decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "sample",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ]
+    }
+  },
+  "save": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "decode",
+        0
+      ],
+      "filename_prefix": "luma_travel_sheet"
+    }
+  },
+  "lora": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "unet",
+        0
+      ],
+      "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+      "strength_model": 1.0
+    }
+  }
+}

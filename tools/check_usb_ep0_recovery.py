@@ -13,6 +13,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import time
+from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
 REF = Path('/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller')
@@ -45,7 +46,7 @@ def main():
     sources = [rtl/'usb_descriptor.v', config,
                rtl/'sync_fifo/usb_fifo.v', rtl/'sync_fifo/sync_tx_pkt_fifo.v',
                rtl/'sync_fifo/sync_rx_pkt_fifo.v', REF/'usb_device_controller.vo',
-               Path('/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v')]
+               PRIMITIVES]
     hashes = {str(x):sha(x) for x in [base,tasks,includes,original,REF/'usb_device_controller.v',Path(__file__),*sources]}
     text = base.read_text()
     auxiliary_text = includes.read_text()

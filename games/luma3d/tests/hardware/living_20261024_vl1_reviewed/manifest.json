@@ -1,0 +1,1109 @@
+{
+  "candidate": true,
+  "hardware_tested": false,
+  "program": "luma3d-vl1",
+  "tag": "vl1",
+  "helper": "vl1-helper",
+  "game": {
+    "sha256": "7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882",
+    "bytes": 4560732,
+    "crc32": "97482905"
+  },
+  "baseline": {
+    "bytes": 1907532,
+    "sha256": "131ff6d7ca404e0188bb7e0ff68c25bd2db29b52ae27c561e019f6c53dfcc270",
+    "crc32": "659b9699"
+  },
+  "validation": {
+    "passed": true,
+    "hardware": false,
+    "commands": [
+      [
+        "cc",
+        "-std=c11",
+        "-O1",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-misleading-indentation",
+        "-ffp-contract=off",
+        "-fsanitize=address,undefined",
+        "-I/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source/games/luma3d/include",
+        "-I/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source/games/luma3d/world",
+        "-I/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source/fw_console",
+        "-I/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source/linux/drivers",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/validation/test_story.c",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source/games/luma3d/src/game.c",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source/games/luma3d/src/story.c",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source/games/luma3d/src/world.c",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source/games/luma3d/world/data.c",
+        "-lm",
+        "-o",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/validation/test_story"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/validation/test_story"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/validation/test_render_contract.py",
+        "--source-repo",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/source",
+        "--renderer-only",
+        "--out",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/validation/contract"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "90",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/maelle"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/maelle"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "1450",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/silo"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/silo"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "2330",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/relay"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/relay"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "3200",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/iria"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/iria"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "3800",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/completion"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/completion"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "90",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/maelle_720",
+        "--720p"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/maelle_720"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "2330",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/relay_720",
+        "--720p"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/relay_720"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "3200",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/iria_720",
+        "--720p"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/captures/iria_720"
+      ]
+    ],
+    "previews": [
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 194,
+        "draws": 40,
+        "submitted_triangles": 1542,
+        "instances": 40,
+        "culled_instances": 82,
+        "hardware": false,
+        "model_seconds": 0.11366005800664425,
+        "vertices": 1034,
+        "triangles": 525,
+        "clipped": 494,
+        "culled": 1109,
+        "slivers": 0,
+        "fragments": 223854,
+        "command_sha256": "e2e4269d67bceae6f74386e4b3ca7a9c88dcb94d3f47ae468be1a7cfe4aedae5",
+        "asset_sha256": "2d7cf032f45d8c919f7e7bacdeabbf447c11e5c57407280d7779fe20c0e3edc1",
+        "image_sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "4a83a46acc225c4cd62075e7f6bdb80ac377a5d6ba0318d700e684c4c43c2861",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "maelle",
+        "advance_steps": 90
+      },
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 179,
+        "draws": 36,
+        "submitted_triangles": 1759,
+        "instances": 36,
+        "culled_instances": 83,
+        "hardware": false,
+        "model_seconds": 0.09910792502341792,
+        "vertices": 1187,
+        "triangles": 405,
+        "clipped": 584,
+        "culled": 1444,
+        "slivers": 0,
+        "fragments": 236139,
+        "command_sha256": "8c1b83719d467ac4955e54e3f654ddd6598492e335e5c69b3854028605567343",
+        "asset_sha256": "71538ca8f4c959b52d5fc05b16923e2aba3de30988c6e2bcc6bd412b94c26c0d",
+        "image_sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "445d0882c6e5f574a689f63a58d5c34dd8d109442e1a42d75bf8eec9e5810279",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "silo",
+        "advance_steps": 1450
+      },
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 145,
+        "draws": 29,
+        "submitted_triangles": 1260,
+        "instances": 29,
+        "culled_instances": 91,
+        "hardware": false,
+        "model_seconds": 0.10892951395362616,
+        "vertices": 858,
+        "triangles": 521,
+        "clipped": 466,
+        "culled": 810,
+        "slivers": 0,
+        "fragments": 209796,
+        "command_sha256": "16219879bd8facd016d11908320a1508ab2fb4185f26821a596b066bb5248a22",
+        "asset_sha256": "4c81f5a2c65b23b9c839549b449fa749a628309c05e44bd610b53b17951958b3",
+        "image_sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "6c42b942f4776b64d1dafee53c84b2bdc794a27d7dc90fec5dad109f6506b5d4",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "relay",
+        "advance_steps": 2330
+      },
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 107,
+        "draws": 20,
+        "submitted_triangles": 1320,
+        "instances": 20,
+        "culled_instances": 100,
+        "hardware": false,
+        "model_seconds": 0.07834386004833505,
+        "vertices": 787,
+        "triangles": 296,
+        "clipped": 562,
+        "culled": 1108,
+        "slivers": 0,
+        "fragments": 226940,
+        "command_sha256": "694d64a36f156f7c847d5e8409a21120e6f8e0727993d7361bdb9867a2e5117f",
+        "asset_sha256": "0a2a9f56d55fa53853d77a3c7b31ebae1915e45edfd28eecd6b2e00f1c31d809",
+        "image_sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "acc90f59d7f269b64e86974d1976cd05b1a3a668ee1ccee9b7ad68e51c54da18",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "iria",
+        "advance_steps": 3200
+      },
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 387,
+        "draws": 80,
+        "submitted_triangles": 2836,
+        "instances": 80,
+        "culled_instances": 42,
+        "hardware": false,
+        "model_seconds": 0.18423442397033796,
+        "vertices": 2049,
+        "triangles": 1014,
+        "clipped": 720,
+        "culled": 1923,
+        "slivers": 0,
+        "fragments": 237507,
+        "command_sha256": "71b7d0dfacec1a4a47344d1882b81601843167cd592170ff5f1acf7f5246ef6e",
+        "asset_sha256": "2252f34bbc1606bdd140ad2b6911e2e2c2536c45fc83051f5d362798417e4074",
+        "image_sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "c7a9775128e77c8c5ba94e6f27d9e5fa2a73da96dac9b5952a87e43ad816a363",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "completion",
+        "advance_steps": 3800
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "pitch": 2560,
+        "page_bytes": 2097152,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 194,
+        "draws": 40,
+        "submitted_triangles": 1542,
+        "instances": 40,
+        "culled_instances": 82,
+        "hardware": false,
+        "model_seconds": 0.14608296199003235,
+        "vertices": 1034,
+        "triangles": 508,
+        "clipped": 544,
+        "culled": 1125,
+        "slivers": 0,
+        "fragments": 543067,
+        "command_sha256": "49de3ea5d16c72ed7f03fe71aeb5195ec5c1ffac1320dd49c5648830c9171f06",
+        "asset_sha256": "74b17bc8b02571abf54f814466b88251b91b0d7b7efde67036241022254558f4",
+        "image_sha256": "dc9a80751e40e054df098c32db4256eac85de9b101d8637f571c892d57a11ca3",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 222720,
+        "composite_rgb_sha256": "a3c93f7b61527c125d85d43f61f0d02f3ae358b48da1d4c7800b2816519b8380",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "maelle_720",
+        "advance_steps": 90
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "pitch": 2560,
+        "page_bytes": 2097152,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 138,
+        "draws": 28,
+        "submitted_triangles": 1244,
+        "instances": 28,
+        "culled_instances": 92,
+        "hardware": false,
+        "model_seconds": 0.15155265195062384,
+        "vertices": 845,
+        "triangles": 506,
+        "clipped": 456,
+        "culled": 812,
+        "slivers": 0,
+        "fragments": 505224,
+        "command_sha256": "f7bc90275b921ede186576cd7ba8c1a669b40a7e255750d995d929cdf2150c7a",
+        "asset_sha256": "890a575714938ceea90f81c901d7af0f0c4221597d8ef16faaa4832882ae2f14",
+        "image_sha256": "49197a1249c31d182cd67f1280448e6eebd26bce2ca65ce9448607a3bee2576c",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 138240,
+        "composite_rgb_sha256": "56e59db9e0f9f3a18282a9d06a46015ec00bd6fc54a1e1722c101d0e0fdc73f0",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "relay_720",
+        "advance_steps": 2330
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "pitch": 2560,
+        "page_bytes": 2097152,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 107,
+        "draws": 20,
+        "submitted_triangles": 1320,
+        "instances": 20,
+        "culled_instances": 100,
+        "hardware": false,
+        "model_seconds": 0.108089035958983,
+        "vertices": 787,
+        "triangles": 294,
+        "clipped": 566,
+        "culled": 1109,
+        "slivers": 0,
+        "fragments": 547060,
+        "command_sha256": "9b75551512cbb5c4047c0c7229fa13c254ac0169b4339676a9bf929784d0ecd6",
+        "asset_sha256": "6f1d769b08434bb446fe2ce5941e3867a45eaefa39f60ceb22fbd6146707cce8",
+        "image_sha256": "df19bf592ca8dfc911d56f753098c9f497a6204ff5d4a5bb45cbc322df0cadd9",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 222720,
+        "composite_rgb_sha256": "cb9efb684b0cfdbb60cca8a70e5ab08c7f883d8fcbfc1ec84210e60f7ae0efa4",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "iria_720",
+        "advance_steps": 3200
+      }
+    ],
+    "runtime": {
+      "sha256": "7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882",
+      "bytes": 4560732,
+      "crc32": "97482905"
+    },
+    "validator_sha256": "d459e8a559107b0ea584a1ccdaf505fd13071890ed0c9dc04c314c6239b88cdb",
+    "renderer_contract": "/home/michael/console/games/luma3d/build/valley_living_20261024_art3/validation/contract/result.json",
+    "limits": [
+      "Terrain/collision outside the tested path retains the R3 limitation.",
+      "No hardware FPS, no persistent save, no long campaign qualification."
+    ]
+  },
+  "scenes": [
+    {
+      "variant": "r3",
+      "pose": 0,
+      "pixels": {
+        "file": "vl1-p0.lz4",
+        "bytes": 192000,
+        "sha256": "e313aaa737a16171e41af54ec5f6d413d59443855be4443f060a86315fac5375",
+        "crc32": "104464b8"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 9968352,
+        "commands": 368,
+        "draws": 81,
+        "submitted_triangles": 2086,
+        "instances": 81,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.15656355500686914,
+        "vertices": 1590,
+        "triangles": 936,
+        "clipped": 594,
+        "culled": 1263,
+        "slivers": 0,
+        "fragments": 208972,
+        "command_sha256": "7b1b98e61fa27479378afc8cfb7d6a5296919053803c3ba0f99c0ad6678c96e9",
+        "asset_sha256": "5c22121c321d45f49cb84dcda482266b07c22b1bc372ce1b8d8d5792a76e64cb",
+        "image_sha256": "e313aaa737a16171e41af54ec5f6d413d59443855be4443f060a86315fac5375",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim"
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 0,
+      "pixels": {
+        "file": "vl1-p1.lz4",
+        "bytes": 192000,
+        "sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "crc32": "d5431e55"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 431,
+        "draws": 93,
+        "submitted_triangles": 2581,
+        "instances": 93,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.19250894599827006,
+        "vertices": 1956,
+        "triangles": 1088,
+        "clipped": 600,
+        "culled": 1613,
+        "slivers": 0,
+        "fragments": 209814,
+        "command_sha256": "1a562d3117af7cbabecc30fdb78ecdefc4e8787f0b534dfc487b2686b071ec7a",
+        "asset_sha256": "5bf7a5093803a53be6040f54231f6eb9dc6840b22f8167e885875fbbf123fa58",
+        "image_sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "53366d087499c7b064329de01a926bcc18b4fa2e6357aaacd5c3b45d0fc04b98",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "hud": {
+        "file": "vl1-h1.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 79723.62,
+        "commands": 12570,
+        "batches": 210,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 93,
+        "triangles_last": 2581,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 90,
+      "pixels": {
+        "file": "vl1-p2.lz4",
+        "bytes": 192000,
+        "sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+        "crc32": "a914e752"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 194,
+        "draws": 40,
+        "submitted_triangles": 1542,
+        "instances": 40,
+        "culled_instances": 82,
+        "hardware": false,
+        "model_seconds": 0.11366005800664425,
+        "vertices": 1034,
+        "triangles": 525,
+        "clipped": 494,
+        "culled": 1109,
+        "slivers": 0,
+        "fragments": 223854,
+        "command_sha256": "e2e4269d67bceae6f74386e4b3ca7a9c88dcb94d3f47ae468be1a7cfe4aedae5",
+        "asset_sha256": "2d7cf032f45d8c919f7e7bacdeabbf447c11e5c57407280d7779fe20c0e3edc1",
+        "image_sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "4a83a46acc225c4cd62075e7f6bdb80ac377a5d6ba0318d700e684c4c43c2861",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "hud": {
+        "file": "vl1-h2.lz4",
+        "bytes": 139200,
+        "sha256": "9c90fa16f9c8297b192fd8016fc706fdcdbc9073e060d0522870ecd2988ba4aa",
+        "crc32": "d01e7fb9"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 136068.62,
+        "commands": 5460,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 40,
+        "triangles_last": 1542,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 1450,
+      "pixels": {
+        "file": "vl1-p3.lz4",
+        "bytes": 192000,
+        "sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+        "crc32": "421f715d"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 179,
+        "draws": 36,
+        "submitted_triangles": 1759,
+        "instances": 36,
+        "culled_instances": 83,
+        "hardware": false,
+        "model_seconds": 0.09910792502341792,
+        "vertices": 1187,
+        "triangles": 405,
+        "clipped": 584,
+        "culled": 1444,
+        "slivers": 0,
+        "fragments": 236139,
+        "command_sha256": "8c1b83719d467ac4955e54e3f654ddd6598492e335e5c69b3854028605567343",
+        "asset_sha256": "71538ca8f4c959b52d5fc05b16923e2aba3de30988c6e2bcc6bd412b94c26c0d",
+        "image_sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "445d0882c6e5f574a689f63a58d5c34dd8d109442e1a42d75bf8eec9e5810279",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "hud": {
+        "file": "vl1-h3.lz4",
+        "bytes": 139200,
+        "sha256": "d14acd23e4b8391e858028f749c6db0ea3b426675320f4f01c71b3cf1c2f8afe",
+        "crc32": "517d1cdf"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 155955.16,
+        "commands": 5010,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 36,
+        "triangles_last": 1759,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 2330,
+      "pixels": {
+        "file": "vl1-p4.lz4",
+        "bytes": 192000,
+        "sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+        "crc32": "8f9b7c09"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 145,
+        "draws": 29,
+        "submitted_triangles": 1260,
+        "instances": 29,
+        "culled_instances": 91,
+        "hardware": false,
+        "model_seconds": 0.10892951395362616,
+        "vertices": 858,
+        "triangles": 521,
+        "clipped": 466,
+        "culled": 810,
+        "slivers": 0,
+        "fragments": 209796,
+        "command_sha256": "16219879bd8facd016d11908320a1508ab2fb4185f26821a596b066bb5248a22",
+        "asset_sha256": "4c81f5a2c65b23b9c839549b449fa749a628309c05e44bd610b53b17951958b3",
+        "image_sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "6c42b942f4776b64d1dafee53c84b2bdc794a27d7dc90fec5dad109f6506b5d4",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "hud": {
+        "file": "vl1-h4.lz4",
+        "bytes": 86400,
+        "sha256": "0f392e5a9f1dd8497d8eadc9f2c9c34ac171e5a7c0b293246ebe2c92fadfa8a0",
+        "crc32": "b9745bb0"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 181727.88,
+        "commands": 3990,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 29,
+        "triangles_last": 1260,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 3200,
+      "pixels": {
+        "file": "vl1-p5.lz4",
+        "bytes": 192000,
+        "sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+        "crc32": "f3285513"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 107,
+        "draws": 20,
+        "submitted_triangles": 1320,
+        "instances": 20,
+        "culled_instances": 100,
+        "hardware": false,
+        "model_seconds": 0.07834386004833505,
+        "vertices": 787,
+        "triangles": 296,
+        "clipped": 562,
+        "culled": 1108,
+        "slivers": 0,
+        "fragments": 226940,
+        "command_sha256": "694d64a36f156f7c847d5e8409a21120e6f8e0727993d7361bdb9867a2e5117f",
+        "asset_sha256": "0a2a9f56d55fa53853d77a3c7b31ebae1915e45edfd28eecd6b2e00f1c31d809",
+        "image_sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "acc90f59d7f269b64e86974d1976cd05b1a3a668ee1ccee9b7ad68e51c54da18",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "hud": {
+        "file": "vl1-h5.lz4",
+        "bytes": 139200,
+        "sha256": "670ca3ae7e54c7c807013eb07ac6d7c44c8d16f189661dc501208b5119e1080e",
+        "crc32": "1f34bb7e"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 222677.44,
+        "commands": 2850,
+        "batches": 60,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 20,
+        "triangles_last": 1320,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 3800,
+      "pixels": {
+        "file": "vl1-p6.lz4",
+        "bytes": 192000,
+        "sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+        "crc32": "3dd6d8ad"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 387,
+        "draws": 80,
+        "submitted_triangles": 2836,
+        "instances": 80,
+        "culled_instances": 42,
+        "hardware": false,
+        "model_seconds": 0.18423442397033796,
+        "vertices": 2049,
+        "triangles": 1014,
+        "clipped": 720,
+        "culled": 1923,
+        "slivers": 0,
+        "fragments": 237507,
+        "command_sha256": "71b7d0dfacec1a4a47344d1882b81601843167cd592170ff5f1acf7f5246ef6e",
+        "asset_sha256": "2252f34bbc1606bdd140ad2b6911e2e2c2536c45fc83051f5d362798417e4074",
+        "image_sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "c7a9775128e77c8c5ba94e6f27d9e5fa2a73da96dac9b5952a87e43ad816a363",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "hud": {
+        "file": "vl1-h6.lz4",
+        "bytes": 86400,
+        "sha256": "b24f381cba96e9927755003cc3312090663e4ac89649d9d110d9c10723882280",
+        "crc32": "7c917d16"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 90731.75,
+        "commands": 11250,
+        "batches": 180,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 80,
+        "triangles_last": 2836,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    }
+  ],
+  "compile_commands": [
+    [
+      "cc",
+      "-std=c11",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-Wno-misleading-indentation",
+      "-I/home/michael/console/games/luma3d/tests/hardware/living_20261024_vl1_reviewed",
+      "/home/michael/console/games/luma3d/tests/hardware/living_20261024_vl1_reviewed/runtime_inspect.c",
+      "-o",
+      "/home/michael/console/games/luma3d/tests/hardware/living_20261024_vl1_reviewed/helper-host"
+    ],
+    [
+      "/home/michael/console/linux/build/userbin/riscv32-prodock-linux-gcc",
+      "-std=c11",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-Wno-misleading-indentation",
+      "-I/home/michael/console/games/luma3d/tests/hardware/living_20261024_vl1_reviewed",
+      "-static",
+      "/home/michael/console/games/luma3d/tests/hardware/living_20261024_vl1_reviewed/runtime_inspect.c",
+      "-o",
+      "/home/michael/console/games/luma3d/tests/hardware/living_20261024_vl1_reviewed/vl1-helper"
+    ]
+  ],
+  "transfer_files": [
+    "vl1-helper",
+    "vl1.delta.lz4",
+    "vl1-p0.lz4",
+    "vl1-p1.lz4",
+    "vl1-h1.lz4",
+    "vl1-p2.lz4",
+    "vl1-h2.lz4",
+    "vl1-p3.lz4",
+    "vl1-h3.lz4",
+    "vl1-p4.lz4",
+    "vl1-h4.lz4",
+    "vl1-p5.lz4",
+    "vl1-h5.lz4",
+    "vl1-p6.lz4",
+    "vl1-h6.lz4",
+    "vl1-complete.lz4"
+  ],
+  "scope": "Six new fixed scenes plus comparable R3 initial scene; actual120s adventure, no same-content speedup or long-campaign claim",
+  "completion_hud": {
+    "file": "vl1-complete.lz4",
+    "bytes": 35200,
+    "sha256": "e8adaef8ee53884feba424c6594e5dcaa0f7019e4485c37e3363bd9cd744c2c9",
+    "crc32": "b0b34532"
+  },
+  "delta": {
+    "file": "vl1.delta.lz4",
+    "old_sha256": "131ff6d7ca404e0188bb7e0ff68c25bd2db29b52ae27c561e019f6c53dfcc270",
+    "new_sha256": "7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882",
+    "new_bytes": 4560732,
+    "new_crc32": "97482905",
+    "patch_bytes": 4114679,
+    "patch_crc32": "b57a8726"
+  },
+  "files": {
+    "build_delta.py": {
+      "bytes": 2820,
+      "sha256": "f04c4b091bd58a06264f12cafb26caf70972822e65585c14836d28e14f739240",
+      "crc32": "95038be4"
+    },
+    "check_gpu_reloads.py": {
+      "bytes": 9436,
+      "sha256": "b023a7c4ff340dd5fb00f8da6a05baa37834998f0ab0eec024fc931c0f8bd754",
+      "crc32": "d7c834b5"
+    },
+    "check_linux.py": {
+      "bytes": 5723,
+      "sha256": "c5a7fd2b902e32169eae5fed71c3f7f6a4c66fe9ffeb25879d19141e447897d9",
+      "crc32": "74e12906"
+    },
+    "game_manifest.json": {
+      "bytes": 5951,
+      "sha256": "7af8b07f870c284821e3e2e0da65504bf61c6b0217009d0cad2b885454509387",
+      "crc32": "e7823c41"
+    },
+    "helper-host": {
+      "bytes": 21032,
+      "sha256": "e13214370be9a69349037332c6ae518cd3f097a2d4480f314bd7b790bf32bbca",
+      "crc32": "3f4068ef"
+    },
+    "local_validation.json": {
+      "bytes": 16040,
+      "sha256": "34dd3af93e81ee05f9b71619924030663b23f9e5bad3210cc2276b0eb9251763",
+      "crc32": "5f9fefb9"
+    },
+    "prepare_hardware.py": {
+      "bytes": 7123,
+      "sha256": "3588132bb7418f31bd567169939097cbd3ce59401ae8b5addcd1450c1837e9c3",
+      "crc32": "06ca1087"
+    },
+    "prodock-uapi.h": {
+      "bytes": 3678,
+      "sha256": "28c9b505ecab395639698c143ab8ce48890537fef1008cee6a604dbc93c22a51",
+      "crc32": "4bbb65c6"
+    },
+    "prodock_living.py": {
+      "bytes": 13121,
+      "sha256": "e474207ef30430b876ee99d6d456df0ed1c61136400499a79a1a7f41448e6a69",
+      "crc32": "129abffd"
+    },
+    "prodock_transport.py": {
+      "bytes": 4089,
+      "sha256": "fbca604e76cb35f5e3d559644d8add769f40df1b85c129ba343159b327bf772b",
+      "crc32": "4ef1375c"
+    },
+    "prodock_valley_ab.py": {
+      "bytes": 11425,
+      "sha256": "7348d97f9ba20628750c8407419ab489e0f4b1698590b8e934a07f7e950038f4",
+      "crc32": "581bddca"
+    },
+    "prodock_valley_benchmark.py": {
+      "bytes": 14209,
+      "sha256": "38b035631a333f8660fb60faa104aa91c6a4d8f395081e375d7dd1683029b0e7",
+      "crc32": "0dd291db"
+    },
+    "prodock_valley_trial.py": {
+      "bytes": 9628,
+      "sha256": "0256ea224ccfa7e661b845b331f25cfdf4e560dd22b442e6f93b296161e14a8f",
+      "crc32": "34cbcb9b"
+    },
+    "reconstruction.log": {
+      "bytes": 46,
+      "sha256": "fc23e605136975dec595bca62bf6ac6ce39b2d01e4baee028c8a2c02407f18d0",
+      "crc32": "03be8cd5"
+    },
+    "runtime_inspect.c": {
+      "bytes": 6183,
+      "sha256": "ee4b96fdb21371e86b94dd75cb08703cf14483e48432df444ad2fcf07595fb60",
+      "crc32": "8584ca7b"
+    },
+    "test_hardware.py": {
+      "bytes": 9433,
+      "sha256": "744537d9631bab45ee58c99f5062f2d07640aea23aace17bb8a4e5afd0e9cd2f",
+      "crc32": "cac0f6c7"
+    },
+    "test_runtime_inspect.py": {
+      "bytes": 3732,
+      "sha256": "e24fe9df073502179e9561f3671f4059631742f73e4296fab4230ac3df0971ab",
+      "crc32": "52003482"
+    },
+    "vl1-complete.lz4": {
+      "bytes": 1401,
+      "sha256": "967ab3f1c0a6e5ca319a4e44ab3ef6ca2b2061aa0a3e70fff32917d36dc8c3c7",
+      "crc32": "c08509d5"
+    },
+    "vl1-h1.lz4": {
+      "bytes": 1637,
+      "sha256": "75c166ac25df7f37259138882fa62bf2b3fc3ab31e5846e62688a498b026238f",
+      "crc32": "2920d41a"
+    },
+    "vl1-h2.lz4": {
+      "bytes": 4042,
+      "sha256": "c41d0dae6300bcc389812733bbcc91b064561db2e6eef916f40d5920b9fc9fea",
+      "crc32": "fc5b18d5"
+    },
+    "vl1-h3.lz4": {
+      "bytes": 4259,
+      "sha256": "efece2907709515be9ee86dfb74dfdd64e90190db4033b4abc4cae09760f41dc",
+      "crc32": "002c0564"
+    },
+    "vl1-h4.lz4": {
+      "bytes": 2099,
+      "sha256": "0d9319718daa02b89d0634ea5b957c62750bc5e862d5787ccb25aedc37e343bd",
+      "crc32": "7ba73686"
+    },
+    "vl1-h5.lz4": {
+      "bytes": 4267,
+      "sha256": "669d658fc57d7fda58ed0c79e438f3e7bef622835e59b4880206ea0990d8dc10",
+      "crc32": "7e04374d"
+    },
+    "vl1-h6.lz4": {
+      "bytes": 2522,
+      "sha256": "2e501a3c26559d307e4eb92e288356b9c5c2bf51dbc89cff1885a9d42133640a",
+      "crc32": "cee0bd0c"
+    },
+    "vl1-helper": {
+      "bytes": 221088,
+      "sha256": "c5d796594e3df4b8380e4eceac604abbe6b3849d95a92425ed5f246b9b677521",
+      "crc32": "c54f6692"
+    },
+    "vl1-host-0.log": {
+      "bytes": 521,
+      "sha256": "7074e3a9acdf1c45349758f358eccabe4f0b1f720acda5cca463d2c0e808b267",
+      "crc32": "1e19fa85"
+    },
+    "vl1-host-1450.log": {
+      "bytes": 524,
+      "sha256": "390af285020d26c900e95c99f41478d28b26d4170d8d5c4c9ef06d39ea1b8e9f",
+      "crc32": "237a4fd8"
+    },
+    "vl1-host-2330.log": {
+      "bytes": 524,
+      "sha256": "273a6b5cb37d5a14651f5aec7bf29b88bfe760b462d9d39ef124206a9255371f",
+      "crc32": "68509a87"
+    },
+    "vl1-host-3200.log": {
+      "bytes": 524,
+      "sha256": "8ddfbf77e6815994d09cd436b6461a17186072370e812241ae5b4e1146a36546",
+      "crc32": "a0ff0cb7"
+    },
+    "vl1-host-3800.log": {
+      "bytes": 525,
+      "sha256": "319ea47b1621e05f9c4300c7f452e891accb440517731193e7928b3d03063150",
+      "crc32": "310f9e75"
+    },
+    "vl1-host-90.log": {
+      "bytes": 521,
+      "sha256": "2e0125e36e7e96cb06f8f311fe893cb465e24fa029b6d4037c4b2f57ddea0258",
+      "crc32": "3a846c82"
+    },
+    "vl1-p0.lz4": {
+      "bytes": 57638,
+      "sha256": "78fa11e2ea7b847a08b65a1899d815af13a55953bfb35aa73bffb165d09e04f6",
+      "crc32": "c18996d7"
+    },
+    "vl1-p1.lz4": {
+      "bytes": 83203,
+      "sha256": "70bac9484c8298d5a96985015a5026031f532bd50b64ef2eea1fcc25bb9b9420",
+      "crc32": "248c26fd"
+    },
+    "vl1-p2.lz4": {
+      "bytes": 76027,
+      "sha256": "926143f2f1bd2aaf5c4a80f45d2a39c363eeaa9e7e57845d0872a620578d4950",
+      "crc32": "da1fd8de"
+    },
+    "vl1-p3.lz4": {
+      "bytes": 41168,
+      "sha256": "b1d98468239704cdcdffa6002da592b706dc5c9d2fcd589a5c38a43ce403164a",
+      "crc32": "c6d080f5"
+    },
+    "vl1-p4.lz4": {
+      "bytes": 87916,
+      "sha256": "791c7a77ffba972ffec9bad8b3180f7dc202f2461d1b6f318cbdd7091202dbdf",
+      "crc32": "0cecf532"
+    },
+    "vl1-p5.lz4": {
+      "bytes": 37833,
+      "sha256": "773ff3c196853ba5398a58a9b7479bc4b1849d9a516fcee7e8cc83bc3464b3db",
+      "crc32": "40e13088"
+    },
+    "vl1-p6.lz4": {
+      "bytes": 63662,
+      "sha256": "1af0892de3b3c0560469847692900fefb2ba1548bf48e31d4f9ad5d0b2d5b779",
+      "crc32": "1392f6d3"
+    },
+    "vl1.delta.lz4": {
+      "bytes": 1890410,
+      "sha256": "1807b28a6973fe428bed0380ba1d107d3f4ff5310a32e51ee6c5f4944c5a4f60",
+      "crc32": "a684a952"
+    }
+  },
+  "transport_bytes": 2579172
+}

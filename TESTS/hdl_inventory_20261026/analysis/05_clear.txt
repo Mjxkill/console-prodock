@@ -1,0 +1,1047 @@
+tang/rtl/ae350/ddr3_memory/gw_ahb_ddr3.v
+     1 //********************************************************************
+     2 //
+     3 //      Copyright ©2014-2023 Gowin Semiconductor Corporation.
+     4 //                      All rights reserved.
+     5 //
+     6 // <File>     : gw_ahb_ddr3.v
+     7 // <Author>   : EMB
+     8 // <Function> : Gowin AHB interface of DDR3 memory controller
+     9 // <Version>  : 1.0
+    10 // <Date>     : 2023
+    11 //
+    12 //********************************************************************
+    13 
+    14 //-------------------------------- gw_ahb_ddr3_top -------------------------------//
+    15 module gw_ahb_ddr3_top
+    16 (
+    17     // DDR3 I/F
+    18     input   wire            DDR3_MEMORY_CLK,    // Memory clock
+    19     input   wire            DDR3_CLK_IN,        // Clock in
+    20     input   wire            DDR3_RSTN,          // Reset
+    21     input   wire            DDR3_LOCK,          // PLL lock
+    22     output  wire            DDR3_STOP,          // PLL stop
+    23     output 	wire            DDR3_INIT,          // Initialized
+    24     output  wire    [2:0]   DDR3_BANK,
+    25     output  wire            DDR3_CS_N,
+    26     output  wire            DDR3_RAS_N,
+    27     output  wire            DDR3_CAS_N,
+    28     output  wire            DDR3_WE_N,
+    29     output  wire            DDR3_CK,
+    30     output  wire            DDR3_CK_N,
+    31     output  wire            DDR3_CKE,
+    32     output  wire            DDR3_RESET_N,
+    33     output  wire            DDR3_ODT,
+    34     output  wire    [14:0]  DDR3_ADDR,
+    35     output  wire    [3:0]   DDR3_DM,
+    36     inout   wire    [31:0]  DDR3_DQ,
+    37     inout   wire    [3:0]   DDR3_DQS,
+    38     inout   wire    [3:0]   DDR3_DQS_N,
+    39     // AHB bus I/F
+    40     input   wire            HCLK,
+    41     input   wire            HRESETN,
+    42     input   wire    [31:0]  HADDR,
+    43     input   wire    [2:0]   HSIZE,
+    44     input   wire            HWRITE,
+    45     input   wire    [1:0]   HTRANS,
+    46     input   wire    [2:0]   HBURST,
+    47     input   wire    [63:0]  HWDATA,
+    48     output  wire            HREADY_O,
+    49     output  wire    [1:0]   HRESP,
+    50     output  wire    [63:0]  HRDATA
+    51 );
+    52 
+    53 // gw_ahb_ddr3 instantiation
+    54 gw_ahb_ddr3 u_gw_ahb_ddr3
+    55 (
+    56     .memory_clk                (DDR3_MEMORY_CLK),
+    57     .pll_lock                  (DDR3_LOCK),
+    58     .pll_stop                  (DDR3_STOP),
+    59     .rst_n                     (DDR3_RSTN),
+    60     .ddr_clk_in                (DDR3_CLK_IN),
+    61     .init_calib_complete       (DDR3_INIT),
+    62     .ddr_addr                  (DDR3_ADDR),
+    63     .ddr_ba                    (DDR3_BANK),
+    64     .ddr_cs_n                  (DDR3_CS_N),
+    65     .ddr_ras_n                 (DDR3_RAS_N),
+    66     .ddr_cas_n                 (DDR3_CAS_N),
+    67     .ddr_we_n                  (DDR3_WE_N),
+    68     .ddr_ck                    (DDR3_CK),
+    69     .ddr_ck_n                  (DDR3_CK_N),
+    70     .ddr_cke                   (DDR3_CKE),
+    71     .ddr_dm                    (DDR3_DM),
+    72     .ddr_dq                    (DDR3_DQ),
+    73     .ddr_dqs                   (DDR3_DQS),
+    74     .ddr_dqs_n                 (DDR3_DQS_N),
+    75     .ddr_reset_n               (DDR3_RESET_N),
+    76     .ddr_odt                   (DDR3_ODT),
+    77     .HCLK                      (HCLK),
+    78     .HRESETN                   (HRESETN),
+    79     .HSEL                      (1'b1),
+    80     .HREADY                    (HREADY_O),
+    81     .HADDR                     (HADDR),
+    82     .HSIZE                     (HSIZE),
+    83     .HWRITE                    (HWRITE),
+    84     .HTRANS                    (HTRANS),
+    85     .HBURST                    (HBURST),
+    86     .HREADY_O                  (HREADY_O),
+    87     .HWDATA                    (HWDATA),
+    88     .HRESP                     (HRESP),
+    89     .HRDATA                    (HRDATA),
+    90     .HSPLIT                    ()
+    91 );
+    92 
+    93 endmodule
+    94 
+    95 
+    96 
+    97 
+    98 
+    99 
+   100 
+   101 
+   102 
+   103 
+   104 //-------------------------------------- gw_ahb_ddr3 --------------------------------//
+   105 module gw_ahb_ddr3
+   106 #(
+   107     parameter   LANE_NUM         =  3 ,
+   108     parameter   BRUST_MODE       =  16, //32,//64,//16
+   109     parameter   ADDR_WIDTH       =  32,
+   110     parameter   DATA_WIDTH       =  32,
+   111     parameter   BRUST_COUNT      =  20
+   112 )
+   113 (
+   114     input                       memory_clk,
+   115     input                       pll_lock,
+   116     output                      pll_stop,
+   117     input                       rst_n,
+   118     // AHB bus I/F
+   119     input                       HCLK,
+   120     input                       HRESETN,
+   121     input                       HREADY,
+   122     input                       HSEL,
+   123     input             [31 : 0]  HADDR,
+   124     input              [2 : 0]  HSIZE,
+   125     input                       HWRITE,
+   126     input              [1 : 0]  HTRANS,
+   127     input              [2 : 0]  HBURST,
+   128     input             [63 : 0]  HWDATA,
+   129     output                      HREADY_O,
+   130     output             [1 : 0]  HRESP,
+   131     output            [15 : 0]  HSPLIT,
+   132     output            [63 : 0]  HRDATA,
+   133     // DDR Interface
+   134     input                       ddr_clk_in,
+   135     output                      init_calib_complete,
+   136     output             [2 : 0]  ddr_ba,
+   137     output                      ddr_cs_n,
+   138     output                      ddr_ras_n,
+   139     output                      ddr_cas_n,
+   140     output                      ddr_we_n,
+   141     output                      ddr_ck,
+   142     output                      ddr_ck_n,
+   143     output                      ddr_cke,
+   144     output                      ddr_odt,
+   145     output                      ddr_reset_n,
+   146     output            [14 : 0]  ddr_addr,
+   147     output             [3 : 0]  ddr_dm,
+   148     inout             [31 : 0]  ddr_dq,
+   149     inout              [3 : 0]  ddr_dqs,
+   150     inout              [3 : 0]  ddr_dqs_n 
+   151 );
+   152 
+   153 
+   154 /////////////////////////////////////////////////////
+   155 // Parameter definitions
+   156 localparam [4: 0]  IDLE               = 4'd0;
+   157 localparam [4: 0]  SELECT_LANE        = 4'd1;
+   158 localparam [4: 0]  SELECT_LANE_WAIT_1 = 4'd2;
+   159 localparam [4: 0]  SELECT_LANE_WAIT_2 = 4'd3;
+   160 localparam [4: 0]  SELECT_LANE_CHK    = 4'd4;
+   161 localparam [4: 0]  LPDDR_WRITING_1    = 4'd5;
+   162 localparam [4: 0]  LPDDR_WRITING_2    = 4'd6;
+   163 localparam [4: 0]  LPDDR_READING      = 4'd7;
+   164 localparam [4: 0]  LPDDR_WR_END       = 4'd8;
+   165 localparam [4: 0]  LPDDR_RD_END       = 4'd9;
+   166 localparam [4: 0]  LPDDR_AHB          = 4'd10;
+   167 
+   168 
+   169 /////////////////////////////////////////////////////
+   170 // Register definitions
+   171 reg                 [3 : 0] c_status;
+   172 reg                 [3 : 0] n_status;
+   173 
+   174 reg                         wr_req;
+   175 reg                         rd_req;
+   176 reg                         ahb_req;
+   177 reg                         wr_data_end;
+   178 reg                         rd_data_end;
+   179 reg                         ahb_end;
+   180 
+   181 // DDR Signals
+   182 reg                [31 : 0] cmd_addr;
+   183 reg               [127 : 0] wr_data;
+   184 wire              [127 : 0] lpddr_rd_data;
+   185 wire                        lpddr_rd_valid;
+   186 wire                        lpddr_rd_end;
+   187 reg                [15 : 0] lpddr_wdata_mask;
+   188 
+   189 reg                         lpddr_cmd_en;
+   190 reg                         lpddr_cmd;
+   191 wire                        lpddr_cmd_ready;
+   192 wire                        lpddr_data_ready;
+   193 reg                         lpddr_wdata_en;
+   194 reg                         lpddr_wdata_end;
+   195 
+   196 // DDR work signals
+   197 reg                         lpddr_ready;
+   198 reg                 [7 : 0] lpddr_ready_cnt;
+   199 reg                 [7 : 0] lpddr_data_end_cnt;
+   200 
+   201 // AHB bus signals
+   202 wire                        lpddr_ahb_end;
+   203 wire                        lpddr_ahb_req;
+   204 wire               [31 : 0] lpddr_addr_ahb;
+   205 wire                        lpddr_cmd_en_ahb;
+   206 wire                        lpddr_cmd_ahb;
+   207 wire                        lpddr_wdata_en_ahb;
+   208 wire                        lpddr_wdata_end_ahb;
+   209 wire              [127 : 0] lpddr_wr_data_ahb;
+   210 reg               [127 : 0] rd_data_lpddr_ahb;
+   211 reg                         rd_valid_p_ahb;
+   212 wire               [15 : 0] lpddr_wdata_mask_ahb;
+   213 
+   214 
+   215 //////////////////////////////////////////////////////////
+   216 //================= Need User Define ===================//
+   217 // LANE 0 WRITE Signal
+   218 reg                         rst_n_d1;
+   219 reg                         rst_n_d2;
+   220 reg                         lpddr_rst_n;
+   221 wire                        ddr_clk;
+   222 
+   223 always @ (posedge ddr_clk or negedge rst_n) begin
+   224     if(!rst_n) begin
+   225         rst_n_d1    <= 1'b0;
+   226         rst_n_d2    <= 1'b0;
+   227         lpddr_rst_n <= 1'b0;
+   228     end 
+   229     else  begin
+   230         rst_n_d1    <= 1'b1;
+   231         rst_n_d2    <= rst_n_d1;
+   232         lpddr_rst_n <= rst_n_d2;
+   233     end
+   234 end
+   235 
+   236 always @ (posedge ddr_clk or negedge lpddr_rst_n) begin
+   237     if(!lpddr_rst_n)
+   238         lpddr_ready <= 1'b0;
+   239     else if(init_calib_complete)
+   240         lpddr_ready <= 1'b1;
+   241     else
+   242         lpddr_ready <= 1'b0;
+   243 end
+   244 
+   245 always @ (posedge ddr_clk or negedge lpddr_rst_n) begin
+   246     if(!lpddr_rst_n)
+   247         c_status <= IDLE;
+   248     else
+   249         c_status <= n_status;
+   250 end
+   251 
+   252 always @ (*) begin
+   253     case (c_status)
+   254         IDLE: begin
+   255             if ( lpddr_ready == 1'b1 )
+   256                 n_status = SELECT_LANE;
+   257             else n_status = IDLE;
+   258         end
+   259 
+   260         SELECT_LANE: begin
+   261             n_status = SELECT_LANE_CHK;
+   262         end
+   263 
+   264         SELECT_LANE_CHK: begin
+   265             if( lpddr_cmd_ready && lpddr_data_ready && ahb_req )
+   266                 n_status = LPDDR_AHB;
+   267             else if(ahb_req == 1'b0)
+   268                 n_status = IDLE;
+   269             else 
+   270                 n_status = SELECT_LANE;
+   271         end
+   272 
+   273         LPDDR_AHB: begin
+   274             if (ahb_end)
+   275                 n_status = SELECT_LANE;
+   276             else 
+   277                 n_status = LPDDR_AHB;
+   278         end
+   279 
+   280         default: begin
+   281             n_status = IDLE;
+   282         end
+   283 
+   284     endcase
+   285 end
+   286 
+   287 // Calculate Lane Number & ADDR & Burst Count
+   288 always @(posedge ddr_clk or negedge lpddr_rst_n) begin
+   289     if(!lpddr_rst_n) begin
+   290         ahb_end               <= 1'b0;
+   291         ahb_req               <= 1'b0;
+   292     end
+   293     else begin
+   294         ahb_end               <= lpddr_ahb_end;
+   295         ahb_req               <= lpddr_ahb_req;
+   296     end
+   297 end
+   298 
+   299 
+   300 // DDR ADDR & Write Data
+   301 always @ (posedge ddr_clk or negedge lpddr_rst_n) begin
+   302     if(!lpddr_rst_n) begin
+   303         cmd_addr               <= {32{1'b0}};
+   304         wr_data                <= 'h0000_0000_0000_0000;
+   305         lpddr_cmd_en           <= 1'b0;
+   306         lpddr_cmd              <= 1'b0;
+   307         lpddr_wdata_en         <= 1'b0;
+   308         lpddr_wdata_end        <= 1'b0;
+   309     end
+   310     else begin
+   311         cmd_addr               <= lpddr_addr_ahb;
+   312         wr_data                <= lpddr_wr_data_ahb;
+   313         lpddr_cmd_en           <= lpddr_cmd_en_ahb;
+   314         lpddr_cmd              <= lpddr_cmd_ahb;
+   315         lpddr_wdata_en         <= lpddr_wdata_en_ahb;
+   316         lpddr_wdata_end        <= lpddr_wdata_end_ahb;
+   317     end
+   318 end
+   319 
+   320 always @ (posedge ddr_clk or negedge lpddr_rst_n) begin
+   321     if(!lpddr_rst_n)
+   322         lpddr_wdata_mask        <= 8'h00;
+   323     else 
+   324         lpddr_wdata_mask        <= lpddr_wdata_mask_ahb;
+   325 end
+   326 
+   327 // Read Valid & Read Data from DDR
+   328 always @ (posedge ddr_clk or negedge lpddr_rst_n) begin
+   329     if(!lpddr_rst_n) begin
+   330         rd_valid_p_ahb         <= 1'b0;
+   331     end
+   332     else begin
+   333         rd_valid_p_ahb          <= lpddr_rd_valid;
+   334     end
+   335 end
+   336 
+   337 
+   338 // DDR3_Memeory_Interface_Top instantiation
+   339 DDR3_Memory_Interface_Top u_DDR3_Memory_Interface_Top
+   340 (
+   341     .clk                     (ddr_clk_in),
+   342     .pll_stop                (pll_stop),
+   343     .memory_clk              (memory_clk),
+   344     .pll_lock                (pll_lock),
+   345     .rst_n                   (rst_n),
+   346     .cmd_ready               (lpddr_cmd_ready),
+   347     .cmd                     ({2'b00,lpddr_cmd}),
+   348     .cmd_en                  (lpddr_cmd_en),
+   349     .addr                    ({3'b000,cmd_addr[25:1]}),
+   350     .wr_data_rdy             (lpddr_data_ready),
+   351     .wr_data                 (wr_data),
+   352     .wr_data_en              (lpddr_wdata_en),
+   353     .wr_data_end             (lpddr_wdata_en),
+   354     .wr_data_mask            (lpddr_wdata_mask),
+   355     .rd_data                 (lpddr_rd_data),
+   356     .rd_data_valid           (lpddr_rd_valid),
+   357     .rd_data_end             (lpddr_rd_end),
+   358     .sr_req                  (1'b0),
+   359     .ref_req                 (1'b0),
+   360     .sr_ack                  (),
+   361     .ref_ack                 (),
+   362     .init_calib_complete     (init_calib_complete),
+   363     .clk_out                 (ddr_clk),
+   364     .ddr_rst                 (),
+   365     .burst                   (1'b1),
+   366     .O_ddr_addr              (ddr_addr),
+   367     .O_ddr_ba                (ddr_ba),
+   368     .O_ddr_cs_n              (ddr_cs_n),
+   369     .O_ddr_ras_n             (ddr_ras_n),
+   370     .O_ddr_cas_n             (ddr_cas_n),
+   371     .O_ddr_we_n              (ddr_we_n),
+   372     .O_ddr_clk               (ddr_ck),
+   373     .O_ddr_clk_n             (ddr_ck_n),
+   374     .O_ddr_cke               (ddr_cke),
+   375     .O_ddr_odt               (ddr_odt),
+   376     .O_ddr_reset_n           (ddr_reset_n),
+   377     .O_ddr_dqm               (ddr_dm),
+   378     .IO_ddr_dq               (ddr_dq),
+   379     .IO_ddr_dqs              (ddr_dqs),
+   380     .IO_ddr_dqs_n            (ddr_dqs_n)
+   381 );
+   382 
+   383 
+   384 // ddr3_memory_and_ahb_bus instantiation
+   385 ddr3_memory_and_ahb_bus u_ddr3_memory_and_ahb_bus
+   386 (
+   387     .lpddr_clk         (ddr_clk),
+   388     .rst_n             (rst_n&init_calib_complete & HRESETN),
+   389     .c_status          (c_status),
+   390     .n_status          (n_status),
+   391     .lpddr_rdata       (lpddr_rd_data),
+   392     .rd_valid_p        (rd_valid_p_ahb),
+   393     .lpddr_wr_data     (lpddr_wr_data_ahb),
+   394     .lpddr_addr        (lpddr_addr_ahb),
+   395     .lpddr_cmd         (lpddr_cmd_ahb),
+   396     .lpddr_cmd_en      (lpddr_cmd_en_ahb),
+   397     .lpddr_cmd_ready   (lpddr_cmd_ready),
+   398     .lpddr_data_ready  (lpddr_data_ready),
+   399     .lpddr_wdata_en    (lpddr_wdata_en_ahb),
+   400     .lpddr_wdata_end   (lpddr_wdata_end_ahb),
+   401     .lpddr_wdata_mask  (lpddr_wdata_mask_ahb),
+   402     .ahb_end           (lpddr_ahb_end),
+   403     .ahb_req           (lpddr_ahb_req),
+   404     .HCLK              (HCLK),
+   405     .HRESETN           (HRESETN),
+   406     .HSEL              (HSEL),
+   407     .HREADY            (HREADY),
+   408     .HADDR             (HADDR),
+   409     .HSIZE             (HSIZE),
+   410     .HWRITE            (HWRITE),
+   411     .HTRANS            (HTRANS),
+   412     .HBURST            (HBURST),
+   413     .HWDATA            (HWDATA),
+   414     .HREADY_O          (HREADY_O),
+   415     .HRESP             (HRESP),
+   416     .HRDATA            (HRDATA),
+   417     .HSPLIT            (HSPLIT)
+   418 );
+   419 
+   420 endmodule
+   421 
+   422 
+   423 
+   424 
+   425 
+   426 
+   427 
+   428 
+   429 
+   430 
+   431 //--------------------------------------- ddr3_memory_and_ahb_bus -----------------------------------//
+   432 module ddr3_memory_and_ahb_bus
+   433 (
+   434     lpddr_clk,
+   435     rst_n,
+   436     c_status,
+   437     n_status,
+   438     lpddr_wr_data,
+   439     lpddr_addr, 
+   440     lpddr_cmd,
+   441     lpddr_cmd_en,
+   442     lpddr_cmd_ready,
+   443     lpddr_data_ready,
+   444     lpddr_wdata_en,
+   445     lpddr_wdata_end,
+   446     lpddr_wdata_mask,
+   447     lpddr_rdata,
+   448     rd_valid_p,
+   449     ahb_end,
+   450     ahb_req,
+   451     HCLK,
+   452     HRESETN,
+   453     HSEL,
+   454     HREADY,
+   455     HADDR,
+   456     HSIZE,
+   457     HWRITE,
+   458     HTRANS,
+   459     HBURST,
+   460     HWDATA,
+   461     HREADY_O,
+   462     HRESP,
+   463     HRDATA,
+   464     HSPLIT
+   465 );
+   466 
+   467 
+   468 input                              lpddr_clk;
+   469 input                              rst_n;
+   470 input                      [3 : 0] c_status;
+   471 input                      [3 : 0] n_status;
+   472 input                    [127 : 0] lpddr_rdata;
+   473 output                   [127 : 0] lpddr_wr_data;
+   474 output                    [31 : 0] lpddr_addr;
+   475 input                              rd_valid_p;
+   476 output                             lpddr_cmd;
+   477 output                             lpddr_cmd_en;
+   478 input                              lpddr_cmd_ready;
+   479 input                              lpddr_data_ready;
+   480 output  reg                        lpddr_wdata_en;
+   481 output  reg                        lpddr_wdata_end;
+   482 output                    [15 : 0] lpddr_wdata_mask;
+   483 output  reg                        ahb_end;
+   484 output  reg                        ahb_req;
+   485 input                              HCLK;
+   486 input                              HRESETN;
+   487 input                              HREADY;
+   488 input                              HSEL;
+   489 input                     [31 : 0] HADDR;
+   490 input                      [2 : 0] HSIZE;
+   491 input                              HWRITE;
+   492 input                      [1 : 0] HTRANS;
+   493 input                      [2 : 0] HBURST;
+   494 input                     [63 : 0] HWDATA;
+   495 output                             HREADY_O;
+   496 output                     [1 : 0] HRESP;
+   497 output                    [15 : 0] HSPLIT;
+   498 output                    [63 : 0] HRDATA;
+   499  
+   500 
+   501 localparam [4 : 0]  IDLE               = 4'd0;
+   502 localparam [4 : 0]  SELECT_LANE        = 4'd1;
+   503 localparam [4 : 0]  SELECT_LANE_WAIT_1 = 4'd2;
+   504 localparam [4 : 0]  SELECT_LANE_WAIT_2 = 4'd3;
+   505 localparam [4 : 0]  SELECT_LANE_CHK    = 4'd4;
+   506 localparam [4 : 0]  LPDDR_WRITING_1    = 4'd5;
+   507 localparam [4 : 0]  LPDDR_WRITING_2    = 4'd6;
+   508 localparam [4 : 0]  LPDDR_READING      = 4'd7;
+   509 localparam [4 : 0]  LPDDR_WR_END       = 4'd8;
+   510 localparam [4 : 0]  LPDDR_RD_END       = 4'd9;
+   511 localparam [4 : 0]  LPDDR_AHB          = 4'd10;
+   512 
+   513 // AHB ops
+   514 // HBURST
+   515 localparam [2 : 0]  SINGLE = 0; 
+   516 localparam [2 : 0]  INCR   = 1;
+   517 localparam [2 : 0]  WRAP4  = 2;
+   518 localparam [2 : 0]  INCR4  = 3;
+   519 localparam [2 : 0]  WRAP8  = 4;
+   520 localparam [2 : 0]  INCR8  = 5;
+   521 localparam [2 : 0]  WRAP16 = 6;
+   522 localparam [2 : 0]  INCR16 = 7;
+   523 // HTRANS
+   524 localparam [1 : 0]  BUSY   = 1;
+   525 localparam [1 : 0]  NONSEQ = 2;
+   526 localparam [1 : 0]  SEQ    = 3;
+   527 localparam [3 : 0]  S_VLD_CNT = 1;
+   528 localparam [3 : 0]	WR_DLY = 4;
+   529 
+   530 // Registers
+   531 reg              hready;
+   532 wire             hsel;
+   533 reg              hsel_r;
+   534 
+   535 reg      [1 : 0] hwrite_d;
+   536 reg              hwrite_r;
+   537 reg     [31 : 0] haddr_r;
+   538 reg     [31 : 0] haddr_wr;
+   539 reg      [2 : 0] hsize_r /*syntheis preserve=1*/;
+   540 reg      [1 : 0] htrans_r;
+   541 reg      [2 : 0] hburst_r;
+   542 
+   543 reg              fifo_wr;
+   544 wire             Almost_Full;
+   545 
+   546 reg    [167 : 0] fifo_wdata;
+   547 
+   548 reg              fifo_rd;
+   549 wire   [167 : 0] Q;
+   550 
+   551 reg     [31 : 0] app_addr;
+   552 reg              app_cmd;
+   553 reg              app_cmd_en;
+   554 reg    [127 : 0] app_wdata;
+   555 reg      [7 : 0] app_mask;
+   556 reg              app_wdf_en;
+   557 reg              app_wdf_end;
+   558 wire   [127 : 0] ddr_rd_data;
+   559 
+   560 reg      [4 : 0] ddr_pstate;
+   561 reg      [4 : 0] ddr_nstate;
+   562 
+   563 
+   564 wire             ddr_rst;
+   565 wire             lpddr_clk;
+   566 wire             rdfifo_empty;
+   567 wire    [63 : 0] ahb_rd_o;
+   568 reg    [127 : 0] hrdata_reg;
+   569 wire             cmd_ready;
+   570 wire             wr_data_rdy;
+   571 
+   572 reg              ahbr_flag,ahbw_flag;
+   573 reg              ahbr_start,ahbw_start;
+   574 reg              ahbr_end_flag;
+   575 wire             ahbw_end_flag;
+   576 reg              ahbr_cmd_flag;
+   577 
+   578 reg              ahbw_single;
+   579 reg              ahbw_incr16;
+   580 reg      [6 : 0] ahbw_incr16_cnt;
+   581 reg              ahbr_single;
+   582 reg              ahbr_incr16;
+   583 reg      [6 : 0] ahbr_cnt;
+   584 reg              ahbr_op;
+   585 reg              data_valid_dly;
+   586 reg              data_valid;
+   587 wire     [4 : 0] addr_wrap;
+   588 wire    [15 : 0] ahb_mask_d0;
+   589 wire    [15 : 0] ahb_mask_d1;
+   590 
+   591 reg      [1 : 0] ahb_mask_2word;
+   592 reg      [7 : 0] ahb_mask_word;
+   593 reg      [7 : 0] ahb_mask_byte;
+   594 reg      [7 : 0] ahb_mask_halfword;
+   595 
+   596 reg      [2 : 0] valid_cnd;
+   597 reg     [63 : 0] adata_datal0;
+   598 reg      [4 : 0] ddr_burstrd_cnt;
+   599 
+   600 reg              wr_end;
+   601 reg              rd_end;
+   602 reg     [63 : 0] lpddr_rdata_d;
+   603 wire   [127 : 0] lpddr_rdata_buf;
+   604 
+   605 reg	     [3 : 0] beat_cnt;
+   606 reg              hwr_en;
+   607 reg              hrd_en;
+   608 
+   609 // wr fifo
+   610 reg      [3 : 0] wr_cnt;
+   611 wire             fifo_ahb_wr_wren;
+   612 wire             fifo_ahb_wr_rden;
+   613 wire   [127 : 0] fifo_ahb_wr_data;
+   614 wire   [127 : 0] fifo_ahb_rd_data;
+   615 wire             fifo_wr_empty;
+   616 wire             fifo_wr_full;
+   617 wire    [63 : 0] ahb_wr_data_q;
+   618 wire    [31 : 0] ahb_wr_addr_q;
+   619 wire    [15 : 0] ahb_wr_mask_q;
+   620 
+   621 wire             hwrite_buf_wren;
+   622 reg	             hwrite_buf_rden;
+   623 wire             hwrite_buf_afull;
+   624 wire             hwrite_buf_empty;
+   625 wire             hwrite_buf_full;
+   626 wire   [127 : 0] hwrite_buf_data_in;
+   627 wire   [127 : 0] hwrite_buf_data_out;
+   628 wire    [31 : 0] haddr_q;
+   629 wire    [63 : 0] hwdata_q;
+   630 wire    [ 2 : 0] hsize_q /*syntheis preserve=1*/;
+   631 
+   632 // rd fifo
+   633 wire             fifo_rd_empty;
+   634 wire             fifo_rd_full;
+   635 reg              fifo_ahb_rd_rden;
+   636 reg      [3 : 0] fifo_ahb_rd_cnt;
+   637 
+   638 // AHB logics
+   639 wire             hwrite_s,hread_s;
+   640 wire             hwrite_neg;
+   641   
+   642 assign hsel       = HREADY & HSEL & HTRANS[1];
+   643 assign hwrite_s   =  HWRITE & hsel;
+   644 assign hread_s    = !HWRITE & hsel;
+   645 assign hwrite_neg = !hwrite_d[0] & hwrite_d[1];
+   646 
+   647 always @(posedge HCLK or negedge HRESETN) begin
+   648     if(!HRESETN)
+   649         hwrite_d <= 'b0;
+   650     else 
+   651         hwrite_d <= {hwrite_d[0],hwrite_s};
+   652 end
+   653 
+   654 always @(posedge HCLK or negedge HRESETN) begin
+   655     if(!HRESETN)
+   656         haddr_r  <= 'b0;
+   657     else if(hread_s && !ahbr_start && !ahbr_flag)
+   658         haddr_r  <= HADDR ;
+   659     else
+   660         haddr_r  <= haddr_r;
+   661 end
+   662 
+   663 always @(posedge HCLK or negedge HRESETN) begin
+   664     if(!HRESETN)
+   665         haddr_wr  <= 'b0;
+   666     else if(hwrite_s)
+   667         haddr_wr  <= HADDR ;
+   668     else
+   669         haddr_wr  <= haddr_wr;
+   670 end
+   671 
+   672 always @(posedge HCLK or negedge HRESETN) begin
+   673     if(!HRESETN)
+   674         ahbr_flag <= 1'b0;
+   675     else if(ahb_req && !ahbw_single)
+   676         ahbr_flag <= 1'b0;
+   677     else if(HREADY & HSEL & !HWRITE & (HTRANS[1] == 1'b1))
+   678         ahbr_flag <= 1'b1;
+   679 end
+   680 
+   681 always @(posedge HCLK or negedge HRESETN) begin
+   682     if(!HRESETN)
+   683         ahbr_start <= 1'b0;
+   684     else if(ahbr_cmd_flag)
+   685         ahbr_start <= 1'b0;
+   686     else if(ahbr_single & ahbr_flag)
+   687         ahbr_start <= 1'b1;
+   688 end
+   689 
+   690 always @(posedge HCLK or negedge HRESETN) begin
+   691     if(!HRESETN)
+   692         hsize_r <= 1'b0;
+   693     else if(hsel) 
+   694         hsize_r <= HSIZE ;
+   695     else  
+   696         hsize_r <= hsize_r;
+   697 end
+   698   
+   699 always @(posedge HCLK or negedge HRESETN) begin
+   700     if(!HRESETN)
+   701         ahbw_single <= 1'b0;
+   702     else if(ahb_end)
+   703         ahbw_single <= 1'b0;
+   704     else if(!ahbw_single & !fifo_wr_empty & !ahbr_flag & !ahbr_single)  //only 1 op allowed
+   705         ahbw_single <= 1'b1;
+   706 end
+   707 
+   708 always @(posedge HCLK or negedge HRESETN) begin
+   709     if(!HRESETN)
+   710         ahbr_single <= 1'b0;
+   711     else if(ahbr_single & data_valid & (fifo_ahb_rd_cnt > S_VLD_CNT))
+   712         ahbr_single <= 1'b0;
+   713     else if(!ahbw_single  & !ahbr_single & ahbr_flag)
+   714         ahbr_single <= 1'b1;
+   715 end
+   716 
+   717 always @(posedge HCLK or negedge HRESETN) begin
+   718     if (!HRESETN)
+   719         hready <= 1'b1;
+   720     else if(HREADY & HSEL & !HWRITE & (HTRANS[1] == 1'b1))  // single read
+   721         hready <= 1'b0;//!Almost_Full;
+   722     else if(ahbr_flag)
+   723         hready <= 1'b0;
+   724     else if(ahbr_single && data_valid)
+   725         hready <= (fifo_ahb_rd_cnt==S_VLD_CNT+1);
+   726     else if(ahb_end & ahbw_single)
+   727         hready <= !Almost_Full && !hwrite_buf_afull;
+   728     else if(HREADY & HSEL & HWRITE & (HTRANS[1] == 1'b1))   // single write
+   729         hready <= 1'b0;
+   730 end
+   731 
+   732 
+   733 // to ddr ui
+   734 reg        app_cmd_a;
+   735 reg        app_cmd_c;
+   736 reg [2:0]  app_cmd_d;
+   737 wire       lpddr_cmd_en_c;
+   738 wire       lpddr_cmd_en_d;
+   739 
+   740 // DDR CMD 
+   741 always @ (posedge lpddr_clk or negedge rst_n) begin
+   742     if(!rst_n)
+   743         app_cmd  <= 1'b0;
+   744     else if(ahb_end)
+   745         app_cmd <= 1'b0;
+   746     else if(ahbw_single)
+   747         app_cmd <= 1'b0;
+   748     else if(ahbr_single)
+   749         app_cmd <= 1'b1;
+   750 end
+   751 
+   752 assign lpddr_cmd = app_cmd;
+   753 
+   754 always @ (posedge lpddr_clk or negedge rst_n) begin
+   755     if(!rst_n)
+   756         ahb_req <= 1'b0;
+   757     else if(ahb_end && !ahbr_single && !ahbw_single)
+   758         ahb_req <= 1'b0;
+   759     else if(!ahb_end &&  !fifo_wr_empty)
+   760         ahb_req <= 1'b1;
+   761     else if(ahbr_single && !ahb_end)
+   762         ahb_req <= 1'b1;
+   763 end
+   764 
+   765 always @ (posedge lpddr_clk or negedge rst_n) begin
+   766     if(!rst_n)
+   767         app_cmd_a <= 1'b0;
+   768     else if(ahb_end)
+   769         app_cmd_a <= 1'b0 ;
+   770     else if(ahb_req && (c_status == LPDDR_AHB))
+   771         app_cmd_a <= 1'b1;
+   772 end
+   773 
+   774 always @ (posedge lpddr_clk or negedge rst_n) begin
+   775     if(!rst_n)
+   776        app_cmd_c  <= 1'b0;
+   777     else if(app_cmd_a && lpddr_cmd_ready && lpddr_data_ready && c_status == LPDDR_AHB)
+   778        app_cmd_c  <= 1'b1 ;
+   779     else
+   780        app_cmd_c  <= 1'b0;
+   781 end
+   782 
+   783 always @ (posedge lpddr_clk or negedge rst_n) begin
+   784     if(!rst_n)
+   785        app_cmd_d  <= 2'b0;
+   786     else 
+   787        app_cmd_d[2:0]  <= {app_cmd_d[1:0] ,app_cmd_c};
+   788 end
+   789 
+   790 assign lpddr_cmd_en_c = app_cmd_c & (~app_cmd_d[0]);
+   791 assign lpddr_cmd_en_d = app_cmd_d[0] & (~app_cmd_d[1]);
+   792 assign lpddr_cmd_en   = app_cmd_d[1] & (~app_cmd_d[2]);
+   793 
+   794 // DDR ADDR
+   795 wire [31:0] ahb_cmd_addr0;  //0010_0000[ROM] 2010_0000[RAM] 8000_0000[USER RAM]
+   796 wire [31:0] ahb_cmd_addr1;  //0010_0000[ROM] 2010_0000[RAM] 8000_0000[USER RAM]
+   797 assign ahb_cmd_addr0 = haddr_r;
+   798 assign ahb_cmd_addr1 = ahb_wr_addr_q;
+   799 
+   800 always @ (posedge lpddr_clk or negedge rst_n) begin
+   801     if(!rst_n)
+   802         app_addr <= 'b0;
+   803     else if(ahbw_single & lpddr_cmd_en_d)
+   804         app_addr <= {ahb_cmd_addr1[31:4],4'h0} ;
+   805     else if(ahbr_single & lpddr_cmd_en_d)	
+   806         app_addr <= {ahb_cmd_addr0[31:4],ahb_cmd_addr0[3],3'b0};// ddr x1
+   807     else 
+   808         app_addr <= app_addr;
+   809 end
+   810 assign lpddr_addr = app_addr;
+   811 
+   812 // DDR Write DATA
+   813 always @(posedge HCLK or negedge HRESETN) begin
+   814     if (!HRESETN)
+   815         adata_datal0  <= 'b0;
+   816     else if(hwrite_d[0])
+   817         adata_datal0  <= HWDATA;
+   818 end  
+   819   
+   820 always @(posedge HCLK or negedge HRESETN) begin
+   821     if (!HRESETN)
+   822         hwrite_buf_rden  <= 'b0;
+   823     else if(!hwrite_buf_empty && !ahbw_flag && !Almost_Full)
+   824         hwrite_buf_rden  <= 1'b1;
+   825     else
+   826         hwrite_buf_rden  <= 'b0;
+   827 end
+   828 
+   829 always @(posedge HCLK or negedge HRESETN) begin
+   830     if (!HRESETN) 
+   831         ahbw_flag <= 1'b0;
+   832     else if(hwrite_buf_rden)
+   833         ahbw_flag <= 1'b1;
+   834     else if(ahbw_start)
+   835         ahbw_flag <= 1'b0;
+   836 end
+   837 
+   838 always @(posedge HCLK or negedge HRESETN) begin
+   839     if (!HRESETN)
+   840         ahbw_start <= 1'b0;
+   841     else if(wr_cnt == WR_DLY)
+   842         ahbw_start <= 1'b1;
+   843     else
+   844         ahbw_start <= 1'b0;
+   845 end
+   846 
+   847 assign hwrite_buf_data_in         = {29'h0,hsize_r,haddr_wr,adata_datal0};//3 32 64
+   848 assign hwrite_buf_wren            = hwrite_d[1];
+   849 assign {hsize_q,haddr_q,hwdata_q} = hwrite_buf_data_out[3+32+64-1:0];
+   850 
+   851 ddr3_memory_wrfifo u_hwrite_buf
+   852 (
+   853     .RdClk        (HCLK),
+   854     .WrClk        (HCLK),
+   855     .WrEn         (hwrite_buf_wren),
+   856     .RdEn         (hwrite_buf_rden),
+   857     .Reset        (!HRESETN),
+   858     .Data         (hwrite_buf_data_in),
+   859     .Empty        (hwrite_buf_empty),
+   860     .Full         (hwrite_buf_full),
+   861     .Almost_Full  (hwrite_buf_afull),
+   862     .Almost_Empty (),
+   863     .Q            (hwrite_buf_data_out)
+   864 );
+   865 
+   866 always @(posedge HCLK or negedge HRESETN) begin
+   867     if (!HRESETN)
+   868         wr_cnt  <= 'b0;
+   869     else if(ahbw_start)
+   870         wr_cnt  <= 0;
+   871     else if(ahbw_flag)
+   872         wr_cnt  <= (wr_cnt == WR_DLY) ? wr_cnt : wr_cnt+1;
+   873 end
+   874 
+   875 assign fifo_ahb_wr_wren = (wr_cnt == WR_DLY-1);
+   876 assign fifo_ahb_wr_data = (wr_cnt == WR_DLY-1) ? {16'h0,ahb_mask_d0,haddr_q,hwdata_q}:128'h0;
+   877 
+   878 assign fifo_ahb_wr_rden = (lpddr_cmd_en_c);
+   879 assign lpddr_wr_data    = {2{ahb_wr_data_q}};
+   880 assign ahb_wr_data_q    = fifo_ahb_rd_data[63:0];
+   881 assign ahb_wr_addr_q    = fifo_ahb_rd_data[95:64];
+   882 assign ahb_wr_mask_q    = fifo_ahb_rd_data[111:96];
+   883 assign lpddr_wdata_mask =  ahb_wr_mask_q;
+   884 
+   885 ddr3_memory_wrfifo u_fifo_wr
+   886 (
+   887     .RdClk        (lpddr_clk),
+   888     .WrClk        (HCLK),
+   889     .WrEn         (fifo_ahb_wr_wren),
+   890     .RdEn         (fifo_ahb_wr_rden),
+   891     .Reset        (!HRESETN),
+   892     .Data         (fifo_ahb_wr_data),
+   893     .Empty        (fifo_wr_empty),
+   894     .Full         (fifo_wr_full),
+   895     .Almost_Full  (Almost_Full),
+   896     .Almost_Empty (),
+   897     .Q            (fifo_ahb_rd_data)
+   898 );
+   899 
+   900 always@(posedge HCLK or negedge HRESETN) begin
+   901     if (!HRESETN) begin
+   902         ahb_mask_2word <= 'b0;
+   903         ahb_mask_word <= 'b0;
+   904         ahb_mask_byte <= 'b0;
+   905         ahb_mask_halfword <= 'b0;
+   906     end
+   907     else begin
+   908         ahb_mask_2word <= (haddr_q[3] == 1'b0) ? 2'b10 :
+   909                           (haddr_q[3] == 1'b1) ? 2'b01 :2'b0;
+   910 
+   911         ahb_mask_byte <= (hsize_q[2:0] == 3'b000 &&haddr_q [2:0] == 3'b000) ? 8'b1111_1110 :
+   912                          (hsize_q[2:0] == 3'b000 &&haddr_q [2:0] == 3'b001) ? 8'b1111_1101 :
+   913                          (hsize_q[2:0] == 3'b000 &&haddr_q [2:0] == 3'b010) ? 8'b1111_1011 :
+   914                          (hsize_q[2:0] == 3'b000 &&haddr_q [2:0] == 3'b011) ? 8'b1111_0111 :
+   915                          (hsize_q[2:0] == 3'b000 &&haddr_q [2:0] == 3'b100) ? 8'b1110_1111 :
+   916                          (hsize_q[2:0] == 3'b000 &&haddr_q [2:0] == 3'b101) ? 8'b1101_1111 :
+   917                          (hsize_q[2:0] == 3'b000 &&haddr_q [2:0] == 3'b110) ? 8'b1011_1111 :
+   918                          (hsize_q[2:0] == 3'b000 &&haddr_q [2:0] == 3'b111) ? 8'b0111_1111 : 8'b0;
+   919 
+   920         ahb_mask_halfword <= (hsize_q[2:0] == 3'b001 && haddr_q[2:1] == 2'b00) ? 8'b1111_1100 :
+   921                         (hsize_q[2:0] == 3'b001 && haddr_q[2:1] == 2'b01) ? 8'b1111_0011 :
+   922                         (hsize_q[2:0] == 3'b001 && haddr_q[2:1] == 2'b10) ? 8'b1100_1111 :
+   923                         (hsize_q[2:0] == 3'b001 && haddr_q[2:1] == 2'b11) ? 8'b0011_1111 :8'b0;
+   924 
+   925         ahb_mask_word <= (hsize_q[2:0] == 3'b010 && haddr_q[2] == 1'b0) ? 8'b1111_0000 :
+   926                         (hsize_q[2:0] == 3'b010 && haddr_q[2] == 1'b1) ? 8'b0000_1111 :8'b0;
+   927     end
+   928 end
+   929 
+   930 assign ahb_mask_d0 = (hsize_q[2:0] == 3'b000 && !ahb_mask_2word[0])	?	{8'hFF,ahb_mask_byte}       :
+   931                      (hsize_q[2:0] == 3'b000 && !ahb_mask_2word[1])	?	{ahb_mask_byte,8'hFF}       :
+   932                      (hsize_q[2:0] == 3'b001 && !ahb_mask_2word[0])	?	{8'hFF,ahb_mask_halfword}   :
+   933                      (hsize_q[2:0] == 3'b001 && !ahb_mask_2word[1])	?	{ahb_mask_halfword,8'hFF}   :
+   934                      (hsize_q[2:0] == 3'b010 && !ahb_mask_2word[0])	?	{8'hFF,ahb_mask_word}       :
+   935                      (hsize_q[2:0] == 3'b010 && !ahb_mask_2word[1])	?	{ahb_mask_word,8'hFF}       :
+   936                      {{8{ahb_mask_2word[1]}},{8{ahb_mask_2word[0]}}};
+   937 
+   938 // DDR DATA EN
+   939 always @ (posedge lpddr_clk or negedge rst_n) begin
+   940     if(!rst_n)
+   941        lpddr_wdata_en <= 1'b0;
+   942     else if((lpddr_cmd_en_d) && ahbw_single)
+   943        lpddr_wdata_en <= 1'b1;
+   944     else
+   945        lpddr_wdata_en <= 1'b0;
+   946 end
+   947 
+   948 always @ (posedge lpddr_clk or negedge rst_n) begin
+   949     if(!rst_n)
+   950         lpddr_wdata_end <= 1'b0;
+   951     else if(lpddr_cmd_en_d  && ahbw_single)
+   952         lpddr_wdata_end <= 1'b1;
+   953     else
+   954         lpddr_wdata_end <= 1'b0;
+   955 end
+   956 
+   957 // Current Lane start LPDDR write end (One time of whole LPDDR write)
+   958 // Change to next Lane
+   959 always @ (posedge lpddr_clk or negedge rst_n) begin
+   960     if(!rst_n)
+   961         ahb_end <= 1'b0;
+   962     else if(ahbw_single && lpddr_cmd_en && c_status == LPDDR_AHB)
+   963         ahb_end <= 1'b1;
+   964     else if(ahbr_single && data_valid && c_status == LPDDR_AHB)
+   965         ahb_end <= 1'b1;
+   966     else if(ahb_end && !ahbr_single && !ahbw_single && !ahb_req)
+   967         ahb_end <= 1'b0 ;
+   968 end
+   969 
+   970 reg [2:0]lpddr_cmd_en_flag;
+   971 always @ (posedge lpddr_clk or negedge rst_n) begin
+   972     if(!rst_n)
+   973         lpddr_cmd_en_flag <= 1'b0;
+   974     else 
+   975         lpddr_cmd_en_flag <= {lpddr_cmd_en_flag[1:0],lpddr_cmd_en};
+   976 end
+   977  
+   978 always @ (posedge lpddr_clk or negedge rst_n) begin
+   979     if(!rst_n)
+   980         ahbr_cmd_flag <= 1'b0;
+   981     else if(ahbr_single && (|lpddr_cmd_en_flag))
+   982         ahbr_cmd_flag <= 1'b1;
+   983     else if(ahbr_cmd_flag && !ahbr_start)
+   984         ahbr_cmd_flag <= 1'b0;
+   985 end
+   986 
+   987 always@(posedge HCLK or negedge HRESETN) begin
+   988     if (!HRESETN) 
+   989         fifo_ahb_rd_rden <= 1'b0;
+   990     else
+   991         fifo_ahb_rd_rden <= !fifo_rd_empty;
+   992 end
+   993   
+   994 always@(posedge HCLK or negedge HRESETN) begin
+   995     if (!HRESETN) 
+   996         fifo_ahb_rd_cnt <= 'b0;
+   997     else if(fifo_ahb_rd_rden)
+   998         fifo_ahb_rd_cnt <= fifo_ahb_rd_cnt+1;
+   999     else
+  1000         fifo_ahb_rd_cnt <= 'b0;
+  1001 end
+  1002 
+  1003 always@(posedge HCLK or negedge HRESETN) begin
+  1004     if (!HRESETN) 
+  1005         data_valid <= 1'b0;
+  1006     else
+  1007         data_valid <= fifo_ahb_rd_rden;
+  1008 end
+  1009 
+  1010 assign HRESP    =  2'b0;
+  1011 assign HSPLIT   = 16'b0;
+  1012 assign HREADY_O = hready;
+  1013 assign HRDATA   = hrdata_reg[63:0];
+  1014 
+  1015 always@(posedge HCLK or negedge HRESETN) begin
+  1016 if (!HRESETN) 
+  1017     hrdata_reg <= 128'h0000;
+  1018 else if ((fifo_ahb_rd_cnt == S_VLD_CNT) && data_valid)
+  1019     hrdata_reg <= lpddr_rdata_buf;
+  1020 end
+  1021 
+  1022 reg [127:0]  rd_data_lpddr_d;
+  1023 always @ (posedge lpddr_clk or negedge rst_n) begin
+  1024     if(!rst_n)
+  1025        rd_data_lpddr_d <= 128'b0;
+  1026     else 
+  1027        rd_data_lpddr_d <= lpddr_rdata;
+  1028 end
+  1029 
+  1030 // Read data fifo
+  1031 ddr3_memory_rdfifo u_fifo_rd
+  1032 (
+  1033     .RdClk        (HCLK),
+  1034     .WrClk        (lpddr_clk),
+  1035     .WrEn         (rd_valid_p),
+  1036     .RdEn         (fifo_ahb_rd_rden),
+  1037     .Reset        (!HRESETN),
+  1038     .Data         (rd_data_lpddr_d),
+  1039     .Empty        (fifo_rd_empty),
+  1040     .Full         (fifo_rd_full),
+  1041     .Almost_Empty (),
+  1042     .Almost_Full  (),
+  1043     .Q            (lpddr_rdata_buf)
+  1044 );
+  1045 
+  1046 endmodule

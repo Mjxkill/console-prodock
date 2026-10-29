@@ -1,0 +1,307 @@
+# Contre-revue offline — transitions RX2 segmentées, RETURN frais, reprise, interruption
+
+## 1. Faits établis dans les fichiers fournis
+
+- `stage.py` impose une borne maximale de session à **256 KiB** :
+  - `require(type(blocks)==int and 1<=blocks<=512,...)` (segment).
+  - `sender.BLOCK=512`.
+  - `transfer_trial.py:stage_files` appelle `stage.segment(...)` sans `blocks`, donc par défaut 512 blocs = 262 144 octets/session.
+- `stage.segment` exige un état initial strict :
+  - `require(channel.shell and channel.current is None,'Shell not confirmed')`.
+  - puis pose `channel.current=s; channel.shell=False`.
+- Le transit textuel unique est construit avant READY :
+  - `channel.text(s.command(plan['rx2_executable'],plan['remote_payload'],resume))`.
+- `sender.Session.begin()` ne considère `READY` que si la première réponse est `R` avec raison `0`, et valide le checkpoint via `_checkpoint`.
+- `finish(stop=...)` n’accepte que `X` terminal, avec raison `1` si `stop=True`, sinon `0`, puis appelle `await_return`.
+- `await_return` ne fait aucune écriture.
+- `transfer_trial.py` gère l’interruption :
+  - `interrupted` lève `InterruptedError` si `cleanup` est faux,
+  - le bloc `finally` restaure les handlers,
+  - le bloc `finally` interne appelle `c.restore_shell(c.current)` si `c.current` est non nul.
+- La boucle de segmentation est :
+  - `for index in range(m['transport']['planned_sessions']+1)`,
+  - `resume=resume or index>0`,
+  - append du `segments.json` après chaque segment,
+  - `break` si `row['complete']`,
+  - sinon `RuntimeError('Segment count exceeded')`.
+- Le contrôle de place est conservateur :
+  - avant la boucle `storage_check(..., payload_exists=False)`,
+  - après reconstruction `storage_check(..., payload_exists=True)`.
+- `load_plan` vérifie les SHA256 du bundle/base/cible et des fichiers, les bornes historiques et `hardware_ready/hardware_access is False`.
+
+## 2. Hypothèses raisonnables, mais non prouvées par le packet
+
+1. **`channel.restore_shell(session)` met `channel.shell=True` et purge/neutralise `channel.current`.**  
+   Le contrat le laisse entendre, mais l’implémentation de `probe_channel.Channel.restore_shell` n’est pas fournie. C’est le point de transition le plus sensible.
+
+2. **La `reprise` protocolaire du récepteur est idempotente et préserve exactement le préfixe déjà accepté.**  
+   Le hôte contrôle `prefix`, `offset`, `seq`, mais la sémantique de `resume` côté exécutable RX2 n’est pas visible dans ce packet.
+
+3. **`channel.text()` ne bloque pas en attendant un prompt shell.**  
+   La conception suppose qu’il envoie la commande et retourne pendant que le récepteur prend la main. Le packet ne montre pas l’implémentation.
+
+4. **La commande wrapper retourne `rc=1` pour un arrêt partiel volontaire.**  
+   `finish(stop=True)` exige terminal `X` raison 1 puis `returncode == 1`. On n’a pas le code RX2 pour confirmer que `rc` vaut 1 dans ce cas.
+
+5. **`planned_sessions+1` est une marge délibérée de sécurité.**  
+   Le commentaire dit que les sessions supplémentaires ne sont prévues qu’après redémarrage explicitement revu par root, mais le code les permet dans la même invocation si les sessions planifiées ne terminent pas.
+
+## 3. Ce qui peut déjà être contredit par le seul code
+
+### A. Risque de double restauration du shell après succès
+
+Flux nominal :
+
+```python
+# stage.py
+s.finish(stop=not complete)
+channel.restore_shell(s)
+return ...
+```
+
+Puis, dans `transfer_trial.py`, le `finally` :
+
+```python
+if c.current:
+    c.restore_shell(c.current)
+if c.shell:
+    ... health ...
+```
+
+Si `stage.segment` appelle `restore_shell(s)` mais **ne vide pas `channel.current`**, le nettoyage final rappellera `restore_shell` sur une session déjà terminée. Le packet ne prouve pas que `restore_shell` est idempotent. C’est un contre-exemple direct de transition “réussite puis cleanup”.
+
+**Patch minimal le plus défendable :** faire de `stage.segment` le propriétaire de l’état de fin de session réussie :
+
+```python
+# stage.py: après finish réussi
+channel.restore_shell(s)
+channel.current = None
+# channel.shell reste sous l'autorité exclusive de restore_shell
+```
+
+Ainsi `transfer_trial` ne déclenche pas de seconde restauration. Ce patch ne change aucune logique payload.
+
+### B. `await_return` peut être sous-dimensionné au moment de l’arrivée du RETURN
+
+Dans `sender.Session.finish` :
+
+```python
+self.await_return(max(.001, deadline-time.monotonic()))
+```
+
+Si le checkpoint terminal `X` arrive proche du `deadline`, le budget transmis à `await_return` peut descendre au plancher `0.001 s`. Le wrapper imprime ensuite `RX2_RETURN_<nonce>:...` ; le fichier ne donne aucune preuve que cette impression arrive avant ce budget.
+
+**Patch minimal :**
+
+```python
+self.await_return(max(1.0, min(self.idle_ms / 1000.0 + 3.0, deadline - time.monotonic() + 1.0)))
+```
+
+Objectif : ne jamais attendre moins d’une seconde après terminal, sans pour autant écrire ou relancer de frame.
+
+### C. Incohérence entre commentaire et boucle `planned_sessions + 1`
+
+Le code dit en commentaire : sessions supplémentaires “only when root explicitly restarts this controller with `--resume` after reviewing failure.” Or la boucle autorise une session de plus même dans une même invocation non reprise si les sessions planifiées n’aboutissent pas à `complete`.
+
+Contre-exemple conceptuel :
+
+- `planned_sessions = P`,
+- segment 1 accepte 256 KiB mais `complete=False`,
+- ...
+- après P sessions encore `complete=False`,
+- la session `P+1` est exécutée **sans revue root explicite**.
+
+Soit c’est une marge voulue, et le commentaire doit être corrigé ; soit c’est une dérive, et il faut borner selon le mode CLI.
+
+**Patch minimal si on veut respecter strictement le commentaire :**
+
+```python
+max_sessions = m['transport']['planned_sessions'] + (1 if resume else 0)
+for index in range(max_sessions):
+    row = stage.segment(c, m, resume=resume or index > 0)
+    ...
+else:
+    raise RuntimeError('Segment count exceeded')
+```
+
+La trace observée dans `segments.json` permet alors de différencier :
+- `--run` : au plus `P` segments,
+- `--run --resume` : au plus `P+1` segments.
+
+## 4. Contre-tests proposés, sans matériel et sans outils
+
+Les tests ci-dessous sont formulés au niveau des contrats. Ils n’ont pas été exécutés ici ; ils sont conçus pour révéler soit une violation soit un comportement ambigu.
+
+### T1 — RETURN frais vs RETURN bufférisé : `begin()` doit refuser un vieux RETURN
+
+**Objet :** prouver qu’un RETURN présent dans le tampon ne peut pas être interprété comme READY.
+
+Construction :
+- `io` fake nourri d’abord par `RX2_RETURN_<nonce>:0` puis par un `RX2 <nonce> R 00000000 ...` valide ;
+- appel `Session(io, nonce, payload).begin()`.
+
+Comportement attendu :
+- `event()` retourne `('return', 0)` à la première ligne,
+- `begin()` lève `TransferError('receiver not ready')` ;
+- `return_seen` peut être vrai, mais `ready` reste faux.
+
+Si au contraire le test acceptait le READY, la traçabilité “RETURN frais” serait cassée.
+
+### T2 — checkpoint de reprise incohérent
+
+**Objet :** prouver que la reprise ne peut pas avancer sur un offset invalide.
+
+Constructions à tester dans `Session.begin()` :
+1. `offset=BLOCK+1`, sinon champs valides ;
+2. `offset=BLOCK`, mais `prefix` ≠ `self.prefixes[BLOCK]` ;
+3. `offset=BLOCK`, mais `seq=0` au lieu de 1.
+
+Comportement attendu :
+- cas 1 : `Uncertain('checkpoint offset')` ;
+- cas 2 et 3 : `Uncertain('checkpoint prefix')`.
+
+Ce test discrimine l’hypothèse “le récepteur sait seul avancer” de l’hypothèse “le hôte valide le checkpoint”.
+
+### T3 — écriture partielle d’une frame
+
+**Objet :** confirmer qu’un envoi partiel n’est jamais rejoué.
+
+Construction :
+- io fake dont `write(part)` retourne `0` au premier chunk ;
+- io alimenté pour un `R` valide à offset 0 ;
+- appeler `block()`.
+
+Comportement attendu :
+- `send()` lève `Uncertain('partial transmit')` ;
+- aucune seconde écriture de la même frame n’est tentée ;
+- `sent_frames == 1` mais le session offset n’avance pas.
+
+Si le code tentait un retry, il violerait explicitement sa propre assertion “no replay of the frame”.
+
+### T4 — timeout ACK en DATA
+
+**Objet :** vérifier la frontière exacte “aucune récupération automatique inconnue”.
+
+Construction :
+- io ne renvoie jamais de ligne pendant `idle_ms` ;
+- appel `block()`.
+
+Comportement attendu :
+- après `idle_ms/1000 + 1 s`, `Uncertain('ACK deadline')` ;
+- `io.write` a été appelé exactement une fois pour la frame DATA ;
+- aucun `N` n’est synthétisé localement.
+
+### T5 — mismatch terminal sur session complète
+
+**Objet :** prouver que `finish(stop=False)` fail-closed si le terminal est faux.
+
+Construction :
+- io alimenté avec un ACK final à `end=len(payload)` ;
+- puis un terminal `X` avec raison `1` au lieu de `0` ;
+- éventuellement `RX2_RETURN_<nonce>:0`.
+
+Comportement attendu :
+- `finish` lève `TransferError('terminal failure')` avant `await_return` ;
+- `returncode` reste `None` dans ce chemin ;
+- aucune écriture supplémentaire après la détection du terminal.
+
+Variante utile : terminal raison 0 mais `returncode` final 1 ; attendu `TransferError('wrapper/terminal mismatch')`.
+
+### T6 — transition succès then cleanup ne doit pas relancer `restore_shell`
+
+**Objet :** figer l’invariant du patch A.
+
+Construction offline :
+- channel fake minimal :
+  - `shell=True`, `current=None`,
+  - `text(data)` conserve `data`,
+  - `restore_shell(session)` incrémente un compteur et met `shell=True`, `current=None`,
+  - `run(...)` non appelé si l’on isole `stage.segment` ;
+- session protocol un seul segment complet ;
+- appeler `stage.segment(channel, plan, blocks=512)`.
+
+Assertion :
+- `restore_shell` appelé exactement une fois ;
+- au retour, `channel.current is None`.
+
+Ensuite simuler le chemin `transfer_trial` cleanup avec ce channel : comme `current is None`, `restore_shell` n’est pas rappelé. Cela discrimine nettement la présence/absence du patch.
+
+### T7 — interruption pendant DATA et retour passif
+
+**Objet :** exposer la différence entre “annulation protocolaire” et “interruption OS”.
+
+Construction logique :
+- sur un channel fake, lancer `segment(...)` ;
+- pendant le premier `block()`, lever `KeyboardInterrupt` (équivalent `InterruptedError`) ;
+- vérifier que l’exception est de type `InterruptedError`,
+- vérifier que le gestionnaire extérieur appelle `restore_shell(session)`,
+- vérifier qu’aucune commande shell n’est envoyée par `restore_shell` (contrat : silence).
+
+Ce test ne prouve pas le timing du vrai UART, mais il prouve l’absence d’envoi masqué dans le chemin d’interruption.
+
+### T8 — comptage strict des sessions supplémentaires
+
+**Objet :** résoudre l’ambiguïté du commentaire.
+
+Données :
+- un plan avec `planned_sessions = 1`,
+- un payload de 524 289 octets, donc trois sessions max de 262 144 octets sont nécessaires.
+
+Code à comparer :
+1. code actuel : `range(planned_sessions + 1)` ;
+2. patch strict proposé : `range(planned_sessions + (1 if resume else 0))`.
+
+Assertions :
+- avec le patch, une invocation `--run` sans reprise doit lever `RuntimeError('Segment count exceeded')` au moment de la deuxième session au plus ;
+- une invocation `--run --resume` peut aller jusqu’à la deuxième session.
+
+Ce test ne décide pas seul de l’intention, mais donne une trace `segments.json` factuelle pour arbitrer.
+
+## 5. Patchs minimaux recommandés
+
+### Patch 1 — état de session après succès (`stage.py`)
+
+```python
+channel.restore_shell(s)
+channel.current = None
+```
+
+### Patch 2 — budget minimal après terminal (`sender.py`)
+
+Remplacer :
+
+```python
+self.await_return(max(.001, deadline-time.monotonic()))
+```
+
+par un budget d’au moins une seconde, selon la forme proposée section 3B.
+
+### Patch 3 — clarification/non-ambiguïté de la marge de sessions (`transfer_trial.py`)
+
+Soit corriger le commentaire pour dire que la session `+1` peut être consommée dans la même invocation si nécessaire, soit appliquer le patch strict section 3C et mettre à jour le commentaire. Ne pas laisser les deux sens coexister.
+
+## 6. Critères de réussite offline à exiger avant une nouvelle campagne matérielle
+
+1. Un test fake pour chaque T1 à T5 passe en `Uncertain`/`TransferError` attendu.
+2. T6 passe : zéro `restore_shell` supplémentaire après segment réussi.
+3. T7 passe : interruption pendant DATA ne déclenche aucun envoi.
+4. `stage.segment` reste borné par `blocks <= 512`.
+5. Le JSON de segments indique pour chaque session :
+   - `start_offset` valide multiple de 512, sauf dernier ;
+   - `prefix_crc == prefixes[offset]` ;
+   - `returncode == 0` si `complete`, sinon `1`.
+6. Aucune relance automatique de frame : `retries` ne peut jamais dépasser 3 par bloc.
+7. `payload` re-vérifié par digest à chaque invocation de `segment`.
+8. `hardware_ready` et `hardware_access` restent false dans `plan`.
+
+## 7. Preuves manquantes dans le packet
+
+Les éléments suivants empêchent une preuve complète de “RETURN frais / reprise” :
+
+- implémentation exacte de `probe_channel.Channel.initial_shell`, `text`, `restore_shell`, `run` ;
+- comportement de l’exécutable RX2 sur `resume`,_TRUNC, arrêt partiel et code retour ;
+- valeur réelle et justification de `m['transport']['planned_sessions']` dans `plan.json` ;
+- invariant effectif de `channel.current` après `restore_shell` ;
+- source de l’exécutable RX2 et preuve que son timeout total est identique à l’hôte.
+
+Sans ces éléments, les contre-tests ci-dessus doivent être traités comme des tests de contrat à mettre en œuvre sur un harnais fake, et non comme une certification matérielle.

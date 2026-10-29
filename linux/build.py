@@ -9,14 +9,18 @@ import shutil
 import shlex
 import subprocess
 import tarfile
+import sys
 
 HERE = Path(__file__).resolve().parent
-BUILD = HERE / 'build'
+BOARD = os.environ.get('CONSOLE_BOARD', 'prodock')
+if BOARD not in ('prodock', 'neo'): raise ValueError('Unknown CONSOLE_BOARD: ' + BOARD)
+BUILD = HERE / ('build-neo' if BOARD == 'neo' else 'build')
+TOOLS = HERE / 'build'
 SOURCES = json.loads((HERE / 'sources.json').read_text())
 EPOCH = '1791417600'
 ENV = dict(os.environ, SOURCE_DATE_EPOCH=EPOCH, KBUILD_BUILD_TIMESTAMP='2026-10-08 00:00:00 UTC',
            KBUILD_BUILD_USER='prodock', KBUILD_BUILD_HOST='builder', KBUILD_BUILD_VERSION='1')
-TC = BUILD / SOURCES['toolchain']['directory'] / 'bin/riscv32-buildroot-linux-musl-'
+TC = TOOLS / SOURCES['toolchain']['directory'] / 'bin/riscv32-buildroot-linux-musl-'
 JOBS = os.environ.get('JOBS', '4')
 USER_TC = BUILD / 'userbin/riscv32-prodock-linux-'
 
@@ -37,7 +41,7 @@ def prepare():
             run(['curl', '-fL', item['url'], '-o', archive])
         if hashlib.sha256(archive.read_bytes()).hexdigest() != item['sha256']:
             raise ValueError(f'{name}: archive SHA-256 mismatch')
-        parent = BUILD if name == 'toolchain' else BUILD / 'src'
+        parent = TOOLS if name == 'toolchain' else BUILD / 'src'
         parent.mkdir(parents=True, exist_ok=True)
         if not (parent / item['directory']).exists():
             with tarfile.open(archive) as tar:
@@ -162,7 +166,7 @@ def kernel():
 
 def opensbi():
     dtb = BUILD / 'prodock-linux.dtb'
-    run(['dtc', '-I', 'dts', '-O', 'dtb', '-p', '4096', '-o', dtb, HERE / 'prodock-linux.dts'])
+    run(['dtc', '-I', 'dts', '-O', 'dtb', '-p', '4096', '-o', dtb, HERE / ('neo-linux.dts' if BOARD == 'neo' else 'prodock-linux.dts')])
     run(['make', '-C', src('opensbi'), f'O={BUILD / "opensbi"}', 'PLATFORM=generic',
          'PLATFORM_RISCV_XLEN=32', 'PLATFORM_RISCV_ISA=rv32imafdc_zicsr_zifencei',
          'PLATFORM_RISCV_ABI=ilp32d', f'CROSS_COMPILE={TC}',
@@ -184,14 +188,22 @@ def qemu_firmware():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('stage', choices=['all', 'prepare', 'rootfs', 'kernel', 'opensbi', 'package', 'test'])
-    stage = parser.parse_args().stage
+    parser.add_argument('--candidate', action='store_true',
+                        help='Explicit Pro Dock candidate; local checks do not replace hardware validation')
+    args = parser.parse_args()
+    stage = args.stage
+    sys.path.insert(0, str(HERE.parent/'tools'))
+    from board_contract import before_build, record_build
+    contract = before_build(BOARD, candidate=args.candidate or BOARD == 'neo')
+    BUILD.mkdir(parents=True, exist_ok=True)
+    record_build(BUILD, contract)
     if stage in ['all', 'prepare', 'rootfs', 'kernel', 'opensbi', 'test']:
         prepare()
     for name, func in [('rootfs', rootfs), ('kernel', kernel), ('opensbi', opensbi)]:
         if stage in ['all', name]:
             func()
     if stage in ['all', 'package']:
-        run(['python3', HERE / 'package.py'])
+        run(['python3', HERE / 'package.py', *(['--candidate'] if args.candidate else [])])
     if stage == 'test':
         qemu_firmware()
         run(['python3', HERE / 'tests/test_package.py'])

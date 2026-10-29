@@ -1,0 +1,3416 @@
+R21 observation-only netlist assembly. No PNR launched. Root reviews before route. Parent R19 hardware COPY valid rejected, CLEAR native stalled. Tests helper RTL+mapped COPY and actual native memory events already PASS, new synthesized-helper protocol PASS, assembled COPY tests running. Review only concrete wiring/bit indices/invariants/parser compatibility. Nothing here qualifies hardware or timing.
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/contract.json SHA256 833c79b3cad0b8f07b41aab86695a6a8557527b15de1a26541c2748f8b4484f6
+1: {
+2:   "candidate": true,
+3:   "hardware": false,
+4:   "format": "D*",
+5:   "helper": "TESTS/neo_720p_20261012/capture_memory_20261027/neo_capture_memory.v",
+6:   "helper_sha256": "1051163608ea69c7f56ebb2a4363a7ac773285e7284e3f532b377054602f7a90",
+7:   "bus": "Existing R19 neo_capture_bus unchanged, NCP1 signature, 64-bit held mailbox",
+8:   "sample": {
+9:     "7:0": "COPY packet D bits87:80 (low8 source width), expected0x10 for canonical COPY16",
+10:     "15:8": "COPY packet Q bits87:80",
+11:     "16": "COPY packet CE n7630_6",
+12:     "17": "COPY engine reset qualifier active high, not packet FF RESET (constant GND)",
+13:     "18": "COPY_START trigger in parent pixel FSM",
+14:     "19": "COPY state IDLE predicate",
+15:     "20": "COPY state CHECK predicate (early snapshots normally false)",
+16:     "21": "COPY state VALIDATE predicate (early snapshots normally false)",
+17:     "22": "COPY bad (early snapshot is not final rejection reason)",
+18:     "23": "COPY done (early snapshot is not final completion)"
+19:   },
+20:   "mem_events": {
+21:     "0": "native_issue (CLEAR pixel engine)",
+22:     "1": "pixel producer valid native_valid OR cache_valid OR copy_valid, NOT v1_valid alias of pending",
+23:     "2": "v1_pending",
+24:     "3": "v1_accepted"
+25:   },
+26:   "sticky_contract": "Clear at acknowledged ARM; OR every subsequent GPU edge including SNAP edge; continue accumulating after SNAP until next ARM; held changes only at SNAP. Host waits for arm acknowledgement before command. ARM wins over coincident SNAP/events.",
+27:   "limits": [
+28:     "Eight width bits only, not entire COPY descriptor.",
+29:     "Two capture edges at COPY_START and next edge; later validation result not captured by those samples.",
+30:     "Sticky flags establish occurrence, not counts, order or temporal coincidence.",
+31:     "No new functional GPU/DDR/PLL/reset driver permitted.",
+32:     "Instrumented route and hardware must be validated separately; simulation cannot certify physical capture."
+33:   ]
+34: }
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/build_memory_capture.py SHA256 142e487cabe161ffbc9835792ee88f39ecd3cff3caf87238ed9e9b21ec66fbcc
+1: #!/usr/bin/env python3
+2: """Isolated R19 observation ECO. Prepare/synthesize/assemble only; no PnR/hardware."""
+3: import argparse
+4: import difflib
+5: import hashlib
+6: import json
+7: from pathlib import Path
+8: import re
+9: import shutil
+10: import subprocess
+11: import sys
+12: import time
+13: import xml.etree.ElementTree as ET
+14: 
+15: HERE=Path(__file__).resolve().parent
+16: ROOT=HERE.parents[2]
+17: sys.path.insert(0,str(ROOT/'tools'))
+18: from board_contract import before_build,record_build
+19: from gowin_toolchain import IDE,environment
+20: 
+21: PARENT=ROOT/'tang/impl/console_neo_n56r19_capture_ce_local'
+22: OUT=ROOT/'tang/impl/console_neo_n56r21_capture_memory'
+23: BIT_SHA='1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c'
+24: NET_SHA='dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6'
+25: HELP_SHA='1051163608ea69c7f56ebb2a4363a7ac773285e7284e3f532b377054602f7a90'
+26: PROOFS=[ROOT/'TESTS/assisted_reviews_20261026/observer_copy_01'/n/'result.json'
+27:         for n in ['protocol_02','mapped_copy_02','real_memory_events_01']]
+28: 
+29: def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+30: def save(p,v):p.write_text(json.dumps(v,indent=2)+'\n')
+31: def manifest(p):return {str(q.relative_to(p)):sha(q) for q in sorted(p.rglob('*')) if q.is_file()}
+32: def norm(s):return re.sub(r'\s+','',s).replace('\\','')
+33: def once(s,a,b):
+34:  assert s.count(a)==1,a
+35:  return s.replace(a,b,1)
+36: def block(s,name):
+37:  m=list(re.finditer(r'^module '+re.escape(name)+r'\b.*?^endmodule',s,re.M|re.S))
+38:  assert len(m)==1,name
+39:  return m[0][0]
+40: def cells(s):
+41:  return {norm(n):(k,{p:norm(v) for p,v in re.findall(r'\.(\w+)\(([^()]*)\)',ports)})
+42:          for k,n,ports in re.findall(r'^\s*(\w+)\s+(\\[^\s]+|\w+)\s*\(([^;]*?)\);',s,re.M|re.S)
+43:          if k!='module'}
+44: def params(s):
+45:  return {norm(n):norm(v) for n,v in re.findall(r'^\s*defparam\s+(.+?)\s*=\s*([^;]+);',s,re.M)}
+46: def add_ports(s,name,ports):
+47:  s=once(s,'module '+name+' (\n','module '+name+' (\n'+''.join('  '+n+',\n' for n in ports))
+48:  first=re.search(r'^(?:input|output|inout) ',s,re.M).start()
+49:  return s[:first]+''.join(d+' '+w+n+';\n' for n,(d,w) in ports.items())+s[first:]
+50: def add_instance_ports(s,name,ports):
+51:  m=list(re.finditer(r'^\s*\w+\s+'+re.escape(name)+r'\s*\(\n',s,re.M));assert len(m)==1,name
+52:  i=m[0].end();return s[:i]+''.join('    .'+n+'('+v+'),\n' for n,v in ports.items())+s[i:]
+53: def append_logic(s,text):return once(s,'endmodule',text+'\nendmodule')
+54: 
+55: def verify_proofs():
+56:  for proof in PROOFS:
+57:   p=json.loads(proof.read_text());assert p['passed']
+58:   for name,h in p['inputs'].items():
+59:    f=Path(name);f=f if f.is_absolute() else ROOT/f
+60:    assert sha(f)==h,name
+61: 
+62: def parent_guard():
+63:  assert sha(PARENT/'console_neo.vg')==NET_SHA
+64:  assert sha(PARENT/'impl/pnr/console_neo.fs')==BIT_SHA
+65:  assert manifest(PARENT/'source')==json.loads((PARENT/'sources.json').read_text())
+66:  assert sha(HERE/'neo_capture_memory.v')==HELP_SHA
+67:  contract=json.loads((HERE/'contract.json').read_text())
+68:  assert contract['helper_sha256']==HELP_SHA and contract['format']=='D*'
+69:  verify_proofs()
+70: 
+71: def prepare():
+72:  parent_guard();guard=before_build('neo',candidate=True)
+73:  OUT.mkdir(exist_ok=False);shutil.copytree(PARENT/'source',OUT/'source')
+74:  for name in ['console_neo.vg','font8x16.hex','rtl/video/font8x16.hex','rtl/usbhost/usb_hid_host_rom.hex']:
+75:   dest=OUT/('parent.vg' if name=='console_neo.vg' else name)
+76:   dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(PARENT/name,dest)
+77:  helper=OUT/'source/tang/boards/neo/neo_capture_local.v'
+78:  assert helper.is_file();shutil.copy2(HERE/'neo_capture_memory.v',helper)
+79:  old=json.loads((PARENT/'sources.json').read_text());current=manifest(OUT/'source')
+80:  assert set(old)==set(current)
+81:  assert [p for p in old if old[p]!=current[p]]==['tang/boards/neo/neo_capture_local.v']
+82:  save(OUT/'sources.json',current)
+83:  folder=OUT/'capture_ip/neo_capture_local';folder.mkdir(parents=True)
+84:  prj=ET.Element('Project');ET.SubElement(prj,'Version').text='beta'
+85:  ET.SubElement(prj,'Device',id='GW5AST-138C',package='PBGA484A',speed='1',partNumber='GW5AST-LV138PG484AC1/I0')
+86:  files=ET.SubElement(prj,'FileList');ET.SubElement(files,'File',path=str(helper),type='verilog')
+87:  opts=ET.SubElement(prj,'OptionList')
+88:  for k,v in [('disable_insert_pad','1'),('enable_dsrm','0'),('output_file','neo_capture_local.vg'),
+89:              ('top_module','neo_capture_local'),('vcc','0.9'),('vccx','1.8'),('verilog_language','sysv-2017')]:
+90:   ET.SubElement(opts,'Option',type=k,value=v)
+91:  ET.indent(prj);ET.ElementTree(prj).write(folder/'helper.prj',encoding='utf-8',xml_declaration=True)
+92:  (OUT/'build.tcl').write_text((PARENT/'build.tcl').read_text().replace(str(PARENT),str(OUT)))
+93:  shutil.copy2(Path(__file__),OUT/'build_memory_capture.py')
+94:  record_build(OUT,guard)
+95:  save(OUT/'preparation.json',dict(candidate=True,hardware_access=False,routing_started=False,
+96:   parent=str(PARENT),parent_bitstream_sha256=BIT_SHA,parent_netlist_sha256=NET_SHA,
+97:   common_sources_modified=False,application_RTL_changed=False,source_changes=['tang/boards/neo/neo_capture_local.v'],
+98:   builder_sha256=sha(Path(__file__)),helper_sha256=HELP_SHA,
+99:   external_inputs={str(p):sha(p) for p in [HERE/'contract.json',*PROOFS]},
+100:   inputs={n:sha(OUT/n) for n in ['parent.vg','sources.json','build.tcl','capture_ip/neo_capture_local/helper.prj',
+101:              'source/tang/boards/neo/neo.cst','source/tang/boards/neo/neo.sdc']}))
+102:  print('R21 prepared; helper synthesis only authorized',flush=True)
+103: 
+104: def prepared_guard():
+105:  parent_guard();before_build('neo',candidate=True)
+106:  p=json.loads((OUT/'preparation.json').read_text());assert p['builder_sha256']==sha(Path(__file__))
+107:  for n,h in p['inputs'].items():assert sha(OUT/n)==h,n
+108:  for n,h in p['external_inputs'].items():assert sha(Path(n))==h,n
+109:  assert manifest(OUT/'source')==json.loads((OUT/'sources.json').read_text())
+110: 
+111: def synthesize():
+112:  prepared_guard()
+113:  tool=ROOT/'tang/impl/console_neo_n56r15_reset50ms/public_license_runtime/bin/GowinSynthesis'
+114:  assert sha(tool)==sha(IDE/'bin/GowinSynthesis')
+115:  folder=OUT/'capture_ip/neo_capture_local';assert not (folder/'neo_capture_local.vg').exists()
+116:  attempt=len(list(folder.glob('synth_attempt_*.log')))+1;logpath=folder/f'synth_attempt_{attempt:02}.log'
+117:  with logpath.open('x') as log:
+118:   started=time.time();child=subprocess.Popen([str(tool),'-prj',str(folder/'helper.prj')],cwd=folder,env=environment(),stdout=log,stderr=log)
+119:   print('R21_HELPER_SYNTH_STARTED pid='+str(child.pid),flush=True)
+120:   rc=child.wait(timeout=180)
+121:  text=logpath.read_text();ok=rc==0 and 'GowinSynthesis finish' in text and not re.search(r'^ERROR',text,re.M)
+122:  result=dict(passed=ok,returncode=rc,pid=child.pid,tool_sha256=sha(tool),log_sha256=sha(logpath),
+123:              started_unix=started,finished_unix=time.time(),hardware_access=False,routing_started=False)
+124:  if ok:
+125:   net=folder/'neo_capture_local.vg';assert not re.search(r'^\s*(?:I|O|IO)BUF\s',net.read_text(),re.M)
+126:   result['netlist_sha256']=sha(net)
+127:  save(folder/f'synth_attempt_{attempt:02}.json',result)
+128:  if not ok:raise SystemExit('Helper synthesis failed; no route attempted')
+129:  save(folder/'result.json',result);print('R21 helper synthesized; no route attempted',flush=True)
+130: 
+131: def assemble():
+132:  prepared_guard()
+133:  original=(OUT/'parent.vg').read_text();changed={}
+134:  copy=block(original,'gpu_copy565');copycells=cells(copy)
+135:  for i in range(80,88):
+136:   assert copycells[f'packet_{i}_s0']==('DFFRE',dict(Q=f'packet_0[{i}]',D=f'packet[{i}]',CLK='gpu_clk',RESET='GND',CE='n7630_6'))
+137:  assert copycells['n7630_s2'][1]==dict(F='n7630_6',I0='state_0[4]',I1='gpu_debug_state[50]',I2='state[41]',I3='l_31_18')
+138:  assert params(copy)['n7630_s2.INIT']=="16'h4000"
+139:  assert copycells['descriptor_bad_0_s0'][1]['RESET']=='n577_9'
+140:  low=[f'packet[{i}]' for i in range(80,88)]+[f'packet_0[{i}]' for i in range(80,88)]
+141:  low+=['n7630_6','n577_9','state[41]','trace_copy_idle','trace_copy_check','trace_copy_validate','copy_bad','copy_done']
+142:  sample_alias='\n'.join(f'assign trace_copy_sample[{i}] = {v};' for i,v in enumerate(low))
+143:  added_copy='''wire trace_copy_idle,trace_copy_low_one,trace_copy_check,trace_copy_validate;
+144: LUT2 trace_observe_idle (.I0(l_31_18),.I1(state_0[4]),.F(trace_copy_idle));
+145: defparam trace_observe_idle.INIT=4'h2;
+146: LUT4 trace_observe_low_one (.I0(state_0[0]),.I1(state_0[1]),.I2(state_0[2]),.I3(state_0[3]),.F(trace_copy_low_one));
+147: defparam trace_observe_low_one.INIT=16'h0002;
+148: LUT2 trace_observe_check (.I0(trace_copy_low_one),.I1(state_0[4]),.F(trace_copy_check));
+149: defparam trace_observe_check.INIT=4'h2;
+150: LUT2 trace_observe_validate (.I0(trace_copy_low_one),.I1(state_0[4]),.F(trace_copy_validate));
+151: defparam trace_observe_validate.INIT=4'h8;
+152: '''+sample_alias
+153:  new=add_ports(copy,'gpu_copy565',{'trace_copy_sample':('output','[23:0] ')})
+154:  changed['gpu_copy565']=(copy,append_logic(new,added_copy))
+155:  pixel=block(original,'gpu_v1')
+156:  assert cells(pixel)['native_valid_s1'][1]['D']=='native_issue'
+157:  new=add_ports(pixel,'gpu_v1',{'trace_mem_events':('input','[2:0] ')})
+158:  new=add_instance_ports(new,'u_copy',{'trace_copy_sample':'trace_copy_sample[23:0]'})
+159:  old_capture=re.search(r'  neo_capture_local u_capture \(.*?\);',new,re.S)[0]
+160:  new_capture=re.sub(r'\.sample\(\{[^}]+\}\)', '.sample(trace_copy_sample[23:0]),.mem_events({trace_mem_events[2:0],native_issue})',old_capture)
+161:  assert old_capture!=new_capture
+162:  new=once(new,old_capture,new_capture)
+163:  changed['gpu_v1']=(pixel,append_logic(new,'wire [23:0] trace_copy_sample;'))
+164:  geom=block(original,'gpu_geometry')
+165:  new=add_ports(geom,'gpu_geometry',{'trace_mem_events':('input','[2:0] ')})
+166:  new=add_instance_ports(new,'u_pixels',{'trace_mem_events':'trace_mem_events[2:0]'})
+167:  changed['gpu_geometry']=(geom,new)
+168:  accel=block(original,'gpu_accel');ac=cells(accel)
+169:  assert ac['n5020_s1'][1]==dict(F='n5020_4',I0='native_valid',I1='cache_valid',I2='copy_valid')
+170:  assert params(accel)['n5020_s1.INIT']=="8'h01"
+171:  assert ac['v1_pending_s2'][1]['Q']=='v1_pending' and ac['v1_accepted_s0'][1]['Q']=='v1_accepted'
+172:  new=add_instance_ports(accel,'u_v1',{'trace_mem_events':'{v1_accepted,v1_pending,trace_pixel_valid}'})
+173:  new=append_logic(new,'wire trace_pixel_valid;\nINV trace_observe_pixel_valid (.I(n5020_4),.O(trace_pixel_valid));')
+174:  changed['gpu_accel']=(accel,new)
+175:  helperpath=OUT/'capture_ip/neo_capture_local/neo_capture_local.vg'
+176:  synth=json.loads((helperpath.parent/'result.json').read_text());assert synth['passed'] and sha(helperpath)==synth['netlist_sha256']
+177:  helper=block(helperpath.read_text(),'neo_capture_local')
+178:  helper,n=re.subn(r'  GSR GSR \(\s*\.GSRI\(VCC\)\s*\);','',helper);assert n==1
+179:  oldhelper=block(original,'neo_capture_local');changed['neo_capture_local']=(oldhelper,helper)
+180:  merged=original
+181:  for old,new in changed.values():merged=once(merged,old,new)
+182:  undone=merged
+183:  for old,new in changed.values():undone=once(undone,new,old)
+184:  assert undone==original
+185:  # Verify every original application primitive and parameter. Composite port
+186:  # changes are separately whitelisted observation-only additions below.
+187:  primitive_audit={};addition_whitelist={
+188:   'gpu_copy565':{'trace_observe_idle','trace_observe_low_one','trace_observe_check','trace_observe_validate'},
+189:   'gpu_accel':{'trace_observe_pixel_valid'},'gpu_v1':set(),'gpu_geometry':set()}
+190:  child_deltas={('gpu_copy565',None):{},('gpu_v1','u_copy'):{'trace_copy_sample':'trace_copy_sample[23:0]'},
+191:   ('gpu_geometry','u_pixels'):{'trace_mem_events':'trace_mem_events[2:0]'},
+192:   ('gpu_accel','u_v1'):{'trace_mem_events':'{v1_accepted,v1_pending,trace_pixel_valid}'}}
+193:  for name in addition_whitelist:
+194:   old,new=changed[name];oc,nc=cells(old),cells(new)
+195:   assert set(nc)-set(oc)==addition_whitelist[name] and not set(oc)-set(nc)
+196:   differences={n:(oc[n],nc[n]) for n in oc if oc[n]!=nc[n]}
+197:   expected={child for (mod,child) in child_deltas if mod==name and child}
+198:   if name=='gpu_v1':expected.add('u_capture')
+199:   assert set(differences)==expected,(name,set(differences),expected)
+200:   for (mod,child),extra in child_deltas.items():
+201:    if mod==name and child:
+202:     assert oc[child][0]==nc[child][0]
+203:     assert nc[child][1]=={**oc[child][1],**extra}
+204:   if name=='gpu_v1':
+205:    assert nc['u_capture'][1]=={**oc['u_capture'][1],
+206:      'sample':'trace_copy_sample[23:0]','mem_events':'{trace_mem_events[2:0],native_issue}'}
+207:   op,np=params(old),params(new)
+208:   assert all(np[k]==v for k,v in op.items())
+209:   assert set(np)-set(op)=={n+'.INIT' for n in addition_whitelist[name] if nc[n][0].startswith('LUT')}
+210:   primitive_audit[name]=dict(original_cells=len(oc),original_parameters=len(op),
+211:                             changed_observation_instances=sorted(differences),added_observation_cells=sorted(addition_whitelist[name]))
+212:  names=set(re.findall(r'^module (\w+)',original,re.M))
+213:  assert names==set(re.findall(r'^module (\w+)',merged,re.M))
+214:  assert all(block(original,n)==block(merged,n) for n in names-changed.keys())
+215:  assert block(original,'console_neo')==block(merged,'console_neo')
+216:  assert block(original,'neo_capture_bus')==block(merged,'neo_capture_bus')
+217:  assert block(original,'neo_gpu_debug_0')==block(merged,'neo_gpu_debug_0')
+218:  assert not (OUT/'console_neo.vg').exists();(OUT/'console_neo.vg').write_text(merged)
+219:  (OUT/'observation.diff').write_text(''.join(difflib.unified_diff(original.splitlines(True),merged.splitlines(True),fromfile='R19/console_neo.vg',tofile='R21/console_neo.vg')))
+220:  save(OUT/'assembly.json',dict(candidate=True,passed=True,routing_started=False,hardware_access=False,
+221:   parent_bitstream_sha256=BIT_SHA,parent_netlist_sha256=NET_SHA,netlist_sha256=sha(OUT/'console_neo.vg'),
+222:   builder_sha256=sha(Path(__file__)),parent_recovered_byte_identical_by_undo=True,
+223:   helper_replaced_only=True,changed_modules=sorted(changed),unchanged_modules=sorted(names-changed.keys()),
+224:   original_application_primitives_and_parameters_intact=True,primitive_audit=primitive_audit,
+225:   top_and_NCP_bus_unchanged=True,sourcewidth_bits=list(range(80,88)),sample_lsb_first=low,
+226:   mem_events_lsb_first=['gpu_v1/native_issue','NOT gpu_accel/n5020_4','gpu_accel/v1_pending','gpu_accel/v1_accepted'],
+227:   same_CST=True,same_SDC=True,same_PNR_options=True,same_DDR_PLL_reset=True,
+228:   inputs={n:sha(OUT/n) for n in ['console_neo.vg','sources.json','build.tcl','observation.diff',
+229:       'capture_ip/neo_capture_local/neo_capture_local.vg','capture_ip/neo_capture_local/result.json',
+230:       'source/tang/boards/neo/neo.cst','source/tang/boards/neo/neo.sdc']},
+231:   pending=['Mapped full wiring simulation and helper protocol test.',
+232:            'Root review before PnR; timing and physical observer routes remain unqualified.',
+233:            'Hardware repetition must establish whether original R19 symptoms persist.']))
+234:  record_build(OUT,before_build('neo',candidate=True))
+235:  print('R21 assembled; application primitives intact; no PnR launched',flush=True)
+236: 
+237: if __name__=='__main__':
+238:  p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['prepare','synth','assemble']);a=p.parse_args()
+239:  {'prepare':prepare,'synth':synthesize,'assemble':assemble}[a.action]()
+
+SOURCE tang/impl/console_neo_n56r21_capture_memory/assembly.json SHA256 bdfe9387fcca6195c4779e69536db88fbb05aa8f8ee50c7122ad443fa1afdfb4
+1: {
+2:   "candidate": true,
+3:   "passed": true,
+4:   "routing_started": false,
+5:   "hardware_access": false,
+6:   "parent_bitstream_sha256": "1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c",
+7:   "parent_netlist_sha256": "dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6",
+8:   "netlist_sha256": "d773dca99127093b27e713f195b9ff62207c01a7810130c55d5d99499700d4cc",
+9:   "builder_sha256": "142e487cabe161ffbc9835792ee88f39ecd3cff3caf87238ed9e9b21ec66fbcc",
+10:   "parent_recovered_byte_identical_by_undo": true,
+11:   "helper_replaced_only": true,
+12:   "changed_modules": [
+13:     "gpu_accel",
+14:     "gpu_copy565",
+15:     "gpu_geometry",
+16:     "gpu_v1",
+17:     "neo_capture_local"
+18:   ],
+19:   "unchanged_modules": [
+20:     "DDR3_Memory_Interface_Top",
+21:     "Gowin_PLL_AE350",
+22:     "Gowin_PLL_AE350_MOD",
+23:     "Gowin_PLL_B",
+24:     "Gowin_PLL_DDR3",
+25:     "Gowin_PLL_DDR3_MOD",
+26:     "Gowin_PLL_F",
+27:     "PLL_INIT",
+28:     "PLL_INIT_0",
+29:     "RiscV_AE350_SOC_Top",
+30:     "USB2_0_SoftPHY_Top",
+31:     "USB_Device_Controller_Top",
+32:     "ae350_soc",
+33:     "ahb_ddr_cdc",
+34:     "ahb_exts_bridge",
+35:     "blitter",
+36:     "cdc_word",
+37:     "cdc_word_0",
+38:     "cdc_word_1",
+39:     "cdc_word_10",
+40:     "cdc_word_11",
+41:     "cdc_word_12",
+42:     "cdc_word_13",
+43:     "cdc_word_14",
+44:     "cdc_word_15",
+45:     "cdc_word_16",
+46:     "cdc_word_17",
+47:     "cdc_word_18",
+48:     "cdc_word_19",
+49:     "cdc_word_2",
+50:     "cdc_word_20",
+51:     "cdc_word_21",
+52:     "cdc_word_22",
+53:     "cdc_word_23",
+54:     "cdc_word_24",
+55:     "cdc_word_25",
+56:     "cdc_word_26",
+57:     "cdc_word_27",
+58:     "cdc_word_28",
+59:     "cdc_word_29",
+60:     "cdc_word_3",
+61:     "cdc_word_30",
+62:     "cdc_word_31",
+63:     "cdc_word_32",
+64:     "cdc_word_33",
+65:     "cdc_word_4",
+66:     "cdc_word_5",
+67:     "cdc_word_6",
+68:     "cdc_word_7",
+69:     "cdc_word_8",
+70:     "cdc_word_9",
+71:     "clk_cross_fifo",
+72:     "clk_cross_fifo_0",
+73:     "console_neo",
+74:     "ddr_arb",
+75:     "ddr_dcfifo",
+76:     "ddr_dcfifo_0",
+77:     "ddr_dcfifo_1",
+78:     "ddr_dcfifo_2",
+79:     "ddr_dcfifo_3",
+80:     "ddr_dcfifo_4",
+81:     "ddr_dcfifo_5",
+82:     "ddr_dcfifo_6",
+83:     "ddr_dcfifo_7",
+84:     "ddr_dcfifo_8",
+85:     "ddr_gpu_arb",
+86:     "ddr_reader",
+87:     "ddr_subsys",
+88:     "ddr_ui_adapt",
+89:     "ddr_writer",
+90:     "ext_regs",
+91:     "font_ram",
+92:     "gpu_blit_dma",
+93:     "gpu_geom_div",
+94:     "gpu_geom_div_0",
+95:     "gpu_line_reader",
+96:     "gpu_perspective",
+97:     "gpu_perspective_0",
+98:     "gpu_perspective_1",
+99:     "gpu_perspective_2",
+100:     "gpu_raster",
+101:     "gpu_rgb_reader",
+102:     "gpu_scanout",
+103:     "gpu_sprite_cache",
+104:     "gpu_texture_cache",
+105:     "gpu_tile_row",
+106:     "gpu_triangle",
+107:     "gpu_triangle_0",
+108:     "gpu_triangle_1",
+109:     "gpu_triangle_floor_div",
+110:     "gpu_triangle_floor_div_0",
+111:     "gpu_triangle_floor_div_1",
+112:     "gpu_triangle_floor_div_2",
+113:     "gpu_triangle_floor_div_3",
+114:     "gpu_triangle_floor_div_4",
+115:     "gpu_triangle_floor_div_5",
+116:     "gpu_triangle_floor_div_6",
+117:     "gpu_triangle_floor_div_7",
+118:     "hdmi_out",
+119:     "la16_usb_ls_engine",
+120:     "la16_usb_ls_engine_0",
+121:     "neo_capture_bus",
+122:     "neo_console_input",
+123:     "neo_gamepads",
+124:     "neo_gpu_debug",
+125:     "neo_gpu_debug_0",
+126:     "neo_reset_trial",
+127:     "neo_reset_trial_rx",
+128:     "neo_scan_observe",
+129:     "neo_scan_queue",
+130:     "svo_tmds",
+131:     "svo_tmds_0",
+132:     "svo_tmds_1",
+133:     "sync_rx_pkt_fifo",
+134:     "sync_rx_pkt_fifo_0",
+135:     "sync_tx_pkt_fifo",
+136:     "sync_tx_pkt_fifo_0",
+137:     "uart2_to_ep2",
+138:     "uart_console_channel",
+139:     "uart_rx",
+140:     "uart_rx_0",
+141:     "uart_tx",
+142:     "usb_desc",
+143:     "usb_fifo",
+144:     "usb_gamepad",
+145:     "usb_gamepad_0",
+146:     "usb_gamepad_reports",
+147:     "usb_gamepad_reports_0",
+148:     "usb_hid_host_rom",
+149:     "usb_hid_host_rom_0",
+150:     "usb_idle_trace",
+151:     "usb_msc_empty",
+152:     "usb_msc_guard",
+153:     "usb_msc_port",
+154:     "usb_packet_trace",
+155:     "usb_reset_release",
+156:     "usb_reset_release_0",
+157:     "usb_reset_release_1",
+158:     "usb_rx_buf",
+159:     "usb_rx_buf_0",
+160:     "usb_tx_buf",
+161:     "usb_tx_buf_0",
+162:     "usb_uart_config",
+163:     "video_bus_stage",
+164:     "video_pll"
+165:   ],
+166:   "original_application_primitives_and_parameters_intact": true,
+167:   "primitive_audit": {
+168:     "gpu_copy565": {
+169:       "original_cells": 5752,
+170:       "original_parameters": 4926,
+171:       "changed_observation_instances": [],
+172:       "added_observation_cells": [
+173:         "trace_observe_check",
+174:         "trace_observe_idle",
+175:         "trace_observe_low_one",
+176:         "trace_observe_validate"
+177:       ]
+178:     },
+179:     "gpu_accel": {
+180:       "original_cells": 1859,
+181:       "original_parameters": 1709,
+182:       "changed_observation_instances": [
+183:         "u_v1"
+184:       ],
+185:       "added_observation_cells": [
+186:         "trace_observe_pixel_valid"
+187:       ]
+188:     },
+189:     "gpu_v1": {
+190:       "original_cells": 11500,
+191:       "original_parameters": 10142,
+192:       "changed_observation_instances": [
+193:         "u_capture",
+194:         "u_copy"
+195:       ],
+196:       "added_observation_cells": []
+197:     },
+198:     "gpu_geometry": {
+199:       "original_cells": 13735,
+200:       "original_parameters": 15246,
+201:       "changed_observation_instances": [
+202:         "u_pixels"
+203:       ],
+204:       "added_observation_cells": []
+205:     }
+206:   },
+207:   "top_and_NCP_bus_unchanged": true,
+208:   "sourcewidth_bits": [
+209:     80,
+210:     81,
+211:     82,
+212:     83,
+213:     84,
+214:     85,
+215:     86,
+216:     87
+217:   ],
+218:   "sample_lsb_first": [
+219:     "packet[80]",
+220:     "packet[81]",
+221:     "packet[82]",
+222:     "packet[83]",
+223:     "packet[84]",
+224:     "packet[85]",
+225:     "packet[86]",
+226:     "packet[87]",
+227:     "packet_0[80]",
+228:     "packet_0[81]",
+229:     "packet_0[82]",
+230:     "packet_0[83]",
+231:     "packet_0[84]",
+232:     "packet_0[85]",
+233:     "packet_0[86]",
+234:     "packet_0[87]",
+235:     "n7630_6",
+236:     "n577_9",
+237:     "state[41]",
+238:     "trace_copy_idle",
+239:     "trace_copy_check",
+240:     "trace_copy_validate",
+241:     "copy_bad",
+242:     "copy_done"
+243:   ],
+244:   "mem_events_lsb_first": [
+245:     "gpu_v1/native_issue",
+246:     "NOT gpu_accel/n5020_4",
+247:     "gpu_accel/v1_pending",
+248:     "gpu_accel/v1_accepted"
+249:   ],
+250:   "same_CST": true,
+251:   "same_SDC": true,
+252:   "same_PNR_options": true,
+253:   "same_DDR_PLL_reset": true,
+254:   "inputs": {
+255:     "console_neo.vg": "d773dca99127093b27e713f195b9ff62207c01a7810130c55d5d99499700d4cc",
+256:     "sources.json": "b0c957cc28cc21d0cdc4c7997d6d007e69226cd28641e2686d0adcfc9cce0ffb",
+257:     "build.tcl": "0445bde04cef5d98ac6f6b77871f54a75260db2f6b60b7419d6c38e5398da9cc",
+258:     "observation.diff": "3ffd9fe79da4f7a3ca902aba6c2a64aade915a1a55af41af9b853316f3e2ec8b",
+259:     "capture_ip/neo_capture_local/neo_capture_local.vg": "ce8ea7faef323284045dbf410ac7fae1e4bb39803cde43672fa2bbd960510533",
+260:     "capture_ip/neo_capture_local/result.json": "2d9c984dce121ff00669077721f49e28d7b23e033cd24032e44035da8831dc3c",
+261:     "source/tang/boards/neo/neo.cst": "6330c9dd971b9151c08bddcf8b7b6a529983bc25f1c03ab4193b0b6a224aeac1",
+262:     "source/tang/boards/neo/neo.sdc": "c8da535e839157a361e78b06b2f65b2912891f8e9dc48b02d5b315ae9f953113"
+263:   },
+264:   "pending": [
+265:     "Mapped full wiring simulation and helper protocol test.",
+266:     "Root review before PnR; timing and physical observer routes remain unqualified.",
+267:     "Hardware repetition must establish whether original R19 symptoms persist."
+268:   ]
+269: }
+
+SOURCE tang/impl/console_neo_n56r21_capture_memory/observation.diff SHA256 3ffd9fe79da4f7a3ca902aba6c2a64aade915a1a55af41af9b853316f3e2ec8b
+1: --- R19/console_neo.vg
+2: +++ R21/console_neo.vg
+3: @@ -326798,6 +326798,7 @@
+4:  );
+5:  endmodule /* font_ram */
+6:  module gpu_copy565 (
+7: +  trace_copy_sample,
+8:    gpu_clk,
+9:    n37855_9,
+10:    n1617_5,
+11: @@ -326841,6 +326842,7 @@
+12:    copy_mask_31
+13:  )
+14:  ;
+15: +output [23:0] trace_copy_sample;
+16:  input gpu_clk;
+17:  input n37855_9;
+18:  input n1617_5;
+19: @@ -374293,6 +374295,39 @@
+20:    GND GND_cZ (
+21:      .G(GND)
+22:  );
+23: +wire trace_copy_idle,trace_copy_low_one,trace_copy_check,trace_copy_validate;
+24: +LUT2 trace_observe_idle (.I0(l_31_18),.I1(state_0[4]),.F(trace_copy_idle));
+25: +defparam trace_observe_idle.INIT=4'h2;
+26: +LUT4 trace_observe_low_one (.I0(state_0[0]),.I1(state_0[1]),.I2(state_0[2]),.I3(state_0[3]),.F(trace_copy_low_one));
+27: +defparam trace_observe_low_one.INIT=16'h0002;
+28: +LUT2 trace_observe_check (.I0(trace_copy_low_one),.I1(state_0[4]),.F(trace_copy_check));
+29: +defparam trace_observe_check.INIT=4'h2;
+30: +LUT2 trace_observe_validate (.I0(trace_copy_low_one),.I1(state_0[4]),.F(trace_copy_validate));
+31: +defparam trace_observe_validate.INIT=4'h8;
+32: +assign trace_copy_sample[0] = packet[80];
+33: +assign trace_copy_sample[1] = packet[81];
+34: +assign trace_copy_sample[2] = packet[82];
+35: +assign trace_copy_sample[3] = packet[83];
+36: +assign trace_copy_sample[4] = packet[84];
+37: +assign trace_copy_sample[5] = packet[85];
+38: +assign trace_copy_sample[6] = packet[86];
+39: +assign trace_copy_sample[7] = packet[87];
+40: +assign trace_copy_sample[8] = packet_0[80];
+41: +assign trace_copy_sample[9] = packet_0[81];
+42: +assign trace_copy_sample[10] = packet_0[82];
+43: +assign trace_copy_sample[11] = packet_0[83];
+44: +assign trace_copy_sample[12] = packet_0[84];
+45: +assign trace_copy_sample[13] = packet_0[85];
+46: +assign trace_copy_sample[14] = packet_0[86];
+47: +assign trace_copy_sample[15] = packet_0[87];
+48: +assign trace_copy_sample[16] = n7630_6;
+49: +assign trace_copy_sample[17] = n577_9;
+50: +assign trace_copy_sample[18] = state[41];
+51: +assign trace_copy_sample[19] = trace_copy_idle;
+52: +assign trace_copy_sample[20] = trace_copy_check;
+53: +assign trace_copy_sample[21] = trace_copy_validate;
+54: +assign trace_copy_sample[22] = copy_bad;
+55: +assign trace_copy_sample[23] = copy_done;
+56:  endmodule /* gpu_copy565 */
+57:  module gpu_texture_cache (
+58:    gpu_clk,
+59: @@ -510847,6 +510882,7 @@
+60:  );
+61:  endmodule /* gpu_perspective_0 */
+62:  module gpu_v1 (
+63: +  trace_mem_events,
+64:    trace_resetn,
+65:    trace_arm_req,
+66:    trace_snap_req,
+67: @@ -511161,6 +511197,7 @@
+68:    v1_misses
+69:  )
+70:  ;
+71: +input [2:0] trace_mem_events;
+72:  input trace_resetn;
+73:  input trace_arm_req;
+74:  input trace_snap_req;
+75: @@ -609024,6 +609061,7 @@
+76:      .I(v1_fragments[0]) 
+77:  );
+78:    gpu_copy565 u_copy (
+79: +    .trace_copy_sample(trace_copy_sample[23:0]),
+80:      .gpu_clk(gpu_clk),
+81:      .n37855_9(n37855_9),
+82:      .n1617_5(n1617_5),
+83: @@ -609423,10 +609461,11 @@
+84:      .G(GND)
+85:  );
+86:    neo_capture_local u_capture (
+87: -    .clk(gpu_clk),.resetn(trace_resetn),.sample({shader_done,state[1],state[45],state[48],state[0],shader_start,n1617_5,n37565_3,gpu_observe_packet_words[63:56],shader_command_31,shader_command_31,shader_command_31,shader_command_28,shader_command_27,shader_command_26,shader_command_25,shader_command_24}),
+88: +    .clk(gpu_clk),.resetn(trace_resetn),.sample(trace_copy_sample[23:0]),.mem_events({trace_mem_events[2:0],native_issue}),
+89:      .arm_req(trace_arm_req),.snap_req(trace_snap_req),.arm_ack(trace_arm_ack),
+90:      .snap_ack(trace_snap_ack),.ready(trace_ready),.heartbeat(trace_heartbeat),.held(trace_held[63:0]));
+91:  
+92: +wire [23:0] trace_copy_sample;
+93:  endmodule /* gpu_v1 */
+94:  module gpu_geom_div (
+95:    gpu_clk,
+96: @@ -630055,6 +630094,7 @@
+97:  );
+98:  endmodule /* gpu_geom_div_0 */
+99:  module gpu_geometry (
+100: +  trace_mem_events,
+101:    trace_resetn,
+102:    trace_arm_req,
+103:    trace_snap_req,
+104: @@ -630183,6 +630223,7 @@
+105:    v1_misses
+106:  )
+107:  ;
+108: +input [2:0] trace_mem_events;
+109:  input trace_resetn;
+110:  input trace_arm_req;
+111:  input trace_snap_req;
+112: @@ -754109,6 +754150,7 @@
+113:      .I(\geometry_stat[3] [0]) 
+114:  );
+115:    gpu_v1 u_pixels (
+116: +    .trace_mem_events(trace_mem_events[2:0]),
+117:      .trace_resetn(trace_resetn),
+118:      .trace_arm_req(trace_arm_req),
+119:      .trace_snap_req(trace_snap_req),
+120: @@ -1065821,6 +1065863,7 @@
+121:      .font_q(font_q[7:0])
+122:  );
+123:    gpu_geometry u_v1 (
+124: +    .trace_mem_events({v1_accepted,v1_pending,trace_pixel_valid}),
+125:      .trace_resetn(trace_resetn),
+126:      .trace_arm_req(trace_arm_req),
+127:      .trace_snap_req(trace_snap_req),
+128: @@ -1066305,6 +1066348,8 @@
+129:    GND GND_cZ (
+130:      .G(GND)
+131:  );
+132: +wire trace_pixel_valid;
+133: +INV trace_observe_pixel_valid (.I(n5020_4),.O(trace_pixel_valid));
+134:  endmodule /* gpu_accel */
+135:  module svo_tmds (
+136:    pixel_clk,
+137: @@ -1166268,6 +1166313,7 @@
+138:    clk,
+139:    resetn,
+140:    sample,
+141: +  mem_events,
+142:    arm_req,
+143:    snap_req,
+144:    arm_ack,
+145: @@ -1166280,6 +1166326,7 @@
+146:  input clk;
+147:  input resetn;
+148:  input [23:0] sample;
+149: +input [3:0] mem_events;
+150:  input arm_req;
+151:  input snap_req;
+152:  output arm_ack;
+153: @@ -1166289,7 +1166336,15 @@
+154:  output [63:0] held;
+155:  wire complete_7;
+156:  wire valid_0_8;
+157: -wire n293_9;
+158: +wire n297_9;
+159: +wire n419_6;
+160: +wire n418_6;
+161: +wire n417_6;
+162: +wire n416_6;
+163: +wire n415_6;
+164: +wire n414_6;
+165: +wire n413_6;
+166: +wire n412_6;
+167:  wire n411_6;
+168:  wire n410_6;
+169:  wire n409_6;
+170: @@ -1166332,44 +1166387,40 @@
+171:  wire n372_6;
+172:  wire n371_6;
+173:  wire n370_6;
+174: -wire n369_6;
+175:  wire n368_6;
+176:  wire n367_6;
+177:  wire n366_6;
+178:  wire n365_6;
+179: -wire n364_6;
+180:  wire n363_6;
+181:  wire n362_6;
+182: +wire n361_6;
+183:  wire n360_6;
+184: -wire n359_6;
+185: -wire n358_6;
+186: -wire n357_6;
+187: +wire n499_6;
+188: +wire n498_6;
+189: +wire n497_6;
+190: +wire n496_6;
+191: +wire n495_6;
+192: +wire n494_6;
+193: +wire n493_6;
+194: +wire n492_6;
+195:  wire n491_6;
+196: -wire n490_6;
+197: -wire n489_6;
+198: -wire n488_6;
+199: -wire n487_6;
+200: -wire n486_6;
+201: -wire n485_6;
+202: -wire n484_6;
+203: -wire n483_6;
+204: -wire n416_6;
+205: -wire n415_6;
+206: -wire n414_6;
+207: -wire n413_6;
+208: +wire n424_6;
+209: +wire n423_6;
+210: +wire n422_6;
+211: +wire n421_6;
+212: +wire n501_7;
+213: +wire n503_7;
+214: +wire n504_7;
+215: +wire n555_7;
+216: +wire n556_7;
+217: +wire n557_7;
+218: +wire n558_7;
+219: +wire n205_7;
+220: +wire n496_7;
+221: +wire n495_7;
+222:  wire n493_7;
+223: -wire n495_7;
+224: -wire n496_7;
+225: -wire n201_7;
+226: -wire n488_7;
+227: -wire n487_7;
+228: -wire n485_7;
+229: -wire n484_7;
+230: -wire n483_7;
+231: -wire n202_9;
+232: -wire n203_9;
+233: -wire n204_9;
+234: -wire n205_9;
+235: +wire n492_7;
+236: +wire n491_7;
+237:  wire n206_9;
+238:  wire n207_9;
+239:  wire n208_9;
+240: @@ -1166390,8 +1166441,12 @@
+241:  wire n223_9;
+242:  wire n224_9;
+243:  wire n225_9;
+244: -wire n292_11;
+245: -wire n412_9;
+246: +wire n226_9;
+247: +wire n227_9;
+248: +wire n228_9;
+249: +wire n229_9;
+250: +wire n296_11;
+251: +wire n420_9;
+252:  wire snap_ack_10;
+253:  wire pending;
+254:  wire seen_reset;
+255: @@ -1166403,6 +1166458,7 @@
+256:  wire [1:0] arm_sync;
+257:  wire [1:0] snap_sync;
+258:  wire [7:0] beat;
+259: +wire [3:0] mem_seen;
+260:  wire [0:0] valid;
+261:  wire [23:0] at_event;
+262:  wire [23:0] after_event;
+263: @@ -1166412,7 +1166468,7 @@
+264:      .F(complete_7),
+265:      .I0(pending),
+266:      .I1(armed),
+267: -    .I2(n201_7) 
+268: +    .I2(n205_7) 
+269:  );
+270:  defparam armed_s3.INIT=8'h8F;
+271:    LUT4 valid_0_s3 (
+272: @@ -1166420,536 +1166476,560 @@
+273:      .I0(pending),
+274:      .I1(sample[18]),
+275:      .I2(armed),
+276: -    .I3(n201_7) 
+277: +    .I3(n205_7) 
+278:  );
+279:  defparam valid_0_s3.INIT=16'h40FF;
+280: -  LUT3 n293_s4 (
+281: -    .F(n293_9),
+282: +  LUT3 n297_s4 (
+283: +    .F(n297_9),
+284:      .I0(arm_sync[1]),
+285:      .I1(arm_ack),
+286:      .I2(ready) 
+287:  );
+288: -defparam n293_s4.INIT=8'h60;
+289: +defparam n297_s4.INIT=8'h60;
+290: +  LUT2 n419_s1 (
+291: +    .F(n419_6),
+292: +    .I0(ready),
+293: +    .I1(at_event[0]) 
+294: +);
+295: +defparam n419_s1.INIT=4'h8;
+296: +  LUT2 n418_s1 (
+297: +    .F(n418_6),
+298: +    .I0(ready),
+299: +    .I1(at_event[1]) 
+300: +);
+301: +defparam n418_s1.INIT=4'h8;
+302: +  LUT2 n417_s1 (
+303: +    .F(n417_6),
+304: +    .I0(ready),
+305: +    .I1(at_event[2]) 
+306: +);
+307: +defparam n417_s1.INIT=4'h8;
+308: +  LUT2 n416_s1 (
+309: +    .F(n416_6),
+310: +    .I0(ready),
+311: +    .I1(at_event[3]) 
+312: +);
+313: +defparam n416_s1.INIT=4'h8;
+314: +  LUT2 n415_s1 (
+315: +    .F(n415_6),
+316: +    .I0(ready),
+317: +    .I1(at_event[4]) 
+318: +);
+319: +defparam n415_s1.INIT=4'h8;
+320: +  LUT2 n414_s1 (
+321: +    .F(n414_6),
+322: +    .I0(ready),
+323: +    .I1(at_event[5]) 
+324: +);
+325: +defparam n414_s1.INIT=4'h8;
+326: +  LUT2 n413_s1 (
+327: +    .F(n413_6),
+328: +    .I0(ready),
+329: +    .I1(at_event[6]) 
+330: +);
+331: +defparam n413_s1.INIT=4'h8;
+332: +  LUT2 n412_s1 (
+333: +    .F(n412_6),
+334: +    .I0(ready),
+335: +    .I1(at_event[7]) 
+336: +);
+337: +defparam n412_s1.INIT=4'h8;
+338:    LUT2 n411_s1 (
+339:      .F(n411_6),
+340:      .I0(ready),
+341: -    .I1(at_event[0]) 
+342: +    .I1(at_event[8]) 
+343:  );
+344:  defparam n411_s1.INIT=4'h8;
+345:    LUT2 n410_s1 (
+346:      .F(n410_6),
+347:      .I0(ready),
+348: -    .I1(at_event[1]) 
+349: +    .I1(at_event[9]) 
+350:  );
+351:  defparam n410_s1.INIT=4'h8;
+352:    LUT2 n409_s1 (
+353:      .F(n409_6),
+354:      .I0(ready),
+355: -    .I1(at_event[2]) 
+356: +    .I1(at_event[10]) 
+357:  );
+358:  defparam n409_s1.INIT=4'h8;
+359:    LUT2 n408_s1 (
+360:      .F(n408_6),
+361:      .I0(ready),
+362: -    .I1(at_event[3]) 
+363: +    .I1(at_event[11]) 
+364:  );
+365:  defparam n408_s1.INIT=4'h8;
+366:    LUT2 n407_s1 (
+367:      .F(n407_6),
+368:      .I0(ready),
+369: -    .I1(at_event[4]) 
+370: +    .I1(at_event[12]) 
+371:  );
+372:  defparam n407_s1.INIT=4'h8;
+373:    LUT2 n406_s1 (
+374:      .F(n406_6),
+375:      .I0(ready),
+376: -    .I1(at_event[5]) 
+377: +    .I1(at_event[13]) 
+378:  );
+379:  defparam n406_s1.INIT=4'h8;
+380:    LUT2 n405_s1 (
+381:      .F(n405_6),
+382:      .I0(ready),
+383: -    .I1(at_event[6]) 
+384: +    .I1(at_event[14]) 
+385:  );
+386:  defparam n405_s1.INIT=4'h8;
+387:    LUT2 n404_s1 (
+388:      .F(n404_6),
+389:      .I0(ready),
+390: -    .I1(at_event[7]) 
+391: +    .I1(at_event[15]) 
+392:  );
+393:  defparam n404_s1.INIT=4'h8;
+394:    LUT2 n403_s1 (
+395:      .F(n403_6),
+396:      .I0(ready),
+397: -    .I1(at_event[8]) 
+398: +    .I1(at_event[16]) 
+399:  );
+400:  defparam n403_s1.INIT=4'h8;
+401:    LUT2 n402_s1 (
+402:      .F(n402_6),
+403:      .I0(ready),
+404: -    .I1(at_event[9]) 
+405: +    .I1(at_event[17]) 
+406:  );
+407:  defparam n402_s1.INIT=4'h8;
+408:    LUT2 n401_s1 (
+409:      .F(n401_6),
+410:      .I0(ready),
+411: -    .I1(at_event[10]) 
+412: +    .I1(at_event[18]) 
+413:  );
+414:  defparam n401_s1.INIT=4'h8;
+415:    LUT2 n400_s1 (
+416:      .F(n400_6),
+417:      .I0(ready),
+418: -    .I1(at_event[11]) 
+419: +    .I1(at_event[19]) 
+420:  );
+421:  defparam n400_s1.INIT=4'h8;
+422:    LUT2 n399_s1 (
+423:      .F(n399_6),
+424:      .I0(ready),
+425: -    .I1(at_event[12]) 
+426: +    .I1(at_event[20]) 
+427:  );
+428:  defparam n399_s1.INIT=4'h8;
+429:    LUT2 n398_s1 (
+430:      .F(n398_6),
+431:      .I0(ready),
+432: -    .I1(at_event[13]) 
+433: +    .I1(at_event[21]) 
+434:  );
+435:  defparam n398_s1.INIT=4'h8;
+436:    LUT2 n397_s1 (
+437:      .F(n397_6),
+438:      .I0(ready),
+439: -    .I1(at_event[14]) 
+440: +    .I1(at_event[22]) 
+441:  );
+442:  defparam n397_s1.INIT=4'h8;
+443:    LUT2 n396_s1 (
+444:      .F(n396_6),
+445:      .I0(ready),
+446: -    .I1(at_event[15]) 
+447: +    .I1(at_event[23]) 
+448:  );
+449:  defparam n396_s1.INIT=4'h8;
+450:    LUT2 n395_s1 (
+451:      .F(n395_6),
+452:      .I0(ready),
+453: -    .I1(at_event[16]) 
+454: +    .I1(after_event[0]) 
+455:  );
+456:  defparam n395_s1.INIT=4'h8;
+457:    LUT2 n394_s1 (
+458:      .F(n394_6),
+459:      .I0(ready),
+460: -    .I1(at_event[17]) 
+461: +    .I1(after_event[1]) 
+462:  );
+463:  defparam n394_s1.INIT=4'h8;
+464:    LUT2 n393_s1 (
+465:      .F(n393_6),
+466:      .I0(ready),
+467: -    .I1(at_event[18]) 
+468: +    .I1(after_event[2]) 
+469:  );
+470:  defparam n393_s1.INIT=4'h8;
+471:    LUT2 n392_s1 (
+472:      .F(n392_6),
+473:      .I0(ready),
+474: -    .I1(at_event[19]) 
+475: +    .I1(after_event[3]) 
+476:  );
+477:  defparam n392_s1.INIT=4'h8;
+478:    LUT2 n391_s1 (
+479:      .F(n391_6),
+480:      .I0(ready),
+481: -    .I1(at_event[20]) 
+482: +    .I1(after_event[4]) 
+483:  );
+484:  defparam n391_s1.INIT=4'h8;
+485:    LUT2 n390_s1 (
+486:      .F(n390_6),
+487:      .I0(ready),
+488: -    .I1(at_event[21]) 
+489: +    .I1(after_event[5]) 
+490:  );
+491:  defparam n390_s1.INIT=4'h8;
+492:    LUT2 n389_s1 (
+493:      .F(n389_6),
+494:      .I0(ready),
+495: -    .I1(at_event[22]) 
+496: +    .I1(after_event[6]) 
+497:  );
+498:  defparam n389_s1.INIT=4'h8;
+499:    LUT2 n388_s1 (
+500:      .F(n388_6),
+501:      .I0(ready),
+502: -    .I1(at_event[23]) 
+503: +    .I1(after_event[7]) 
+504:  );
+505:  defparam n388_s1.INIT=4'h8;
+506:    LUT2 n387_s1 (
+507:      .F(n387_6),
+508:      .I0(ready),
+509: -    .I1(after_event[0]) 
+510: +    .I1(after_event[8]) 
+511:  );
+512:  defparam n387_s1.INIT=4'h8;
+513:    LUT2 n386_s1 (
+514:      .F(n386_6),
+515:      .I0(ready),
+516: -    .I1(after_event[1]) 
+517: +    .I1(after_event[9]) 
+518:  );
+519:  defparam n386_s1.INIT=4'h8;
+520:    LUT2 n385_s1 (
+521:      .F(n385_6),
+522:      .I0(ready),
+523: -    .I1(after_event[2]) 
+524: +    .I1(after_event[10]) 
+525:  );
+526:  defparam n385_s1.INIT=4'h8;
+527:    LUT2 n384_s1 (
+528:      .F(n384_6),
+529:      .I0(ready),
+530: -    .I1(after_event[3]) 
+531: +    .I1(after_event[11]) 
+532:  );
+533:  defparam n384_s1.INIT=4'h8;
+534:    LUT2 n383_s1 (
+535:      .F(n383_6),
+536:      .I0(ready),
+537: -    .I1(after_event[4]) 
+538: +    .I1(after_event[12]) 
+539:  );
+540:  defparam n383_s1.INIT=4'h8;
+541:    LUT2 n382_s1 (
+542:      .F(n382_6),
+543:      .I0(ready),
+544: -    .I1(after_event[5]) 
+545: +    .I1(after_event[13]) 
+546:  );
+547:  defparam n382_s1.INIT=4'h8;
+548:    LUT2 n381_s1 (
+549:      .F(n381_6),
+550:      .I0(ready),
+551: -    .I1(after_event[6]) 
+552: +    .I1(after_event[14]) 
+553:  );
+554:  defparam n381_s1.INIT=4'h8;
+555:    LUT2 n380_s1 (
+556:      .F(n380_6),
+557:      .I0(ready),
+558: -    .I1(after_event[7]) 
+559: +    .I1(after_event[15]) 
+560:  );
+561:  defparam n380_s1.INIT=4'h8;
+562:    LUT2 n379_s1 (
+563:      .F(n379_6),
+564:      .I0(ready),
+565: -    .I1(after_event[8]) 
+566: +    .I1(after_event[16]) 
+567:  );
+568:  defparam n379_s1.INIT=4'h8;
+569:    LUT2 n378_s1 (
+570:      .F(n378_6),
+571:      .I0(ready),
+572: -    .I1(after_event[9]) 
+573: +    .I1(after_event[17]) 
+574:  );
+575:  defparam n378_s1.INIT=4'h8;
+576:    LUT2 n377_s1 (
+577:      .F(n377_6),
+578:      .I0(ready),
+579: -    .I1(after_event[10]) 
+580: +    .I1(after_event[18]) 
+581:  );
+582:  defparam n377_s1.INIT=4'h8;
+583:    LUT2 n376_s1 (
+584:      .F(n376_6),
+585:      .I0(ready),
+586: -    .I1(after_event[11]) 
+587: +    .I1(after_event[19]) 
+588:  );
+589:  defparam n376_s1.INIT=4'h8;
+590:    LUT2 n375_s1 (
+591:      .F(n375_6),
+592:      .I0(ready),
+593: -    .I1(after_event[12]) 
+594: +    .I1(after_event[20]) 
+595:  );
+596:  defparam n375_s1.INIT=4'h8;
+597:    LUT2 n374_s1 (
+598:      .F(n374_6),
+599:      .I0(ready),
+600: -    .I1(after_event[13]) 
+601: +    .I1(after_event[21]) 
+602:  );
+603:  defparam n374_s1.INIT=4'h8;
+604:    LUT2 n373_s1 (
+605:      .F(n373_6),
+606:      .I0(ready),
+607: -    .I1(after_event[14]) 
+608: +    .I1(after_event[22]) 
+609:  );
+610:  defparam n373_s1.INIT=4'h8;
+611:    LUT2 n372_s1 (
+612:      .F(n372_6),
+613:      .I0(ready),
+614: -    .I1(after_event[15]) 
+615: +    .I1(after_event[23]) 
+616:  );
+617:  defparam n372_s1.INIT=4'h8;
+618:    LUT2 n371_s1 (
+619:      .F(n371_6),
+620:      .I0(ready),
+621: -    .I1(after_event[16]) 
+622: +    .I1(valid[0]) 
+623:  );
+624:  defparam n371_s1.INIT=4'h8;
+625:    LUT2 n370_s1 (
+626:      .F(n370_6),
+627:      .I0(ready),
+628: -    .I1(after_event[17]) 
+629: +    .I1(complete) 
+630:  );
+631:  defparam n370_s1.INIT=4'h8;
+632: -  LUT2 n369_s1 (
+633: -    .F(n369_6),
+634: -    .I0(ready),
+635: -    .I1(after_event[18]) 
+636: -);
+637: -defparam n369_s1.INIT=4'h8;
+638:    LUT2 n368_s1 (
+639:      .F(n368_6),
+640: -    .I0(ready),
+641: -    .I1(after_event[19]) 
+642: +    .I0(armed),
+643: +    .I1(ready) 
+644:  );
+645:  defparam n368_s1.INIT=4'h8;
+646:    LUT2 n367_s1 (
+647:      .F(n367_6),
+648: -    .I0(ready),
+649: -    .I1(after_event[20]) 
+650: +    .I0(seen_reset),
+651: +    .I1(ready) 
+652:  );
+653:  defparam n367_s1.INIT=4'h8;
+654:    LUT2 n366_s1 (
+655:      .F(n366_6),
+656: -    .I0(ready),
+657: -    .I1(after_event[21]) 
+658: +    .I0(seen_ce),
+659: +    .I1(ready) 
+660:  );
+661:  defparam n366_s1.INIT=4'h8;
+662:    LUT2 n365_s1 (
+663:      .F(n365_6),
+664: -    .I0(ready),
+665: -    .I1(after_event[22]) 
+666: -);
+667: -defparam n365_s1.INIT=4'h8;
+668: -  LUT2 n364_s1 (
+669: -    .F(n364_6),
+670: -    .I0(ready),
+671: -    .I1(after_event[23]) 
+672: -);
+673: -defparam n364_s1.INIT=4'h8;
+674: -  LUT2 n363_s1 (
+675: -    .F(n363_6),
+676: -    .I0(ready),
+677: -    .I1(valid[0]) 
+678: -);
+679: -defparam n363_s1.INIT=4'h8;
+680: -  LUT2 n362_s1 (
+681: -    .F(n362_6),
+682: -    .I0(ready),
+683: -    .I1(complete) 
+684: -);
+685: -defparam n362_s1.INIT=4'h8;
+686: -  LUT2 n360_s1 (
+687: -    .F(n360_6),
+688: -    .I0(armed),
+689: -    .I1(ready) 
+690: -);
+691: -defparam n360_s1.INIT=4'h8;
+692: -  LUT2 n359_s1 (
+693: -    .F(n359_6),
+694: -    .I0(seen_reset),
+695: -    .I1(ready) 
+696: -);
+697: -defparam n359_s1.INIT=4'h8;
+698: -  LUT2 n358_s1 (
+699: -    .F(n358_6),
+700: -    .I0(seen_ce),
+701: -    .I1(ready) 
+702: -);
+703: -defparam n358_s1.INIT=4'h8;
+704: -  LUT2 n357_s1 (
+705: -    .F(n357_6),
+706:      .I0(arm_ack),
+707:      .I1(ready) 
+708:  );
+709: -defparam n357_s1.INIT=4'h8;
+710: -  LUT2 n491_s1 (
+711: -    .F(n491_6),
+712: +defparam n365_s1.INIT=4'h8;
+713: +  LUT3 n363_s1 (
+714: +    .F(n363_6),
+715: +    .I0(mem_events[0]),
+716: +    .I1(mem_seen[0]),
+717: +    .I2(ready) 
+718: +);
+719: +defparam n363_s1.INIT=8'hE0;
+720: +  LUT3 n362_s1 (
+721: +    .F(n362_6),
+722: +    .I0(mem_events[1]),
+723: +    .I1(mem_seen[1]),
+724: +    .I2(ready) 
+725: +);
+726: +defparam n362_s1.INIT=8'hE0;
+727: +  LUT3 n361_s1 (
+728: +    .F(n361_6),
+729: +    .I0(mem_events[2]),
+730: +    .I1(mem_seen[2]),
+731: +    .I2(ready) 
+732: +);
+733: +defparam n361_s1.INIT=8'hE0;
+734: +  LUT3 n360_s1 (
+735: +    .F(n360_6),
+736: +    .I0(mem_events[3]),
+737: +    .I1(mem_seen[3]),
+738: +    .I2(ready) 
+739: +);
+740: +defparam n360_s1.INIT=8'hE0;
+741: +  LUT2 n499_s1 (
+742: +    .F(n499_6),
+743:      .I0(beat[0]),
+744:      .I1(ready) 
+745:  );
+746: -defparam n491_s1.INIT=4'h4;
+747: -  LUT3 n490_s1 (
+748: -    .F(n490_6),
+749: +defparam n499_s1.INIT=4'h4;
+750: +  LUT3 n498_s1 (
+751: +    .F(n498_6),
+752:      .I0(beat[1]),
+753:      .I1(beat[0]),
+754:      .I2(ready) 
+755:  );
+756: -defparam n490_s1.INIT=8'h60;
+757: -  LUT4 n489_s1 (
+758: -    .F(n489_6),
+759: +defparam n498_s1.INIT=8'h60;
+760: +  LUT4 n497_s1 (
+761: +    .F(n497_6),
+762:      .I0(beat[1]),
+763:      .I1(beat[0]),
+764:      .I2(beat[2]),
+765:      .I3(ready) 
+766:  );
+767: -defparam n489_s1.INIT=16'h7800;
+768: -  LUT2 n488_s1 (
+769: -    .F(n488_6),
+770: -    .I0(n488_7),
+771: +defparam n497_s1.INIT=16'h7800;
+772: +  LUT2 n496_s1 (
+773: +    .F(n496_6),
+774: +    .I0(n496_7),
+775:      .I1(ready) 
+776:  );
+777: -defparam n488_s1.INIT=4'h8;
+778: -  LUT3 n487_s1 (
+779: -    .F(n487_6),
+780: -    .I0(n487_7),
+781: +defparam n496_s1.INIT=4'h8;
+782: +  LUT3 n495_s1 (
+783: +    .F(n495_6),
+784: +    .I0(n495_7),
+785:      .I1(beat[4]),
+786:      .I2(ready) 
+787:  );
+788: -defparam n487_s1.INIT=8'h60;
+789: -  LUT4 n486_s1 (
+790: -    .F(n486_6),
+791: -    .I0(n487_7),
+792: +defparam n495_s1.INIT=8'h60;
+793: +  LUT4 n494_s1 (
+794: +    .F(n494_6),
+795: +    .I0(n495_7),
+796:      .I1(beat[4]),
+797:      .I2(beat[5]),
+798:      .I3(ready) 
+799:  );
+800: -defparam n486_s1.INIT=16'h7800;
+801: -  LUT4 n485_s1 (
+802: -    .F(n485_6),
+803: -    .I0(n487_7),
+804: -    .I1(n485_7),
+805: +defparam n494_s1.INIT=16'h7800;
+806: +  LUT4 n493_s1 (
+807: +    .F(n493_6),
+808: +    .I0(n495_7),
+809: +    .I1(n493_7),
+810:      .I2(beat[6]),
+811:      .I3(ready) 
+812:  );
+813: -defparam n485_s1.INIT=16'h7800;
+814: -  LUT4 n484_s1 (
+815: -    .F(n484_6),
+816: -    .I0(n487_7),
+817: -    .I1(n484_7),
+818: +defparam n493_s1.INIT=16'h7800;
+819: +  LUT4 n492_s1 (
+820: +    .F(n492_6),
+821: +    .I0(n495_7),
+822: +    .I1(n492_7),
+823:      .I2(beat[7]),
+824:      .I3(ready) 
+825:  );
+826: -defparam n484_s1.INIT=16'h7800;
+827: -  LUT4 n483_s1 (
+828: -    .F(n483_6),
+829: -    .I0(n487_7),
+830: -    .I1(n483_7),
+831: +defparam n492_s1.INIT=16'h7800;
+832: +  LUT4 n491_s1 (
+833: +    .F(n491_6),
+834: +    .I0(n495_7),
+835: +    .I1(n491_7),
+836:      .I2(heartbeat),
+837:      .I3(ready) 
+838:  );
+839: -defparam n483_s1.INIT=16'h7800;
+840: -  LUT2 n416_s1 (
+841: -    .F(n416_6),
+842: +defparam n491_s1.INIT=16'h7800;
+843: +  LUT2 n424_s1 (
+844: +    .F(n424_6),
+845:      .I0(ready),
+846:      .I1(snap_req) 
+847:  );
+848: -defparam n416_s1.INIT=4'h8;
+849: -  LUT2 n415_s1 (
+850: -    .F(n415_6),
+851: +defparam n424_s1.INIT=4'h8;
+852: +  LUT2 n423_s1 (
+853: +    .F(n423_6),
+854:      .I0(ready),
+855:      .I1(snap_sync[0]) 
+856:  );
+857: -defparam n415_s1.INIT=4'h8;
+858: -  LUT2 n414_s1 (
+859: -    .F(n414_6),
+860: +defparam n423_s1.INIT=4'h8;
+861: +  LUT2 n422_s1 (
+862: +    .F(n422_6),
+863:      .I0(ready),
+864:      .I1(arm_req) 
+865:  );
+866: -defparam n414_s1.INIT=4'h8;
+867: -  LUT2 n413_s1 (
+868: -    .F(n413_6),
+869: +defparam n422_s1.INIT=4'h8;
+870: +  LUT2 n421_s1 (
+871: +    .F(n421_6),
+872:      .I0(ready),
+873:      .I1(arm_sync[0]) 
+874:  );
+875: -defparam n413_s1.INIT=4'h8;
+876: -  LUT4 n493_s2 (
+877: -    .F(n493_7),
+878: +defparam n421_s1.INIT=4'h8;
+879: +  LUT4 n501_s2 (
+880: +    .F(n501_7),
+881:      .I0(sample[18]),
+882:      .I1(pending),
+883:      .I2(armed),
+884: -    .I3(n201_7) 
+885: -);
+886: -defparam n493_s2.INIT=16'h2C00;
+887: -  LUT4 n495_s2 (
+888: -    .F(n495_7),
+889: +    .I3(n205_7) 
+890: +);
+891: +defparam n501_s2.INIT=16'h2C00;
+892: +  LUT4 n503_s2 (
+893: +    .F(n503_7),
+894:      .I0(sample[17]),
+895:      .I1(armed),
+896:      .I2(seen_reset),
+897: -    .I3(n201_7) 
+898: -);
+899: -defparam n495_s2.INIT=16'hF800;
+900: -  LUT4 n496_s2 (
+901: -    .F(n496_7),
+902: +    .I3(n205_7) 
+903: +);
+904: +defparam n503_s2.INIT=16'hF800;
+905: +  LUT4 n504_s2 (
+906: +    .F(n504_7),
+907:      .I0(sample[16]),
+908:      .I1(armed),
+909:      .I2(seen_ce),
+910: -    .I3(n201_7) 
+911: -);
+912: -defparam n496_s2.INIT=16'hF800;
+913: -  LUT3 n201_s2 (
+914: -    .F(n201_7),
+915: +    .I3(n205_7) 
+916: +);
+917: +defparam n504_s2.INIT=16'hF800;
+918: +  LUT3 n555_s2 (
+919: +    .F(n555_7),
+920: +    .I0(mem_events[3]),
+921: +    .I1(mem_seen[3]),
+922: +    .I2(n205_7) 
+923: +);
+924: +defparam n555_s2.INIT=8'hE0;
+925: +  LUT3 n556_s2 (
+926: +    .F(n556_7),
+927: +    .I0(mem_events[2]),
+928: +    .I1(mem_seen[2]),
+929: +    .I2(n205_7) 
+930: +);
+931: +defparam n556_s2.INIT=8'hE0;
+932: +  LUT3 n557_s2 (
+933: +    .F(n557_7),
+934: +    .I0(mem_events[1]),
+935: +    .I1(mem_seen[1]),
+936: +    .I2(n205_7) 
+937: +);
+938: +defparam n557_s2.INIT=8'hE0;
+939: +  LUT3 n558_s2 (
+940: +    .F(n558_7),
+941: +    .I0(mem_events[0]),
+942: +    .I1(mem_seen[0]),
+943: +    .I2(n205_7) 
+944: +);
+945: +defparam n558_s2.INIT=8'hE0;
+946: +  LUT3 n205_s2 (
+947: +    .F(n205_7),
+948:      .I0(arm_sync[1]),
+949:      .I1(arm_ack),
+950:      .I2(ready) 
+951:  );
+952: -defparam n201_s2.INIT=8'h90;
+953: -  LUT4 n488_s2 (
+954: -    .F(n488_7),
+955: +defparam n205_s2.INIT=8'h90;
+956: +  LUT4 n496_s2 (
+957: +    .F(n496_7),
+958:      .I0(beat[1]),
+959:      .I1(beat[0]),
+960:      .I2(beat[2]),
+961:      .I3(beat[3]) 
+962:  );
+963: -defparam n488_s2.INIT=16'h7F80;
+964: -  LUT4 n487_s2 (
+965: -    .F(n487_7),
+966: +defparam n496_s2.INIT=16'h7F80;
+967: +  LUT4 n495_s2 (
+968: +    .F(n495_7),
+969:      .I0(beat[1]),
+970:      .I1(beat[0]),
+971:      .I2(beat[2]),
+972:      .I3(beat[3]) 
+973:  );
+974: -defparam n487_s2.INIT=16'h8000;
+975: -  LUT2 n485_s2 (
+976: -    .F(n485_7),
+977: +defparam n495_s2.INIT=16'h8000;
+978: +  LUT2 n493_s2 (
+979: +    .F(n493_7),
+980:      .I0(beat[4]),
+981:      .I1(beat[5]) 
+982:  );
+983: -defparam n485_s2.INIT=4'h8;
+984: -  LUT3 n484_s2 (
+985: -    .F(n484_7),
+986: +defparam n493_s2.INIT=4'h8;
+987: +  LUT3 n492_s2 (
+988: +    .F(n492_7),
+989:      .I0(beat[4]),
+990:      .I1(beat[5]),
+991:      .I2(beat[6]) 
+992:  );
+993: -defparam n484_s2.INIT=8'h80;
+994: -  LUT4 n483_s2 (
+995: -    .F(n483_7),
+996: +defparam n492_s2.INIT=8'h80;
+997: +  LUT4 n491_s2 (
+998: +    .F(n491_7),
+999:      .I0(beat[4]),
+1000:      .I1(beat[5]),
+1001:      .I2(beat[6]),
+1002:      .I3(beat[7]) 
+1003:  );
+1004: -defparam n483_s2.INIT=16'h8000;
+1005: -  LUT4 n202_s3 (
+1006: -    .F(n202_9),
+1007: -    .I0(arm_sync[1]),
+1008: -    .I1(arm_ack),
+1009: -    .I2(ready),
+1010: -    .I3(sample[23]) 
+1011: -);
+1012: -defparam n202_s3.INIT=16'h9000;
+1013: -  LUT4 n203_s3 (
+1014: -    .F(n203_9),
+1015: -    .I0(arm_sync[1]),
+1016: -    .I1(arm_ack),
+1017: -    .I2(ready),
+1018: -    .I3(sample[22]) 
+1019: -);
+1020: -defparam n203_s3.INIT=16'h9000;
+1021: -  LUT4 n204_s3 (
+1022: -    .F(n204_9),
+1023: -    .I0(arm_sync[1]),
+1024: -    .I1(arm_ack),
+1025: -    .I2(ready),
+1026: -    .I3(sample[21]) 
+1027: -);
+1028: -defparam n204_s3.INIT=16'h9000;
+1029: -  LUT4 n205_s3 (
+1030: -    .F(n205_9),
+1031: -    .I0(arm_sync[1]),
+1032: -    .I1(arm_ack),
+1033: -    .I2(ready),
+1034: -    .I3(sample[20]) 
+1035: -);
+1036: -defparam n205_s3.INIT=16'h9000;
+1037: +defparam n491_s2.INIT=16'h8000;
+1038:    LUT4 n206_s3 (
+1039:      .F(n206_9),
+1040:      .I0(arm_sync[1]),
+1041:      .I1(arm_ack),
+1042:      .I2(ready),
+1043: -    .I3(sample[19]) 
+1044: +    .I3(sample[23]) 
+1045:  );
+1046:  defparam n206_s3.INIT=16'h9000;
+1047:    LUT4 n207_s3 (
+1048: @@ -1166957,7 +1167037,7 @@
+1049:      .I0(arm_sync[1]),
+1050:      .I1(arm_ack),
+1051:      .I2(ready),
+1052: -    .I3(sample[18]) 
+1053: +    .I3(sample[22]) 
+1054:  );
+1055:  defparam n207_s3.INIT=16'h9000;
+1056:    LUT4 n208_s3 (
+1057: @@ -1166965,7 +1167045,7 @@
+1058:      .I0(arm_sync[1]),
+1059:      .I1(arm_ack),
+1060:      .I2(ready),
+1061: -    .I3(sample[17]) 
+1062: +    .I3(sample[21]) 
+1063:  );
+1064:  defparam n208_s3.INIT=16'h9000;
+1065:    LUT4 n209_s3 (
+1066: @@ -1166973,7 +1167053,7 @@
+1067:      .I0(arm_sync[1]),
+1068:      .I1(arm_ack),
+1069:      .I2(ready),
+1070: -    .I3(sample[16]) 
+1071: +    .I3(sample[20]) 
+1072:  );
+1073:  defparam n209_s3.INIT=16'h9000;
+1074:    LUT4 n210_s3 (
+1075: @@ -1166981,7 +1167061,7 @@
+1076:      .I0(arm_sync[1]),
+1077:      .I1(arm_ack),
+1078:      .I2(ready),
+1079: -    .I3(sample[15]) 
+1080: +    .I3(sample[19]) 
+1081:  );
+1082:  defparam n210_s3.INIT=16'h9000;
+1083:    LUT4 n211_s3 (
+1084: @@ -1166989,7 +1167069,7 @@
+1085:      .I0(arm_sync[1]),
+1086:      .I1(arm_ack),
+1087:      .I2(ready),
+1088: -    .I3(sample[14]) 
+1089: +    .I3(sample[18]) 
+1090:  );
+1091:  defparam n211_s3.INIT=16'h9000;
+1092:    LUT4 n212_s3 (
+1093: @@ -1166997,7 +1167077,7 @@
+1094:      .I0(arm_sync[1]),
+1095:      .I1(arm_ack),
+1096:      .I2(ready),
+1097: -    .I3(sample[13]) 
+1098: +    .I3(sample[17]) 
+1099:  );
+1100:  defparam n212_s3.INIT=16'h9000;
+1101:    LUT4 n213_s3 (
+1102: @@ -1167005,7 +1167085,7 @@
+1103:      .I0(arm_sync[1]),
+1104:      .I1(arm_ack),
+1105:      .I2(ready),
+1106: -    .I3(sample[12]) 
+1107: +    .I3(sample[16]) 
+1108:  );
+1109:  defparam n213_s3.INIT=16'h9000;
+1110:    LUT4 n214_s3 (
+1111: @@ -1167013,7 +1167093,7 @@
+1112:      .I0(arm_sync[1]),
+1113:      .I1(arm_ack),
+1114:      .I2(ready),
+1115: -    .I3(sample[11]) 
+1116: +    .I3(sample[15]) 
+1117:  );
+1118:  defparam n214_s3.INIT=16'h9000;
+1119:    LUT4 n215_s3 (
+1120: @@ -1167021,7 +1167101,7 @@
+1121:      .I0(arm_sync[1]),
+1122:      .I1(arm_ack),
+1123:      .I2(ready),
+1124: -    .I3(sample[10]) 
+1125: +    .I3(sample[14]) 
+1126:  );
+1127:  defparam n215_s3.INIT=16'h9000;
+1128:    LUT4 n216_s3 (
+1129: @@ -1167029,7 +1167109,7 @@
+1130:      .I0(arm_sync[1]),
+1131:      .I1(arm_ack),
+1132:      .I2(ready),
+1133: -    .I3(sample[9]) 
+1134: +    .I3(sample[13]) 
+1135:  );
+1136:  defparam n216_s3.INIT=16'h9000;
+1137:    LUT4 n217_s3 (
+1138: @@ -1167037,7 +1167117,7 @@
+1139:      .I0(arm_sync[1]),
+1140:      .I1(arm_ack),
+1141:      .I2(ready),
+1142: -    .I3(sample[8]) 
+1143: +    .I3(sample[12]) 
+1144:  );
+1145:  defparam n217_s3.INIT=16'h9000;
+1146:    LUT4 n218_s3 (
+1147: @@ -1167045,7 +1167125,7 @@
+1148:      .I0(arm_sync[1]),
+1149:      .I1(arm_ack),
+1150:      .I2(ready),
+1151: -    .I3(sample[7]) 
+1152: +    .I3(sample[11]) 
+1153:  );
+1154:  defparam n218_s3.INIT=16'h9000;
+1155:    LUT4 n219_s3 (
+1156: @@ -1167053,7 +1167133,7 @@
+1157:      .I0(arm_sync[1]),
+1158:      .I1(arm_ack),
+1159:      .I2(ready),
+1160: -    .I3(sample[6]) 
+1161: +    .I3(sample[10]) 
+1162:  );
+1163:  defparam n219_s3.INIT=16'h9000;
+1164:    LUT4 n220_s3 (
+1165: @@ -1167061,7 +1167141,7 @@
+1166:      .I0(arm_sync[1]),
+1167:      .I1(arm_ack),
+1168:      .I2(ready),
+1169: -    .I3(sample[5]) 
+1170: +    .I3(sample[9]) 
+1171:  );
+1172:  defparam n220_s3.INIT=16'h9000;
+1173:    LUT4 n221_s3 (
+1174: @@ -1167069,7 +1167149,7 @@
+1175:      .I0(arm_sync[1]),
+1176:      .I1(arm_ack),
+1177:      .I2(ready),
+1178: -    .I3(sample[4]) 
+1179: +    .I3(sample[8]) 
+1180:  );
+1181:  defparam n221_s3.INIT=16'h9000;
+1182:    LUT4 n222_s3 (
+1183: @@ -1167077,7 +1167157,7 @@
+1184:      .I0(arm_sync[1]),
+1185:      .I1(arm_ack),
+1186:      .I2(ready),
+1187: -    .I3(sample[3]) 
+1188: +    .I3(sample[7]) 
+1189:  );
+1190:  defparam n222_s3.INIT=16'h9000;
+1191:    LUT4 n223_s3 (
+1192: @@ -1167085,7 +1167165,7 @@
+1193:      .I0(arm_sync[1]),
+1194:      .I1(arm_ack),
+1195:      .I2(ready),
+1196: -    .I3(sample[2]) 
+1197: +    .I3(sample[6]) 
+1198:  );
+1199:  defparam n223_s3.INIT=16'h9000;
+1200:    LUT4 n224_s3 (
+1201: @@ -1167093,7 +1167173,7 @@
+1202:      .I0(arm_sync[1]),
+1203:      .I1(arm_ack),
+1204:      .I2(ready),
+1205: -    .I3(sample[1]) 
+1206: +    .I3(sample[5]) 
+1207:  );
+1208:  defparam n224_s3.INIT=16'h9000;
+1209:    LUT4 n225_s3 (
+1210: @@ -1167101,29 +1167181,61 @@
+1211:      .I0(arm_sync[1]),
+1212:      .I1(arm_ack),
+1213:      .I2(ready),
+1214: +    .I3(sample[4]) 
+1215: +);
+1216: +defparam n225_s3.INIT=16'h9000;
+1217: +  LUT4 n226_s3 (
+1218: +    .F(n226_9),
+1219: +    .I0(arm_sync[1]),
+1220: +    .I1(arm_ack),
+1221: +    .I2(ready),
+1222: +    .I3(sample[3]) 
+1223: +);
+1224: +defparam n226_s3.INIT=16'h9000;
+1225: +  LUT4 n227_s3 (
+1226: +    .F(n227_9),
+1227: +    .I0(arm_sync[1]),
+1228: +    .I1(arm_ack),
+1229: +    .I2(ready),
+1230: +    .I3(sample[2]) 
+1231: +);
+1232: +defparam n227_s3.INIT=16'h9000;
+1233: +  LUT4 n228_s3 (
+1234: +    .F(n228_9),
+1235: +    .I0(arm_sync[1]),
+1236: +    .I1(arm_ack),
+1237: +    .I2(ready),
+1238: +    .I3(sample[1]) 
+1239: +);
+1240: +defparam n228_s3.INIT=16'h9000;
+1241: +  LUT4 n229_s3 (
+1242: +    .F(n229_9),
+1243: +    .I0(arm_sync[1]),
+1244: +    .I1(arm_ack),
+1245: +    .I2(ready),
+1246:      .I3(sample[0]) 
+1247:  );
+1248: -defparam n225_s3.INIT=16'h9000;
+1249: -  LUT2 n292_s3 (
+1250: -    .F(n292_11),
+1251: +defparam n229_s3.INIT=16'h9000;
+1252: +  LUT2 n296_s3 (
+1253: +    .F(n296_11),
+1254:      .I0(arm_sync[1]),
+1255:      .I1(ready) 
+1256:  );
+1257: -defparam n292_s3.INIT=4'h8;
+1258: -  LUT4 n412_s3 (
+1259: -    .F(n412_9),
+1260: +defparam n296_s3.INIT=4'h8;
+1261: +  LUT4 n420_s3 (
+1262: +    .F(n420_9),
+1263:      .I0(ready),
+1264:      .I1(snap_sync[1]),
+1265:      .I2(snap_ack),
+1266: -    .I3(n293_9) 
+1267: -);
+1268: -defparam n412_s3.INIT=16'hF088;
+1269: +    .I3(n297_9) 
+1270: +);
+1271: +defparam n420_s3.INIT=16'hF088;
+1272:    LUT4 snap_ack_s7 (
+1273:      .F(snap_ack_10),
+1274:      .I0(ready),
+1275:      .I1(snap_ack),
+1276:      .I2(snap_sync[1]),
+1277: -    .I3(n293_9) 
+1278: +    .I3(n297_9) 
+1279:  );
+1280:  defparam snap_ack_s7.INIT=16'h007D;
+1281:    DFFCE up_0_s0 (
+1282: @@ -1167136,7 +1167248,7 @@
+1283:  defparam up_0_s0.INIT=1'b0;
+1284:    DFFCE arm_sync_1_s0 (
+1285:      .Q(arm_sync[1]),
+1286: -    .D(n413_6),
+1287: +    .D(n421_6),
+1288:      .CLK(clk),
+1289:      .CLEAR(n77_7),
+1290:      .CE(VCC) 
+1291: @@ -1167144,7 +1167256,7 @@
+1292:  defparam arm_sync_1_s0.INIT=1'b0;
+1293:    DFFCE arm_sync_0_s0 (
+1294:      .Q(arm_sync[0]),
+1295: -    .D(n414_6),
+1296: +    .D(n422_6),
+1297:      .CLK(clk),
+1298:      .CLEAR(n77_7),
+1299:      .CE(VCC) 
+1300: @@ -1167152,7 +1167264,7 @@
+1301:  defparam arm_sync_0_s0.INIT=1'b0;
+1302:    DFFCE snap_sync_1_s0 (
+1303:      .Q(snap_sync[1]),
+1304: -    .D(n415_6),
+1305: +    .D(n423_6),
+1306:      .CLK(clk),
+1307:      .CLEAR(n77_7),
+1308:      .CE(VCC) 
+1309: @@ -1167160,7 +1167272,7 @@
+1310:  defparam snap_sync_1_s0.INIT=1'b0;
+1311:    DFFCE snap_sync_0_s0 (
+1312:      .Q(snap_sync[0]),
+1313: -    .D(n416_6),
+1314: +    .D(n424_6),
+1315:      .CLK(clk),
+1316:      .CLEAR(n77_7),
+1317:      .CE(VCC) 
+1318: @@ -1167168,79 +1167280,79 @@
+1319:  defparam snap_sync_0_s0.INIT=1'b0;
+1320:    DFFCE beat_8_s0 (
+1321:      .Q(heartbeat),
+1322: -    .D(n483_6),
+1323: -    .CLK(clk),
+1324: -    .CLEAR(n77_7),
+1325: -    .CE(VCC) 
+1326: -);
+1327: -defparam beat_8_s0.INIT=1'b0;
+1328: -  DFFCE beat_7_s0 (
+1329: -    .Q(beat[7]),
+1330: -    .D(n484_6),
+1331: -    .CLK(clk),
+1332: -    .CLEAR(n77_7),
+1333: -    .CE(VCC) 
+1334: -);
+1335: -defparam beat_7_s0.INIT=1'b0;
+1336: -  DFFCE beat_6_s0 (
+1337: -    .Q(beat[6]),
+1338: -    .D(n485_6),
+1339: -    .CLK(clk),
+1340: -    .CLEAR(n77_7),
+1341: -    .CE(VCC) 
+1342: -);
+1343: -defparam beat_6_s0.INIT=1'b0;
+1344: -  DFFCE beat_5_s0 (
+1345: -    .Q(beat[5]),
+1346: -    .D(n486_6),
+1347: -    .CLK(clk),
+1348: -    .CLEAR(n77_7),
+1349: -    .CE(VCC) 
+1350: -);
+1351: -defparam beat_5_s0.INIT=1'b0;
+1352: -  DFFCE beat_4_s0 (
+1353: -    .Q(beat[4]),
+1354: -    .D(n487_6),
+1355: -    .CLK(clk),
+1356: -    .CLEAR(n77_7),
+1357: -    .CE(VCC) 
+1358: -);
+1359: -defparam beat_4_s0.INIT=1'b0;
+1360: -  DFFCE beat_3_s0 (
+1361: -    .Q(beat[3]),
+1362: -    .D(n488_6),
+1363: -    .CLK(clk),
+1364: -    .CLEAR(n77_7),
+1365: -    .CE(VCC) 
+1366: -);
+1367: -defparam beat_3_s0.INIT=1'b0;
+1368: -  DFFCE beat_2_s0 (
+1369: -    .Q(beat[2]),
+1370: -    .D(n489_6),
+1371: -    .CLK(clk),
+1372: -    .CLEAR(n77_7),
+1373: -    .CE(VCC) 
+1374: -);
+1375: -defparam beat_2_s0.INIT=1'b0;
+1376: -  DFFCE beat_1_s0 (
+1377: -    .Q(beat[1]),
+1378: -    .D(n490_6),
+1379: -    .CLK(clk),
+1380: -    .CLEAR(n77_7),
+1381: -    .CE(VCC) 
+1382: -);
+1383: -defparam beat_1_s0.INIT=1'b0;
+1384: -  DFFCE beat_0_s0 (
+1385: -    .Q(beat[0]),
+1386:      .D(n491_6),
+1387:      .CLK(clk),
+1388:      .CLEAR(n77_7),
+1389:      .CE(VCC) 
+1390:  );
+1391: +defparam beat_8_s0.INIT=1'b0;
+1392: +  DFFCE beat_7_s0 (
+1393: +    .Q(beat[7]),
+1394: +    .D(n492_6),
+1395: +    .CLK(clk),
+1396: +    .CLEAR(n77_7),
+1397: +    .CE(VCC) 
+1398: +);
+1399: +defparam beat_7_s0.INIT=1'b0;
+1400: +  DFFCE beat_6_s0 (
+1401: +    .Q(beat[6]),
+1402: +    .D(n493_6),
+1403: +    .CLK(clk),
+1404: +    .CLEAR(n77_7),
+1405: +    .CE(VCC) 
+1406: +);
+1407: +defparam beat_6_s0.INIT=1'b0;
+1408: +  DFFCE beat_5_s0 (
+1409: +    .Q(beat[5]),
+1410: +    .D(n494_6),
+1411: +    .CLK(clk),
+1412: +    .CLEAR(n77_7),
+1413: +    .CE(VCC) 
+1414: +);
+1415: +defparam beat_5_s0.INIT=1'b0;
+1416: +  DFFCE beat_4_s0 (
+1417: +    .Q(beat[4]),
+1418: +    .D(n495_6),
+1419: +    .CLK(clk),
+1420: +    .CLEAR(n77_7),
+1421: +    .CE(VCC) 
+1422: +);
+1423: +defparam beat_4_s0.INIT=1'b0;
+1424: +  DFFCE beat_3_s0 (
+1425: +    .Q(beat[3]),
+1426: +    .D(n496_6),
+1427: +    .CLK(clk),
+1428: +    .CLEAR(n77_7),
+1429: +    .CE(VCC) 
+1430: +);
+1431: +defparam beat_3_s0.INIT=1'b0;
+1432: +  DFFCE beat_2_s0 (
+1433: +    .Q(beat[2]),
+1434: +    .D(n497_6),
+1435: +    .CLK(clk),
+1436: +    .CLEAR(n77_7),
+1437: +    .CE(VCC) 
+1438: +);
+1439: +defparam beat_2_s0.INIT=1'b0;
+1440: +  DFFCE beat_1_s0 (
+1441: +    .Q(beat[1]),
+1442: +    .D(n498_6),
+1443: +    .CLK(clk),
+1444: +    .CLEAR(n77_7),
+1445: +    .CE(VCC) 
+1446: +);
+1447: +defparam beat_1_s0.INIT=1'b0;
+1448: +  DFFCE beat_0_s0 (
+1449: +    .Q(beat[0]),
+1450: +    .D(n499_6),
+1451: +    .CLK(clk),
+1452: +    .CLEAR(n77_7),
+1453: +    .CE(VCC) 
+1454: +);
+1455:  defparam beat_0_s0.INIT=1'b0;
+1456:    DFFCE pending_s0 (
+1457:      .Q(pending),
+1458: -    .D(n493_7),
+1459: +    .D(n501_7),
+1460:      .CLK(clk),
+1461:      .CLEAR(n77_7),
+1462:      .CE(VCC) 
+1463: @@ -1167248,7 +1167360,7 @@
+1464:  defparam pending_s0.INIT=1'b0;
+1465:    DFFCE seen_reset_s0 (
+1466:      .Q(seen_reset),
+1467: -    .D(n495_7),
+1468: +    .D(n503_7),
+1469:      .CLK(clk),
+1470:      .CLEAR(n77_7),
+1471:      .CE(VCC) 
+1472: @@ -1167256,12 +1167368,44 @@
+1473:  defparam seen_reset_s0.INIT=1'b0;
+1474:    DFFCE seen_ce_s0 (
+1475:      .Q(seen_ce),
+1476: -    .D(n496_7),
+1477: +    .D(n504_7),
+1478:      .CLK(clk),
+1479:      .CLEAR(n77_7),
+1480:      .CE(VCC) 
+1481:  );
+1482:  defparam seen_ce_s0.INIT=1'b0;
+1483: +  DFFCE mem_seen_3_s0 (
+1484: +    .Q(mem_seen[3]),
+1485: +    .D(n555_7),
+1486: +    .CLK(clk),
+1487: +    .CLEAR(n77_7),
+1488: +    .CE(VCC) 
+1489: +);
+1490: +defparam mem_seen_3_s0.INIT=1'b0;
+1491: +  DFFCE mem_seen_2_s0 (
+1492: +    .Q(mem_seen[2]),
+1493: +    .D(n556_7),
+1494: +    .CLK(clk),
+1495: +    .CLEAR(n77_7),
+1496: +    .CE(VCC) 
+1497: +);
+1498: +defparam mem_seen_2_s0.INIT=1'b0;
+1499: +  DFFCE mem_seen_1_s0 (
+1500: +    .Q(mem_seen[1]),
+1501: +    .D(n557_7),
+1502: +    .CLK(clk),
+1503: +    .CLEAR(n77_7),
+1504: +    .CE(VCC) 
+1505: +);
+1506: +defparam mem_seen_1_s0.INIT=1'b0;
+1507: +  DFFCE mem_seen_0_s0 (
+1508: +    .Q(mem_seen[0]),
+1509: +    .D(n558_7),
+1510: +    .CLK(clk),
+1511: +    .CLEAR(n77_7),
+1512: +    .CE(VCC) 
+1513: +);
+1514: +defparam mem_seen_0_s0.INIT=1'b0;
+1515:    DFFCE up_1_s0 (
+1516:      .Q(ready),
+1517:      .D(up[0]),
+1518: @@ -1167271,448 +1167415,480 @@
+1519:  );
+1520:  defparam up_1_s0.INIT=1'b0;
+1521:    DFFCE held_63_s3 (
+1522: -    .Q(held[56]),
+1523: +    .Q(held[60]),
+1524:      .D(ready),
+1525:      .CLK(clk),
+1526:      .CLEAR(n77_7),
+1527:      .CE(snap_ack_10) 
+1528:  );
+1529:  defparam held_63_s3.INIT=1'b0;
+1530: -  DFFCE held_54_s2 (
+1531: -    .Q(held[54]),
+1532: -    .D(n357_6),
+1533: -    .CLK(clk),
+1534: -    .CLEAR(n77_7),
+1535: -    .CE(snap_ack_10) 
+1536: -);
+1537: -defparam held_54_s2.INIT=1'b0;
+1538: -  DFFCE held_53_s2 (
+1539: -    .Q(held[53]),
+1540: -    .D(n358_6),
+1541: -    .CLK(clk),
+1542: -    .CLEAR(n77_7),
+1543: -    .CE(snap_ack_10) 
+1544: -);
+1545: -defparam held_53_s2.INIT=1'b0;
+1546: -  DFFCE held_52_s2 (
+1547: -    .Q(held[52]),
+1548: -    .D(n359_6),
+1549: -    .CLK(clk),
+1550: -    .CLEAR(n77_7),
+1551: -    .CE(snap_ack_10) 
+1552: -);
+1553: -defparam held_52_s2.INIT=1'b0;
+1554: -  DFFCE held_51_s2 (
+1555: -    .Q(held[51]),
+1556: +  DFFCE held_59_s2 (
+1557: +    .Q(held[59]),
+1558:      .D(n360_6),
+1559:      .CLK(clk),
+1560:      .CLEAR(n77_7),
+1561:      .CE(snap_ack_10) 
+1562:  );
+1563: -defparam held_51_s2.INIT=1'b0;
+1564: -  DFFCE held_50_s2 (
+1565: -    .Q(held[49]),
+1566: +defparam held_59_s2.INIT=1'b0;
+1567: +  DFFCE held_58_s2 (
+1568: +    .Q(held[58]),
+1569: +    .D(n361_6),
+1570: +    .CLK(clk),
+1571: +    .CLEAR(n77_7),
+1572: +    .CE(snap_ack_10) 
+1573: +);
+1574: +defparam held_58_s2.INIT=1'b0;
+1575: +  DFFCE held_57_s2 (
+1576: +    .Q(held[57]),
+1577:      .D(n362_6),
+1578:      .CLK(clk),
+1579:      .CLEAR(n77_7),
+1580:      .CE(snap_ack_10) 
+1581:  );
+1582: -defparam held_50_s2.INIT=1'b0;
+1583: -  DFFCE held_48_s2 (
+1584: -    .Q(held[48]),
+1585: +defparam held_57_s2.INIT=1'b0;
+1586: +  DFFCE held_56_s2 (
+1587: +    .Q(held[56]),
+1588:      .D(n363_6),
+1589:      .CLK(clk),
+1590:      .CLEAR(n77_7),
+1591:      .CE(snap_ack_10) 
+1592:  );
+1593: -defparam held_48_s2.INIT=1'b0;
+1594: -  DFFCE held_47_s2 (
+1595: -    .Q(held[47]),
+1596: -    .D(n364_6),
+1597: -    .CLK(clk),
+1598: -    .CLEAR(n77_7),
+1599: -    .CE(snap_ack_10) 
+1600: -);
+1601: -defparam held_47_s2.INIT=1'b0;
+1602: -  DFFCE held_46_s2 (
+1603: -    .Q(held[46]),
+1604: +defparam held_56_s2.INIT=1'b0;
+1605: +  DFFCE held_54_s2 (
+1606: +    .Q(held[54]),
+1607:      .D(n365_6),
+1608:      .CLK(clk),
+1609:      .CLEAR(n77_7),
+1610:      .CE(snap_ack_10) 
+1611:  );
+1612: -defparam held_46_s2.INIT=1'b0;
+1613: -  DFFCE held_45_s2 (
+1614: -    .Q(held[45]),
+1615: +defparam held_54_s2.INIT=1'b0;
+1616: +  DFFCE held_53_s2 (
+1617: +    .Q(held[53]),
+1618:      .D(n366_6),
+1619:      .CLK(clk),
+1620:      .CLEAR(n77_7),
+1621:      .CE(snap_ack_10) 
+1622:  );
+1623: -defparam held_45_s2.INIT=1'b0;
+1624: -  DFFCE held_44_s2 (
+1625: -    .Q(held[44]),
+1626: +defparam held_53_s2.INIT=1'b0;
+1627: +  DFFCE held_52_s2 (
+1628: +    .Q(held[52]),
+1629:      .D(n367_6),
+1630:      .CLK(clk),
+1631:      .CLEAR(n77_7),
+1632:      .CE(snap_ack_10) 
+1633:  );
+1634: -defparam held_44_s2.INIT=1'b0;
+1635: -  DFFCE held_43_s2 (
+1636: -    .Q(held[43]),
+1637: +defparam held_52_s2.INIT=1'b0;
+1638: +  DFFCE held_51_s2 (
+1639: +    .Q(held[51]),
+1640:      .D(n368_6),
+1641:      .CLK(clk),
+1642:      .CLEAR(n77_7),
+1643:      .CE(snap_ack_10) 
+1644:  );
+1645: -defparam held_43_s2.INIT=1'b0;
+1646: -  DFFCE held_42_s2 (
+1647: -    .Q(held[42]),
+1648: -    .D(n369_6),
+1649: -    .CLK(clk),
+1650: -    .CLEAR(n77_7),
+1651: -    .CE(snap_ack_10) 
+1652: -);
+1653: -defparam held_42_s2.INIT=1'b0;
+1654: -  DFFCE held_41_s2 (
+1655: -    .Q(held[41]),
+1656: +defparam held_51_s2.INIT=1'b0;
+1657: +  DFFCE held_50_s2 (
+1658: +    .Q(held[49]),
+1659:      .D(n370_6),
+1660:      .CLK(clk),
+1661:      .CLEAR(n77_7),
+1662:      .CE(snap_ack_10) 
+1663:  );
+1664: -defparam held_41_s2.INIT=1'b0;
+1665: -  DFFCE held_40_s2 (
+1666: -    .Q(held[40]),
+1667: +defparam held_50_s2.INIT=1'b0;
+1668: +  DFFCE held_48_s2 (
+1669: +    .Q(held[48]),
+1670:      .D(n371_6),
+1671:      .CLK(clk),
+1672:      .CLEAR(n77_7),
+1673:      .CE(snap_ack_10) 
+1674:  );
+1675: -defparam held_40_s2.INIT=1'b0;
+1676: -  DFFCE held_39_s2 (
+1677: -    .Q(held[39]),
+1678: +defparam held_48_s2.INIT=1'b0;
+1679: +  DFFCE held_47_s2 (
+1680: +    .Q(held[47]),
+1681:      .D(n372_6),
+1682:      .CLK(clk),
+1683:      .CLEAR(n77_7),
+1684:      .CE(snap_ack_10) 
+1685:  );
+1686: -defparam held_39_s2.INIT=1'b0;
+1687: -  DFFCE held_38_s2 (
+1688: -    .Q(held[38]),
+1689: +defparam held_47_s2.INIT=1'b0;
+1690: +  DFFCE held_46_s2 (
+1691: +    .Q(held[46]),
+1692:      .D(n373_6),
+1693:      .CLK(clk),
+1694:      .CLEAR(n77_7),
+1695:      .CE(snap_ack_10) 
+1696:  );
+1697: -defparam held_38_s2.INIT=1'b0;
+1698: -  DFFCE held_37_s2 (
+1699: -    .Q(held[37]),
+1700: +defparam held_46_s2.INIT=1'b0;
+1701: +  DFFCE held_45_s2 (
+1702: +    .Q(held[45]),
+1703:      .D(n374_6),
+1704:      .CLK(clk),
+1705:      .CLEAR(n77_7),
+1706:      .CE(snap_ack_10) 
+1707:  );
+1708: -defparam held_37_s2.INIT=1'b0;
+1709: -  DFFCE held_36_s2 (
+1710: -    .Q(held[36]),
+1711: +defparam held_45_s2.INIT=1'b0;
+1712: +  DFFCE held_44_s2 (
+1713: +    .Q(held[44]),
+1714:      .D(n375_6),
+1715:      .CLK(clk),
+1716:      .CLEAR(n77_7),
+1717:      .CE(snap_ack_10) 
+1718:  );
+1719: -defparam held_36_s2.INIT=1'b0;
+1720: -  DFFCE held_35_s2 (
+1721: -    .Q(held[35]),
+1722: +defparam held_44_s2.INIT=1'b0;
+1723: +  DFFCE held_43_s2 (
+1724: +    .Q(held[43]),
+1725:      .D(n376_6),
+1726:      .CLK(clk),
+1727:      .CLEAR(n77_7),
+1728:      .CE(snap_ack_10) 
+1729:  );
+1730: -defparam held_35_s2.INIT=1'b0;
+1731: -  DFFCE held_34_s2 (
+1732: -    .Q(held[34]),
+1733: +defparam held_43_s2.INIT=1'b0;
+1734: +  DFFCE held_42_s2 (
+1735: +    .Q(held[42]),
+1736:      .D(n377_6),
+1737:      .CLK(clk),
+1738:      .CLEAR(n77_7),
+1739:      .CE(snap_ack_10) 
+1740:  );
+1741: -defparam held_34_s2.INIT=1'b0;
+1742: -  DFFCE held_33_s2 (
+1743: -    .Q(held[33]),
+1744: +defparam held_42_s2.INIT=1'b0;
+1745: +  DFFCE held_41_s2 (
+1746: +    .Q(held[41]),
+1747:      .D(n378_6),
+1748:      .CLK(clk),
+1749:      .CLEAR(n77_7),
+1750:      .CE(snap_ack_10) 
+1751:  );
+1752: -defparam held_33_s2.INIT=1'b0;
+1753: -  DFFCE held_32_s2 (
+1754: -    .Q(held[32]),
+1755: +defparam held_41_s2.INIT=1'b0;
+1756: +  DFFCE held_40_s2 (
+1757: +    .Q(held[40]),
+1758:      .D(n379_6),
+1759:      .CLK(clk),
+1760:      .CLEAR(n77_7),
+1761:      .CE(snap_ack_10) 
+1762:  );
+1763: -defparam held_32_s2.INIT=1'b0;
+1764: -  DFFCE held_31_s2 (
+1765: -    .Q(held[31]),
+1766: +defparam held_40_s2.INIT=1'b0;
+1767: +  DFFCE held_39_s2 (
+1768: +    .Q(held[39]),
+1769:      .D(n380_6),
+1770:      .CLK(clk),
+1771:      .CLEAR(n77_7),
+1772:      .CE(snap_ack_10) 
+1773:  );
+1774: -defparam held_31_s2.INIT=1'b0;
+1775: -  DFFCE held_30_s2 (
+1776: -    .Q(held[30]),
+1777: +defparam held_39_s2.INIT=1'b0;
+1778: +  DFFCE held_38_s2 (
+1779: +    .Q(held[38]),
+1780:      .D(n381_6),
+1781:      .CLK(clk),
+1782:      .CLEAR(n77_7),
+1783:      .CE(snap_ack_10) 
+1784:  );
+1785: -defparam held_30_s2.INIT=1'b0;
+1786: -  DFFCE held_29_s2 (
+1787: -    .Q(held[29]),
+1788: +defparam held_38_s2.INIT=1'b0;
+1789: +  DFFCE held_37_s2 (
+1790: +    .Q(held[37]),
+1791:      .D(n382_6),
+1792:      .CLK(clk),
+1793:      .CLEAR(n77_7),
+1794:      .CE(snap_ack_10) 
+1795:  );
+1796: -defparam held_29_s2.INIT=1'b0;
+1797: -  DFFCE held_28_s2 (
+1798: -    .Q(held[28]),
+1799: +defparam held_37_s2.INIT=1'b0;
+1800: +  DFFCE held_36_s2 (
+1801: +    .Q(held[36]),
+1802:      .D(n383_6),
+1803:      .CLK(clk),
+1804:      .CLEAR(n77_7),
+1805:      .CE(snap_ack_10) 
+1806:  );
+1807: -defparam held_28_s2.INIT=1'b0;
+1808: -  DFFCE held_27_s2 (
+1809: -    .Q(held[27]),
+1810: +defparam held_36_s2.INIT=1'b0;
+1811: +  DFFCE held_35_s2 (
+1812: +    .Q(held[35]),
+1813:      .D(n384_6),
+1814:      .CLK(clk),
+1815:      .CLEAR(n77_7),
+1816:      .CE(snap_ack_10) 
+1817:  );
+1818: -defparam held_27_s2.INIT=1'b0;
+1819: -  DFFCE held_26_s2 (
+1820: -    .Q(held[26]),
+1821: +defparam held_35_s2.INIT=1'b0;
+1822: +  DFFCE held_34_s2 (
+1823: +    .Q(held[34]),
+1824:      .D(n385_6),
+1825:      .CLK(clk),
+1826:      .CLEAR(n77_7),
+1827:      .CE(snap_ack_10) 
+1828:  );
+1829: -defparam held_26_s2.INIT=1'b0;
+1830: -  DFFCE held_25_s2 (
+1831: -    .Q(held[25]),
+1832: +defparam held_34_s2.INIT=1'b0;
+1833: +  DFFCE held_33_s2 (
+1834: +    .Q(held[33]),
+1835:      .D(n386_6),
+1836:      .CLK(clk),
+1837:      .CLEAR(n77_7),
+1838:      .CE(snap_ack_10) 
+1839:  );
+1840: -defparam held_25_s2.INIT=1'b0;
+1841: -  DFFCE held_24_s2 (
+1842: -    .Q(held[24]),
+1843: +defparam held_33_s2.INIT=1'b0;
+1844: +  DFFCE held_32_s2 (
+1845: +    .Q(held[32]),
+1846:      .D(n387_6),
+1847:      .CLK(clk),
+1848:      .CLEAR(n77_7),
+1849:      .CE(snap_ack_10) 
+1850:  );
+1851: -defparam held_24_s2.INIT=1'b0;
+1852: -  DFFCE held_23_s2 (
+1853: -    .Q(held[23]),
+1854: +defparam held_32_s2.INIT=1'b0;
+1855: +  DFFCE held_31_s2 (
+1856: +    .Q(held[31]),
+1857:      .D(n388_6),
+1858:      .CLK(clk),
+1859:      .CLEAR(n77_7),
+1860:      .CE(snap_ack_10) 
+1861:  );
+1862: -defparam held_23_s2.INIT=1'b0;
+1863: -  DFFCE held_22_s2 (
+1864: -    .Q(held[22]),
+1865: +defparam held_31_s2.INIT=1'b0;
+1866: +  DFFCE held_30_s2 (
+1867: +    .Q(held[30]),
+1868:      .D(n389_6),
+1869:      .CLK(clk),
+1870:      .CLEAR(n77_7),
+1871:      .CE(snap_ack_10) 
+1872:  );
+1873: -defparam held_22_s2.INIT=1'b0;
+1874: -  DFFCE held_21_s2 (
+1875: -    .Q(held[21]),
+1876: +defparam held_30_s2.INIT=1'b0;
+1877: +  DFFCE held_29_s2 (
+1878: +    .Q(held[29]),
+1879:      .D(n390_6),
+1880:      .CLK(clk),
+1881:      .CLEAR(n77_7),
+1882:      .CE(snap_ack_10) 
+1883:  );
+1884: -defparam held_21_s2.INIT=1'b0;
+1885: -  DFFCE held_20_s2 (
+1886: -    .Q(held[20]),
+1887: +defparam held_29_s2.INIT=1'b0;
+1888: +  DFFCE held_28_s2 (
+1889: +    .Q(held[28]),
+1890:      .D(n391_6),
+1891:      .CLK(clk),
+1892:      .CLEAR(n77_7),
+1893:      .CE(snap_ack_10) 
+1894:  );
+1895: -defparam held_20_s2.INIT=1'b0;
+1896: -  DFFCE held_19_s2 (
+1897: -    .Q(held[19]),
+1898: +defparam held_28_s2.INIT=1'b0;
+1899: +  DFFCE held_27_s2 (
+1900: +    .Q(held[27]),
+1901:      .D(n392_6),
+1902:      .CLK(clk),
+1903:      .CLEAR(n77_7),
+1904:      .CE(snap_ack_10) 
+1905:  );
+1906: -defparam held_19_s2.INIT=1'b0;
+1907: -  DFFCE held_18_s2 (
+1908: -    .Q(held[18]),
+1909: +defparam held_27_s2.INIT=1'b0;
+1910: +  DFFCE held_26_s2 (
+1911: +    .Q(held[26]),
+1912:      .D(n393_6),
+1913:      .CLK(clk),
+1914:      .CLEAR(n77_7),
+1915:      .CE(snap_ack_10) 
+1916:  );
+1917: -defparam held_18_s2.INIT=1'b0;
+1918: -  DFFCE held_17_s2 (
+1919: -    .Q(held[17]),
+1920: +defparam held_26_s2.INIT=1'b0;
+1921: +  DFFCE held_25_s2 (
+1922: +    .Q(held[25]),
+1923:      .D(n394_6),
+1924:      .CLK(clk),
+1925:      .CLEAR(n77_7),
+1926:      .CE(snap_ack_10) 
+1927:  );
+1928: -defparam held_17_s2.INIT=1'b0;
+1929: -  DFFCE held_16_s2 (
+1930: -    .Q(held[16]),
+1931: +defparam held_25_s2.INIT=1'b0;
+1932: +  DFFCE held_24_s2 (
+1933: +    .Q(held[24]),
+1934:      .D(n395_6),
+1935:      .CLK(clk),
+1936:      .CLEAR(n77_7),
+1937:      .CE(snap_ack_10) 
+1938:  );
+1939: -defparam held_16_s2.INIT=1'b0;
+1940: -  DFFCE held_15_s2 (
+1941: -    .Q(held[15]),
+1942: +defparam held_24_s2.INIT=1'b0;
+1943: +  DFFCE held_23_s2 (
+1944: +    .Q(held[23]),
+1945:      .D(n396_6),
+1946:      .CLK(clk),
+1947:      .CLEAR(n77_7),
+1948:      .CE(snap_ack_10) 
+1949:  );
+1950: -defparam held_15_s2.INIT=1'b0;
+1951: -  DFFCE held_14_s2 (
+1952: -    .Q(held[14]),
+1953: +defparam held_23_s2.INIT=1'b0;
+1954: +  DFFCE held_22_s2 (
+1955: +    .Q(held[22]),
+1956:      .D(n397_6),
+1957:      .CLK(clk),
+1958:      .CLEAR(n77_7),
+1959:      .CE(snap_ack_10) 
+1960:  );
+1961: -defparam held_14_s2.INIT=1'b0;
+1962: -  DFFCE held_13_s2 (
+1963: -    .Q(held[13]),
+1964: +defparam held_22_s2.INIT=1'b0;
+1965: +  DFFCE held_21_s2 (
+1966: +    .Q(held[21]),
+1967:      .D(n398_6),
+1968:      .CLK(clk),
+1969:      .CLEAR(n77_7),
+1970:      .CE(snap_ack_10) 
+1971:  );
+1972: -defparam held_13_s2.INIT=1'b0;
+1973: -  DFFCE held_12_s2 (
+1974: -    .Q(held[12]),
+1975: +defparam held_21_s2.INIT=1'b0;
+1976: +  DFFCE held_20_s2 (
+1977: +    .Q(held[20]),
+1978:      .D(n399_6),
+1979:      .CLK(clk),
+1980:      .CLEAR(n77_7),
+1981:      .CE(snap_ack_10) 
+1982:  );
+1983: -defparam held_12_s2.INIT=1'b0;
+1984: -  DFFCE held_11_s2 (
+1985: -    .Q(held[11]),
+1986: +defparam held_20_s2.INIT=1'b0;
+1987: +  DFFCE held_19_s2 (
+1988: +    .Q(held[19]),
+1989:      .D(n400_6),
+1990:      .CLK(clk),
+1991:      .CLEAR(n77_7),
+1992:      .CE(snap_ack_10) 
+1993:  );
+1994: -defparam held_11_s2.INIT=1'b0;
+1995: -  DFFCE held_10_s2 (
+1996: -    .Q(held[10]),
+1997: +defparam held_19_s2.INIT=1'b0;
+1998: +  DFFCE held_18_s2 (
+1999: +    .Q(held[18]),
+2000:      .D(n401_6),
+2001:      .CLK(clk),
+2002:      .CLEAR(n77_7),
+2003:      .CE(snap_ack_10) 
+2004:  );
+2005: -defparam held_10_s2.INIT=1'b0;
+2006: -  DFFCE held_9_s2 (
+2007: -    .Q(held[9]),
+2008: +defparam held_18_s2.INIT=1'b0;
+2009: +  DFFCE held_17_s2 (
+2010: +    .Q(held[17]),
+2011:      .D(n402_6),
+2012:      .CLK(clk),
+2013:      .CLEAR(n77_7),
+2014:      .CE(snap_ack_10) 
+2015:  );
+2016: -defparam held_9_s2.INIT=1'b0;
+2017: -  DFFCE held_8_s2 (
+2018: -    .Q(held[8]),
+2019: +defparam held_17_s2.INIT=1'b0;
+2020: +  DFFCE held_16_s2 (
+2021: +    .Q(held[16]),
+2022:      .D(n403_6),
+2023:      .CLK(clk),
+2024:      .CLEAR(n77_7),
+2025:      .CE(snap_ack_10) 
+2026:  );
+2027: -defparam held_8_s2.INIT=1'b0;
+2028: -  DFFCE held_7_s2 (
+2029: -    .Q(held[7]),
+2030: +defparam held_16_s2.INIT=1'b0;
+2031: +  DFFCE held_15_s2 (
+2032: +    .Q(held[15]),
+2033:      .D(n404_6),
+2034:      .CLK(clk),
+2035:      .CLEAR(n77_7),
+2036:      .CE(snap_ack_10) 
+2037:  );
+2038: -defparam held_7_s2.INIT=1'b0;
+2039: -  DFFCE held_6_s2 (
+2040: -    .Q(held[6]),
+2041: +defparam held_15_s2.INIT=1'b0;
+2042: +  DFFCE held_14_s2 (
+2043: +    .Q(held[14]),
+2044:      .D(n405_6),
+2045:      .CLK(clk),
+2046:      .CLEAR(n77_7),
+2047:      .CE(snap_ack_10) 
+2048:  );
+2049: -defparam held_6_s2.INIT=1'b0;
+2050: -  DFFCE held_5_s2 (
+2051: -    .Q(held[5]),
+2052: +defparam held_14_s2.INIT=1'b0;
+2053: +  DFFCE held_13_s2 (
+2054: +    .Q(held[13]),
+2055:      .D(n406_6),
+2056:      .CLK(clk),
+2057:      .CLEAR(n77_7),
+2058:      .CE(snap_ack_10) 
+2059:  );
+2060: -defparam held_5_s2.INIT=1'b0;
+2061: -  DFFCE held_4_s2 (
+2062: -    .Q(held[4]),
+2063: +defparam held_13_s2.INIT=1'b0;
+2064: +  DFFCE held_12_s2 (
+2065: +    .Q(held[12]),
+2066:      .D(n407_6),
+2067:      .CLK(clk),
+2068:      .CLEAR(n77_7),
+2069:      .CE(snap_ack_10) 
+2070:  );
+2071: -defparam held_4_s2.INIT=1'b0;
+2072: -  DFFCE held_3_s2 (
+2073: -    .Q(held[3]),
+2074: +defparam held_12_s2.INIT=1'b0;
+2075: +  DFFCE held_11_s2 (
+2076: +    .Q(held[11]),
+2077:      .D(n408_6),
+2078:      .CLK(clk),
+2079:      .CLEAR(n77_7),
+2080:      .CE(snap_ack_10) 
+2081:  );
+2082: -defparam held_3_s2.INIT=1'b0;
+2083: -  DFFCE held_2_s2 (
+2084: -    .Q(held[2]),
+2085: +defparam held_11_s2.INIT=1'b0;
+2086: +  DFFCE held_10_s2 (
+2087: +    .Q(held[10]),
+2088:      .D(n409_6),
+2089:      .CLK(clk),
+2090:      .CLEAR(n77_7),
+2091:      .CE(snap_ack_10) 
+2092:  );
+2093: -defparam held_2_s2.INIT=1'b0;
+2094: -  DFFCE held_1_s2 (
+2095: -    .Q(held[1]),
+2096: +defparam held_10_s2.INIT=1'b0;
+2097: +  DFFCE held_9_s2 (
+2098: +    .Q(held[9]),
+2099:      .D(n410_6),
+2100:      .CLK(clk),
+2101:      .CLEAR(n77_7),
+2102:      .CE(snap_ack_10) 
+2103:  );
+2104: -defparam held_1_s2.INIT=1'b0;
+2105: -  DFFCE held_0_s2 (
+2106: -    .Q(held[0]),
+2107: +defparam held_9_s2.INIT=1'b0;
+2108: +  DFFCE held_8_s2 (
+2109: +    .Q(held[8]),
+2110:      .D(n411_6),
+2111:      .CLK(clk),
+2112:      .CLEAR(n77_7),
+2113:      .CE(snap_ack_10) 
+2114:  );
+2115: +defparam held_8_s2.INIT=1'b0;
+2116: +  DFFCE held_7_s2 (
+2117: +    .Q(held[7]),
+2118: +    .D(n412_6),
+2119: +    .CLK(clk),
+2120: +    .CLEAR(n77_7),
+2121: +    .CE(snap_ack_10) 
+2122: +);
+2123: +defparam held_7_s2.INIT=1'b0;
+2124: +  DFFCE held_6_s2 (
+2125: +    .Q(held[6]),
+2126: +    .D(n413_6),
+2127: +    .CLK(clk),
+2128: +    .CLEAR(n77_7),
+2129: +    .CE(snap_ack_10) 
+2130: +);
+2131: +defparam held_6_s2.INIT=1'b0;
+2132: +  DFFCE held_5_s2 (
+2133: +    .Q(held[5]),
+2134: +    .D(n414_6),
+2135: +    .CLK(clk),
+2136: +    .CLEAR(n77_7),
+2137: +    .CE(snap_ack_10) 
+2138: +);
+2139: +defparam held_5_s2.INIT=1'b0;
+2140: +  DFFCE held_4_s2 (
+2141: +    .Q(held[4]),
+2142: +    .D(n415_6),
+2143: +    .CLK(clk),
+2144: +    .CLEAR(n77_7),
+2145: +    .CE(snap_ack_10) 
+2146: +);
+2147: +defparam held_4_s2.INIT=1'b0;
+2148: +  DFFCE held_3_s2 (
+2149: +    .Q(held[3]),
+2150: +    .D(n416_6),
+2151: +    .CLK(clk),
+2152: +    .CLEAR(n77_7),
+2153: +    .CE(snap_ack_10) 
+2154: +);
+2155: +defparam held_3_s2.INIT=1'b0;
+2156: +  DFFCE held_2_s2 (
+2157: +    .Q(held[2]),
+2158: +    .D(n417_6),
+2159: +    .CLK(clk),
+2160: +    .CLEAR(n77_7),
+2161: +    .CE(snap_ack_10) 
+2162: +);
+2163: +defparam held_2_s2.INIT=1'b0;
+2164: +  DFFCE held_1_s2 (
+2165: +    .Q(held[1]),
+2166: +    .D(n418_6),
+2167: +    .CLK(clk),
+2168: +    .CLEAR(n77_7),
+2169: +    .CE(snap_ack_10) 
+2170: +);
+2171: +defparam held_1_s2.INIT=1'b0;
+2172: +  DFFCE held_0_s2 (
+2173: +    .Q(held[0]),
+2174: +    .D(n419_6),
+2175: +    .CLK(clk),
+2176: +    .CLEAR(n77_7),
+2177: +    .CE(snap_ack_10) 
+2178: +);
+2179:  defparam held_0_s2.INIT=1'b0;
+2180:    DFFCE armed_s1 (
+2181:      .Q(armed),
+2182: -    .D(n293_9),
+2183: +    .D(n297_9),
+2184:      .CLK(clk),
+2185:      .CLEAR(n77_7),
+2186:      .CE(complete_7) 
+2187: @@ -1167720,7 +1167896,7 @@
+2188:  defparam armed_s1.INIT=1'b0;
+2189:    DFFCE complete_s1 (
+2190:      .Q(complete),
+2191: -    .D(n201_7),
+2192: +    .D(n205_7),
+2193:      .CLK(clk),
+2194:      .CLEAR(n77_7),
+2195:      .CE(complete_7) 
+2196: @@ -1167728,7 +1167904,7 @@
+2197:  defparam complete_s1.INIT=1'b0;
+2198:    DFFCE valid_0_s1 (
+2199:      .Q(valid[0]),
+2200: -    .D(n201_7),
+2201: +    .D(n205_7),
+2202:      .CLK(clk),
+2203:      .CLEAR(n77_7),
+2204:      .CE(valid_0_8) 
+2205: @@ -1167736,391 +1167912,391 @@
+2206:  defparam valid_0_s1.INIT=1'b0;
+2207:    DFFCE at_event_23_s1 (
+2208:      .Q(at_event[23]),
+2209: -    .D(n202_9),
+2210: -    .CLK(clk),
+2211: -    .CLEAR(n77_7),
+2212: -    .CE(valid_0_8) 
+2213: -);
+2214: -defparam at_event_23_s1.INIT=1'b0;
+2215: -  DFFCE at_event_22_s1 (
+2216: -    .Q(at_event[22]),
+2217: -    .D(n203_9),
+2218: -    .CLK(clk),
+2219: -    .CLEAR(n77_7),
+2220: -    .CE(valid_0_8) 
+2221: -);
+2222: -defparam at_event_22_s1.INIT=1'b0;
+2223: -  DFFCE at_event_21_s1 (
+2224: -    .Q(at_event[21]),
+2225: -    .D(n204_9),
+2226: -    .CLK(clk),
+2227: -    .CLEAR(n77_7),
+2228: -    .CE(valid_0_8) 
+2229: -);
+2230: -defparam at_event_21_s1.INIT=1'b0;
+2231: -  DFFCE at_event_20_s1 (
+2232: -    .Q(at_event[20]),
+2233: -    .D(n205_9),
+2234: -    .CLK(clk),
+2235: -    .CLEAR(n77_7),
+2236: -    .CE(valid_0_8) 
+2237: -);
+2238: -defparam at_event_20_s1.INIT=1'b0;
+2239: -  DFFCE at_event_19_s1 (
+2240: -    .Q(at_event[19]),
+2241:      .D(n206_9),
+2242:      .CLK(clk),
+2243:      .CLEAR(n77_7),
+2244:      .CE(valid_0_8) 
+2245:  );
+2246: -defparam at_event_19_s1.INIT=1'b0;
+2247: -  DFFCE at_event_18_s1 (
+2248: -    .Q(at_event[18]),
+2249: +defparam at_event_23_s1.INIT=1'b0;
+2250: +  DFFCE at_event_22_s1 (
+2251: +    .Q(at_event[22]),
+2252:      .D(n207_9),
+2253:      .CLK(clk),
+2254:      .CLEAR(n77_7),
+2255:      .CE(valid_0_8) 
+2256:  );
+2257: -defparam at_event_18_s1.INIT=1'b0;
+2258: -  DFFCE at_event_17_s1 (
+2259: -    .Q(at_event[17]),
+2260: +defparam at_event_22_s1.INIT=1'b0;
+2261: +  DFFCE at_event_21_s1 (
+2262: +    .Q(at_event[21]),
+2263:      .D(n208_9),
+2264:      .CLK(clk),
+2265:      .CLEAR(n77_7),
+2266:      .CE(valid_0_8) 
+2267:  );
+2268: -defparam at_event_17_s1.INIT=1'b0;
+2269: -  DFFCE at_event_16_s1 (
+2270: -    .Q(at_event[16]),
+2271: +defparam at_event_21_s1.INIT=1'b0;
+2272: +  DFFCE at_event_20_s1 (
+2273: +    .Q(at_event[20]),
+2274:      .D(n209_9),
+2275:      .CLK(clk),
+2276:      .CLEAR(n77_7),
+2277:      .CE(valid_0_8) 
+2278:  );
+2279: -defparam at_event_16_s1.INIT=1'b0;
+2280: -  DFFCE at_event_15_s1 (
+2281: -    .Q(at_event[15]),
+2282: +defparam at_event_20_s1.INIT=1'b0;
+2283: +  DFFCE at_event_19_s1 (
+2284: +    .Q(at_event[19]),
+2285:      .D(n210_9),
+2286:      .CLK(clk),
+2287:      .CLEAR(n77_7),
+2288:      .CE(valid_0_8) 
+2289:  );
+2290: -defparam at_event_15_s1.INIT=1'b0;
+2291: -  DFFCE at_event_14_s1 (
+2292: -    .Q(at_event[14]),
+2293: +defparam at_event_19_s1.INIT=1'b0;
+2294: +  DFFCE at_event_18_s1 (
+2295: +    .Q(at_event[18]),
+2296:      .D(n211_9),
+2297:      .CLK(clk),
+2298:      .CLEAR(n77_7),
+2299:      .CE(valid_0_8) 
+2300:  );
+2301: -defparam at_event_14_s1.INIT=1'b0;
+2302: -  DFFCE at_event_13_s1 (
+2303: -    .Q(at_event[13]),
+2304: +defparam at_event_18_s1.INIT=1'b0;
+2305: +  DFFCE at_event_17_s1 (
+2306: +    .Q(at_event[17]),
+2307:      .D(n212_9),
+2308:      .CLK(clk),
+2309:      .CLEAR(n77_7),
+2310:      .CE(valid_0_8) 
+2311:  );
+2312: -defparam at_event_13_s1.INIT=1'b0;
+2313: -  DFFCE at_event_12_s1 (
+2314: -    .Q(at_event[12]),
+2315: +defparam at_event_17_s1.INIT=1'b0;
+2316: +  DFFCE at_event_16_s1 (
+2317: +    .Q(at_event[16]),
+2318:      .D(n213_9),
+2319:      .CLK(clk),
+2320:      .CLEAR(n77_7),
+2321:      .CE(valid_0_8) 
+2322:  );
+2323: -defparam at_event_12_s1.INIT=1'b0;
+2324: -  DFFCE at_event_11_s1 (
+2325: -    .Q(at_event[11]),
+2326: +defparam at_event_16_s1.INIT=1'b0;
+2327: +  DFFCE at_event_15_s1 (
+2328: +    .Q(at_event[15]),
+2329:      .D(n214_9),
+2330:      .CLK(clk),
+2331:      .CLEAR(n77_7),
+2332:      .CE(valid_0_8) 
+2333:  );
+2334: -defparam at_event_11_s1.INIT=1'b0;
+2335: -  DFFCE at_event_10_s1 (
+2336: -    .Q(at_event[10]),
+2337: +defparam at_event_15_s1.INIT=1'b0;
+2338: +  DFFCE at_event_14_s1 (
+2339: +    .Q(at_event[14]),
+2340:      .D(n215_9),
+2341:      .CLK(clk),
+2342:      .CLEAR(n77_7),
+2343:      .CE(valid_0_8) 
+2344:  );
+2345: -defparam at_event_10_s1.INIT=1'b0;
+2346: -  DFFCE at_event_9_s1 (
+2347: -    .Q(at_event[9]),
+2348: +defparam at_event_14_s1.INIT=1'b0;
+2349: +  DFFCE at_event_13_s1 (
+2350: +    .Q(at_event[13]),
+2351:      .D(n216_9),
+2352:      .CLK(clk),
+2353:      .CLEAR(n77_7),
+2354:      .CE(valid_0_8) 
+2355:  );
+2356: -defparam at_event_9_s1.INIT=1'b0;
+2357: -  DFFCE at_event_8_s1 (
+2358: -    .Q(at_event[8]),
+2359: +defparam at_event_13_s1.INIT=1'b0;
+2360: +  DFFCE at_event_12_s1 (
+2361: +    .Q(at_event[12]),
+2362:      .D(n217_9),
+2363:      .CLK(clk),
+2364:      .CLEAR(n77_7),
+2365:      .CE(valid_0_8) 
+2366:  );
+2367: -defparam at_event_8_s1.INIT=1'b0;
+2368: -  DFFCE at_event_7_s1 (
+2369: -    .Q(at_event[7]),
+2370: +defparam at_event_12_s1.INIT=1'b0;
+2371: +  DFFCE at_event_11_s1 (
+2372: +    .Q(at_event[11]),
+2373:      .D(n218_9),
+2374:      .CLK(clk),
+2375:      .CLEAR(n77_7),
+2376:      .CE(valid_0_8) 
+2377:  );
+2378: -defparam at_event_7_s1.INIT=1'b0;
+2379: -  DFFCE at_event_6_s1 (
+2380: -    .Q(at_event[6]),
+2381: +defparam at_event_11_s1.INIT=1'b0;
+2382: +  DFFCE at_event_10_s1 (
+2383: +    .Q(at_event[10]),
+2384:      .D(n219_9),
+2385:      .CLK(clk),
+2386:      .CLEAR(n77_7),
+2387:      .CE(valid_0_8) 
+2388:  );
+2389: -defparam at_event_6_s1.INIT=1'b0;
+2390: -  DFFCE at_event_5_s1 (
+2391: -    .Q(at_event[5]),
+2392: +defparam at_event_10_s1.INIT=1'b0;
+2393: +  DFFCE at_event_9_s1 (
+2394: +    .Q(at_event[9]),
+2395:      .D(n220_9),
+2396:      .CLK(clk),
+2397:      .CLEAR(n77_7),
+2398:      .CE(valid_0_8) 
+2399:  );
+2400: -defparam at_event_5_s1.INIT=1'b0;
+2401: -  DFFCE at_event_4_s1 (
+2402: -    .Q(at_event[4]),
+2403: +defparam at_event_9_s1.INIT=1'b0;
+2404: +  DFFCE at_event_8_s1 (
+2405: +    .Q(at_event[8]),
+2406:      .D(n221_9),
+2407:      .CLK(clk),
+2408:      .CLEAR(n77_7),
+2409:      .CE(valid_0_8) 
+2410:  );
+2411: -defparam at_event_4_s1.INIT=1'b0;
+2412: -  DFFCE at_event_3_s1 (
+2413: -    .Q(at_event[3]),
+2414: +defparam at_event_8_s1.INIT=1'b0;
+2415: +  DFFCE at_event_7_s1 (
+2416: +    .Q(at_event[7]),
+2417:      .D(n222_9),
+2418:      .CLK(clk),
+2419:      .CLEAR(n77_7),
+2420:      .CE(valid_0_8) 
+2421:  );
+2422: -defparam at_event_3_s1.INIT=1'b0;
+2423: -  DFFCE at_event_2_s1 (
+2424: -    .Q(at_event[2]),
+2425: +defparam at_event_7_s1.INIT=1'b0;
+2426: +  DFFCE at_event_6_s1 (
+2427: +    .Q(at_event[6]),
+2428:      .D(n223_9),
+2429:      .CLK(clk),
+2430:      .CLEAR(n77_7),
+2431:      .CE(valid_0_8) 
+2432:  );
+2433: -defparam at_event_2_s1.INIT=1'b0;
+2434: -  DFFCE at_event_1_s1 (
+2435: -    .Q(at_event[1]),
+2436: +defparam at_event_6_s1.INIT=1'b0;
+2437: +  DFFCE at_event_5_s1 (
+2438: +    .Q(at_event[5]),
+2439:      .D(n224_9),
+2440:      .CLK(clk),
+2441:      .CLEAR(n77_7),
+2442:      .CE(valid_0_8) 
+2443:  );
+2444: -defparam at_event_1_s1.INIT=1'b0;
+2445: -  DFFCE at_event_0_s1 (
+2446: -    .Q(at_event[0]),
+2447: +defparam at_event_5_s1.INIT=1'b0;
+2448: +  DFFCE at_event_4_s1 (
+2449: +    .Q(at_event[4]),
+2450:      .D(n225_9),
+2451:      .CLK(clk),
+2452:      .CLEAR(n77_7),
+2453:      .CE(valid_0_8) 
+2454:  );
+2455: +defparam at_event_4_s1.INIT=1'b0;
+2456: +  DFFCE at_event_3_s1 (
+2457: +    .Q(at_event[3]),
+2458: +    .D(n226_9),
+2459: +    .CLK(clk),
+2460: +    .CLEAR(n77_7),
+2461: +    .CE(valid_0_8) 
+2462: +);
+2463: +defparam at_event_3_s1.INIT=1'b0;
+2464: +  DFFCE at_event_2_s1 (
+2465: +    .Q(at_event[2]),
+2466: +    .D(n227_9),
+2467: +    .CLK(clk),
+2468: +    .CLEAR(n77_7),
+2469: +    .CE(valid_0_8) 
+2470: +);
+2471: +defparam at_event_2_s1.INIT=1'b0;
+2472: +  DFFCE at_event_1_s1 (
+2473: +    .Q(at_event[1]),
+2474: +    .D(n228_9),
+2475: +    .CLK(clk),
+2476: +    .CLEAR(n77_7),
+2477: +    .CE(valid_0_8) 
+2478: +);
+2479: +defparam at_event_1_s1.INIT=1'b0;
+2480: +  DFFCE at_event_0_s1 (
+2481: +    .Q(at_event[0]),
+2482: +    .D(n229_9),
+2483: +    .CLK(clk),
+2484: +    .CLEAR(n77_7),
+2485: +    .CE(valid_0_8) 
+2486: +);
+2487:  defparam at_event_0_s1.INIT=1'b0;
+2488:    DFFCE after_event_23_s1 (
+2489:      .Q(after_event[23]),
+2490: -    .D(n202_9),
+2491: -    .CLK(clk),
+2492: -    .CLEAR(n77_7),
+2493: -    .CE(complete_7) 
+2494: -);
+2495: -defparam after_event_23_s1.INIT=1'b0;
+2496: -  DFFCE after_event_22_s1 (
+2497: -    .Q(after_event[22]),
+2498: -    .D(n203_9),
+2499: -    .CLK(clk),
+2500: -    .CLEAR(n77_7),
+2501: -    .CE(complete_7) 
+2502: -);
+2503: -defparam after_event_22_s1.INIT=1'b0;
+2504: -  DFFCE after_event_21_s1 (
+2505: -    .Q(after_event[21]),
+2506: -    .D(n204_9),
+2507: -    .CLK(clk),
+2508: -    .CLEAR(n77_7),
+2509: -    .CE(complete_7) 
+2510: -);
+2511: -defparam after_event_21_s1.INIT=1'b0;
+2512: -  DFFCE after_event_20_s1 (
+2513: -    .Q(after_event[20]),
+2514: -    .D(n205_9),
+2515: -    .CLK(clk),
+2516: -    .CLEAR(n77_7),
+2517: -    .CE(complete_7) 
+2518: -);
+2519: -defparam after_event_20_s1.INIT=1'b0;
+2520: -  DFFCE after_event_19_s1 (
+2521: -    .Q(after_event[19]),
+2522:      .D(n206_9),
+2523:      .CLK(clk),
+2524:      .CLEAR(n77_7),
+2525:      .CE(complete_7) 
+2526:  );
+2527: -defparam after_event_19_s1.INIT=1'b0;
+2528: -  DFFCE after_event_18_s1 (
+2529: -    .Q(after_event[18]),
+2530: +defparam after_event_23_s1.INIT=1'b0;
+2531: +  DFFCE after_event_22_s1 (
+2532: +    .Q(after_event[22]),
+2533:      .D(n207_9),
+2534:      .CLK(clk),
+2535:      .CLEAR(n77_7),
+2536:      .CE(complete_7) 
+2537:  );
+2538: -defparam after_event_18_s1.INIT=1'b0;
+2539: -  DFFCE after_event_17_s1 (
+2540: -    .Q(after_event[17]),
+2541: +defparam after_event_22_s1.INIT=1'b0;
+2542: +  DFFCE after_event_21_s1 (
+2543: +    .Q(after_event[21]),
+2544:      .D(n208_9),
+2545:      .CLK(clk),
+2546:      .CLEAR(n77_7),
+2547:      .CE(complete_7) 
+2548:  );
+2549: -defparam after_event_17_s1.INIT=1'b0;
+2550: -  DFFCE after_event_16_s1 (
+2551: -    .Q(after_event[16]),
+2552: +defparam after_event_21_s1.INIT=1'b0;
+2553: +  DFFCE after_event_20_s1 (
+2554: +    .Q(after_event[20]),
+2555:      .D(n209_9),
+2556:      .CLK(clk),
+2557:      .CLEAR(n77_7),
+2558:      .CE(complete_7) 
+2559:  );
+2560: -defparam after_event_16_s1.INIT=1'b0;
+2561: -  DFFCE after_event_15_s1 (
+2562: -    .Q(after_event[15]),
+2563: +defparam after_event_20_s1.INIT=1'b0;
+2564: +  DFFCE after_event_19_s1 (
+2565: +    .Q(after_event[19]),
+2566:      .D(n210_9),
+2567:      .CLK(clk),
+2568:      .CLEAR(n77_7),
+2569:      .CE(complete_7) 
+2570:  );
+2571: -defparam after_event_15_s1.INIT=1'b0;
+2572: -  DFFCE after_event_14_s1 (
+2573: -    .Q(after_event[14]),
+2574: +defparam after_event_19_s1.INIT=1'b0;
+2575: +  DFFCE after_event_18_s1 (
+2576: +    .Q(after_event[18]),
+2577:      .D(n211_9),
+2578:      .CLK(clk),
+2579:      .CLEAR(n77_7),
+2580:      .CE(complete_7) 
+2581:  );
+2582: -defparam after_event_14_s1.INIT=1'b0;
+2583: -  DFFCE after_event_13_s1 (
+2584: -    .Q(after_event[13]),
+2585: +defparam after_event_18_s1.INIT=1'b0;
+2586: +  DFFCE after_event_17_s1 (
+2587: +    .Q(after_event[17]),
+2588:      .D(n212_9),
+2589:      .CLK(clk),
+2590:      .CLEAR(n77_7),
+2591:      .CE(complete_7) 
+2592:  );
+2593: -defparam after_event_13_s1.INIT=1'b0;
+2594: -  DFFCE after_event_12_s1 (
+2595: -    .Q(after_event[12]),
+2596: +defparam after_event_17_s1.INIT=1'b0;
+2597: +  DFFCE after_event_16_s1 (
+2598: +    .Q(after_event[16]),
+2599:      .D(n213_9),
+2600:      .CLK(clk),
+2601:      .CLEAR(n77_7),
+2602:      .CE(complete_7) 
+2603:  );
+2604: -defparam after_event_12_s1.INIT=1'b0;
+2605: -  DFFCE after_event_11_s1 (
+2606: -    .Q(after_event[11]),
+2607: +defparam after_event_16_s1.INIT=1'b0;
+2608: +  DFFCE after_event_15_s1 (
+2609: +    .Q(after_event[15]),
+2610:      .D(n214_9),
+2611:      .CLK(clk),
+2612:      .CLEAR(n77_7),
+2613:      .CE(complete_7) 
+2614:  );
+2615: -defparam after_event_11_s1.INIT=1'b0;
+2616: -  DFFCE after_event_10_s1 (
+2617: -    .Q(after_event[10]),
+2618: +defparam after_event_15_s1.INIT=1'b0;
+2619: +  DFFCE after_event_14_s1 (
+2620: +    .Q(after_event[14]),
+2621:      .D(n215_9),
+2622:      .CLK(clk),
+2623:      .CLEAR(n77_7),
+2624:      .CE(complete_7) 
+2625:  );
+2626: -defparam after_event_10_s1.INIT=1'b0;
+2627: -  DFFCE after_event_9_s1 (
+2628: -    .Q(after_event[9]),
+2629: +defparam after_event_14_s1.INIT=1'b0;
+2630: +  DFFCE after_event_13_s1 (
+2631: +    .Q(after_event[13]),
+2632:      .D(n216_9),
+2633:      .CLK(clk),
+2634:      .CLEAR(n77_7),
+2635:      .CE(complete_7) 
+2636:  );
+2637: -defparam after_event_9_s1.INIT=1'b0;
+2638: -  DFFCE after_event_8_s1 (
+2639: -    .Q(after_event[8]),
+2640: +defparam after_event_13_s1.INIT=1'b0;
+2641: +  DFFCE after_event_12_s1 (
+2642: +    .Q(after_event[12]),
+2643:      .D(n217_9),
+2644:      .CLK(clk),
+2645:      .CLEAR(n77_7),
+2646:      .CE(complete_7) 
+2647:  );
+2648: -defparam after_event_8_s1.INIT=1'b0;
+2649: -  DFFCE after_event_7_s1 (
+2650: -    .Q(after_event[7]),
+2651: +defparam after_event_12_s1.INIT=1'b0;
+2652: +  DFFCE after_event_11_s1 (
+2653: +    .Q(after_event[11]),
+2654:      .D(n218_9),
+2655:      .CLK(clk),
+2656:      .CLEAR(n77_7),
+2657:      .CE(complete_7) 
+2658:  );
+2659: -defparam after_event_7_s1.INIT=1'b0;
+2660: -  DFFCE after_event_6_s1 (
+2661: -    .Q(after_event[6]),
+2662: +defparam after_event_11_s1.INIT=1'b0;
+2663: +  DFFCE after_event_10_s1 (
+2664: +    .Q(after_event[10]),
+2665:      .D(n219_9),
+2666:      .CLK(clk),
+2667:      .CLEAR(n77_7),
+2668:      .CE(complete_7) 
+2669:  );
+2670: -defparam after_event_6_s1.INIT=1'b0;
+2671: -  DFFCE after_event_5_s1 (
+2672: -    .Q(after_event[5]),
+2673: +defparam after_event_10_s1.INIT=1'b0;
+2674: +  DFFCE after_event_9_s1 (
+2675: +    .Q(after_event[9]),
+2676:      .D(n220_9),
+2677:      .CLK(clk),
+2678:      .CLEAR(n77_7),
+2679:      .CE(complete_7) 
+2680:  );
+2681: -defparam after_event_5_s1.INIT=1'b0;
+2682: -  DFFCE after_event_4_s1 (
+2683: -    .Q(after_event[4]),
+2684: +defparam after_event_9_s1.INIT=1'b0;
+2685: +  DFFCE after_event_8_s1 (
+2686: +    .Q(after_event[8]),
+2687:      .D(n221_9),
+2688:      .CLK(clk),
+2689:      .CLEAR(n77_7),
+2690:      .CE(complete_7) 
+2691:  );
+2692: -defparam after_event_4_s1.INIT=1'b0;
+2693: -  DFFCE after_event_3_s1 (
+2694: -    .Q(after_event[3]),
+2695: +defparam after_event_8_s1.INIT=1'b0;
+2696: +  DFFCE after_event_7_s1 (
+2697: +    .Q(after_event[7]),
+2698:      .D(n222_9),
+2699:      .CLK(clk),
+2700:      .CLEAR(n77_7),
+2701:      .CE(complete_7) 
+2702:  );
+2703: -defparam after_event_3_s1.INIT=1'b0;
+2704: -  DFFCE after_event_2_s1 (
+2705: -    .Q(after_event[2]),
+2706: +defparam after_event_7_s1.INIT=1'b0;
+2707: +  DFFCE after_event_6_s1 (
+2708: +    .Q(after_event[6]),
+2709:      .D(n223_9),
+2710:      .CLK(clk),
+2711:      .CLEAR(n77_7),
+2712:      .CE(complete_7) 
+2713:  );
+2714: -defparam after_event_2_s1.INIT=1'b0;
+2715: -  DFFCE after_event_1_s1 (
+2716: -    .Q(after_event[1]),
+2717: +defparam after_event_6_s1.INIT=1'b0;
+2718: +  DFFCE after_event_5_s1 (
+2719: +    .Q(after_event[5]),
+2720:      .D(n224_9),
+2721:      .CLK(clk),
+2722:      .CLEAR(n77_7),
+2723:      .CE(complete_7) 
+2724:  );
+2725: -defparam after_event_1_s1.INIT=1'b0;
+2726: -  DFFCE after_event_0_s1 (
+2727: -    .Q(after_event[0]),
+2728: +defparam after_event_5_s1.INIT=1'b0;
+2729: +  DFFCE after_event_4_s1 (
+2730: +    .Q(after_event[4]),
+2731:      .D(n225_9),
+2732:      .CLK(clk),
+2733:      .CLEAR(n77_7),
+2734:      .CE(complete_7) 
+2735:  );
+2736: +defparam after_event_4_s1.INIT=1'b0;
+2737: +  DFFCE after_event_3_s1 (
+2738: +    .Q(after_event[3]),
+2739: +    .D(n226_9),
+2740: +    .CLK(clk),
+2741: +    .CLEAR(n77_7),
+2742: +    .CE(complete_7) 
+2743: +);
+2744: +defparam after_event_3_s1.INIT=1'b0;
+2745: +  DFFCE after_event_2_s1 (
+2746: +    .Q(after_event[2]),
+2747: +    .D(n227_9),
+2748: +    .CLK(clk),
+2749: +    .CLEAR(n77_7),
+2750: +    .CE(complete_7) 
+2751: +);
+2752: +defparam after_event_2_s1.INIT=1'b0;
+2753: +  DFFCE after_event_1_s1 (
+2754: +    .Q(after_event[1]),
+2755: +    .D(n228_9),
+2756: +    .CLK(clk),
+2757: +    .CLEAR(n77_7),
+2758: +    .CE(complete_7) 
+2759: +);
+2760: +defparam after_event_1_s1.INIT=1'b0;
+2761: +  DFFCE after_event_0_s1 (
+2762: +    .Q(after_event[0]),
+2763: +    .D(n229_9),
+2764: +    .CLK(clk),
+2765: +    .CLEAR(n77_7),
+2766: +    .CE(complete_7) 
+2767: +);
+2768:  defparam after_event_0_s1.INIT=1'b0;
+2769:    DFFCE arm_ack_s7 (
+2770:      .Q(arm_ack),
+2771: -    .D(n292_11),
+2772: +    .D(n296_11),
+2773:      .CLK(clk),
+2774:      .CLEAR(n77_7),
+2775:      .CE(VCC) 
+2776: @@ -1168128,7 +1168304,7 @@
+2777:  defparam arm_ack_s7.INIT=1'b0;
+2778:    DFFCE snap_ack_s6 (
+2779:      .Q(snap_ack),
+2780: -    .D(n412_9),
+2781: +    .D(n420_9),
+2782:      .CLK(clk),
+2783:      .CLEAR(n77_7),
+2784:      .CE(VCC) 
+2785: @@ -1168147,13 +1168323,9 @@
+2786:  
+2787:  assign held[50] = held[49];
+2788:  assign held[55] = GND;
+2789: -assign held[57] = GND;
+2790: -assign held[58] = GND;
+2791: -assign held[59] = GND;
+2792: -assign held[60] = GND;
+2793:  assign held[61] = GND;
+2794: -assign held[62] = held[56];
+2795: -assign held[63] = held[56];
+2796: +assign held[62] = held[60];
+2797: +assign held[63] = held[60];
+2798:  endmodule /* neo_capture_local */
+2799:  
+2800:  //
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/neo_capture_memory.v SHA256 1051163608ea69c7f56ebb2a4363a7ac773285e7284e3f532b377054602f7a90
+1: // Neo diagnostic candidate only. Never drives the application datapath.
+2: // Same NCP bus protocol and two-cycle COPY capture as R19. Four sticky event
+3: // bits distinguish producer issue/valid, slot capture and acknowledgement.
+4: `default_nettype none
+5: module neo_capture_local(
+6:     input wire clk, resetn,
+7:     input wire [23:0] sample,
+8:     input wire [3:0] mem_events,
+9:     input wire arm_req, snap_req,
+10:     output reg arm_ack=0, snap_ack=0,
+11:     output wire ready, heartbeat,
+12:     output reg [63:0] held=0
+13: );
+14:     reg [1:0] up=0;
+15:     reg [1:0] arm_sync=0,snap_sync=0;
+16:     reg [8:0] beat=0;
+17:     reg armed=0,pending=0,complete=0,seen_reset=0,seen_ce=0;
+18:     reg [1:0] valid=0;
+19:     reg [23:0] at_event=0,after_event=0;
+20:     reg [3:0] mem_seen=0;
+21:     // Format D*: bits59:56 are sticky memory events. Include events on the
+22:     // snapshot edge itself. Repeated snapshots accumulate until the next ARM.
+23:     wire [63:0] report={4'hd,(mem_seen|mem_events),1'b0,arm_ack,seen_ce,seen_reset,
+24:                        armed,complete,valid,after_event,at_event};
+25:     assign ready=up[1];
+26:     assign heartbeat=beat[8];
+27:     always @(posedge clk or negedge resetn)
+28:         if(!resetn)up<=0;else up<={up[0],1'b1};
+29:     always @(posedge clk or negedge resetn)begin
+30:         if(!resetn)begin
+31:             arm_sync<=0;snap_sync<=0;arm_ack<=0;snap_ack<=0;held<=0;beat<=0;
+32:             armed<=0;pending<=0;complete<=0;seen_reset<=0;seen_ce<=0;
+33:             valid<=0;at_event<=0;after_event<=0;mem_seen<=0;
+34:         end else if(!up[1])begin
+35:             arm_sync<=0;snap_sync<=0;arm_ack<=0;snap_ack<=0;held<=0;beat<=0;
+36:             armed<=0;pending<=0;complete<=0;seen_reset<=0;seen_ce<=0;
+37:             valid<=0;at_event<=0;after_event<=0;mem_seen<=0;
+38:         end else begin
+39:             arm_sync<={arm_sync[0],arm_req};snap_sync<={snap_sync[0],snap_req};
+40:             beat<=beat+1'b1;
+41:             if(arm_sync[1]!=arm_ack)begin
+42:                 // ARM has priority over simultaneous events and SNAP. The
+43:                 // host waits for arm_ack before submitting any GPU command.
+44:                 arm_ack<=arm_sync[1];armed<=1;pending<=0;complete<=0;
+45:                 seen_reset<=0;seen_ce<=0;valid<=0;at_event<=0;after_event<=0;
+46:                 mem_seen<=0;
+47:             end else begin
+48:                 mem_seen<=mem_seen|mem_events;
+49:                 if(armed)begin
+50:                     seen_reset<=seen_reset|sample[17];seen_ce<=seen_ce|sample[16];
+51:                     if(pending)begin
+52:                         after_event<=sample;valid[1]<=1;pending<=0;armed<=0;complete<=1;
+53:                     end else if(sample[18])begin
+54:                         at_event<=sample;valid[0]<=1;pending<=1;
+55:                     end
+56:                 end
+57:                 // Data stays stable while the acknowledgement crosses HCLK.
+58:                 if(snap_sync[1]!=snap_ack)begin held<=report;snap_ack<=snap_sync[1];end
+59:             end
+60:         end
+61:     end
+62: endmodule
+63: `default_nettype wire

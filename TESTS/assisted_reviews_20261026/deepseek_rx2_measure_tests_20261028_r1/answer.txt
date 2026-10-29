@@ -1,0 +1,240 @@
+## Revue statique — aucun test exécuté
+
+Le packet ne contient **aucun module d’instrumentation RX2 ni test de temps**. Les seuls éléments fournis sont `sender.py` et un support de tests matériels `support.py` qui ne mesure pas le transfert. Les chiffres 500–600 octets/s ne sont donc **pas reproductibles à partir du packet**.
+
+## 1. Faits vérifiables
+
+1. **La cadence est fixée dans `Session`** : `chunk=16`, `pause=.002` par défaut (`sender.py:34`), et `send()` endort après chaque morceau, y compris le dernier (`sender.py:110-114`).  
+2. **Taille d’une trame DATA pleine** : `frame()` construit `b'\0' + base64(head 40 + crc 4 + data 512) + b'\0'` (`sender.py:19-24`). Soit 556 octets binaires, 744 octets Base64, **746 octets sur fil**. Le `math.ceil(746/chunk)` de `sender.py:38` est cohérent pour 512 octets utiles.  
+3. **Sommeil théorique par bloc plein** : `ceil(746/16)=47` écritures, donc `47 × 2 ms = 94 ms` de `sleep` par bloc. Le plafond de débit dû au seul pacing est `512 / 0,094 ≈ 5447 octets utiles/s`. Ce calcul ignore les écritures, l’ACK et le démarrage.  
+4. **Les compteurs actuels sont insuffisants** : `sent_frames` est incrémenté avant les écritures (`sender.py:107`), `retries` seulement sur NACK (`sender.py:133`). Il n’y a ni durée d’écriture, ni durée de lecture, ni latence d’ACK, ni octets utiles acquittés. `self.offset` n’est mis à jour qu’après un ACK valide (`sender.py:129-130`).  
+5. **`support.py` ne mesure rien** : `UART.read` et `UART.write` ne font que `select`/`os.read`/`os.write` (`support.py:32-38`). Aucun timestamp ni compteur.  
+6. **Incompatibilité de signature probable** : `Session.event()` appelle `self.io.read(timeout)` avec **un seul argument** (`sender.py:89`), alors que `support.UART.read(self,n,timeout)` en exige **deux** (`support.py:32-36`). Si `support.UART` est branché directement, le test échoue par `TypeError`, pas par débit. Il manque donc un adaptateur non fourni.  
+7. **Le support interdit explicitement flush/termios** (`support.py:20-21`, `support.py:26-30`). Toute instrumentation qui ajoute un `flush()` change le comportement et invalide la mesure.  
+8. **Le support fourni ne teste pas RX2** : `save()` et `gpu()` concernent la sauvegarde GM1 et l’état GPU (`support.py:47-51`).  
+9. **`started` n’est pas un bon dénominateur de débit** : il est pris à la construction de `Session` (`sender.py:44`), avant la commande, le READY et le bootstrap. L’utiliser inclut donc le démarrage. Si le transfert est petit, 1 s de setup suffit à afficher environ 512 octets/s pour 512 octets utiles.
+
+## 2. Hypothèses non prouvées
+
+- **H1 — pause réelle à 20 ms et non 2 ms.** 47 × 20 ms = 0,94 s, soit `512/0,94 ≈ 545 octets/s`, très proche de 500–600. Le garde-fou `sender.py:38-39` accepte encore cette valeur : `0,94 + 0,235 < 5 s`. Il faut journaliser `session.pause` et la somme réelle des `sleep`.  
+- **H2 — coût par écriture de 16–20 ms.** Pour 500–600 octets/s, le temps par bloc serait de 0,85–1,02 s. En retirant 94 ms de sommeil, il reste 0,76–0,93 s, soit **16–20 ms par écriture** sur 47 écritures. Compatible avec un latency timer USB-série ou un `os.write` qui attend un URB. `support.py:37-38` ne permet pas de distinguer attente `select` et attente `os.write`.  
+- **H3 — attente ACK/récepteur.** Le temps serait alors dans `ACK deadline` / `event()`, pas dans `send()`. Aucune mesure ne le montre actuellement.  
+- **H4 — débit calculé sur une mauvaise fenêtre.** Démarrage, commande shell, READY ou attente du RETURN inclus dans le dénominateur.  
+- **H5 — adaptateur UART caché.** Le débit 500–600 a peut-être été obtenu avec un adaptateur qui lit par gros blocs, contrairement à `support.UART`, ou avec un autre chemin d’I/O.  
+
+Aucune de ces hypothèses n’est tranchée par le packet.
+
+## 3. Preuves manquantes
+
+Pour rendre la mesure reproductible, il manque au minimum :
+
+- les paramètres réellement utilisés : `chunk`, `pause`, port, débit, taille de `data`, type USB/UART ;
+- le nombre d’écritures, octets sur fil, ACK, NACK, retries ;
+- les durées par écriture, par `sleep`, par lecture et par ACK ;
+- la définition exacte du débit : octets acquittés / temps READY→X, ou octets écrits / temps de `send` ;
+- les logs récepteur et le moment exact du READY/terminal ;
+- la confirmation de l’adaptateur utilisé entre `Session` et `support.UART` ;
+- plusieurs répétitions avec warmup, et l’état du latency timer USB si applicable.
+
+## 4. Patch minimal proposé — candidat séparé
+
+Ne pas modifier `sender.py` pour l’instant. Ajouter un fichier séparé, par exemple :
+
+`games/luma3d/candidates/uart_rx2_20261028_r1/instrument.py`
+
+Principes :
+
+- `TimedIO` enveloppe exactement l’I/O : **un** `read(timeout)` → **un** `io.read(timeout)`, **un** `write(data)` → **un** `io.write(data)`. Aucun flush, aucune écriture supplémentaire, aucun changement de `chunk`/`pause`.
+- `MeteredSession(Session)` surcharge seulement `begin`, `send`, `event`, `block`, `finish` pour horodater et compter, en appelant `super()`. La cadence et le protocole restent ceux de `Session`.
+- Les compteurs restent en mémoire ; le résumé JSON n’est émis qu’à la fin, ou exceptionnellement toutes les N secondes hors du chemin `send`.
+- Le débit utile est calculé **uniquement** avec les octets acquittés : `meter.acked_bytes`, mis à jour depuis `r.offset` (`sender.py:129-130`) et le terminal (`sender.py:149`). Ne pas utiliser `sent_frames × 512`.
+- Le débit sur fil est calculé séparément avec `write_bytes`.
+- La fenêtre utile doit être `t_X - t_READY`, pas `time.monotonic() - session.started`.
+
+Squelette minimal :
+
+```python
+class Meter:
+    def __init__(self, clock_ns=time.monotonic_ns):
+        self.clock_ns = clock_ns
+        self.write_calls = self.write_bytes = 0
+        self.write_ns = self.write_max_ns = 0
+        self.read_calls = self.read_bytes = self.read_ns = 0
+        self.sleep_calls = self.sleep_req_ns = self.sleep_actual_ns = 0
+        self.frames = self.acks = self.nacks = self.retries = 0
+        self.acked_bytes = 0
+        self.t_ready_ns = self.t_terminal_ns = None
+        self.ack_wait_ns = 0
+
+class TimedIO:
+    def __init__(self, io, meter):
+        self.io, self.m = io, meter
+
+    def write(self, data):
+        t0 = self.m.clock_ns()
+        n = 0
+        try:
+            n = self.io.write(data)
+            return n
+        finally:
+            t1 = self.m.clock_ns()
+            d = t1 - t0
+            self.m.write_calls += 1
+            self.m.write_bytes += n if isinstance(n, int) else 0
+            self.m.write_ns += d
+            self.m.write_max_ns = max(self.m.write_max_ns, d)
+            self.m.last_write_end_ns = t1
+
+    def read(self, timeout):
+        t0 = self.m.clock_ns()
+        b = b''
+        try:
+            b = self.io.read(timeout)
+            return b
+        finally:
+            t1 = self.m.clock_ns()
+            self.m.read_calls += 1
+            self.m.read_bytes += len(b)
+            self.m.read_ns += t1 - t0
+
+class MeteredSession(Session):
+    def __init__(self, io, nonce, data, *, meter=None, **kw):
+        self.m = meter or Meter()
+        super().__init__(TimedIO(io, self.m), nonce, data, **kw)
+
+    def begin(self):
+        r = super().begin()
+        self.m.t_ready_ns = self.m.clock_ns()
+        return r
+
+    def block(self, mutate=None):
+        before = self.offset
+        r = super().block(mutate)
+        t = self.m.clock_ns()
+        if getattr(self.m, "last_write_end_ns", None) is not None:
+            self.m.ack_wait_ns += t - self.m.last_write_end_ns
+            self.m.last_write_end_ns = None
+        self.m.acked_bytes = max(self.m.acked_bytes, r.offset)
+        return r
+
+    def event(self, timeout):
+        r = super().event(timeout)
+        if r and r[0] == 'reply':
+            if r[1].kind == 'A':
+                self.m.acks += 1
+            elif r[1].kind == 'N':
+                self.m.nacks += 1
+            elif r[1].kind == 'X':
+                self.m.t_terminal_ns = self.m.clock_ns()
+        return r
+```
+
+Si `support.UART` est utilisé, ajouter un adaptateur explicite, sinon `sender.py:89` et `support.py:32` restent incompatibles :
+
+```python
+class SessionUART:
+    def __init__(self, uart, max_read=4096):
+        self.uart, self.max_read = uart, max_read
+    def read(self, timeout):
+        return self.uart.read(self.max_read, timeout)
+    def write(self, data):
+        return self.uart.write(data)
+```
+
+## 5. Tests discriminants
+
+### T1 — Test simulé, sans vrai `sleep`
+
+Remplacer **le module `time` de `sender`** dans le test, pas le module global :
+
+```python
+class FakeTime:
+    def __init__(self, clock): self.clock = clock
+    def monotonic(self): return self.clock.t
+    def sleep(self, dt): self.clock.sleeps.append(dt); self.clock.t += dt
+
+monkeypatch.setattr(sender, "time", FakeTime(clock))
+```
+
+Puis, avec un `FakeIO` qui répond READY/ACK/X/RETURN et un `FakeClock` :
+
+- vérifier `meter.write_calls == 47` ;
+- vérifier `meter.write_bytes == 746` ;
+- vérifier `sum(clock.sleeps) == 0.094` ;
+- vérifier `meter.acked_bytes == 512` ;
+- vérifier `terminal.reason == 0` et `returncode == 0` ;
+- vérifier qu’aucun `time.sleep` réel n’a été appelé.
+
+Ce test valide **la comptabilité**, pas un débit réel. Il ne faut pas y écrire `assert useful_Bps == 5447` comme si c’était une mesure matérielle.
+
+### T2 — Test simulé avec coût d’écriture injecté
+
+Donner à `FakeIO.write` un délai artificiel de 16 ms. Vérifier seulement la ventilation :
+
+- `meter.write_ns ≈ 47 × 16 ms = 752 ms` ;
+- `meter.sleep_req_ns ≈ 94 ms` ;
+- `meter.ack_wait_ns` selon le délai de lecture simulé.
+
+Cela montre que l’instrumentation **distingue** écriture et pacing. Ne pas transformer ce scénario en preuve de débit réel.
+
+### T3 — Test matériel réel, mesure honnête
+
+Lancer le transfert avec `MeteredSession`, puis émettre un seul JSON final :
+
+```json
+{
+  "data_bytes": 512,
+  "chunk": 16,
+  "pause_s": 0.002,
+  "write_calls": 47,
+  "write_bytes": 746,
+  "write_s": 0.0,
+  "write_max_ms": 0.0,
+  "sleep_calls": 47,
+  "sleep_s": 0.094,
+  "read_calls": 0,
+  "ack_count": 1,
+  "ack_wait_s": 0.0,
+  "nacks": 0,
+  "retries": 0,
+  "acked_bytes": 512,
+  "elapsed_ready_to_X_s": 0.094,
+  "useful_Bps": 5447.0,
+  "wire_Bps": 7936.0
+}
+```
+
+Lecture discriminante :
+
+- `write_s` proche de 0,75–0,94 s → coût par écriture / USB-série ;  
+- `sleep_s` proche de 0,94 s → `pause` réelle à 20 ms ou `sleep` qui sur-dort ;  
+- `ack_wait_s` proche de 0,75 s → ACK/récepteur ;  
+- `elapsed` incluant le démarrage → corriger la fenêtre de mesure ;  
+- `retries`/`nacks` non nuls → débit utile réel inférieur au débit sur fil.
+
+Aucun test ne doit affirmer un débit matériel sans `t_READY` et `t_X` réels.
+
+### T4 — Tests A/B hors transfert figé
+
+Dans un candidat séparé uniquement :
+
+- comparer `pause=0` et `pause=.002` à `chunk=16` : si le gain est exactement le sommeil, le pacing est responsable ; sinon, mesurer `write_s` ;
+- comparer `chunk=16` et `chunk=64` avec le même `pause` : si le débit augmente fortement, le coût fixe par écriture domine ;
+- si autorisé, comparer le latency timer USB 16 ms vs 1 ms. C’est un test matériel, pas une modification du protocole.
+
+### T5 — Test d’intégration I/O
+
+Ajouter un test qui vérifie la signature :
+
+- `Session.event()` appelle `io.read(timeout)` (`sender.py:89`) ;
+- `support.UART.read` exige `(n, timeout)` (`support.py:32-36`).
+
+Sans adaptateur, le test doit échouer explicitement. Avec `SessionUART`, vérifier aussi qu’aucun `flush` n’est appelé (`support.py:20-21`).
+
+### T6 — Test des logs
+
+Instrumenter un faux logger et vérifier qu’aucun log n’est émis pendant les 47 écritures. Le résumé doit être émis seulement à la fin, ou au maximum toutes les N secondes/blocs, avec une queue ou un buffer hors du chemin `send`. Un `json.dumps` par écriture fausserait la mesure.
+
+## Conclusion
+
+Le packet ne permet pas de conclure que le pacing de 2 ms est la cause des 500–600 octets/s. Le calcul donne plutôt **≈5447 octets/s** pour le seul pacing. Les deux explications les plus discriminantes sont : **pause réelle à 20 ms** ou **coût de 16–20 ms par écriture**, avec une troisième possibilité de **débit calculé sur une fenêtre incluant le démarrage**. Le patch prioritaire est donc un `MeteredSession`/`TimedIO` séparé, des tests à horloge simulée qui ne prétendent pas mesurer le débit, puis une exécution matérielle unique journalisant la ventilation `write` / `sleep` / `ACK`.

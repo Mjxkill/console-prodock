@@ -1,0 +1,183 @@
+module gw_gao (
+  pll_lock,
+  pll_ae350_lock,
+  \state_178[2] ,
+  \state_178[1] ,
+  \state_178[0] ,
+  \ae350_rst_sync[1] ,
+  \ae350_rst_sync[0] ,
+  \u_soc/init_sync[0] ,
+  \soc_dbg[0] ,
+  ddr_init,
+  \u_soc/exts_hrstn ,
+  vid_hrstn,
+  \soc_dbg_177[1] ,
+  soc_dbg_2_3,
+  vid_hclk,
+  gpu_clk,
+  \u_soc/pll_lock ,
+  \u_soc/state_0[2] ,
+  \u_soc/state_0[1] ,
+  \u_soc/state_0[0] ,
+  clk_d,
+  tms_pad_i,
+  tck_pad_i,
+  tdi_pad_i,
+  tdo_pad_o
+)
+;
+input pll_lock;
+input pll_ae350_lock;
+input \state_178[2] ;
+input \state_178[1] ;
+input \state_178[0] ;
+input \ae350_rst_sync[1] ;
+input \ae350_rst_sync[0] ;
+input \u_soc/init_sync[0] ;
+input \soc_dbg[0] ;
+input ddr_init;
+input \u_soc/exts_hrstn ;
+input vid_hrstn;
+input \soc_dbg_177[1] ;
+input soc_dbg_2_3;
+input vid_hclk;
+input gpu_clk;
+input \u_soc/pll_lock ;
+input \u_soc/state_0[2] ;
+input \u_soc/state_0[1] ;
+input \u_soc/state_0[0] ;
+input clk_d;
+input tms_pad_i;
+input tck_pad_i;
+input tdi_pad_i;
+output tdo_pad_o;
+wire tms_i_c;
+wire tck_i_c;
+wire tdi_i_c;
+wire tdo_o_c;
+wire gao_jtag_tdi;
+wire gao_jtag_reset;
+wire run_test_idle_er1;
+wire run_test_idle_er2;
+wire shift_dr_capture_dr;
+wire pause_dr;
+wire update_dr;
+wire enable_er1;
+wire enable_er2;
+wire f5;
+wire tdo_er1;
+wire n24_6;
+wire n20_4;
+wire module_next_state_0_41;
+wire crc_serial_out;
+wire crc_30_11;
+wire [0:0] control0;
+wire [5:2] control0_2;
+wire [3:0] module_id_reg;
+wire [3:0] module_state;
+wire [0:0] data_out_shift_reg;
+wire VCC;
+wire GND;
+  IBUF tms_ibuf (
+    .O(tms_i_c),
+    .I(tms_pad_i) 
+);
+  IBUF tck_ibuf (
+    .O(tck_i_c),
+    .I(tck_pad_i) 
+);
+  IBUF tdi_ibuf (
+    .O(tdi_i_c),
+    .I(tdi_pad_i) 
+);
+  OBUF tdo_obuf (
+    .O(tdo_pad_o),
+    .I(tdo_o_c) 
+);
+//black box: GW_JTAG u_gw_jtag
+  GW_JTAG u_gw_jtag (
+    .tck_pad_i(tck_i_c),
+    .tms_pad_i(tms_i_c),
+    .tdi_pad_i(tdi_i_c),
+    .tdo_er1_i(tdo_er1),
+    .tdo_er2_i(GND),
+    .tdo_pad_o(tdo_o_c),
+    .tck_o(control0[0]),
+    .tdi_o(gao_jtag_tdi),
+    .test_logic_reset_o(gao_jtag_reset),
+    .run_test_idle_er1_o(run_test_idle_er1),
+    .run_test_idle_er2_o(run_test_idle_er2),
+    .shift_dr_capture_dr_o(shift_dr_capture_dr),
+    .pause_dr_o(pause_dr),
+    .update_dr_o(update_dr),
+    .enable_er1_o(enable_er1),
+    .enable_er2_o(enable_er2) 
+);
+  gw_con_top u_icon_top (
+    .shift_dr_capture_dr(shift_dr_capture_dr),
+    .update_dr(update_dr),
+    .enable_er1(enable_er1),
+    .gao_jtag_tdi(gao_jtag_tdi),
+    .crc_30_11(crc_30_11),
+    .crc_serial_out(crc_serial_out),
+    .n20_4(n20_4),
+    .module_next_state_0_41(module_next_state_0_41),
+    .gao_jtag_reset(gao_jtag_reset),
+    .control0(control0[0]),
+    .module_state(module_state[3:0]),
+    .data_out_shift_reg(data_out_shift_reg[0]),
+    .f5(f5),
+    .tdo_er1(tdo_er1),
+    .n24_6(n24_6),
+    .control0_2(control0_2[2]),
+    .control0_4(control0_2[4]),
+    .control0_5(control0_2[5]),
+    .module_id_reg(module_id_reg[3:0])
+);
+  ao_top_0 u_la0_top (
+    .n24_6(n24_6),
+    .clk_d(clk_d),
+    .gao_jtag_reset(gao_jtag_reset),
+    .f5(f5),
+    .pll_ae350_lock(pll_ae350_lock),
+    .\state_178[2] (\state_178[2] ),
+    .\state_178[1] (\state_178[1] ),
+    .\state_178[0] (\state_178[0] ),
+    .\ae350_rst_sync[1] (\ae350_rst_sync[1] ),
+    .\ae350_rst_sync[0] (\ae350_rst_sync[0] ),
+    .\u_soc_init_sync[0] (\u_soc/init_sync[0] ),
+    .\soc_dbg[0] (\soc_dbg[0] ),
+    .ddr_init(ddr_init),
+    .u_soc_exts_hrstn(\u_soc/exts_hrstn ),
+    .vid_hrstn(vid_hrstn),
+    .\soc_dbg_177[1] (\soc_dbg_177[1] ),
+    .soc_dbg_2_3(soc_dbg_2_3),
+    .vid_hclk(vid_hclk),
+    .gpu_clk(gpu_clk),
+    .u_soc_pll_lock(\u_soc/pll_lock ),
+    .\u_soc_state_0[2] (\u_soc/state_0[2] ),
+    .\u_soc_state_0[1] (\u_soc/state_0[1] ),
+    .\u_soc_state_0[0] (\u_soc/state_0[0] ),
+    .pll_lock(pll_lock),
+    .control0_2(control0_2[2]),
+    .control0_4(control0_2[4]),
+    .control0_5(control0_2[5]),
+    .control0_1(control0[0]),
+    .module_id_reg(module_id_reg[3:0]),
+    .n20_4(n20_4),
+    .module_next_state_0_41(module_next_state_0_41),
+    .crc_serial_out(crc_serial_out),
+    .crc_30_11(crc_30_11),
+    .module_state(module_state[3:0]),
+    .data_out_shift_reg(data_out_shift_reg[0])
+);
+  VCC VCC_cZ (
+    .V(VCC)
+);
+  GND GND_cZ (
+    .G(GND)
+);
+  GSR GSR (
+    .GSRI(VCC) 
+);
+endmodule

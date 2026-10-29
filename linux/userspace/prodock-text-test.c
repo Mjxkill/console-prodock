@@ -19,12 +19,16 @@ int main(void)
     int display=open("/dev/prodock-display",O_RDWR|O_CLOEXEC);
     int tty=open("/dev/tty1",O_RDWR|O_NOCTTY|O_CLOEXEC),rc=1;
     unsigned char font[256*32];
+    struct prodock_display_geometry geometry={.width=800,.height=480};
+
     uint32_t passed_crc[4],sparse_crc[8]; unsigned passed=0,sparse=0;
     struct console_font_op f={.op=KD_FONT_OP_GET,.width=8,.height=32,.charcount=256,.data=font};
     struct prodock_layout mode={.mode=PRODOCK_TERMINAL};
     struct prodock_display_info initial,actual;
     if(display<0 || tty<0 || ioctl(tty,KDFONTOP,&f) || f.width!=8 || f.height!=16 ||
        ioctl(display,PRODOCK_LAYOUT,&mode) || ioctl(display,PRODOCK_DISPLAY_INFO,&initial)) goto out;
+    if(ioctl(display,PRODOCK_DISPLAY_GEOMETRY,&geometry) && errno!=ENOTTY)goto out;
+    unsigned columns=geometry.width/8,rows=geometry.height/16;
     for(unsigned trial=0;trial<4;++trial) {
         unsigned ch=trial==0?'A':trial==1?'g':trial==2?'W':' '; unsigned bits=0;
         for(unsigned y=0;y<16;++y) for(unsigned x=0;x<8;++x) bits+=!!(font[ch*32+y]&(128>>x));
@@ -32,12 +36,12 @@ int main(void)
         static const char *sgr[]={"97;40","31;44","36;41","97;45"};
         static const uint32_t fg[]={0x3ffff,42<<12,(42<<6)|42,0x3ffff};
         static const uint32_t bg[]={0,42,42<<12,(42<<12)|42};
-        uint32_t expected=3000U*(bits*fg[trial]+(128-bits)*bg[trial]);
-        char buffer[3800],*p=buffer;
+        uint32_t expected=columns*rows*(bits*fg[trial]+(128-bits)*bg[trial]);
+        char buffer[8200],*p=buffer;
         p+=sprintf(p,"\033[?25l\033[0m\033[%sm\033[2J",sgr[trial]);
-        for(unsigned y=0;y<30;++y) {
+        for(unsigned y=0;y<rows;++y) {
             p+=sprintf(p,"\033[%u;1H",y+1);
-            memset(p,ch,100);p+=100;
+            memset(p,ch,columns);p+=columns;
         }
         size_t size=p-buffer,off=0;
         while(off<size) { ssize_t n=write(tty,buffer+off,size-off);if(n<=0)goto out;off+=(size_t)n; }
@@ -64,7 +68,7 @@ int main(void)
             bits+=!!(font[a*32+y]&(128>>x));
             bits+=!!(font[b*32+y]&(128>>x));
         }
-        uint32_t bg=(42U<<12)|42,expected=384000U*bg+bits*(0x3ffff-bg);
+        uint32_t bg=(42U<<12)|42,expected=geometry.width*geometry.height*bg+bits*(0x3ffff-bg);
         char text[80];int n=snprintf(text,sizeof(text),"\033[3;11H%c\033[23;74H%c",a,b);
         if(write(tty,text,(size_t)n)!=n)goto out;
         usleep(250000);
@@ -85,9 +89,9 @@ out:
     if(tty>=0) { const char *s="\033[0m\033[2J\033[H\033[?25h"; if(write(tty,s,strlen(s))<0)rc=1;close(tty); }
     mode.mode=PRODOCK_SPLIT;
     if(display>=0) { if(ioctl(display,PRODOCK_LAYOUT,&mode))rc=1;close(display); }
-    for(unsigned i=0;i<passed;++i)printf("TEXT_CRC_OK trial=%u crc=%08x pixels=384000\n",i,passed_crc[i]);
+    for(unsigned i=0;i<passed;++i)printf("TEXT_CRC_OK trial=%u crc=%08x pixels=%u\n",i,passed_crc[i],geometry.width*geometry.height);
     for(unsigned i=0;i<sparse;++i)printf("TEXT_SPARSE_CRC_OK trial=%u crc=%08x\n",i,sparse_crc[i]);
     if(!rc)puts("TEXT_SPARSE_OK trials=8");
-    if(!rc)puts("PRODOCK_TEXT_PIXELS_OK poses=4 pixels=1536000");
+    if(!rc)printf("PRODOCK_TEXT_PIXELS_OK poses=4 pixels=%u\n",geometry.width*geometry.height*4);
     return rc;
 }

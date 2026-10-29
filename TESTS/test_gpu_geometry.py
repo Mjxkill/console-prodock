@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """G3D1: independent integer geometry + exact GPU pixels under DDR/CDC stalls."""
-import argparse,json,shutil,struct,subprocess,sys
+import argparse,hashlib,json,shutil,struct,subprocess,sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from gpu_geometry_model import Geometry,Camera,mesh_bytes,pack,q16
@@ -8,7 +8,7 @@ from test_gpu_v1 import Model,xy
 from test_gpu_accel import triangle_pixels
 
 def main():
- p=argparse.ArgumentParser();p.add_argument('--out',type=Path,default=ROOT/'TESTS/gpu_geometry_20261010/rtl');p.add_argument('--read-min',type=int,default=3);p.add_argument('--world',action='store_true');p.add_argument('--world-phase',type=int);p.add_argument('--bus-stage',action='store_true');p.add_argument('--mixed-raster',action='store_true');p.add_argument('--invalid-descriptors',action='store_true');p.add_argument('--reset-phases',action='store_true');p.add_argument('--viewport-extrema',action='store_true');a=p.parse_args();out=a.out.resolve();out.mkdir(parents=True,exist_ok=True)
+ p=argparse.ArgumentParser();p.add_argument('--out',type=Path,default=ROOT/'TESTS/gpu_geometry_20261010/rtl');p.add_argument('--source-root',type=Path,default=ROOT);p.add_argument('--read-min',type=int,default=3);p.add_argument('--neo-response',action='store_true');p.add_argument('--mem-half-period',type=float,default=6.666);p.add_argument('--world',action='store_true');p.add_argument('--world-phase',type=int);p.add_argument('--bus-stage',action='store_true');p.add_argument('--mixed-raster',action='store_true');p.add_argument('--invalid-descriptors',action='store_true');p.add_argument('--reset-phases',action='store_true');p.add_argument('--viewport-extrema',action='store_true');a=p.parse_args();out=a.out.resolve();out.mkdir(parents=True,exist_ok=True)
  if a.world_phase is not None and not a.world:p.error('--world-phase requires --world')
  if a.mixed_raster and a.world:p.error('--mixed-raster uses the diagnostic scene')
  if (a.reset_phases or a.invalid_descriptors or a.viewport_extrema) and a.world:p.error('Reset/descriptor/extrema tests use the diagnostic scene')
@@ -235,10 +235,13 @@ def main():
   tb=tb.replace('#200; rst=1;',prelude)
  (out/'geometry_tb.sv').write_text(tb)
  src=['gpu_accel','gpu_geometry','gpu_geom_div','video_bus_stage','blitter','gpu_raster','gpu_v1','gpu_texture_cache','gpu_copy565','gpu_perspective','gpu_triangle','gpu_blit_dma','font_ram']
- sources=[out/'geometry_tb.sv']+[ROOT/f'tang/rtl/video/{n}.v' for n in src]+[ROOT/f'tang/rtl/board/{n}.v' for n in ('ddr_dcfifo','cdc_word','ddr_gpu_arb')]
- with (out/'build.log').open('w') as log:subprocess.run(['verilator','--binary','--timing','-Wno-fatal','--top-module','gpu_accel_tb',f'-GREAD_MIN={a.read_min}','--Mdir',str(out/'obj'),*[str(s) for s in sources]],stdout=log,stderr=log,check=True)
+ sources=[out/'geometry_tb.sv']+[a.source_root/f'tang/rtl/video/{n}.v' for n in src]+[a.source_root/f'tang/rtl/board/{n}.v' for n in ('ddr_dcfifo','cdc_word','ddr_gpu_arb')]
+ if a.neo_response:sources += [ROOT/'tang/boards/neo/neo_gpu_response.v']
+ with (out/'build.log').open('w') as log:subprocess.run(['verilator','--binary','--timing','-Wno-fatal','--top-module','gpu_accel_tb',f'-GREAD_MIN={a.read_min}',f'-GNEO_RESPONSE={int(a.neo_response)}',f'-GMEM_HALF_PERIOD={a.mem_half_period}','--Mdir',str(out/'obj'),*[str(s) for s in sources]],stdout=log,stderr=log,check=True)
  with (out/'simulation.log').open('w') as log:r=subprocess.run([str(out/'obj/Vgpu_accel_tb'),f'+ncmd={len(g.input)//8}','+rgbinit=3',f'+v1_bad={bad_count+pixels.rejected}',f'+v1_pass={pixels.passed}'],cwd=out,stdout=log,stderr=log)
  print((out/'simulation.log').read_text());r.check_returncode()
- result=dict(status='PASS',world=a.world,bus_stage=a.bus_stage,mixed_raster=a.mixed_raster,invalid_descriptors=a.invalid_descriptors,reset_phases=7 if a.reset_phases else 0,invalid_commands=bad_count,shader_rejected=pixels.rejected,input_commands=len(g.input)//8,shader_commands=len(pixels.commands)//8,vertices=g.vertices,triangles=g.triangles,culled=g.culled,clipped=g.clipped,slivers=g.slivers,bytes_compared=len(pixels.memory),read_min=a.read_min)
- (out/'result.json').write_text(json.dumps(result,indent=2)+'\n');print(result)
+ result=dict(status='PASS',neo_response=a.neo_response,mem_half_period=a.mem_half_period,world=a.world,bus_stage=a.bus_stage,mixed_raster=a.mixed_raster,invalid_descriptors=a.invalid_descriptors,reset_phases=7 if a.reset_phases else 0,invalid_commands=bad_count,shader_rejected=pixels.rejected,input_commands=len(g.input)//8,shader_commands=len(pixels.commands)//8,vertices=g.vertices,triangles=g.triangles,culled=g.culled,clipped=g.clipped,slivers=g.slivers,bytes_compared=len(pixels.memory),read_min=a.read_min)
+ result['passed_pixels']=pixels.passed
+ result['sha256']={str(s):hashlib.sha256(s.read_bytes()).hexdigest() for s in sources}
+ (out/'result.json').write_text(json.dumps(result,indent=2)+'\n');print({k:v for k,v in result.items() if k!='sha256'})
 if __name__=='__main__':main()

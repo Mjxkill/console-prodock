@@ -1,0 +1,34 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Implement a concrete bounded C test executable for exact lighting coefficients, no tools, codefirst. Edgecases and cadence invariance, no hardware claims.
+
+EVIDENCE PACKET:
+Implement a concrete C99 test file for the EXACT pure lighting header below, codefirst under160lines, no tools. Tests meaningfully exercise finite/bounds for NaN/inf/negative inputs; day→night monotonic convergence and reverse; same elapsedsecond at10/30/60Hz (tolerance1e-5 withdt<=.1); no unintended freeze after1000seconds; lampcoeff bounds r/g/b<=256,alpha<=256 atlongtimes; uintquantization continuity nearby samples. Do NOT assertstrictsmooth everyquantizedstep or wallclockFPS. Useassert andstdio,noGPUtypes. One test executable includesfestival_lighting.h. Add second short list of exact capture assertions needed for geometric emit flags/Ztest/UV. Your last patch was corrected: atlas physicaladdressmust includePRODOCK_GPU_BASE; secondtriangleUVmust matcha,c,d; mapmoodmustactually bestoredstepped; nofreezeafter1000s. These correctionsarealreadyintegratedparentcandidate only. YourdeliverableisnewCtestcode, not a review.
+#ifndef FESTIVAL_LIGHTING_H
+#define FESTIVAL_LIGHTING_H
+#include <math.h>
+#include <stdint.h>
+
+/* Derived from Beam's isolated implementation proposal; audited integration.
+   Pure coefficients, no allocation, no GPU access or new texture. */
+typedef struct { uint16_t r,g,b,alpha; } FestivalLightingLamp;
+static inline float festival_lighting_unit(float x){
+    return isfinite(x)?fminf(1,fmaxf(0,x)):0;
+}
+static inline float festival_lighting_step(float current,unsigned night,float dt){
+    current=festival_lighting_unit(current);
+    if(!isfinite(dt)||dt<=0)return current;
+    float weight=1-expf(-1.5f*fminf(dt,.1f));
+    return festival_lighting_unit(current+((night?1.0f:0)-current)*weight);
+}
+static inline FestivalLightingLamp festival_lighting_lamp(unsigned lamp,float mood,float time){
+    mood=festival_lighting_unit(mood);
+    float t=isfinite(time)&&time>=0?time:0;
+    float phase=fmodf(t*.31f,6.283185307f)+.31f*(lamp%4+1)+1.37f*(lamp%4);
+    float amp=.94f+.06f*sinf(phase),energy=(.35f+.65f*mood)*amp;
+    return (FestivalLightingLamp){(uint16_t)lroundf((212+43*mood)*amp),
+        (uint16_t)lroundf((176+8*mood)*amp),(uint16_t)lroundf((136-44*mood)*amp),
+        (uint16_t)lroundf(70+170*energy)};
+}
+#endif

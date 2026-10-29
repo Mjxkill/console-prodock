@@ -1,0 +1,251 @@
+tang/rtl/board/riscv_ae350_soc_ext/riscv_ae350_soc.v
+     1 //
+     2 //Written by GowinSynthesis
+     3 //Tool Version "V1.9.12"
+     4 //Thu Oct  8 20:09:10 2026
+     5 
+     6 //Source file index table:
+     7 //file0 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_top.v"
+     8 //file1 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_soc.v"
+     9 //file2 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_ddr3.v"
+    10 //file3 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_flash.v"
+    11 //file4 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/ddr3_1_4code_hs.v"
+    12 //file5 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/DDR3_TOP.v"
+    13 //file6 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/fifo_top_32to128.v"
+    14 //file7 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/fifo_top_128to32.v"
+    15 //file8 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/gw_dtcm.v"
+    16 //file9 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/gw_itcm.v"
+    17 `timescale 100 ps/100 ps
+  4606 module RiscV_AE350_SOC_Top (
+  4607   DDR_HRDATA,
+  4608   DDR_HREADY,
+  4609   DDR_HRESP,
+  4610   DDR_HADDR,
+  4611   DDR_HBURST,
+  4612   DDR_HPROT,
+  4613   DDR_HSIZE,
+  4614   DDR_HTRANS,
+  4615   DDR_HWDATA,
+  4616   DDR_HWRITE,
+  4617   DDR_HCLK,
+  4618   DDR_HRSTN,
+  4619   TCK_IN,
+  4620   TMS_IN,
+  4621   TRST_IN,
+  4622   TDI_IN,
+  4623   TDO_OUT,
+  4624   TDO_OE,
+  4625   EXT_INT,
+  4626   EXTS_HRDATA,
+  4627   EXTS_HREADYIN,
+  4628   EXTS_HRESP,
+  4629   EXTS_HADDR,
+  4630   EXTS_HBURST,
+  4631   EXTS_HPROT,
+  4632   EXTS_HSEL,
+  4633   EXTS_HSIZE,
+  4634   EXTS_HTRANS,
+  4635   EXTS_HWDATA,
+  4636   EXTS_HWRITE,
+  4637   EXTS_HCLK,
+  4638   EXTS_HRSTN,
+  4639   SPI_HOLDN_IN,
+  4640   SPI_WPN_IN,
+  4641   SPI_CLK_IN,
+  4642   SPI_CSN_IN,
+  4643   SPI_MISO_IN,
+  4644   SPI_MOSI_IN,
+  4645   SPI_HOLDN_OUT,
+  4646   SPI_HOLDN_OE,
+  4647   SPI_WPN_OUT,
+  4648   SPI_WPN_OE,
+  4649   SPI_CLK_OUT,
+  4650   SPI_CLK_OE,
+  4651   SPI_CSN_OUT,
+  4652   SPI_CSN_OE,
+  4653   SPI_MISO_OUT,
+  4654   SPI_MISO_OE,
+  4655   SPI_MOSI_OUT,
+  4656   SPI_MOSI_OE,
+  4657   UART2_TXD,
+  4658   UART2_RTSN,
+  4659   UART2_RXD,
+  4660   UART2_CTSN,
+  4661   UART2_DCDN,
+  4662   UART2_DSRN,
+  4663   UART2_RIN,
+  4664   UART2_DTRN,
+  4665   UART2_OUT1N,
+  4666   UART2_OUT2N,
+  4667   GPIO_IN,
+  4668   GPIO_OE,
+  4669   GPIO_OUT,
+  4670   CORE0_WFI_MODE,
+  4671   RTC_WAKEUP,
+  4672   CORE_CLK,
+  4673   DDR_CLK,
+  4674   AHB_CLK,
+  4675   APB_CLK,
+  4676   RTC_CLK,
+  4677   POR_RSTN,
+  4678   HW_RSTN
+  4679 )
+  4680 ;
+  4681 input [63:0] DDR_HRDATA;
+  4682 input DDR_HREADY;
+  4683 input DDR_HRESP;
+  4684 output [31:0] DDR_HADDR;
+  4685 output [2:0] DDR_HBURST;
+  4686 output [3:0] DDR_HPROT;
+  4687 output [2:0] DDR_HSIZE;
+  4688 output [1:0] DDR_HTRANS;
+  4689 output [63:0] DDR_HWDATA;
+  4690 output DDR_HWRITE;
+  4691 output DDR_HCLK;
+  4692 output DDR_HRSTN;
+  4693 input TCK_IN;
+  4694 input TMS_IN;
+  4695 input TRST_IN;
+  4696 input TDI_IN;
+  4697 output TDO_OUT;
+  4698 output TDO_OE;
+  4699 input [15:0] EXT_INT;
+  4700 input [31:0] EXTS_HRDATA;
+  4701 input EXTS_HREADYIN;
+  4702 input EXTS_HRESP;
+  4703 output [31:0] EXTS_HADDR;
+  4704 output [2:0] EXTS_HBURST;
+  4705 output [3:0] EXTS_HPROT;
+  4706 output EXTS_HSEL;
+  4707 output [2:0] EXTS_HSIZE;
+  4708 output [1:0] EXTS_HTRANS;
+  4709 output [31:0] EXTS_HWDATA;
+  4710 output EXTS_HWRITE;
+  4711 output EXTS_HCLK;
+  4712 output EXTS_HRSTN;
+  4713 input SPI_HOLDN_IN;
+  4714 input SPI_WPN_IN;
+  4715 input SPI_CLK_IN;
+  4716 input SPI_CSN_IN;
+  4717 input SPI_MISO_IN;
+  4718 input SPI_MOSI_IN;
+  4719 output SPI_HOLDN_OUT;
+  4720 output SPI_HOLDN_OE;
+  4721 output SPI_WPN_OUT;
+  4722 output SPI_WPN_OE;
+  4723 output SPI_CLK_OUT;
+  4724 output SPI_CLK_OE;
+  4725 output SPI_CSN_OUT;
+  4726 output SPI_CSN_OE;
+  4727 output SPI_MISO_OUT;
+  4728 output SPI_MISO_OE;
+  4729 output SPI_MOSI_OUT;
+  4730 output SPI_MOSI_OE;
+  4731 output UART2_TXD;
+  4732 output UART2_RTSN;
+  4733 input UART2_RXD;
+  4734 input UART2_CTSN;
+  4735 input UART2_DCDN;
+  4736 input UART2_DSRN;
+  4737 input UART2_RIN;
+  4738 output UART2_DTRN;
+  4739 output UART2_OUT1N;
+  4740 output UART2_OUT2N;
+  4741 input [31:0] GPIO_IN;
+  4742 output [31:0] GPIO_OE;
+  4743 output [31:0] GPIO_OUT;
+  4744 output CORE0_WFI_MODE;
+  4745 output RTC_WAKEUP;
+  4746 input CORE_CLK;
+  4747 input DDR_CLK;
+  4748 input AHB_CLK;
+  4749 input APB_CLK;
+  4750 input RTC_CLK;
+  4751 input POR_RSTN;
+  4752 input HW_RSTN;
+  4753 wire VCC;
+  4754 wire GND;
+  4755   RiscV_AE350_SOC u_RiscV_AE350_SOC (
+  4756     .POR_RSTN(POR_RSTN),
+  4757     .HW_RSTN(HW_RSTN),
+  4758     .CORE_CLK(CORE_CLK),
+  4759     .DDR_CLK(DDR_CLK),
+  4760     .AHB_CLK(AHB_CLK),
+  4761     .APB_CLK(APB_CLK),
+  4762     .TCK_IN(TCK_IN),
+  4763     .RTC_CLK(RTC_CLK),
+  4764     .EXTS_HREADYIN(EXTS_HREADYIN),
+  4765     .EXTS_HRESP(EXTS_HRESP),
+  4766     .DDR_HREADY(DDR_HREADY),
+  4767     .DDR_HRESP(DDR_HRESP),
+  4768     .TMS_IN(TMS_IN),
+  4769     .TRST_IN(TRST_IN),
+  4770     .TDI_IN(TDI_IN),
+  4771     .SPI_HOLDN_IN(SPI_HOLDN_IN),
+  4772     .SPI_WPN_IN(SPI_WPN_IN),
+  4773     .SPI_CLK_IN(SPI_CLK_IN),
+  4774     .SPI_CSN_IN(SPI_CSN_IN),
+  4775     .SPI_MISO_IN(SPI_MISO_IN),
+  4776     .SPI_MOSI_IN(SPI_MOSI_IN),
+  4777     .UART2_RXD(UART2_RXD),
+  4778     .UART2_CTSN(UART2_CTSN),
+  4779     .UART2_DCDN(UART2_DCDN),
+  4780     .UART2_DSRN(UART2_DSRN),
+  4781     .UART2_RIN(UART2_RIN),
+  4782     .EXT_INT(EXT_INT[15:0]),
+  4783     .EXTS_HRDATA(EXTS_HRDATA[31:0]),
+  4784     .DDR_HRDATA(DDR_HRDATA[63:0]),
+  4785     .GPIO_IN(GPIO_IN[31:0]),
+  4786     .EXTS_HRSTN(EXTS_HRSTN),
+  4787     .DDR_HRSTN(DDR_HRSTN),
+  4788     .CORE0_WFI_MODE(CORE0_WFI_MODE),
+  4789     .RTC_WAKEUP(RTC_WAKEUP),
+  4790     .EXTS_HSEL(EXTS_HSEL),
+  4791     .EXTS_HWRITE(EXTS_HWRITE),
+  4792     .DDR_HWRITE(DDR_HWRITE),
+  4793     .TDO_OUT(TDO_OUT),
+  4794     .TDO_OE(TDO_OE),
+  4795     .SPI_HOLDN_OUT(SPI_HOLDN_OUT),
+  4796     .SPI_HOLDN_OE(SPI_HOLDN_OE),
+  4797     .SPI_WPN_OUT(SPI_WPN_OUT),
+  4798     .SPI_WPN_OE(SPI_WPN_OE),
+  4799     .SPI_CLK_OUT(SPI_CLK_OUT),
+  4800     .SPI_CLK_OE(SPI_CLK_OE),
+  4801     .SPI_CSN_OUT(SPI_CSN_OUT),
+  4802     .SPI_CSN_OE(SPI_CSN_OE),
+  4803     .SPI_MISO_OUT(SPI_MISO_OUT),
+  4804     .SPI_MISO_OE(SPI_MISO_OE),
+  4805     .SPI_MOSI_OUT(SPI_MOSI_OUT),
+  4806     .SPI_MOSI_OE(SPI_MOSI_OE),
+  4807     .UART2_TXD(UART2_TXD),
+  4808     .UART2_RTSN(UART2_RTSN),
+  4809     .UART2_DTRN(UART2_DTRN),
+  4810     .UART2_OUT1N(UART2_OUT1N),
+  4811     .UART2_OUT2N(UART2_OUT2N),
+  4812     .EXTS_HADDR(EXTS_HADDR[31:0]),
+  4813     .EXTS_HBURST(EXTS_HBURST[2:0]),
+  4814     .EXTS_HPROT(EXTS_HPROT[3:0]),
+  4815     .EXTS_HSIZE(EXTS_HSIZE[2:0]),
+  4816     .EXTS_HTRANS(EXTS_HTRANS[1:0]),
+  4817     .EXTS_HWDATA(EXTS_HWDATA[31:0]),
+  4818     .DDR_HADDR(DDR_HADDR[31:0]),
+  4819     .DDR_HBURST(DDR_HBURST[2:0]),
+  4820     .DDR_HPROT(DDR_HPROT[3:0]),
+  4821     .DDR_HSIZE(DDR_HSIZE[2:0]),
+  4822     .DDR_HTRANS(DDR_HTRANS[1:0]),
+  4823     .DDR_HWDATA(DDR_HWDATA[63:0]),
+  4824     .GPIO_OE(GPIO_OE[31:0]),
+  4825     .GPIO_OUT(GPIO_OUT[31:0])
+  4826 );
+  4827   VCC VCC_cZ (
+  4828     .V(VCC)
+  4829 );
+  4830   GND GND_cZ (
+  4831     .G(GND)
+  4832 );
+  4833   GSR GSR (
+  4834     .GSRI(VCC) 
+  4835 );
+  4836 assign DDR_HCLK = DDR_CLK;
+  4837 assign EXTS_HCLK = AHB_CLK;
+  4838 endmodule /* RiscV_AE350_SOC_Top */

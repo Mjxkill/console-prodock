@@ -1,0 +1,243 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+MAX650words, two exact counterexamples at most plus one minimal patch<=35lines. Review cache two pages/invalidation/rect uploads against actual code, no generic design or invented test.
+
+EVIDENCE PACKET:
+Réaffectation concrète code exact adaptateurUI. MAX650MOTS, auplus2contreexemples +1patch<=35lignes. Chercher cache2pages A/B/A, canvas partagé, invalidations entrée/exit/load, débordement/UV, comparaisonchromeR6 et rasterincrémental. Ne pas proposer bilinéaireGPU : V1nearest seulement. Traces réellesen test, aucunhardware, rienencoregelé. Toutefailpossible justifierchemin d’exécution. Nerecopierpascode/analyseligneparligne.
+
+FILE games/luma3d/candidates/puzzle_motion_r1/include/l3_puzzle_presentation.h
+#ifndef L3_PUZZLE_PRESENTATION_H
+#define L3_PUZZLE_PRESENTATION_H
+#include "luma3d_render.h"
+#include "l3_puzzle_gpu.h"
+typedef struct {
+    unsigned kind,status,score,target,lives,progress,won,showcase,stage;
+} L3PuzzleChromeKey;
+typedef struct {
+    uint8_t *number_back;unsigned nx,ny,nw,nh,revision,page_revision[2];
+    L3PuzzleChromeKey key;unsigned valid,rasterized_pixels,scanned_bytes,published_bytes,asset_bytes;
+} L3PuzzleUiCache;
+typedef struct L3PuzzlePresentation {
+    L3PuzzleMotion motion;
+    L3PuzzleLayout layout;L3PuzzleGpuAssets assets;L3PuzzleUiCache ui;
+    L3MotionFrame page_frame[2];unsigned page_valid[2],assets_valid,kind,width,height;
+    unsigned observed_epoch,frames,skipped,quads,copy_pixels;
+} L3PuzzlePresentation;
+int l3_puzzle_presentation_open(L3Render *);
+void l3_puzzle_presentation_close(L3Render *);
+void l3_puzzle_presentation_reset(L3Render *);
+/* Same observer callback ABI as the integrator; trace_flags is ignored here. */
+void l3_puzzle_presentation_observe(void *,const L3ArcadeView *,const L3ArcadeView *,
+                                  uint32_t pressed,uint32_t held,uint32_t trace_flags,double seconds,uint32_t epoch);
+/* Only BLOCKS / MERGE1024. Calls actual V1 emitter on r->gpu, caller flushes
+ * before PRESENT. Native scene format3, immutable indexed window. No save. */
+int l3_puzzle_motion_prepare(L3Render *,const L3Game *,struct prodock_scene *,double seconds);
+/* Defined by l3_puzzle_ui.inc included once at end of existing mini_ui.c. */
+int l3_puzzle_ui_bake(L3Render *,const L3Game *,const L3MiniView *,const L3PuzzleLayout *,L3PuzzleGpuAssets *,L3PuzzleUiCache *);
+int l3_puzzle_ui_chrome(L3Render *,const L3Game *,const L3MiniView *,struct prodock_scene *,L3PuzzleUiCache *);
+#endif
+
+FILE games/luma3d/candidates/puzzle_motion_r1/src/puzzle_presentation.c
+#include "l3_puzzle_presentation.h"
+#include <stdlib.h>
+#include <string.h>
+int l3_puzzle_presentation_open(L3Render *r)
+{
+    if(!r || r->puzzle_presentation)return 0;
+    r->puzzle_presentation=calloc(1,sizeof(L3PuzzlePresentation));return r->puzzle_presentation!=0;
+}
+void l3_puzzle_presentation_close(L3Render *r)
+{
+    if(r && r->puzzle_presentation){free(r->puzzle_presentation->ui.number_back);free(r->puzzle_presentation);r->puzzle_presentation=0;}
+}
+void l3_puzzle_presentation_reset(L3Render *r)
+{
+    if(!r || !r->puzzle_presentation)return;
+    L3PuzzlePresentation *p=r->puzzle_presentation;if(p->assets_valid)r->mini_canvas_stamp=r->mini_stamp[0]=r->mini_stamp[1]=0;l3_puzzle_motion_reset(&p->motion);p->assets_valid=0;p->page_valid[0]=p->page_valid[1]=0;
+}
+void l3_puzzle_presentation_observe(void *opaque,const L3ArcadeView *a,const L3ArcadeView *b,
+                                  uint32_t pressed,uint32_t held,uint32_t trace,double now,uint32_t epoch)
+{
+    L3Render *r=opaque;if(!r || !r->puzzle_presentation)return;L3PuzzlePresentation *p=r->puzzle_presentation;(void)trace;
+    if(!b || (b->kind!=L3_MINI_BLOCKS && b->kind!=L3_MINI_MERGE1024)){l3_puzzle_presentation_reset(r);return;}
+    if(!a || a->kind!=b->kind || p->observed_epoch!=epoch)l3_puzzle_presentation_reset(r);
+    p->observed_epoch=epoch;
+    l3_puzzle_motion_observe(&p->motion,a && a->kind==b->kind?&a->content.grid:&b->content.grid,&b->content.grid,pressed,held,now,epoch);
+}
+static int same_frame(const L3MotionFrame *a,const L3MotionFrame *b)
+{
+    return a->settled==b->settled && a->count==b->count && a->logical.kind==b->logical.kind &&
+           a->logical.width==b->logical.width && a->logical.height==b->logical.height &&
+           !memcmp(a->logical.cells,b->logical.cells,sizeof(a->logical.cells)) &&
+           !memcmp(a->poses,b->poses,a->count*sizeof(*a->poses));
+}
+int l3_puzzle_motion_prepare(L3Render *r,const L3Game *g,struct prodock_scene *scene,double now)
+{
+    if(!r || !g || !scene || !r->puzzle_presentation)return 0;
+    L3ArcadeView all;if(!l3_arcade_view(&g->activities.arcade,&all) || (all.kind!=L3_MINI_BLOCKS && all.kind!=L3_MINI_MERGE1024))return 0;
+    L3PuzzlePresentation *p=r->puzzle_presentation;unsigned w=r->width*2,h=r->height*2,page=r->frame&1;
+    if(!p->assets_valid || p->kind!=all.kind || p->width!=w || p->height!=h){
+        if(!l3_puzzle_gpu_layout(w,h,all.kind,&p->layout) || !l3_puzzle_ui_bake(r,g,&all.content.grid,&p->layout,&p->assets,&p->ui))return 0;
+        p->assets_valid=1;p->kind=all.kind;p->width=w;p->height=h;p->page_valid[0]=p->page_valid[1]=0;
+        gpu_v1_invalidate(&r->gpu);
+    }
+    if(!p->motion.valid && l3_puzzle_motion_observe(&p->motion,&all.content.grid,&all.content.grid,0,0,now,p->observed_epoch)<0)return 0;
+    L3MotionFrame frame;if(!l3_puzzle_motion_sample(&p->motion,now,&frame))return 0;
+    if(!l3_puzzle_ui_chrome(r,g,&frame.logical,scene,&p->ui))return 0;
+    if(!p->page_valid[page] || !same_frame(&p->page_frame[page],&frame)){
+        L3PuzzleGpuStats stats;
+        if(!l3_puzzle_gpu_draw(&r->gpu,&p->layout,&p->assets,&frame,PRODOCK_GPU_BASE+page*r->page_bytes,
+                               PRODOCK_GPU_BASE+2*r->page_bytes,r->pitch,&stats))return 0;
+        p->page_frame[page]=frame;p->page_valid[page]=1;p->quads+=stats.quads;p->copy_pixels+=stats.copy_pixels;
+    }else p->skipped++;
+    p->frames++;scene->base=PRODOCK_GPU_BASE+page*r->page_bytes;scene->stride=r->pitch;scene->format=3;return 1;
+}
+
+FILE games/luma3d/candidates/puzzle_motion_r1/include/l3_puzzle_ui.inc
+/* Include ONCE after mini_ui.c's existing static artwork functions. This
+ * adds no independent palette/font copy. Ordinary mini_ui remains unchanged. */
+#include "l3_puzzle_presentation.h"
+#include <math.h>
+static uint16_t puzzle_565(unsigned v)
+{unsigned r=(v>>12)&63,g=(v>>6)&63,b=v&63;return (uint16_t)((((r*31+31)/63)<<11)|(g<<5)|((b*31+31)/63));}
+static void puzzle_publish(L3Render *r,unsigned offset,const void *data,unsigned bytes,L3PuzzleUiCache *cache)
+{
+    const uint8_t *src=data;for(unsigned i=0;i<bytes;i+=4){uint32_t v;memcpy(&v,src+i,4);*(volatile uint32_t *)(r->memory+offset+i)=v;}
+    cache->asset_bytes+=bytes;
+}
+static void puzzle_restore(Canvas *c,int x,int y,int w,int h)
+{
+    const uint8_t *background=c->w==800?puzzle_background_800:puzzle_background_1280;
+    for(int yy=y;yy<y+h;yy++)memcpy(c->pixels+(size_t)yy*c->w+x,background+(size_t)yy*c->w+x,(size_t)w);
+}
+static void puzzle_numbers(Canvas *c,const L3MiniView *v,int sx)
+{
+    int x=sx+unit(c,17),y=unit(c,123),w=c->w-sx-unit(c,28)-2*unit(c,17),f=font_index(c,0),body=font_index(c,1);char n[48];
+    snprintf(n,sizeof(n),"%u / %u",v->progress,v->target);int number=font_index(c,2);if(text_width(number,n)>w)number=body;label(c,x,y,number,n,WHITE);
+    meter(c,x,unit(c,161),w,v->progress,v->target,v->status==L3_MINI_WON?GREEN:GOLD);
+    snprintf(n,sizeof(n),"SCORE  %u",v->score);label(c,x,unit(c,181),f,n,MUTED);
+}
+static L3PuzzleChromeKey puzzle_key(const L3Game *g,const L3MiniView *v)
+{return (L3PuzzleChromeKey){v->kind,v->status,v->score,v->target,v->lives,v->progress,g->activities.arcade.won,g->showcase_status,g->showcase_stage};}
+static void puzzle_body(Canvas *base,uint8_t *pixels,unsigned kind,unsigned cell,unsigned id)
+{
+    Canvas c=*base;c.pixels=pixels;c.w=c.h=128;memset(pixels,0,128*128);
+    static const unsigned colors[10]={0,0,4,1,6,3,2,7,5,5};
+    tile(&c,0,0,(int)cell,kind==L3_MINI_BLOCKS?id%8:colors[id],kind==L3_MINI_BLOCKS&&id>=8);
+    if(kind==L3_MINI_MERGE1024){
+        unsigned value=2u<<id,exponent=id+1;char number[12];snprintf(number,sizeof(number),"%u",value);
+        int f=font_index(&c,3);if(text_width(f,number)>(int)cell-unit(&c,14))f=font_index(&c,2);if(text_width(f,number)>(int)cell-unit(&c,14))f=font_index(&c,4);
+        centered(&c,0,((int)cell-(int)puzzle_fonts[f].height)/2-1,(int)cell,f,number,exponent<=2?INK:WHITE);
+        if(value>=512)box(&c,(int)cell/3,(int)cell-unit(&c,10),(int)cell/3,1,exponent==10?WHITE:GOLD_LIGHT);
+    }
+    for(unsigned i=0;i<128*128;i++)if(pixels[i]==SHADOW)pixels[i]=0;
+}
+int l3_puzzle_ui_bake(L3Render *r,const L3Game *g,const L3MiniView *v,const L3PuzzleLayout *l,L3PuzzleGpuAssets *a,L3PuzzleUiCache *cache)
+{
+    if(!r || !g || !v || !l || !a || !cache || !r->mini_pixels || !r->memory)return 0;
+    Canvas c={r,r->mini_pixels,(int)r->width*2,(int)r->height*2,r->height==360?3:2,r->height==360};int sx=c.w-unit(&c,244);
+    memcpy(c.pixels,c.w==800?puzzle_background_800:puzzle_background_1280,(size_t)c.w*c.h);
+    header(&c,v->kind,v->status,g->activities.arcade.won&(1u<<v->kind));L3MiniView empty=*v;memset(empty.cells,0,sizeof(empty.cells));board(&c,&empty,sx);footer(&c,g);
+    cache->nx=(unsigned)(sx+unit(&c,17));cache->ny=(unsigned)unit(&c,123);cache->nw=(unsigned)(c.w-sx-unit(&c,28)-2*unit(&c,17));cache->nh=(unsigned)unit(&c,80);
+    uint8_t *back=realloc(cache->number_back,cache->nw*cache->nh);if(!back)return 0;cache->number_back=back;
+    glass_panel(&c,sx,unit(&c,86),c.w-sx-unit(&c,28),c.h-unit(&c,140));
+    for(unsigned y=0;y<cache->nh;y++)memcpy(back+y*cache->nw,c.pixels+(y+cache->ny)*(unsigned)c.w+cache->nx,cache->nw);
+    puzzle_restore(&c,sx,unit(&c,86),c.w-sx-unit(&c,28),c.h-unit(&c,140));sidebar(&c,g,v,sx);
+    memset(a,0,sizeof(*a));unsigned stride=(l->window_width*2+31)&~31u;unsigned bgbytes=stride*l->window_height;
+    uint16_t *work=calloc(1,bgbytes>512*512*2?bgbytes:512*512*2);if(!work)return 0;
+    a->background=(gpu_target){PRODOCK_GPU_BASE+(14u<<20),0,l->window_width,l->window_height,stride,stride};
+    a->bodies=(gpu_texture_level){PRODOCK_GPU_BASE+(15u<<20),512,512,1024,GPU_RGB565,0,0,0};
+    a->shadow=(gpu_texture_level){PRODOCK_GPU_BASE+(16u<<20),128,128,256,GPU_ARGB4444,0,0,0};a->body_width=a->body_height=l->cell;
+    for(unsigned y=0;y<l->window_height;y++)for(unsigned x=0;x<l->window_width;x++)work[y*stride/2+x]=puzzle_565(r->hud_palette.rgb[c.pixels[(y+l->window_y)*(unsigned)c.w+x+l->window_x]]);
+    puzzle_publish(r,14u<<20,work,bgbytes,cache);memset(work,0,512*512*2);uint8_t pixels[128*128];
+    for(unsigned i=0;i<(v->kind==L3_MINI_BLOCKS?16u:10u);i++){
+        puzzle_body(&c,pixels,v->kind,l->cell,i);a->uv_x[i]=(i%4)*128;a->uv_y[i]=(i/4)*128;
+        for(unsigned y=0;y<128;y++)for(unsigned x=0;x<128;x++){unsigned index=pixels[y*128+x];uint16_t color=index?puzzle_565(r->hud_palette.rgb[index]):0;work[(a->uv_y[i]+y)*512+a->uv_x[i]+x]=index && !color?1:color;}
+    }
+    puzzle_publish(r,15u<<20,work,512*512*2,cache);
+    for(unsigned y=0;y<128;y++)for(unsigned x=0;x<128;x++){
+        double dx=fmax(fabs((double)x-63.5)-42,0),dy=fmax(fabs((double)y-63.5)-42,0),d=sqrt(dx*dx+dy*dy),alpha=fmax(0,fmin(1,(17-d)/17));work[y*128+x]=(uint16_t)((unsigned)(alpha*15+.5)<<12);
+    }
+    puzzle_publish(r,16u<<20,work,32768,cache);free(work);
+    for(unsigned y=0;y<l->window_height;y++)memset(c.pixels+(y+l->window_y)*(unsigned)c.w+l->window_x,0,l->window_width);
+    cache->key=puzzle_key(g,v);cache->valid=1;cache->revision++;if(!cache->revision)cache->revision=1;cache->page_revision[0]=cache->page_revision[1]=0;
+    cache->rasterized_pixels+=(unsigned)c.w*c.h;r->mini_canvas_stamp=r->mini_stamp[0]=r->mini_stamp[1]=0;return 1;
+}
+static void puzzle_upload_rect(Canvas *c,L3PuzzleUiCache *cache,unsigned page,int x,int y,int w,int h,int force)
+{
+    int end=(x+w+3)&~3;x&=~3;w=end-x; /* actual rectangles below are expanded at the right too */
+    if(x+w>c->w)w=c->w-x;
+    for(int yy=y;yy<y+h;yy++){
+        size_t at=(size_t)yy*c->w+x;const uint8_t *src=c->pixels+at;uint8_t *old=c->r->mini_shadow[page]+at;cache->scanned_bytes+=(unsigned)w;
+        for(int xx=0;xx<w;xx+=4){uint32_t a,b;memcpy(&a,src+xx,4);memcpy(&b,old+xx,4);if(force||a!=b){*(volatile uint32_t *)(c->r->memory+MINI_BASE+page*MINI_PAGE+at+(unsigned)xx)=a;memcpy(old+xx,&a,4);cache->published_bytes+=4;c->r->mini_bytes+=4;}}
+    }
+}
+int l3_puzzle_ui_chrome(L3Render *r,const L3Game *g,const L3MiniView *v,struct prodock_scene *scene,L3PuzzleUiCache *cache)
+{
+    if(!r || !g || !v || !scene || !cache || !cache->valid)return 0;
+    Canvas c={r,r->mini_pixels,(int)r->width*2,(int)r->height*2,r->height==360?3:2,r->height==360};int sx=c.w-unit(&c,244);L3PuzzleChromeKey key=puzzle_key(g,v),old=cache->key;
+    if(memcmp(&key,&old,sizeof(key))){
+        if(key.status!=old.status || key.won!=old.won){puzzle_restore(&c,0,0,c.w,unit(&c,72));header(&c,key.kind,key.status,key.won&(1u<<key.kind));cache->rasterized_pixels+=(unsigned)c.w*unit(&c,72);}
+        if(key.status!=old.status){puzzle_restore(&c,sx,unit(&c,86),c.w-sx-unit(&c,28),c.h-unit(&c,140));sidebar(&c,g,v,sx);cache->rasterized_pixels+=(unsigned)(c.w-sx-unit(&c,28))*(c.h-unit(&c,140));}
+        else if(key.score!=old.score || key.progress!=old.progress || key.target!=old.target){
+            for(unsigned y=0;y<cache->nh;y++)memcpy(c.pixels+(y+cache->ny)*(unsigned)c.w+cache->nx,cache->number_back+y*cache->nw,cache->nw);
+            puzzle_numbers(&c,v,sx);cache->rasterized_pixels+=cache->nw*cache->nh;
+        }
+        if(key.showcase!=old.showcase || key.stage!=old.stage){puzzle_restore(&c,0,c.h-unit(&c,36),c.w,unit(&c,36));footer(&c,g);cache->rasterized_pixels+=(unsigned)c.w*unit(&c,36);}
+        cache->key=key;cache->revision++;if(!cache->revision){cache->revision=1;cache->page_revision[0]=cache->page_revision[1]=0;}
+    }
+    unsigned page=r->frame&1;if(cache->page_revision[page]!=cache->revision){
+        if(!cache->page_revision[page])puzzle_upload_rect(&c,cache,page,0,0,c.w,c.h,1);
+        else {puzzle_upload_rect(&c,cache,page,0,0,c.w,unit(&c,72),0);puzzle_upload_rect(&c,cache,page,sx,unit(&c,86),c.w-sx, c.h-unit(&c,140),0);puzzle_upload_rect(&c,cache,page,0,c.h-unit(&c,36),c.w,unit(&c,36),0);}
+        cache->page_revision[page]=cache->revision;r->mini_uploads++;
+    }
+    uint32_t *layer=scene->layers[0];layer[0]=PRODOCK_GPU_BASE+MINI_BASE+page*MINI_PAGE;layer[1]=(unsigned)c.w|((unsigned)c.h<<16);layer[2]=0;layer[3]=layer[1];layer[4]=0;layer[5]=(unsigned)c.w;layer[6]=3;scene->layers_enabled=1;return 1;
+}
+
+FILE games/luma3d/candidates/puzzle_motion_r1/tests/test_presentation.c
+#include L3_LEGACY_UI_FILE
+#include "l3_puzzle_ui.inc"
+#include <assert.h>
+static unsigned commands,checks;
+#define CHECK(x) do{checks++;if(!(x)){fprintf(stderr,"CHECK_FAIL line%u %s\n",__LINE__,#x);abort();}}while(0)
+static void emit(const gpu_command *c){(void)c;commands++;}
+static void setup(L3Render *r,unsigned wide)
+{
+    memset(r,0,sizeof(*r));r->host=1;r->width=wide?640:400;r->height=wide?360:240;r->pitch=r->width*4;r->page_bytes=wide?2u<<20:1u<<20;r->memory=calloc(1,32u<<20);CHECK(r->memory);CHECK(l3_mini_ui_open(r));gpu_v1_init(&r->gpu,emit);
+}
+static void compare(L3Render *r,L3Render *ref,const L3Game *g)
+{
+    struct prodock_scene s={0};CHECK(l3_mini_ui_prepare(ref,g,&s));const L3PuzzleLayout *l=&r->puzzle_presentation->layout;
+    unsigned w=r->width*2,h=r->height*2;unsigned differences=0;
+    for(unsigned y=0;y<h;y++)for(unsigned x=0;x<w;x++)if(!(x>=l->window_x&&x<l->window_x+l->window_width&&y>=l->window_y&&y<l->window_y+l->window_height)){
+        if(r->mini_pixels[y*w+x]!=ref->mini_pixels[y*w+x]){if(differences<3)fprintf(stderr,"DIFF %u,%u got%u ref%u\n",x,y,r->mini_pixels[y*w+x],ref->mini_pixels[y*w+x]);differences++;}
+    }
+    CHECK(!differences);unsigned page=r->frame&1;CHECK(!memcmp(r->memory+(22u<<20)+page*(1u<<20),r->mini_pixels,(size_t)w*h));ref->frame++;
+}
+int main(void)
+{
+    for(unsigned wide=0;wide<2;wide++)for(unsigned kind=1;kind<=3;kind+=2){
+        L3Render r,ref;setup(&r,wide);setup(&ref,wide);CHECK(l3_puzzle_presentation_open(&r));CHECK(!l3_puzzle_presentation_open(&r));
+        L3Game g={0};l3_arcade_init(&g.activities.arcade);CHECK(l3_arcade_enter(&g.activities.arcade,kind,17));l3_arcade_step(&g.activities.arcade,0,0,0);
+        double now=0;struct prodock_scene scene={0};CHECK(l3_puzzle_motion_prepare(&r,&g,&scene,now));CHECK(scene.format==3);compare(&r,&ref,&g);r.frame++;
+        CHECK(l3_puzzle_motion_prepare(&r,&g,&scene,now));compare(&r,&ref,&g);r.frame++;
+        unsigned bytes=r.puzzle_presentation->ui.published_bytes,raster=r.puzzle_presentation->ui.rasterized_pixels;commands=0;
+        CHECK(l3_puzzle_motion_prepare(&r,&g,&scene,now));CHECK(!commands);CHECK(r.puzzle_presentation->ui.published_bytes==bytes && r.puzzle_presentation->ui.rasterized_pixels==raster);r.frame++;
+        unsigned turns=0;
+        for(;turns<1200;turns++){
+            L3ArcadeView before,after;CHECK(l3_arcade_view(&g.activities.arcade,&before));if(before.status!=L3_MINI_RUNNING)break;
+            uint32_t p,h,ms;CHECK(l3_arcade_demo_input(&g.activities.arcade,&p,&h,&ms));l3_arcade_step(&g.activities.arcade,p,h,ms);CHECK(l3_arcade_view(&g.activities.arcade,&after));
+            now+=.3;l3_puzzle_presentation_observe(&r,&before,&after,p,h,0,now,1);
+            CHECK(l3_puzzle_motion_prepare(&r,&g,&scene,now));compare(&r,&ref,&g);r.frame++;
+            for(unsigned i=1;i<=3;i++){CHECK(l3_puzzle_motion_prepare(&r,&g,&scene,now+i*.08));compare(&r,&ref,&g);r.frame++;}
+            l3_arcade_step(&g.activities.arcade,0,0,0);
+        }
+        CHECK(turns<1200);now+=1;CHECK(l3_puzzle_motion_prepare(&r,&g,&scene,now));compare(&r,&ref,&g);r.frame++;
+        CHECK(l3_puzzle_motion_prepare(&r,&g,&scene,now));r.frame++;bytes=r.puzzle_presentation->ui.published_bytes;raster=r.puzzle_presentation->ui.rasterized_pixels;commands=0;
+        CHECK(l3_puzzle_motion_prepare(&r,&g,&scene,now));CHECK(!commands);CHECK(bytes==r.puzzle_presentation->ui.published_bytes && raster==r.puzzle_presentation->ui.rasterized_pixels);
+        printf("PRESENTATION %ux%u kind%u turns%u frames%u skipped%u raster_pixels%u scanned%u published%u asset_upload%u\n",r.width*2,r.height*2,kind,turns,r.puzzle_presentation->frames,r.puzzle_presentation->skipped,raster,r.puzzle_presentation->ui.scanned_bytes,bytes,r.puzzle_presentation->ui.asset_bytes);fflush(stdout);
+        l3_puzzle_presentation_reset(&r);CHECK(!r.puzzle_presentation->motion.valid);l3_puzzle_presentation_close(&r);l3_puzzle_presentation_close(&r);CHECK(!r.puzzle_presentation);l3_mini_ui_close(&r);l3_mini_ui_close(&ref);free(r.memory);free(ref.memory);
+    }
+    printf("PASS PRESENTATION checks=%u\n",checks);return 0;
+}

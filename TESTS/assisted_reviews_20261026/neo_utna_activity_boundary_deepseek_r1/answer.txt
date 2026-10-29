@@ -1,0 +1,70 @@
+## Faits saillants
+
+- Quatre remplissages complets donnent `version=0`, alors que `ticks`, `armed`, les mots 0/2/3/16/31 et les acquittements sont cohérents (`README.md`, tableau ; `r19_activity.log`, lignes `ACTIVITY_BANK ... version0` et `ACTIVITY_CONTRACT_FAIL ... version0`).
+- Tous les mots de classe 1 observés sont nuls ; seul le mot1 a un stimulus non nul garanti par le RTL (`capture_analysis.json`, `lane1_words` et `unknowns`). Les autres mots de classe 1 n’ont pas de stimulus non nul indépendant.
+- La simulation `.vo` routée passe trois cas, mais `SDF_annotation=false` et les limites indiquent clocks/reset/AHB modélisés (`routed_result.json`). Elle ne prouve ni timing, ni démarrage réel, ni métastabilité.
+
+## Critique des trois assertions
+
+### 1. « La persistance réfute le seul stale-initial après écriture correcte »
+
+**Vrai seulement sous une prémisse non fournie.** Les quatre remplissages, sans reconfiguration, réfutent le scénario ponctuel : *une lecture prématurée une fois, puis une écriture correcte du mot1 à chaque remplissage*. Mais le packet ne contient aucune observation interne de l’écriture du mot1 : ni `write enable`, ni adresse effective, ni valeur entrante dans la banque.
+
+Donc la persistance ne réfute pas :
+- une écriture du mot1 jamais activée ou adressée ailleurs ;
+- une voie lane1 bloquée à zéro ;
+- une sélection de case1 erronée de façon persistante ;
+- un `reply` déjà nul à l’entrée de la banque ;
+- un stale récurrent à chaque remplissage, et non unique au démarrage.
+
+Conclusion correcte : **« le stale-initial unique avec écriture correcte est insuffisant »**, pas « la FIFO est innocente » ni « la banque est fautive ». La persistance est compatible avec un défaut statique de case1, mais aussi avec un défaut récurrent de handshake.
+
+### 2. « Les autres classes correctes ne valident pas la classe1 »
+
+**Assertion correcte.** Les mots non nuls en classes 0/2/3 et lignes 0/4/7 prouvent seulement que le bus global, une partie du masque et certaines lectures avec `address[2]=1` fonctionnent — le mot3 le montre, et le `.vo` utilise bien `address[2]` dans des LUT de sélection (`bank_validity_supplement.txt`, `.vo` lignes 170642 et 170649). Cela ne prouve pas la sélection complète de la lane1.
+
+Nuance utile : sous le modèle de validité par ligne utilisé dans le `README.md`, la ligne 0 est déjà non nulle via les mots 0/2/3. Un défaut de validité de la ligne 0 n’explique donc pas spécifiquement le mot1 ; restent la lane1, l’écriture du mot1 ou l’amont. C’est une hypothèse à vérifier, pas une conclusion.
+
+On ne peut donc dire ni « classe1 cassée », ni « classe1 fonctionne ». Le défaut observé engage au minimum **case1**, pas toute la classe1.
+
+### 3. « Un témoin explicite hors RAM distingue l’amont de la banque sous conditions »
+
+**Partiellement vrai, à condition de définir « amont » par rapport au point de capture.** Le témoin proposé est en HCLK, après la FIFO `u_replies` et avant la banque ; il n’ajoute pas de nouveau CDC de données. Mais il sépare seulement :
+
+- **ce qui arrive à l’entrée de la banque** ;
+- **ce qui est relu dans la banque**.
+
+Il ne sépare pas la FIFO de l’émission USB : le témoin voit la sortie de la FIFO `reply`, pas la source amont dans le domaine USB.
+
+Tableau conditionnel :
+
+| Observation | Conclusion autorisée |
+|---|---|
+| témoin mot1 = 1, banque mot1 = 0, témoins 0/2 corrects, compteur attendu | défaut en aval du témoin : écriture, adresse, lane1, validité ou lecture de banque |
+| témoin mot1 = 0, mêmes garde-fous | défaut à l’entrée de la banque ou en amont : sortie FIFO, `reply_valid`/index, snapshot/émission |
+| compteur = 0, compteur anormal, ou témoins 0/2 incohérents | instrumentation ou alignement non validé : aucune localisation |
+| témoin = 1 et banque = 1 | pas de défaut à cet instant, ou changement de placement/timing ; ne désigne pas une cause |
+
+## Garde-fous minimaux pour rendre le témoin interprétable
+
+1. **Capturer sur la même condition et le même front que l’écriture banque** : `reply_valid && receive_index==1`, avec l’ancienne valeur de `receive_index`, et `reply` au même cycle. Dans `usb_idle_trace.v`, la banque écrit `bank[receive_index]<=reply` et incrémente `receive_index` dans le même `always @(posedge hclk)`.
+2. **Qualifier la capture par la fenêtre de remplissage** (`busy`) ou compter par remplissage. `reply_valid` est un niveau (`ddr_dcfifo.v` : `rd_valid=head_valid`), pas une impulsion. Un cycle supplémentaire ou un wrap de `receive_index` peut sinon recapturer ou écraser le témoin.
+3. **Compter l’événement exact** : captures à `index==1`, attendu une par remplissage, donc 4 sur les quatre remplissages. Un compteur de cycles `reply_valid` ne donne pas la même information.
+4. **Capturer aussi les mots 0 et 2 depuis le même flux `reply`**, pas depuis la banque. Sinon ils ne valident pas l’alignement du témoin mot1 ; ils partagent le chemin fautif.
+5. **Lire les témoins après `busy=0` par un chemin indépendant de la RAM et de la validité de banque.** Sinon le témoin peut être ré-inféré en RAM ou masqué par le même défaut.
+6. **Vérifier que les bascules ne sont pas ré-inférées en mémoire** et préserver R19 comme contrôle. Un nouveau placement peut modifier le symptôme ; sa disparition seule ne prouve pas la cause (`README.md`, section « Prochaine séparation utile »).
+
+## Simulation `.vo` sans SDF
+
+Le fait que la simulation routée passe avec `version=1` ne départage pas la carte. `routed_result.json` indique `passed=true`, `routed_cells=3729`, mais aussi `SDF_annotation=false` et des clocks/reset/AHB modélisés. Elle montre seulement que le graphe de primitives routé peut produire `version=1` dans ce banc, pas que le chemin mot1 fonctionne sur carte, ni que le défaut est temporel, ni qu’il est dans la banque. Le bug de banc `bus_htrans[1:1]` mentionné dans le `README.md` est un défaut de banc, pas une preuve matérielle.
+
+## Fausses conclusions à éviter
+
+- « version0 persistante ⇒ FIFO cassée » ou « ⇒ RAM banque cassée » ;
+- « classes 0/2/3 correctes ⇒ classe1 correcte » ;
+- « mot3 avec `address[2]=1` ⇒ case1 correcte » ;
+- « témoin = 0 ⇒ FIFO » ou « témoin = 1, banque = 0 ⇒ RAM » : on ne localise qu’en amont/aval du témoin, pas le sous-bloc ;
+- « compteur = 0 ⇒ amont » : cela peut être une condition de capture jamais remplie ;
+- « simulation `.vo` passe ⇒ matériel/timing correct » ;
+- « le symptôme disparaît après changement de placement ⇒ cause trouvée » ;
+- toute conclusion de cause globale Neo ou de défaut silicium.

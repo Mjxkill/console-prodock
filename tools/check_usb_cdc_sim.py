@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -17,8 +18,7 @@ def main():
     p.add_argument('--ivl-root', type=Path)
     p.add_argument('--reference', type=Path, default=Path(
         '/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller'))
-    p.add_argument('--primitives', type=Path, default=Path(
-        '/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v'))
+    p.add_argument('--primitives', type=Path, default=PRIMITIVES)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--reset-only', action='store_true', help='run only the controller/FIFO reset regression')
     a = p.parse_args()

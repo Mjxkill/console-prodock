@@ -1,0 +1,409 @@
+## Verdict court
+
+Le point dur n’est pas le rendu : `maze_render.c:90` place déjà les acteurs sur les centres de cellules, et les murs sont centrés sur `x*2+1`, `z=y*2+1` (`maze_render.c:80`). Le point dur est **le temps et les discontinuités** : R6 ne conserve aucune position précédente dans `L3MiniState`/`L3MiniActors`, `l3_mini_step()` peut exécuter jusqu’à 15 ticks internes en un appel (`l3_minigames.c:473-481`, `L3_MINI_MAX_DT_MS=250`), et les fantômes peuvent être téléportés au respawn (`l3_minigames.c:337-341`) ou tous réinitialisés à la mort (`:317-322`).
+
+Je propose donc un helper autonome, **sans modifier règles/save/moteur**, qui :
+- n’accepte que des segments orthogonaux d’une cellule, entre deux cellules ouvertes ;
+- interpole sur une durée fixe (100 ms joueur, 233 ms fantôme) avec une horloge fournie par l’appelant ;
+- conserve une petite file de segments pour absorber plusieurs pas logiques entre deux images ;
+- exige un `snap` explicite sur reprise/death/respawn adjacent.
+
+Conséquence assumée : le rendu est **en retard d’un segment commité** (100 ms joueur, 233 ms fantôme). C’est le prix à payer pour ne pas prédire à travers un virage ou un mur. Si ce retard n’est pas acceptable, il faut un événement moteur « prochaine cellule », absent du paquet R6.
+
+---
+
+## 1. Faits vérifiés dans le paquet
+
+- Coordonnées acteurs : `x256 = cellule_x*256 + 128`, `y256` idem (`l3_mini_actors.h:9`, `l3_minigames.c:773`).
+- Rendu actuel : `x = x256/128.f`, `z = y256/128.f` (`maze_render.c:90`), soit le centre monde `2*cellule+1` ; les murs sont des boîtes de largeur 2 centrées sur `x*2+1` (`:80`). Le pas monde est donc 2.
+- Les acteurs dynamiques sont reconstruits à chaque frame (`maze_render.c:83-94`), donc changer la position ne casse aucun cache statique.
+- Pas de tunnel dans la maze R6 : bordure entièrement `#` (`l3_minigames.c:309-314`). Aucun wrap horizontal/vertical à gérer dans cette version.
+- Le joueur avance tous les 6 ticks (`l3_minigames.c:385-393`) ; les fantômes tous les 14 ticks (`:395`). Un demi-tour joueur est possible au tick de déplacement si `NEXTDIR` est ouvert (`:386-390`).
+- Les fantômes effrayés peuvent aussi revenir en arrière : ils maximisent la distance (`:370-376`).
+- `dt_ms` est borné à 250 ms (`l3_minigames.c:473`), et la boucle interne exécute `n = (PHASE + 60*dt)/1000` ticks (`:474-476`).
+- `elapsed_ms` est dérivé de `TICKS` et `PHASE` (`:568-569`) ; `PHASE` est validé multiple de 20 (`:492`).
+- Téléportations réelles : respawn d’un fantôme mangé (`:337-341`) et remise à zéro des trois acteurs à la mort (`:317-322`).
+
+Déduction par lecture, non exécutée : depuis un état repris avec `TIMER=5`, un appel `dt=250` peut déplacer le joueur **3 cellules** (moves aux ticks 1, 7, 13). Depuis `ETIMER=13`, un fantôme peut se déplacer **2 fois**. Cela suffit à invalider une file qui ne verrait qu’un seul échantillon par appel.
+
+---
+
+## 2. Hypothèses et preuves manquantes
+
+- Le code de la file `luma_game` n’est pas fourni : je ne peux pas vérifier ses horodatages, ses points de reset ni si elle découpe `dt`.
+- `L3Render` n’est pas fourni : le champ `L3MazeAnim maze_anim;` est une proposition de patch, pas une affirmation sur la structure existante.
+- Aucun test n’a été exécuté ici. Les tests ci-dessous sont des scénarios à compiler/exécuter.
+- Aucune mesure FPS matérielle, aucune télémétrie de frame, aucune preuve de latence perçue.
+- Le respawn adjacent est atteignable : les spawns `(6,5)` et `(11,9)` (`l3_minigames.c:320`) ont des cellules ouvertes adjacentes dans la maze. Un fantôme mangé sur une de ces cellules sera téléporté d’**une seule cellule**, donc indistinguable d’un pas normal par simple adjacence.
+
+---
+
+## 3. Helper C proposé
+
+### `l3_actor_anim.h`
+
+```c
+#ifndef L3_ACTOR_ANIM_H
+#define L3_ACTOR_ANIM_H
+#include <stdint.h>
+
+#define L3_ANIM_MAX_ACTORS 3u
+#define L3_ANIM_QUEUE 4u
+
+typedef struct {
+    int16_t fx, fy, tx, ty;   /* segment en coordonnées cellule */
+    uint32_t t0, t1;          /* fenêtre d'interpolation, ms */
+} L3AnimSeg;
+
+typedef struct {
+    int16_t cx, cy;           /* dernière cellule logique acceptée */
+    uint8_t have, head, count;
+    L3AnimSeg seg[L3_ANIM_QUEUE];
+} L3AnimActor;
+
+typedef struct { L3AnimActor actor[L3_ANIM_MAX_ACTORS]; } L3MazeAnim;
+
+typedef int (*L3AnimOpenFn)(void *ctx, int x, int y);
+
+void l3_maze_anim_reset(L3MazeAnim *m);
+void l3_maze_anim_snap(L3MazeAnim *m, unsigned slot, int cx, int cy);
+int  l3_maze_anim_feed(L3MazeAnim *m, unsigned slot, int cx, int cy,
+                       uint32_t now_ms, uint32_t dur_ms,
+                       L3AnimOpenFn open, void *ctx);
+int  l3_maze_anim_pos(const L3MazeAnim *m, unsigned slot, uint32_t now_ms,
+                      float *cell_x, float *cell_y);
+#endif
+```
+
+### `l3_actor_anim.c`
+
+```c
+#include "l3_actor_anim.h"
+
+static int adjacent(int ax, int ay, int bx, int by)
+{
+    int dx = ax - bx, dy = ay - by;
+    if (dx < 0) dx = -dx;
+    if (dy < 0) dy = -dy;
+    return dx + dy == 1;
+}
+
+void l3_maze_anim_reset(L3MazeAnim *m)
+{
+    unsigned i;
+    if (!m) return;
+    for (i = 0; i < L3_ANIM_MAX_ACTORS; ++i) {
+        L3AnimActor *a = &m->actor[i];
+        a->cx = a->cy = 0;
+        a->have = 0;
+        a->head = a->count = 0;
+    }
+}
+
+void l3_maze_anim_snap(L3MazeAnim *m, unsigned slot, int cx, int cy)
+{
+    L3AnimActor *a;
+    if (!m || slot >= L3_ANIM_MAX_ACTORS) return;
+    a = &m->actor[slot];
+    a->cx = (int16_t)cx;
+    a->cy = (int16_t)cy;
+    a->have = 1;
+    a->head = a->count = 0;
+}
+
+int l3_maze_anim_feed(L3MazeAnim *m, unsigned slot, int cx, int cy,
+                      uint32_t now_ms, uint32_t dur_ms,
+                      L3AnimOpenFn open, void *ctx)
+{
+    L3AnimActor *a;
+    L3AnimSeg *s;
+    uint32_t t0, t1;
+
+    if (!m || slot >= L3_ANIM_MAX_ACTORS) return 0;
+    a = &m->actor[slot];
+
+    /* Ne jamais accepter une destination hors grille ou dans un mur. */
+    if (cx < 0 || cy < 0 || (open && !open(ctx, cx, cy))) return 0;
+
+    if (!a->have) {
+        a->cx = (int16_t)cx; a->cy = (int16_t)cy; a->have = 1;
+        return 1;
+    }
+    if (cx == a->cx && cy == a->cy) return 1;   /* changement de direction seul */
+
+    /* Un pas doit être orthogonal, et la source doit être une cellule ouverte.
+     * Sinon : respawn, reset, wrap futur ou dt anormal -> snap sans traverser. */
+    if (!dur_ms || !adjacent(a->cx, a->cy, cx, cy) ||
+        (open && !open(ctx, a->cx, a->cy))) {
+        l3_maze_anim_snap(m, slot, cx, cy);
+        return 0;
+    }
+
+    /* File saturée : le rendu est très en retard, on snap plutôt que glisser. */
+    if (a->count == L3_ANIM_QUEUE) {
+        l3_maze_anim_snap(m, slot, cx, cy);
+        return 0;
+    }
+
+    /* Chaîner les segments pour garantir la continuité même si l'observation
+     * du commit arrive quelques ms avant la fin nominale du segment précédent. */
+    t0 = now_ms;
+    if (a->count) {
+        const L3AnimSeg *p = &a->seg[(a->head + a->count - 1u) % L3_ANIM_QUEUE];
+        if (now_ms < p->t1) t0 = p->t1;
+    }
+    if (t0 == UINT32_MAX) {          /* plus de place pour une fenêtre */
+        l3_maze_anim_snap(m, slot, cx, cy);
+        return 0;
+    }
+    t1 = (t0 > UINT32_MAX - dur_ms) ? UINT32_MAX : t0 + dur_ms;
+
+    s = &a->seg[(a->head + a->count) % L3_ANIM_QUEUE];
+    s->fx = a->cx; s->fy = a->cy;
+    s->tx = (int16_t)cx; s->ty = (int16_t)cy;
+    s->t0 = t0; s->t1 = t1;
+    ++a->count;
+    a->cx = (int16_t)cx; a->cy = (int16_t)cy;
+    return 1;
+}
+
+int l3_maze_anim_pos(const L3MazeAnim *m, unsigned slot, uint32_t now_ms,
+                     float *cell_x, float *cell_y)
+{
+    const L3AnimActor *a;
+    const L3AnimSeg *s = 0;
+    unsigned i;
+
+    if (!m || slot >= L3_ANIM_MAX_ACTORS || !cell_x || !cell_y) return 0;
+    a = &m->actor[slot];
+    if (!a->have) { *cell_x = *cell_y = 0.f; return 0; }
+
+    for (i = 0; i < a->count; ++i) {
+        const L3AnimSeg *c = &a->seg[(a->head + i) % L3_ANIM_QUEUE];
+        if (now_ms < c->t1) { s = c; break; }
+    }
+    if (!s) {
+        if (a->count)
+            s = &a->seg[(a->head + a->count - 1u) % L3_ANIM_QUEUE];
+        else { *cell_x = a->cx; *cell_y = a->cy; return 0; }
+    }
+
+    if (now_ms <= s->t0) {
+        *cell_x = s->fx; *cell_y = s->fy; return 1;
+    }
+    if (now_ms >= s->t1) {
+        *cell_x = s->tx; *cell_y = s->ty; return 1;
+    }
+    {
+        float u = (float)(now_ms - s->t0) / (float)(s->t1 - s->t0);
+        *cell_x = (float)s->fx + ((float)s->tx - (float)s->fx) * u;
+        *cell_y = (float)s->fy + ((float)s->ty - (float)s->fy) * u;
+    }
+    return 1;
+}
+```
+
+`l3_maze_anim_pos()` est une **fonction pure du temps** : deux fréquences d’appel différentes donnent la même position au même `now_ms`. C’est ce qui évite le « un pas par image ».
+
+---
+
+## 4. Patch minimal de rendu
+
+### 4.1 Stockage de l’état
+
+Le header `L3Render` n’est pas fourni. Si vous pouvez l’étendre, ajouter :
+
+```c
+L3MazeAnim maze_anim;
+```
+
+et l’initialiser à zéro avec le reste de `L3Render`. Sinon, un `static L3MazeAnim` dans `maze_render.c` fonctionne pour une seule instance, mais **impose** un `l3_maze_anim_reset()` explicite après `l3_mini_init()` et après `l3_mini_decode()`. Sans ce reset, une reprise de sauvegarde peut glisser depuis une position périmée.
+
+### 4.2 Callback de cellule ouverte
+
+```c
+static int maze_cell_open(void *ctx, int x, int y)
+{
+    const L3MiniView *v = (const L3MiniView *)ctx;
+    if (x < 0 || y < 0 || x >= (int)v->width || y >= (int)v->height) return 0;
+    return v->cells[y * L3_MINI_STRIDE + x].kind != L3_MINI_CELL_WALL;
+}
+```
+
+### 4.3 Alimentation et lecture
+
+Dans `maze_render.c`, remplacer la boucle `89-93` par l’équivalent :
+
+```c
+for (unsigned i = 0; i < actors->count; ++i) {
+    const L3MiniActor *a = &actors->actors[i];
+    int cx = (int)(a->x256 / 256u);   /* centre exact, sans float */
+    int cy = (int)(a->y256 / 256u);
+    uint32_t dur = (i == 0u) ? 100u : 233u;
+    (void)l3_maze_anim_feed(&r->maze_anim, i, cx, cy,
+                            v->elapsed_ms, dur, maze_cell_open, (void *)v);
+
+    float px, py;
+    (void)l3_maze_anim_pos(&r->maze_anim, i, v->elapsed_ms, &px, &py);
+    float x = px * 2.f + 1.f;        /* même repère que les murs */
+    float z = py * 2.f + 1.f;
+    if (i == 0) { if (!courier(&b, x, 0, z, v->elapsed_ms * .018f)) return 0; }
+    else        { if (!phantom(&b, x, z, v->elapsed_ms * .001f,
+                                !!(a->flags & L3_MINI_ACTOR_FRIGHTENED))) return 0; }
+}
+```
+
+Ici `feed` est appelé au moment du rendu. Variante préférable si la file de `luma_game` est déjà alimentée après chaque pas logique : appeler `feed` après chaque `l3_mini_step()` découpé, et n’appeler que `pos` dans le rendu.
+
+### 4.4 Découpage de `dt` pour garantir « un seul pas par observation »
+
+Un appel `l3_mini_step(..., 250)` peut produire 3 déplacements joueur et 2 fantôme. Pour que la file ne voie jamais plus d’un déplacement par acteur et par observation, plafonner **le `dt` total à 250 ms d’abord**, puis le découper en tranches ≤100 ms. `100 ms = 6 ticks` garantit au plus un move joueur (TIMER max 5 + 6 < 12) et au plus un move fantôme (ETIMER max 13 + 6 < 28). `pressed` ne doit être passé qu’à la première tranche.
+
+```c
+uint32_t l3_mini_step_maze_anim(L3MiniState *s, uint32_t pressed,
+                                uint32_t held, uint32_t dt_ms,
+                                L3MazeAnim *an,
+                                void (*sample)(void *, L3MiniState *),
+                                void *sample_ctx)
+{
+    uint32_t ev = 0, left;
+    int first = 1;
+    if (!s) return L3_MINI_EVENT_INVALID;
+    if (dt_ms > L3_MINI_MAX_DT_MS) dt_ms = L3_MINI_MAX_DT_MS;
+
+    if (dt_ms == 0) {               /* les fronts s'exécutent même à dt=0 */
+        ev = l3_mini_step(s, pressed, held, 0);
+        if (sample && !(ev & (L3_MINI_EVENT_EXIT | L3_MINI_EVENT_INVALID)))
+            sample(sample_ctx, s);
+        return ev;
+    }
+
+    left = dt_ms;
+    while (left && !(ev & (L3_MINI_EVENT_EXIT | L3_MINI_EVENT_INVALID))) {
+        uint32_t chunk = left > 100u ? 100u : left;
+        uint32_t e = l3_mini_step(s, first ? pressed : 0u, held, chunk);
+        ev |= e;
+        if (sample && !(e & (L3_MINI_EVENT_EXIT | L3_MINI_EVENT_INVALID)))
+            sample(sample_ctx, s);
+        if (e & (L3_MINI_EVENT_WON | L3_MINI_EVENT_LOST)) break;
+        left -= chunk;
+        first = 0;
+    }
+    return ev;
+}
+```
+
+Le découpage préserve les règles : l’arithmétique `PHASE/1000` est linéaire, et `pressed` est appliqué une seule fois, avant les mêmes ticks. C’est testable par égalité d’encodage (test 3).
+
+### 4.5 Snap explicite sur téléportations
+
+L’adjacence seule ne suffit pas pour un respawn adjacent. Après chaque pas, avant `feed` :
+
+1. Si `v->lives` a diminué, ou `actors->respawn_ticks` a augmenté brusquement : `l3_maze_anim_snap()` sur les 3 acteurs.
+2. Pour chaque fantôme `i>=1`, si :
+   - il a changé de cellule ;
+   - `flags & L3_MINI_ACTOR_FRIGHTENED` ;
+   - son ancienne cellule mémorisée (`an->actor[i].cx/cy`) est la cellule actuelle du joueur ;
+   - sa nouvelle cellule n’est pas celle du joueur ;
+   
+   alors c’est un respawn mangé : `snap`, pas `feed`.
+
+Ce test est atteignable dans R6 avec le scénario du §5.4.
+
+---
+
+## 5. Tests adversariaux précis
+
+Aucun test ci-dessous n’a été exécuté ici.
+
+### 5.1 Tests unitaires du helper
+
+Avec `open_all()` qui accepte toute cellule :
+
+| Séquence `feed` | `pos` attendu |
+|---|---|
+| `(1,1)@0` puis `(2,1)@100`, durée 100 | `@100 -> (1,1)` ; `@150 -> (1.5,1)` ; `@200 -> (2,1)` |
+| idem puis `(2,0)@200` (virage) | `@200 -> (2,1)` ; `@250 -> (2,0.5)` ; `@300 -> (2,0)` : virage au centre, aucune diagonale |
+| `(1,1)@0`, `(2,1)@100`, `(1,1)@200` (180°) | `@200 -> (2,1)` ; `@250 -> (1.5,1)` ; `@300 -> (1,1)` |
+| `(1,1)@0`, `(2,2)@10` | `feed` retourne 0 ; `pos@10 -> (2,2)`, pas de glissement diagonal |
+| `(1,1)@0`, `(3,1)@10` | snap à `(3,1)` |
+| `(1,1)@0`, `(1,1)@50` | aucune animation, position `(1,1)`, retour 0 |
+| 3 feeds `(1,1)@0`, `(2,1)@100`, `(3,1)@200`, un seul `pos` | `@150 -> (1.5,1)` ; `@250 -> (2.5,1)` : la file absorbe plusieurs pas |
+| `reset`, feed `(1,1)@0`, `reset`, feed `(2,1)@0` | `pos@0 -> (2,1)`, retour 0 : aucun segment stale |
+| destination dans un mur | `feed` retourne 0, la position reste la dernière valide |
+
+### 5.2 Preuve du danger `dt` long, via l’API publique
+
+```c
+L3MiniState s; L3MiniView v; L3MiniActors a;
+assert(l3_mini_init(&s, L3_MINI_MAZE, 1u));
+assert(l3_mini_step(&s, 0, L3_MINI_RIGHT, 84u) != L3_MINI_EVENT_INVALID);
+assert(l3_mini_actors(&s, &a));
+assert(a.player_tick == 5u);
+assert(a.actors[0].x256 == 1u*256u + 128u);
+
+assert(l3_mini_step(&s, 0, L3_MINI_RIGHT, 250u) != L3_MINI_EVENT_INVALID);
+assert(l3_mini_view(&s, &v));
+assert(v.moves == 3u);                         /* 3 cellules en un appel */
+assert(a.actors[0].x256 == 4u*256u + 128u);    /* (4,1) */
+```
+
+Attendu par lecture : `TIMER=5`, 15 ticks internes → moves aux ticks 1, 7, 13, donc `(1,1) -> (2,1) -> (3,1) -> (4,1)`. Une file alimentée une seule fois par appel verrait un saut de 3 cellules.
+
+### 5.3 Équivalence du découpage
+
+Même pré-avance `84 ms`, puis :
+- état A : `l3_mini_step(&a, 0, RIGHT, 250)`
+- état B : cinq appels `l3_mini_step(&b, 0, RIGHT, 50)`
+
+Attendu : `l3_mini_encode(A)` et `l3_mini_encode(B)` sont **byte-identiques**. Cela prouve que le découpage ne change ni règles, ni compteurs, ni `PHASE`.
+
+### 5.4 Respawn adjacent : le cas que l’adjacence seule ne voit pas
+
+Test boîte blanche, état construit puis validé par `l3_mini_validate()` :
+
+```c
+L3MiniState s;
+assert(l3_mini_init(&s, L3_MINI_MAZE, 42u));
+/* indices privés de l3_minigames.c :
+   CX=0 CY=1 TIMER=4 POWER=7 DIR=8 NEXTDIR=9 EX0=10 EY0=11 ETIMER=14 */
+s.data[0] = 4; s.data[1] = 5;    /* joueur en (4,5) */
+s.data[8] = 1; s.data[9] = 1;    /* DIR/NEXTDIR = EST */
+s.data[4] = 5;                   /* TIMER=5 : move au prochain tick */
+s.data[7] = 100;                 /* POWER actif */
+s.data[10] = 5; s.data[11] = 5;  /* fantôme 0 en (5,5), cellule d'arrivée */
+s.data[14] = 0;                  /* pas de tick fantôme dans ce tick */
+assert(l3_mini_validate(&s));
+
+assert(l3_mini_step(&s, 0, 0, 17u) != L3_MINI_EVENT_INVALID); /* 1 tick */
+assert(s.data[0] == 5 && s.data[1] == 5);      /* joueur (5,5) */
+assert(s.data[10] == 6 && s.data[11] == 5);    /* respawn adjacent (6,5) */
+```
+
+Le fantôme est passé de `(5,5)` à `(6,5)` : **une seule cellule**, donc `l3_maze_anim_feed()` seul va créer un segment et le faire glisser. Le wrapper d’intégration doit détecter :
+`ancienne cellule fantôme == cellule actuelle joueur`, `FRIGHTENED`, nouvelle cellule différente du joueur → `l3_maze_anim_snap()`.
+Test attendu : après le pas, `l3_maze_anim_pos()` du fantôme retourne immédiatement `(6,5)`, sans interpolation. Sans le snap, on observerait `(5.5,5)` à mi-durée.
+
+### 5.5 Reprise de sauvegarde
+
+Après `l3_mini_decode()` réussi :
+1. appeler `l3_maze_anim_reset()` ;
+2. premier `feed` avec la position décodée ;
+3. vérifier que `pos()` retourne exactement cette cellule avec retour 0.
+
+Sans reset, un cache adjacent à la position décodée produirait un faux segment. Le test doit placer volontairement le cache périmé sur une cellule adjacente avant le reset.
+
+### 5.6 Indépendance de la fréquence d’affichage
+
+Pour un même `now_ms`, appeler `pos()` après 60 appels ou après 15 appels doit donner la même position à `t=150`, `t=250`. La fonction ne modifie pas d’état interne ; c’est la garantie qu’aucun « pas par image » n’est introduit.
+
+---
+
+## 6. Risques résiduels et décisions à prendre
+
+1. **Retard d’un segment** : inévitable avec seulement des segments observés après commit, sans prédiction. Joueur : 100 ms ; fantôme : 233 ms. À valider côté produit.
+2. **Respawn adjacent** : traité seulement par la règle explicite du §4.5. Sans elle, glissement d’une cellule, sans traversée de mur mais visuellement faux.
+3. **Horloge** : `feed` et `pos` doivent utiliser la même source monotone. Le plus simple est `v->elapsed_ms` (`l3_minigames.c:568-569`), mais il faut alors reconstruire une vue après chaque tranche si `feed` est appelé côté logique. Ne pas mélanger horloge murale et temps simulation.
+4. **Reset obligatoire** : `l3_mini_init`, `l3_mini_decode`, mort/respawn, changement de mini-jeu. Un simple `static` file-scope sans reset est fragile.
+5. **Tunnel futur** : absent en R6. Si un wrap est ajouté, il devra être un événement explicite de téléportation (snap ou deux demi-segments aux bords), jamais un segment de plusieurs cellules.
+6. **Aucune preuve matérielle** : je ne fais aucune affirmation de FPS, de fluidité perçue ou de tenue sur cible. Les tests proposés sont la preuve reproductible à fournir avant validation.

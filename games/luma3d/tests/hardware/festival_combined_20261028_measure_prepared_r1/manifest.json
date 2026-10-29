@@ -1,0 +1,172 @@
+{
+  "schema": 1,
+  "hardware_access": false,
+  "hardware_ready": false,
+  "host": "michael-AX15",
+  "ssh_alias": "ax15",
+  "port": "/dev/serial/by-id/usb-Electrosens_MegaPro_Console_11252024-if00",
+  "lock": "/tmp/prodock-diagnostic.lock",
+  "anchor": {
+    "pid": 3940,
+    "start_ticks": 35705238
+  },
+  "baseline_program": "luma3d-fm4a",
+  "baseline_pidfile": "/tmp/fm4live1.pid",
+  "baseline_args": [
+    "--festival",
+    "--festival-save",
+    "/tmp/fm4live1.festival.save",
+    "--memory-save",
+    "/tmp/fm4live1.memory.save"
+  ],
+  "base": {
+    "bytes": 16640496,
+    "sha256": "6b8d3eeb273e03be38eb73a2ff6fee60dad16678316bfdacb52b4db308fec3f7",
+    "crc32": "fa358bf4"
+  },
+  "target": {
+    "bytes": 16644780,
+    "sha256": "950ced706963b9f7591f45c067b80ee515dcae084a061c78274fe0f00f3871f7",
+    "crc32": "ad06b5da"
+  },
+  "helper": {
+    "bytes": 221180,
+    "sha256": "7cc3e1766d15cb47ac98ab4a6ab33540b5a281c9715afc760c68ab0af03effaf",
+    "crc32": "fa6b4b5b"
+  },
+  "receiver": {
+    "bytes": 13132,
+    "sha256": "c28b795a17922708a0f990eff4c0ef05dfd8aa2f7a20f036f4fbab51b67ad466",
+    "crc32": "d104498c"
+  },
+  "helper_remote": "/tmp/mc1-helper",
+  "base_remote": "/tmp/luma3d-fm4a",
+  "target_remote": "/tmp/luma3d-fc1",
+  "rx2_executable": "/tmp/luma-rx2-buffer1",
+  "remote_payload": "/tmp/rx2-fc1.delta.lz4.part",
+  "payload_file": "combined.delta.lz4",
+  "delta": {
+    "raw_bytes": 175947,
+    "raw_crc32": "fc9327e7"
+  },
+  "storage": {
+    "target_bytes": 16644780,
+    "payload_bytes": 118315,
+    "headroom_bytes": 8388608,
+    "required_memavailable_bytes": 67108864
+  },
+  "windows": [
+    {
+      "name": "othello",
+      "mode": 0,
+      "args": [
+        "--festival-game",
+        "0",
+        "--festival-sample-actions",
+        "4",
+        "--frames",
+        "3600"
+      ],
+      "table_actions": 4,
+      "timeout_seconds": 180
+    },
+    {
+      "name": "solitaire",
+      "mode": 1,
+      "args": [
+        "--festival-game",
+        "1",
+        "--festival-sample-actions",
+        "4",
+        "--frames",
+        "3600"
+      ],
+      "table_actions": 4,
+      "timeout_seconds": 180
+    },
+    {
+      "name": "chroma",
+      "mode": 2,
+      "args": [
+        "--festival-game",
+        "2",
+        "--festival-sample-actions",
+        "4",
+        "--frames",
+        "3600"
+      ],
+      "table_actions": 4,
+      "timeout_seconds": 180
+    },
+    {
+      "name": "hangman",
+      "mode": 3,
+      "args": [
+        "--festival-game",
+        "3",
+        "--festival-sample-actions",
+        "4",
+        "--frames",
+        "3600"
+      ],
+      "table_actions": 4,
+      "timeout_seconds": 180
+    },
+    {
+      "name": "memory",
+      "mode": 5,
+      "args": [
+        "--festival-memory",
+        "--memory-sample-actions",
+        "24",
+        "--frames",
+        "3600"
+      ],
+      "memory_actions": 24,
+      "timeout_seconds": 180
+    },
+    {
+      "name": "garden",
+      "mode": 4,
+      "args": [
+        "--festival",
+        "--manual",
+        "--festival-metrics",
+        "--frames",
+        "120"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "name": "garden_diag",
+      "mode": 4,
+      "args": [
+        "--festival",
+        "--manual",
+        "--festival-metrics",
+        "--frames",
+        "120"
+      ],
+      "timeout_seconds": 180,
+      "environment": {
+        "LUMA_SUBMIT_DIAG": "1"
+      }
+    }
+  ],
+  "program": "luma3d-fc1",
+  "tag": "fc1measure1",
+  "files": {
+    "identity_policy.py": "8aa2da6da39c3dd355c006ae291c22e755d71573bbba9d28a2d95db139114908",
+    "persistent_base.py": "b38079a4e8e036027ca5dcc2cdfdc645299b4e8725cf59e343974a6de9874eb7",
+    "sender_base.py": "a9fd98347ab14c227f4ed641a6511ee795458e1b2efa63333b38a4d55ef421d2",
+    "measure.py": "1baaf46d96d8674b0c8ba8ffca08971b4cf6ba3e7b35c94d79d46f37dbdbe32b",
+    "sender.py": "94ad0faa516f65b6e3fc8505f596c22f2c12605468369ebe8061c475566533a2",
+    "bootstrap.py": "042ad3b207b71f01234c2c42e101dad0c8282d3f347fab73b649bdc409edd33a",
+    "probe_channel.py": "20e97d025274cb7caf2aa35b72f9b59fd1002f0a0fc3380f64fac978a3cf9c2d",
+    "test_measure.py": "007b917699bb635fc0d1ae24abcf1ed0034f67664060ee028d8e248c5891cf0c",
+    "support.py": "45cf2c8cddcbe8a903f6bf73dca552512052883d88670ffa889815133127c29b",
+    "stage_plan.json": "0fe854aa271743c1ad838feaa63fa0984fa326da75471ea73d8c5bd7785a6afd",
+    "read_metrics.py": "f19e0e89085d084642a2142fac5a3d6ba96efebce34f9e41b2e178809609c54a"
+  },
+  "stage_plan_sha256": "0fe854aa271743c1ad838feaa63fa0984fa326da75471ea73d8c5bd7785a6afd"
+}

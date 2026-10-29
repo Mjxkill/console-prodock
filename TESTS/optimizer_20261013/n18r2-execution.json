@@ -1,0 +1,527 @@
+{
+  "plan_sha256": "5555b3c61e93c461cd2e960fb5b7c21410fc35cc479cf60c98aaf406f6b00fc7",
+  "jobs": [
+    {
+      "name": "console_neo_n18r2",
+      "status": "QUALIFIED",
+      "started_unix": 1791895577.0255835,
+      "argv": [
+        "nice",
+        "-n",
+        "10",
+        "/usr/bin/python3",
+        "/home/michael/console/tools/route_console_neo.py",
+        "--from-build",
+        "/home/michael/console/tang/impl/console_neo_n18",
+        "--name",
+        "console_neo_n18r2",
+        "--place",
+        "3",
+        "--route",
+        "2",
+        "--replicate",
+        "1",
+        "--placement-cst",
+        "/home/michael/console/optimizer/runs/n18_tiles_region/neo.cst"
+      ],
+      "pid": 625192,
+      "returncode": 0,
+      "elapsed_s": 1945.9,
+      "qualification_returncode": 0,
+      "analysis": {
+        "backend": "gowin",
+        "name": "console_neo_n18r2",
+        "directory": "/home/michael/console/tang/impl/console_neo_n18r2",
+        "status": "TIMING_PASS",
+        "issues": [],
+        "errors": [],
+        "complete": true,
+        "timing_clean": true,
+        "clocks_mhz": {
+          "clk50": 50.0,
+          "bus80_clk": 80.0,
+          "core_clk": 800.0,
+          "rtc_clk": 10.0,
+          "ddr3_ref_clk": 50.0,
+          "ddr3_mem_clk": 300.03,
+          "ddr3_sys_clk": 75.002,
+          "sclk": 120.005,
+          "vid_clk5x": 371.875,
+          "vid_pclk": 74.375,
+          "CLK_48M": 48.0,
+          "PHY_CLKOUT": 60.0,
+          "fclk_960M": 960.0
+        },
+        "constraints": [
+          {
+            "state": "Actived",
+            "command": "create_clock -name clk50 -period 20 -waveform {0 10} [get_ports {clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_clock -name bus80_clk -period 12.5 -waveform {0 6.25} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT0}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_clock -name core_clk -period 1.25 -waveform {0 0.625} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT1}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_clock -name rtc_clk -period 100 -waveform {0 50} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT4}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_clock -name ddr3_ref_clk -period 20 -waveform {0 10} [get_pins {u_soc/u_pll_ddr3/u_pll/PLL_inst/CLKOUT0}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_clock -name ddr3_mem_clk -period 3.333 -waveform {0 1.667} [get_pins {u_soc/u_pll_ddr3/u_pll/PLL_inst/CLKOUT2}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_clock -name ddr3_sys_clk -period 13.333 -waveform {0 6.667} [get_pins {u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_clock -name sclk -period 8.333 -waveform {0 4.166} [get_nets {u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk}] -add"
+          },
+          {
+            "state": "Actived",
+            "command": "create_generated_clock -name vid_clk5x -source [get_ports {clk}] -multiply_by 119 -divide_by 16 [get_pins {u_video_pll/PLL_inst/CLKOUT0}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_generated_clock -name vid_pclk -source [get_ports {clk}] -multiply_by 119 -divide_by 80 [get_pins {u_video_pll/PLL_inst/CLKOUT2}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_generated_clock -name CLK_48M -source [get_ports {clk}] -master_clock clk50 -divide_by 50 -multiply_by 48 [get_pins {u_pll_f/PLL_inst/CLKOUT0}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_generated_clock -name PHY_CLKOUT -source [get_pins {u_pll_f/PLL_inst/CLKOUT0}] -master_clock CLK_48M -divide_by 4 -multiply_by 5 [get_pins {u_pll_b/PLL_inst/CLKOUT1}]"
+          },
+          {
+            "state": "Actived",
+            "command": "create_generated_clock -name fclk_960M -source [get_pins {u_pll_f/PLL_inst/CLKOUT0}] -master_clock CLK_48M -divide_by 2 -multiply_by 40 [get_pins {u_pll_b/PLL_inst/CLKOUT0}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_ref_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_ref_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {ddr3_ref_clk}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {ddr3_ref_clk}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {ddr3_ref_clk}] -to [get_clocks {ddr3_sys_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {ddr3_ref_clk}] -to [get_clocks {ddr3_sys_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {ddr3_ref_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {ddr3_ref_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -to [get_pins {ae350_rst_sync_*/PRESET}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -to [get_pins {u_hdmi/g_reset*.reset_sync*/PRESET}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -from [get_ports {uart_rx}] -to [get_pins {u_console_input/u_debug_rx/rx_sync_0_s1/D}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -to [get_pins {u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/UART2_RXD}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {PHY_CLKOUT}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {bus80_clk}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {PHY_CLKOUT}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {PHY_CLKOUT}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_max_delay 8 -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {clk50}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {PHY_CLKOUT}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -hold -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {clk50}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -to [get_pins {u_console_input/u_bridge/rx_sync_0_s0/D}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -to [get_pins {u_console_output/u_rx/rx_sync_0_s1/D}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -to [get_pins {u_gamepads/g_port*.u_pad/u_host/dp_sync_0*/D}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_false_path -to [get_pins {u_gamepads/g_port*.u_pad/u_host/dm_sync_0*/D}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_clock_groups -asynchronous -group [get_clocks {core_clk}] -group [get_clocks {rtc_clk}] -group [get_clocks {clk50 bus80_clk ddr3_ref_clk ddr3_mem_clk ddr3_sys_clk vid_pclk vid_clk5x}]"
+          },
+          {
+            "state": "Actived",
+            "command": "set_clock_groups -asynchronous -group [get_clocks {PHY_CLKOUT}] -group [get_clocks {sclk}] -group [get_clocks {fclk_960M}]"
+          },
+          {
+            "state": "Actived",
+            "command": "report_timing -setup -max_paths 1000 -max_common_paths 1"
+          },
+          {
+            "state": "Actived",
+            "command": "report_timing -hold -max_paths 200 -max_common_paths 1"
+          },
+          {
+            "state": "Actived",
+            "command": "report_timing -recovery -max_paths 100 -max_common_paths 1"
+          },
+          {
+            "state": "Actived",
+            "command": "report_timing -removal -max_paths 100 -max_common_paths 1"
+          }
+        ],
+        "violated_endpoints": {
+          "setup": 0,
+          "hold": 0
+        },
+        "groups": [
+          {
+            "clock": "clk50",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "clk50",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "bus80_clk",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "bus80_clk",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "core_clk",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "core_clk",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "rtc_clk",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "rtc_clk",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "ddr3_ref_clk",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "ddr3_ref_clk",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "ddr3_mem_clk",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "ddr3_mem_clk",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "ddr3_sys_clk",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "ddr3_sys_clk",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "sclk",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "sclk",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "vid_clk5x",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "vid_clk5x",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "vid_pclk",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "vid_pclk",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "CLK_48M",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "CLK_48M",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "PHY_CLKOUT",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "PHY_CLKOUT",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "fclk_960M",
+            "analysis": "setup",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          },
+          {
+            "clock": "fclk_960M",
+            "analysis": "hold",
+            "tns_ns": 0.0,
+            "endpoints": 0
+          }
+        ],
+        "wns_ns": 0.135,
+        "pulse_wns_ns": 1.112,
+        "tns_ns": 0.0,
+        "no_fmax_clocks": [
+          "core_clk",
+          "rtc_clk",
+          "vid_clk5x",
+          "CLK_48M",
+          "fclk_960M"
+        ],
+        "report_sha256": "d7a9a15cdbecbbca88d88fa21f6439761264f228d0e39ead3f5598d674360ae1",
+        "part": "GW5AST-LV138PG484AC1/I0",
+        "tool_version": "V1.9.12",
+        "resources": {
+          "Logic": {
+            "used": 84346.0,
+            "available": 138240
+          },
+          "Register": {
+            "used": 54659.0,
+            "available": 139095
+          },
+          "CLS": {
+            "used": 58513.0,
+            "available": 69120
+          },
+          "BSRAM": {
+            "used": 263.0,
+            "available": 340
+          },
+          "DSP": {
+            "used": 176.5,
+            "available": 298
+          }
+        },
+        "bitstream_sha256": "dc4382d9338b99fd0e73e6d9a53ede41ece7146585f858b7cbd92295b4b2c4ba",
+        "netlist_sha256": "34e00237b41729362474e693e8ca6aad00e7072ae59c338600666e126c9f658b",
+        "sdc_sha256": "91dd1ca38e22357df0c8453842d61aef3f60558958baf719930691402dec4455",
+        "cst_sha256": "d5948ff14d3f9ef8b52d044a06d7faa534d31d0ad626b8c2632e57d1742c93c2",
+        "comparison_identity": {
+          "part": "GW5AST-LV138PG484AC1/I0",
+          "tool": "V1.9.12",
+          "net": "34e00237b41729362474e693e8ca6aad00e7072ae59c338600666e126c9f658b",
+          "sdc": "91dd1ca38e22357df0c8453842d61aef3f60558958baf719930691402dec4455",
+          "pins": "384c927147ebb32ab23b713fe2024242646568736ee11b2aafb9ab63324cf14e"
+        },
+        "comparison_group": "868d3e01fd4b01d8",
+        "options": {
+          "place_option": 3,
+          "route_option": 2,
+          "replicate_resources": 1
+        },
+        "qualification": "PASS"
+      }
+    }
+  ]
+}

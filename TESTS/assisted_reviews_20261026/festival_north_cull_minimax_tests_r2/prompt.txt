@@ -1,0 +1,17 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Only output the small C99 assertion program for these19precomputedvectors. No reasoning or extra cases.
+
+EVIDENCE PACKET:
+Output only C99 main, under60lines, include assert.h,math.h,stdio.h,festival_cull.h.
+Function: festival_sphere_visible(x,y,z,r,near,far,sx,sy).
+Always use near=.5,far=100,sx=sy=.75. Test these exact vectors:
+(0,0,10,1) ->1; (20,0,10,1)->0;(-20,0,10,1)->0;
+(0,20,10,1)->0;(0,-20,10,1)->0;
+(10,0,10,2)->1;(-10,0,10,2)->1;(10.01,0,10,2)->0;
+(0,10,10,2)->1;(0,-10,10,2)->1;(0,10.01,10,2)->0;
+(0,0,-.5,1)->1;(0,0,-.51,1)->0;(0,0,101,1)->1;
+(0,0,101.01,1)->0;(7.5,0,10,0)->1;
+(NAN,0,10,1)->1;(INFINITY,0,10,1)->1;(0,0,10,-1)->1.
+Do not add any othercase or explanation. Print numberpassed. No analysis.

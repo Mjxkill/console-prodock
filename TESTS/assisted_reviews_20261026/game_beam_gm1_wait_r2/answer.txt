@@ -1,0 +1,307 @@
+## Verdict court
+
+Le patch de suppression du dernier `flush` en exploration est **rejeté** et ne doit plus être présenté comme un gain.  
+Le budget restant pour la maison doit être recadré : le coût dominant n’est pas le raster HUD simulé dans cette fenêtre, mais la **géométrie/murs répétés + coût driver (submit/present/wait)** ; le raster n’explique qu’une petite partie de la différence avec le shooter.  
+La copie `Z` par alias temporaire en couleur est **théoriquement possible comme blit brut 16 bits**, mais elle n’est **pas prouvée admissible** par le packet ; il manque la preuve du comportement matériel de la commande 29 et un oracle indépendant.
+
+---
+
+## 1. Ce que les résultats réels imposent
+
+**Faits vérifiés dans le packet :**
+
+- `baseline` exploration : `PRESENT_PENDING count=0 flushes=8`.  
+- `beam_without_final_flush` : `PRESENT_PENDING count=39 flushes=7`, arrêt par garde.  
+  Donc **39 commandes ne sont pas soumises avant `PRESENT`** si le dernier flush disparaît.
+
+- `render.c:39-43` :  
+  ```c
+  static void flush(L3Render *r) {
+      if(!r->batch.count||r->failed)return;
+      ...
+      call(r,PRODOCK_SUBMIT,&r->batch);
+      ...
+      r->batch.count=0;
+  }
+  ```
+  Un lot vide est un no-op. Un lot non vide non soumis reste en attente.
+
+- `render.c:309`, `318`, `452` montrent que des flush explicites ont lieu avant `PRODOCK_PRESENT`.  
+  L’HUD ne fait pas de submit implicite ; `PRESENT` ne vide pas le lot utilisateur dans ce chemin.
+
+- Maison : le paquet contrôlé donne `batches=360` pour `frames=360` en mode moving.  
+  Le second flush est alors un no-op (`count=0`). Supprimer le premier pour garder le dernier **déplace** le seul appel utile, il ne fusionne pas deux lots actifs.  
+  Il ne faut donc pas promettre les **4.964 ms** associés à l’ancienne hypothèse.
+
+**Conclusion exploration :** le dernier flush est un **invariant de sécurité**, pas une optimisation marginale. Toute idée “caméra mobile/exploration” doit être traitée séparément, avec ses propres garde-fous de lot vide avant `PRESENT`.
+
+---
+
+## 2. Erreur sur maison — budget corrigé
+
+### 2.1 Ce que les coûts ne permettent pas de dire
+
+- La maison **utilise déjà 1 batch/image** dans la fenêtre contrôlée (`batches=360`, `frames=360`).
+- Le raster HUD n’est pas le coût dominant en régime moving :
+  - baseline maison moving : `rasters=7` sur `360` images, soit environ `0,019 raster/image`.
+  - coût raster complet de la maison en tour complet : `0,942844 s / 156 = 6,04 ms/image`.
+  - `compare_publish` complet : `0,893467 s / 156 = 5,73 ms/image`.
+  - total raster/publish ≈ `11,77 ms/image`, mais seulement quand ce chemin est actif ; il n’explique pas le submit de `38,984 ms/image` du tour complet.
+
+### 2.2 Coûts restants réellement dominants
+
+**Tour complet, Maison mode 5 :**
+
+| composant | total / 156 frames | ms/image |
+|---|---:|---:|
+| simulation | 0,943864 s | 6,05 |
+| adviser | 0,044617 s | 0,29 |
+| preparation | 4,169839 s | 26,73 |
+| submit | 6,081484 s | 38,98 |
+| present | 1,913036 s | 12,26 |
+| **total mesuré** | ~13,153 s | ~84,31 |
+
+**Controlled window, Maison moving, baseline :**
+
+| composant | avg/image |
+|---|---:|
+| frame total | ~62,46 ms |
+| simulation | ~1,68 ms |
+| preparation | ~15,04 ms |
+| submit | ~31,27 ms |
+| present | ~14,30 ms |
+
+Driver dans cette fenêtre baseline :
+
+| sous-tranche driver | avg/image |
+|---|---:|
+| feed | `232289 us / 360 = 0,645 ms` |
+| wait | `9082816 us / 360 = 25,230 ms` |
+| cache | `501446 us / 360 = 1,393 ms` |
+| present driver | `4479019 us / 360 = 12,442 ms` |
+
+**Controlled window, Maison moving, candidat :**
+
+| composant | avg/image |
+|---|---:|
+| frame total | ~34,22 ms |
+| simulation | ~2,91 ms |
+| preparation | ~3,44 ms |
+| submit | ~13,53 ms |
+| present | ~14,14 ms |
+
+Driver dans cette fenêtre candidat :
+
+| sous-tranche driver | avg/image |
+|---|---:|
+| feed | `2457776 us / 360 = 6,827 ms` |
+| wait | `1615422 us / 360 = 4,487 ms` |
+| cache | `119862 us / 360 = 0,333 ms` |
+| present driver | `4482650 us / 360 = 12,452 ms` |
+
+Somme driver candidat = `24,099 ms/image`, contre `31,273 ms` de submit image moyen dans la fenêtre.  
+La frame complète candidat reste `~34,22 ms` en moyenne, soit environ `29,2` intervalles par seconde, mais ce n’est qu’une mesure contrôlée à un tick par image et **pas une promesse de FPS**.
+
+### 2.3 Comparaison maison / shooter
+
+Full tour :
+
+| mode | ms/image moyen approx. | submit | preparation | simulation | present |
+|---|---:|---:|---:|---:|---:|
+| Maison | 84,31 | 38,98 | 26,73 | 6,05 | 12,26 |
+| Shooter | 22,66 | 0,00 | 5,45 | 2,16 | 15,06 |
+
+L’écart Maison/Shooter est dominé par :
+
+1. `submit` : `38,98 ms` ;
+2. `preparation` : `26,73 - 5,45 = 21,28 ms` ;
+3. `simulation` : `6,05 - 2,16 = 3,89 ms`.
+
+Le raster complet de la maison (`6,04 ms`) ne représente donc **qu’une part limitée** de la différence.  
+Le reste doit être attribué séparément à :
+
+- la géométrie/murs répétés ;
+- la reconstruction/copie périodique de maillages dynamiques ;
+- le coût driver `feed/wait/cache/present` ;
+- le coût de construction/présentation de la maison ;
+- les piques d’entrée (`max_frame` jusqu’à `1,071 s...` selon les phases).
+
+### 2.4 Note sur le chiffre “wait 33,16 ms”
+
+Je ne peux pas rattacher le nombre `33,16 ms` à un sous-chronomètre isolé et vérifiable dans le packet.  
+Les sous-totaux isolables sont :
+
+- wait baseline maison moving : **25,230 ms/image** ;
+- submit baseline maison moving : **31,273 ms/image** ;
+- feed+wait+cache baseline : **0,645 + 25,230 + 1,393 = 27,268 ms/image** ;
+- driver complet candidat feed+wait+cache+present : **24,099 ms/image** ;
+- frame complète candidat : **34,221 ms/image**.
+
+Si `33,16 ms` désigne un composite, c’est une hypothèse de coût, pas un gain déjà attribuable à une optimisation. Il ne doit pas être confondu avec le raster (`~11,77 ms` seulement dans les chemins où raster/publish sont actifs).
+
+---
+
+## 3. Géométrie / murs répétés : vrai candidat d’investigation, pas patch aveugle
+
+**Faits côté source :**
+
+- `candidate_maze_render.c` (`geometry`) construit le sol statique une fois (`if(!r->maze_static_count)`), puis dessine `r->maze_static_count` maillages chaque frame.  
+- La partie dynamique est reconstruite à chaque frame : pastilles, pouvoir, courrier, phantoms, guide ring.  
+- `seal()` copie sommets/faces en VRAM et appelle `l3_probe_mesh_publish(start, b->offset-start, seconds)`.
+
+**Pourquoi éviter un patch aveugle :**
+
+- Les compteurs géométrie sont modulo 32 (`cycles_mod32`). Le packet le dit explicitement : cycles modulo, pas total garanti.  
+  comparer `619649624` à `12576` ne constitue pas une preuve exacte one-to-one ; signal oui, équivalence exacte non.
+- Le changement de rendu candidat modifie aussi halo, présentation, mouvement, rasters.  
+- Le mesh publish n’est pas un vrai dommage dans toutes les fenêtres : dans le candidat maison controlled moving, `mesh_publish=0` sur les frames top, malgré une préparation de `3,44 ms`. Donc le coût restant n’est pas seulement l’upload GPU.
+- Le coût CPU de préparation inclut la construction des buffers CPU, le calcul de caméra, les animations, le parallélisme logique, pas seulement les triangles.
+
+**Mesure discriminante à exiger avant tout patch :**
+
+1. Séparer, dans la même fenêtre maison :
+   - `draws` par image ;
+   - `triangles` par image ;
+   - octets mesh publiés par image ;
+   - temps `mesh_publish` ;
+   - cycles géométrie entre deux mesures ;
+   - statique vs dynamique.
+2. Comparer **même état**, **même mouvement**, **même seed /CRC**, avec un seul changement à la fois.
+3. Vérifier au moins trois images tailles :
+   - entrée (`2 frames`) ;
+   - repos (`12 frames`) ;
+   - moving (`360 ticks`).
+4. Réfuter immédiatement si changement de CRC d’état ou d’artefacts.
+
+Là encore : **pas de promesse d’optimisation** avant cette mesure. Les modes 2, 4, 6 ont aussi des coûts natifs non imprimés par les champs legacy UI ; ne pas interpréter des zéros comme absence de travail CPU.
+
+---
+
+## 4. Question Z / COPY — admissibilité théorique
+
+### 4.1 Ce que dit la source jointe
+
+`gpu_v1.c:98-106` :
+
+```c
+int gpu_v1_copy(gpu_v1_context *c,const gpu_target *s,int sx,int sy,int x,int y,unsigned w,unsigned h)
+{
+ if(!region(s->color,s->width,s->height,s->stride,1024,512) || ...)
+    return 0;
+ uint32_t src_end=s->color+(uint32_t)s->stride*s->height;
+ uint32_t dst_end=c->target.color+(uint32_t)c->target.stride*c->target.height;
+ if(s->color<dst_end && c->target.color<src_end &&
+    (s->color!=c->target.color || s->stride!=c->target.stride)) return 0;
+ gpu_command cmd={{29U<<24,s->color,xy(s->width,s->height),s->stride,xy(sx,sy),xy(x,y),xy(w,h),0}};
+ ...
+}
+```
+
+`region()` exige notamment :
+
+```c
+!(base&31) && width && width<=maxw && height && height<=maxh &&
+!(stride&31) && stride>=width*2 && stride<=65535 &&
+(uint64_t)base+(uint64_t)height*stride<=0x40000000ULL
+```
+
+Donc la source est validée comme un **tampon de 16 bits par pixel** (`stride>=width*2`).
+
+### 4.2 Ce qu’une copie Z par alias impliquerait
+
+Pour copier le Z en l’aliasant temporairement en couleur, il faudrait au moins :
+
+1. **Le tampon Z soit aussi 16 bits brut** et respecte `region()` (alignement 32 bits, stride multiple de 32, dimension non nulle, bornes memory `<=0x40000000`, pas de dépassement).  
+   C’est plausible si `zstride` et les strises Z satisfont la même règle dans `gpu_v1_target` (`region(t->depth,...)`), mais cela ne prouve pas le format interne réel.
+
+2. La commande 29 soit un **blit brut de mots 16 bits**, sans conversion couleur, clipping, alpha, gamma, réinterpolation, endian swap, ou traitement spécial “color”.  
+   Le command word ne contient pas de format enum, ce qui est un indice de copie brute, mais pas une preuve.
+
+3. La destination effective soit bien le Z.  
+   Or `gpu_v1_copy()` utilise `c->target.color` pour :
+   - le test d’overlap ;
+   - l’implémentation locale de l’état.
+   Mais la vraie destination matérielle est celle du **TARGET courant**.  
+   Pour viser le depth, il faudrait émettre ou modifier un TARGET dont `color=depth`, ce qui entre en conflit avec `gpu_v1_target()` : celui-ci interdit le chevauchement color/depth :
+   ```c
+   if(... color<depth+... && depth<color+... ) return 0;
+   ```
+   Si color et depth pointent vers le même intervalle, `gpu_v1_target` échoue. On ne peut donc pas passer par l’API normale pour aliaser la cible.
+
+4. L’override local de `c->target.color` sans émission TARGET ne prouverait rien sur la destination réelle ; le mot-commande 29 n’inclut pas d’adresse destination, donc la destination est implicite côté matériel/driver.
+
+5. Le test d’overlap autorise le cas :
+   ```c
+   s->color==c->target.color && s->stride==c->target.stride
+   ```
+   Cela signifie que copier **sur lui-même avec même base et même stride** n’est pas rejeté. C’est un point de vigilance : si la copie matérielle n’a pas une direction/sémantique définie, l’auto-copie peut être ambiguë ou inutile.
+
+6. Les buffers ne doivent pas se chevaucher de façon destructrice. La condition actuelle n’exclut pas toutes les formes de recouvrement partiel si `s->color==c->target.color` ou stride différent. Pour une copie Z, il faudrait documenter la politique complète :
+   - src et dst peuvent être distinctes ;
+   - si même base, même stride, attendre au moins la totalité du buffer sans changement observable ou interdire ;
+   - traiter les plages partielles au niveau commande.
+
+7. Le kernel driver doit rester cohérent :
+   - `prodock-gpu.c:127-184` montre que `submit` valide d’abord toute la batch, fait `prodock_cache_sync`, publication d’écritures CPU, transmission FIFO, attente de complétion, puis `prodock_cache_sync` final.
+   - Toute alias provisoire en couleur doit respecter le même modèle d’invalidation/cache. Une “copie Z” ne peut pas contourner ce chemin sans preuve.
+
+### 4.3 Preuves/oracles manquants
+
+- Spécification matérielle de la commande `29` : taille d’unité, direction, bord de copie, overlap, cache, endian.
+- Preuve que le depth buffer n’est pas soumis à un traitement différent de la couleur (masque de plan, écriture z only, clamp, stencil, clear, comparaison).
+- Preuve qu’une écriture via l’alias color sur la même mémoire n’active pas des effets secondaires de cible color (HUD, raster, palette, page flip).
+- Preuve que les adresses VRAM depth et color restent non réutilisées/réordonnées ;
+- Oracle indépendant : capture de commande, golden buffer, comparaison exacte mot à mot.
+- Preuve que le tampon source n’est pas modifié pendant la copie ;
+- Tests adversariaux sur :
+  - `sx/sy/x/y` négatifs ;
+  - `w/h` à 0, 1, 65535 ;
+  - stride minimal, stride large ;
+  - src et dst qui se touchent, se recouvrent partiellement, ou sont identiques ;
+  - alignement non multiple de 32 ;
+  - base trop élevée ;
+  - buffers dont l’intervalle dépasse `0x40000000`.
+
+### 4.4 Ce que je ne fais pas
+
+Je ne prétends pas que l’aliasing Z est déjà validé.  
+Je n’écris pas de changement de pilote, ni d’override de `gpu_v1_target`, ni de modification d’API.  
+Je considère seulement comme **théoriquement admissible sous réserve** :  
+si commande 29 est un blit brut de mots 16 bits, si le depth est un tableau de mots 16 bits alignés, si src et dst sont des plages matériellement stables, et si la destination est rendue effective par un mécanisme matériel/API documenté. Ce n’est pas établi par le packet.
+
+---
+
+## 5. Expérience locale unique proposée
+
+Une seule expérience locale suffit ici, et elle doit rester **hôte / sans carte** :
+
+**Harnais `gpu_v1` alias Z** :
+
+1. Compiler un petit programme hôte liant `gpu_v1.c` avec un émetteur fictif.
+2. Créer deux buffers 16 bits distincts qui respectent `region()` :
+   - `src_z` ;
+   - `dst_z`.
+3. Remplir `src_z` avec un motif déterministe (`0x1234`, incrément, motifs de bord).
+4. Construire :
+   - `source` dont `color = src_z address`, `width/height/stride` valides ;
+   - garder le contexte cible actuel avec `c->target.color = dst_z address`, stride valide ;
+5. Capturer la commande 29 émise.
+6. Vérifier :
+   - le mot-op `29 << 24` ;
+   - les coordonnées `sx,sy,x,y,w,h` ;
+   - la stride ;
+   - l’absence d’exception.
+7. Comparer bit à bit l’image attendue, modulo le fait que le harnais host n’exécute pas le GPU :  
+   la comparaison matérielle restera à prouver sur oracle/carte, mais cette expérience isole déjà le comportement du code API.
+
+**Point dearrêt attendu :** si la commande doit effectivement écrire dans `dst_z`, le packet actuel ne montre pas comment `gpu_v1_context` sait qu’elle est destinée au depth. Sans documentation de la destination implicite, la valeur de la capture est **limitée à la couche API**, pas à la réalité matérielle.
+
+---
+
+## 6. Conclusion
+
+- Exploration : **final flush obligatoire**, aucun patch le supprimant.  
+- Maison : coût restant à recalculer autour de **géométrie/murs répétés + submit/driver (incluant wait)** ; le raster n’est qu’une part modeste. Le candidat améliore déjà fortement la préparation et le wait, mais cela ne constitue pas un blank check.  
+- Z/COPY : théoriquement plausible comme blit 16 bits brut, **non validé**, plusieurs preuves manquent.  
+- Aucune demande de carte, aucun FPS promis, une seule expérience locale : le harnais API alias Z.  
+- La caméra mobile/exploration reste un sujet séparé.

@@ -1,0 +1,269 @@
+{
+  "passed": true,
+  "hardware_access": false,
+  "scope": "Offline parsing only; generated fixtures explicitly synthetic, no hardware/RTL qualification",
+  "tool_sha256": "2f1327750d39fe3d45424a634aa31e6b410c7cea078ebfd9a3812a0f148b9033",
+  "test_sha256": "8ed439cea6461e64ce940a4e8b479778814a13171cfd6bdc51a5e9cbd4093369",
+  "mock_source_sha256": "e43df9644dbe3e5df1f329f3bde61e13b415d75423d0e520ad8f011a36d54c7d",
+  "index_proof": {
+    "source": "tang/impl/console_neo_n56r21r2_resetqual_coupled/source/tang/rtl/usb/usb_idle_trace.v",
+    "source_sha256": "97854f943d523304877e4fafc52c53e71ef03cb3e54940f13cd1a7a0bdbe8d9f",
+    "r19_source_sha256": "97854f943d523304877e4fafc52c53e71ef03cb3e54940f13cd1a7a0bdbe8d9f",
+    "concat_line": 155,
+    "bank_indices": {
+      "3": "ticks",
+      "4": "in2",
+      "5": "in3",
+      "6": "nak2",
+      "7": "nak3",
+      "8": "data2",
+      "9": "data3",
+      "10": "miss2",
+      "11": "miss3",
+      "12": "bad_response",
+      "13": "rx_error_cycles",
+      "14": "bad_token",
+      "15": "bus_reset_rising_edges",
+      "16": "sof_asserted_cycles",
+      "17": "tx_stall_cycles",
+      "18": "last_token",
+      "19": "last_response"
+    },
+    "status_word31": {
+      "armed": 10,
+      "pending": 9,
+      "target_bits": "6:0"
+    },
+    "counter_update_lines": [
+      187,
+      188,
+      189,
+      190
+    ],
+    "video_source": "tang/impl/console_neo_n56r21r2_resetqual_coupled/source/tang/rtl/video/gpu_scanout.v",
+    "video_source_sha256": "a6bb0c8f96bffb24855924b85935c93c5a6b78607778869f3676699c0b7bec0f",
+    "video_indices": {
+      "1": "shadow_base",
+      "2": "shadow_mode",
+      "6": "frames",
+      "7": "underflows",
+      "24": "display_checksum",
+      "28": "geometry"
+    }
+  },
+  "cases": [
+    {
+      "name": "r19_positive_with_index_sentinels",
+      "passed": true
+    },
+    {
+      "name": "candidate_positive_with_index_sentinels",
+      "passed": true
+    },
+    {
+      "name": "malformed_number",
+      "passed": true,
+      "parse_errors": [
+        {
+          "line": 38,
+          "text": "UTNA_BANK DISARM 6 2 0x55544e41 1 6 12000000 0 0 0 0 0 0 0 0 120 NaN 140 150 160 170 180 190 0 0 0 0 0 0 0 0 0 0 0 1024",
+          "error": "Bad numeric token 'NaN'"
+        }
+      ],
+      "check_failures": [
+        "DISARM: missing command or complete repeated bank",
+        "Protocol capture incomplete",
+        "Unexpected bank order/phase"
+      ]
+    },
+    {
+      "name": "wide_word",
+      "passed": true,
+      "parse_errors": [
+        {
+          "line": 38,
+          "text": "UTNA_BANK DISARM 6 2 0x55544e41 1 6 12000000 0 0 0 0 0 0 0 0 120 4294967296 140 150 160 170 180 190 0 0 0 0 0 0 0 0 0 0 0 1024",
+          "error": "Wrong word count/width"
+        }
+      ],
+      "check_failures": [
+        "DISARM: missing command or complete repeated bank",
+        "Protocol capture incomplete",
+        "Unexpected bank order/phase"
+      ]
+    },
+    {
+      "name": "wrong_header",
+      "passed": true,
+      "parse_errors": [],
+      "check_failures": [
+        "DISARM: bad captured header",
+        "DISARM: unstable bank"
+      ]
+    },
+    {
+      "name": "wrong_ack_sequence",
+      "passed": true,
+      "parse_errors": [],
+      "check_failures": [
+        "DISARM: bad/missing bank_after status"
+      ]
+    },
+    {
+      "name": "unstable_bank",
+      "passed": true,
+      "parse_errors": [],
+      "check_failures": [
+        "DISARM: unstable bank"
+      ]
+    },
+    {
+      "name": "lost_final_tick",
+      "passed": true,
+      "parse_errors": [],
+      "check_failures": [
+        "STOPPED: unstable bank",
+        "Final disarm tick not +1",
+        "Disarmed ticks changed",
+        "Missing or inconsistent protocol completion values"
+      ]
+    },
+    {
+      "name": "command_time_reversal",
+      "passed": true,
+      "parse_errors": [],
+      "check_failures": [
+        "Nonmonotonic host command timestamps"
+      ]
+    },
+    {
+      "name": "missing_done",
+      "passed": true,
+      "parse_errors": [],
+      "check_failures": [
+        "Missing/duplicate overall completion marker"
+      ]
+    },
+    {
+      "name": "duplicate_bank",
+      "passed": true,
+      "parse_errors": [
+        {
+          "line": 63,
+          "text": "UTNA_BANK DISARM 6 2 0x55544e41 1 6 12000000 0 0 0 0 0 0 0 0 120 130 140 150 160 170 180 190 0 0 0 0 0 0 0 0 0 0 0 1024",
+          "error": "Duplicate bank DISARM"
+        }
+      ],
+      "check_failures": []
+    },
+    {
+      "name": "partial_capture",
+      "passed": true,
+      "parse_errors": [],
+      "check_failures": [
+        "STOPPED: missing command or complete repeated bank",
+        "STABLE: missing command or complete repeated bank",
+        "Protocol capture incomplete",
+        "Missing/duplicate overall completion marker",
+        "Unexpected command order/phase",
+        "Unexpected bank order/phase",
+        "POST_USB: incomplete video/control sample"
+      ]
+    },
+    {
+      "name": "reported_fault",
+      "passed": true,
+      "parse_errors": [],
+      "check_failures": [
+        "Controller reported protocol fault"
+      ]
+    },
+    {
+      "name": "exact_tcl_mock_busy",
+      "passed": true,
+      "check_failures": [
+        "ARM: missing command or complete repeated bank",
+        "DISARM: missing command or complete repeated bank",
+        "STOPPED: missing command or complete repeated bank",
+        "STABLE: missing command or complete repeated bank",
+        "Protocol capture incomplete",
+        "Missing/duplicate overall completion marker",
+        "Controller reported protocol fault",
+        "Unexpected command order/phase",
+        "Unexpected bank order/phase",
+        "POST_USB: incomplete video/control sample"
+      ]
+    },
+    {
+      "name": "exact_tcl_mock_rejected",
+      "passed": true,
+      "check_failures": [
+        "ARM: missing command or complete repeated bank",
+        "DISARM: missing command or complete repeated bank",
+        "STOPPED: missing command or complete repeated bank",
+        "STABLE: missing command or complete repeated bank",
+        "Protocol capture incomplete",
+        "Missing/duplicate overall completion marker",
+        "Controller reported protocol fault",
+        "Unexpected command order/phase",
+        "Unexpected bank order/phase",
+        "POST_USB: incomplete video/control sample"
+      ]
+    },
+    {
+      "name": "exact_tcl_mock_sequence",
+      "passed": true,
+      "check_failures": [
+        "ARM: missing command or complete repeated bank",
+        "DISARM: missing command or complete repeated bank",
+        "STOPPED: missing command or complete repeated bank",
+        "STABLE: missing command or complete repeated bank",
+        "Protocol capture incomplete",
+        "Missing/duplicate overall completion marker",
+        "Controller reported protocol fault",
+        "Unexpected command order/phase",
+        "Unexpected bank order/phase",
+        "POST_USB: incomplete video/control sample"
+      ]
+    },
+    {
+      "name": "exact_tcl_mock_no_ticks",
+      "passed": true,
+      "check_failures": [
+        "STOPPED: missing command or complete repeated bank",
+        "STABLE: missing command or complete repeated bank",
+        "Protocol capture incomplete",
+        "Missing/duplicate overall completion marker",
+        "Unexpected command order/phase",
+        "Unexpected bank order/phase",
+        "POST_USB: incomplete video/control sample"
+      ]
+    },
+    {
+      "name": "exact_tcl_mock_keeps_ticking",
+      "passed": true,
+      "check_failures": [
+        "Disarmed ticks changed",
+        "Missing or inconsistent protocol completion values",
+        "Missing/duplicate overall completion marker",
+        "POST_USB: incomplete video/control sample"
+      ]
+    },
+    {
+      "name": "exact_tcl_mock_armed_stuck",
+      "passed": true,
+      "check_failures": [
+        "STABLE: missing command or complete repeated bank",
+        "Protocol capture incomplete",
+        "Missing/duplicate overall completion marker",
+        "Unexpected command order/phase",
+        "Unexpected bank order/phase",
+        "POST_USB: incomplete video/control sample"
+      ]
+    },
+    {
+      "name": "cli_complete_bound_and_wrong_digest_refused",
+      "passed": true
+    }
+  ]
+}

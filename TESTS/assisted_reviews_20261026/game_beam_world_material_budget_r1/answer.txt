@@ -1,0 +1,121 @@
+# Revue contradictoire — pipeline textures uniquement
+
+## Faits du paquet
+
+- Le GPU réel expose des textures RGB565/ARGB4444 jusqu’à 512², des LOD explicites 0..9, nearest, repeat/clamp/reject, mais pas de sélection automatique par dérivées, pas de bilinéaire/trilinéaire et pas de compression (`games/luma3d/tests/G22R0_FEATURE_AUDIT.md:27`).
+- Le cache texture fait 32 KiB, 1024 lignes de 32 octets, sans snooping CPU (`.../G22R0_FEATURE_AUDIT.md:26`).
+- Chaque `COPY` RGB565 invalide le cache texture (`.../G22R0_FEATURE_AUDIT.md:30`).
+- Le scanout indexé n’a pas d’alpha fractionnaire : ombres et fondus réels passent par des triangles texturés RGB565/ARGB4444 (`PLAN_REFONTE_20261027.md:73-76`).
+- R7 change uniquement `games/luma3d/world/data.c` : 38 tableaux RGB565, 4 194 304 octets, commandes et descripteurs identiques, mais pas de mesure matérielle FPS (`world_materials_r7/README.md:30-31`, `:51-58`).
+- Le filtre R7 est appliqué à la préparation des ressources, pas au cache, au sampling ni aux mips d’exécution (`world_materials_r7/README.md:19-20`).
+- Avant intégration, le plan exige vue oblique et rendu réel ; une vue oblique diagnostique ne remplace pas une capture dans le vrai renderer (`candidates/art_refresh_20261027/PLAN.md:17`).
+- Le plan interdit d’augmenter résolution, transparence, géométrie et taille des textures sans mesurer chaque cause (`PLAN_REFONTE_20261027.md:86-87`), et demande des objectifs FPS, non acquis (`...:149-152`).
+
+## Hypothèses d’analyse
+
+- Hypothèse H1 : le gain visuel de R7 vient surtout d’un bruit réduit et d’une harmonisation préparatoire, pas d’une meilleure résolution texture.
+- Hypothèse H2 : passer 128² → 256² sans selecteur de LOD actif risque d’augmenter les misses de cache et le temps d’image sans gain visible au loin.
+- Hypothèse H3 : le scintillement principal viendra du nearest sur du détail généré, pas seulement des triangles.
+- Hypothèse non testée par le paquet : rendu matériel, fruit cache réel, distance de sélection et stabilité temporelle.
+
+## Éléments manquants pour conclure
+
+- Captures FPGA de vraies animations/poses, avec textures nouvelles, et temps par activité.
+- Compteurs raster/cache : l’audit dit qu’ils ne sont pas exposés par le noyau et nécessiteraient un ioctl (`.../G22R0_FEATURE_AUDIT.md:36`).
+- Schéma exact d’adresse texture (stride, interleave) dans le RTL pour modéliser fidèlement le cache.
+- UV exacts, LOD actuellement utilisés, matériels par activité, budget de mips stockés.
+- Calage visuel des seuils acceptables à 400×240/640×360, échelle ×2.
+
+## Mini-algorithme Python proposé (métrique coû
+</rfl:parameter>mat/Q, non calibrée)
+
+But : détecter avant import un fichier qui sera beau en planche mais mauvais avec nearest repeat.
+
+```python
+def texture_checks(p, w, h):
+    # p: liste de (r,g,b) déjà convertis RGB565, 0..255 normalisés; w,h dans {128,256}
+    assert w == h and w in (128,256)
+    seam = max(
+        sum(abs(p[y*w+c] - p[y*w+w-1+c]) for c in (0,1,2))
+        for y in range(h)
+    ) + max(
+        sum(abs(p[x+c] - p[(h-1)*w+x+c]) for c in (0,1,2))
+        for x in range(w)
+    )
+    hf = sum(abs(p[i][c]-p[i+1][c]) + abs(p[i][c]-p[i+w][c])
+           for i in range(w*h-w) for c in (0,1,2))
+    # mip0 viré par décimation nearest pour estimer l'alias résiduel
+    mip1 = sum(abs(p[2*(y*w+x)][c]-p[2*((y+1)*w+(x+1))][c])
+              for y in range(h//2) for x in range(w//2) for c in (0,1,2))
+    ratio = hf / max(1, mip1)
+    chain_bytes = 2*w*h * (1 + 1/4 + 1/16 + 1/64 + 1/256 + 1/1024)
+    return {"seam_abs": seam, "hf": hf, "alias_ratio": round(ratio,2),
+            "base_kb": 2*w*h//1024, "chain_kb": round(chain_bytes/1024,1),
+            "pass": seam <= 6 and ratio < 8}
+```
+
+Usage : comparer chaque candidat au fichier retenu et à une référence. Les seuils sont à calibrer sur captures réelles ; le script ne prouve pas la qualité, il élimine les pires candidats.
+
+## Assertions mesurables à vérifier en conversion/import
+
+Formats et provenance :
+- Dimensions exactes et puissances de deux ≤512, cibles plan 128/256 uniquement (`.../G22R0_FEATURE_AUDIT.md:27` ; `candidates/art_refresh.../PLAN.md:15-17`).
+- RGB565 pur pour matières opaques : mot & 0x8000 == 0 ; ARGB4444 uniquement pour assets explicitement tagués alpha.
+- RGB565 erreur maximale ≤1 code par canal sur l’original sRGB, RMS ≤2,5 codes ; pas de banding sur gradients plats.
+- Manifest immutable : source SHA, workflow, modèle, seed, prompt, identifiant serveur, original, conversion, empreintes (`PLAN_REFONTE...:106-108`).
+
+Géométrie de répétition :
+- Bord gauche == bord droit et bord haut == bord bas en RGB565, ou Δmax ≤2 codes par canal.
+- En tuile 3×3 virtuelle, les raccords internes au bord ont le même Δmax ≤2 ; aucun décalage de phase au-delà d’un texel.
+- Énergie haute fréquence de la tuile répétée ≥90 % de celle de l’original réduit : un downsampling trop lissé est rejeté.
+
+Mip et LOD :
+- Si mips stockés : niveau n a dimensions exactement base/2ⁿ ; chaque niveau est RGB565.
+- Mip n a une énergie haute fréquence ≤35 % de mip n-1 pour les niveaux 1..4.
+- Mip n reste dans ±12 codes par canal de l’average box downsample.
+- Pas de mip silencieusement généré comme flou d’un niveau instable ; argmax des différences entre deux types de downsample ≤6 %.
+
+Budget et intégrité :
+- Octets = 2 × w × h pour RGB565, ou × chunks avec mips meshes si explicitement présents ; unchanged asset count pour un lot data-only.
+- La compilation/isolation repose sur manifest figé : `build.py` impose que seul `games/luma3d/world/data.c` change (`world_materials_r7/build.py:9-17`).
+- Validation renderer : commandes et descripteurs identiques avant/après, seuls tableaux texture changent (`world_materials_r7/README.md:51-58`).
+
+## Causes probables de scintillement
+
+1. Aliasing temporel nearest : le détail généré tombe sur la grille écran à chaque image ; sans bilinéaire ni sélection par dérivées, un contraste fin “danse” (`.../G22R0_FEATURE_AUDIT.md:27`).
+2. Bascule de LOD sans hystérésis : un seuil de distance net bascule entre textures discrètes et crée un pop visible.
+3. Raccord de tuile imparfait : un écart d’un texel devient une ligne marchante en perspective ; le nearest rend l’erreur de phase exacte, pas amortie.
+4. LOD hétérogène entre draws adjacents du même matériau : couture visible à la frontière.
+5. Variation de temps d’image due aux misses cache et à `COPY` invalidant le cache ; le scintillement peut être du frame pacing, pas seulement des pixels (`.../G22R0_FEATURE_AUDIT.md:30`).
+6. Ombres/halos tentés par couleur-clé indexée : l’absence d’alpha fractionnaire fait apparaître des masques binaires qui cliquent (`PLAN_REFONTE...:73-76`).
+
+## Pourquoi une texture plus grande ralentit malgré des triangles identiques
+
+- Les triangles peuvent être identiques, mais un base 256² contient 4 fois plus de texels qu’un 128². Avec cache 32 KiB et cache lines 32 octets, une texture pleine dépasse largement le cache si elle est résidente (`.../G22R0_FEATURE_AUDIT.md:26`).
+- Sur des surfaces obliques répétées, l’accès à des texels éloignés touche plus de lignes de cache distinctes ; les misses vont vers la DDR via le raster V1.
+- Si le LOD reste à 0 par erreur, le coût reste proche de la taille base, alors qu’un 128² aurait déjà suffi à distance.
+- Chaque `COPY` invalide tout le cache texture ; un pipeline qui copie des plans ou sky force une reprise depuis la DDR (`.../G22R0_FEATURE_AUDIT.md:30`).
+- L’ordre de draw et le Z-test strict modifient le nombre de fetch ; un front-to-back peut éviter texture/shading, mais son effet doit être mesuré, pas supposé (`.../G22R0_FEATURE_AUDIT.md:71`).
+- Une 256² à proximité immédiate peut être utile ; le coût n’est pas dans le nombre de triangles mais dans les texels touchés, misses, latence mémoire et invalidations.
+
+## Les trois échecs les plus probables du plan et correctifs minimaux
+
+1. **Échec : valider la beauté sur source, pas sur nearest repeat.**
+   - Pourquoi probable : le plan demande vues orthographiques sans perspective, mais une vue oblique diagnostique ne remplace pas la vraie capture (`candidates/art_refresh.../PLAN.md:17`).
+   - Correctif minimal : refuser toute import si seam >2 codes et si `alias_ratio >= 8` ; imposer test dans un mini-scène oblique réelle avec mouvement caméra de 30 s, sans ajouter de géométrie.
+2. **Échec : augmenter la résolution sans selecteur de LOD actif.**
+   - Pourquoi probable : le matériel a des mips explicites mais pas de sélection automatique (`.../G22R0_FEATURE_AUDIT.md:27`) ; le plan propose 128/256 mais pas de règle de distance.
+   - Correctif minimal : politique à deux niveaux : 128² par défaut ; 256² seulement pour surfaces dominantes proches ; sélection manuelle par draw avec hystérésis, par exemple entrée à 0,75 de la distance nominale et sortie à 1,25 ; mesurer la fréquence de bascule.
+3. **Échec : conclure “coût inchangé” sans coût temporel réel.**
+   - Pourquoi probable : R7 montre l’identité des commandes et une taille directe de 4 194 304 octets, mais confirme explicitement l’absence de test matériel et de PASS global (`world_materials_r7/README.md:30-31, 51-58, 69-71`).
+   - Correctif minimal :primir le budget par activité : temps image moyen, p95, p99, SUBMIT, PRESENT, commandes, sprites, couches ; inclure les invalidations cache et, si possible, exposer les registres raster/cache par ioctl (`.../G22R0_FEATURE_AUDIT.md:36`). Ne pas utiliser “pixels corrects” comme substitut de fluidité (`PLAN_REFONTE...:151-152`).
+
+## Test de discrimination minimal
+
+Comparer R6 figé et une variante data-only sur exactement les mêmes poses/tragets :
+- Poses : arrivée, sentier, atelier, Amber, aux deux profils, comme R7 (`world_materials_r7/README.md:36-38`).
+- Mesures par activité : moyenne, p95, p99, max, pas seulement moyenne (`PLAN_REFONTE...:145-152`).
+- Ajouter un compteur logiciel de changements de LOD par image ; une oscillation >5 % des draws disqualifie le 256².
+- Tester 128² et 256² sur les mêmes triangles dans des scènes à mouvement lent ; si p95 se dégrade de plus de 10 % sans différence visuelle à distance native, rester à 128².
+
+Limite de cette revue : aucun fichier image n’a été fourni ; aucune exécution locale ni mesure FPGA n’est revendiquée.

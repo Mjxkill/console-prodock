@@ -1,0 +1,142 @@
+// Shared native DDR3 UI: CPU adapter, scanout reads and blitter reads/writes.
+// Addresses are 32-bit words, aligned to eight words (32 bytes).
+// CPU upstream issues command+data pulses only when ready; capture them in a
+// one-entry buffer to break the ready chain through the legacy CPU adapter.
+// Scanout has priority for bounded line fetches; CPU/blitter alternate otherwise.
+// Their grant is registered, so changing clients may insert an idle cycle.
+`default_nettype none
+module ddr_gpu_arb (
+    input wire clk, rst_n,
+    input wire c_en,
+    input wire [2:0] c_cmd,
+    input wire [28:0] c_addr,
+    output wire c_ready,
+    input wire c_wr_en, c_wr_end,
+    input wire [255:0] c_wr_data,
+    input wire [31:0] c_wr_mask,
+    output wire c_wr_ready,
+    output wire [255:0] c_rd_data,
+    output wire c_rd_valid, c_rd_end,
+    input wire g_valid,
+    input wire [28:0] g_addr,
+    output wire g_ready,
+    output wire [255:0] g_data,
+    output wire g_data_valid,
+    input wire b_valid, b_write,
+    input wire [28:0] b_addr,
+    input wire [255:0] b_wr_data,
+    input wire [31:0] b_wr_mask,
+    output wire b_ready,
+    output wire [255:0] b_rd_data,
+    output wire b_rd_valid,
+    output wire m_en,
+    output wire [2:0] m_cmd,
+    output wire [28:0] m_addr,
+    input wire m_ready,
+    output wire m_wr_en, m_wr_end,
+    output wire [255:0] m_wr_data,
+    output wire [31:0] m_wr_mask,
+    input wire m_wr_ready,
+    input wire [255:0] m_rd_data,
+    input wire m_rd_valid, m_rd_end
+);
+    reg [1:0] tags [0:15]; // 0 CPU, 1 scanout, 2 blitter
+    reg [4:0] wp = 0, rp = 0;
+    reg full = 0;
+    wire empty = wp == rp;
+    wire issue = rst_n && !full;
+    reg cpu_pending = 0;
+    reg [2:0] cpu_cmd;
+    reg [28:0] cpu_addr;
+    reg [255:0] cpu_data;
+    reg [31:0] cpu_mask;
+    reg prefer_blitter = 1;
+    reg take_blitter = 0;
+    // Two scanout request slots isolate its distant owner/request decode
+    // from DDR arbitration. READY acknowledges enqueueing; responses still
+    // follow DDR issue order. The FIFO sustains one request per cycle when
+    // DDR accepts continuously, and never depends on DDR READY at its input.
+    reg [28:0] scan_addresses [0:1];
+    reg scan_wp=0,scan_rp=0;
+    reg [1:0] scan_count=0;
+    wire scan_valid=scan_count!=0;
+    wire [28:0] scan_addr=scan_addresses[scan_rp];
+    assign g_ready = rst_n && scan_count!=2;
+    wire scan_enqueue=g_valid && g_ready;
+    wire scan_issue=scan_valid && issue && m_ready;
+    always @(posedge clk)begin
+        if(!rst_n)begin scan_wp<=0;scan_rp<=0;scan_count<=0;end
+        else begin
+            if(scan_enqueue)begin scan_addresses[scan_wp]<=g_addr;scan_wp<=!scan_wp;end
+            if(scan_issue)scan_rp<=!scan_rp;
+            case({scan_enqueue,scan_issue})
+                2'b10:scan_count<=scan_count+1'b1;
+                2'b01:scan_count<=scan_count-1'b1;
+                default:;
+            endcase
+        end
+    end
+    // b_grant est gardé tel quel par la synthèse (syn_keep) : sans cela, la LUT de b_ready était partagée
+    // avec m_wr_en, qui dépend de b_valid, et l'analyse de timing comptait une boucle combinatoire
+    // b_valid -> arbitre -> b_ready -> blitter/V1 qui n'existe pas logiquement (r600, -0,47 ns).
+    wire b_grant /* synthesis syn_keep=1 */ = issue && !scan_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
+    assign b_ready = b_grant;
+    assign c_ready = rst_n && !cpu_pending;
+    assign c_wr_ready = c_ready;
+    wire cpu_fire = issue && !scan_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);
+    assign m_en = scan_issue || (b_valid && b_ready) || cpu_fire;
+    assign m_cmd = scan_valid ? 3'b001 : take_blitter ? {2'b0,!b_write} : cpu_cmd;
+    assign m_addr = scan_valid ? scan_addr : take_blitter ? b_addr : cpu_addr;
+    assign m_wr_en = (b_valid && b_ready && b_write) || (cpu_fire && cpu_cmd == 0);
+    assign m_wr_end = m_wr_en;
+    assign m_wr_data = take_blitter ? b_wr_data : cpu_data;
+    assign m_wr_mask = take_blitter ? b_wr_mask : cpu_mask;
+    wire push = scan_issue || (b_valid && b_ready && !b_write) || (cpu_fire && cpu_cmd == 1);
+    wire pop = m_rd_valid && !empty;
+    wire [4:0] next_wp = wp + {4'b0, push};
+    wire [4:0] next_rp = rp + {4'b0, pop};
+    wire [4:0] incremented_wp = wp + 5'd1;
+    wire one_slot_left = incremented_wp == {~rp[4],rp[3:0]};
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            wp <= 0; rp <= 0; full <= 0; prefer_blitter <= 1;
+            take_blitter<=0;
+            cpu_pending <= 0; cpu_cmd <= 0; cpu_addr <= 0; cpu_data <= 0; cpu_mask <= 32'hffffffff;
+        end
+        else begin
+            // Cut the valid -> arbitration -> ready round trip. A stale grant
+            // can only insert a bubble: native commands still require valid.
+            // Acknowledgement remains the actual DDR command/data acceptance.
+            if(b_valid && b_ready) take_blitter<=0;
+            else take_blitter<=b_valid && (prefer_blitter || !cpu_pending);
+            // While empty, sample the payload independently of the late
+            // upstream request. The acceptance cycle captures the same words;
+            // once pending, every word remains held until DDR accepts it.
+            // This leaves c_en driving only the valid bit, not 320 payload CEs.
+            if (!cpu_pending) begin
+                cpu_cmd <= c_cmd; cpu_addr <= c_addr;
+                cpu_data <= c_wr_data; cpu_mask <= c_wr_mask;
+            end
+            if (c_en && c_ready) cpu_pending <= 1;
+            else if (cpu_fire) cpu_pending <= 0;
+            if (!scan_valid) begin
+                if (b_valid && b_ready) prefer_blitter <= 0;
+                else if (cpu_fire) prefer_blitter <= 1;
+            end
+            if (push) tags[wp[3:0]] <= scan_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;
+            wp <= next_wp; rp <= next_rp;
+            // Compare stable pointers before the late command acceptance.
+            // Simultaneous push/pop leaves occupancy unchanged.
+            if(push && !pop)full<=one_slot_left;
+            else if(pop && !push)full<=0;
+        end
+    end
+    assign c_rd_data = m_rd_data;
+    assign g_data = m_rd_data;
+    assign c_rd_valid = pop && tags[rp[3:0]] == 0;
+    assign c_rd_end = c_rd_valid && m_rd_end;
+    assign g_data_valid = pop && tags[rp[3:0]] == 1;
+    assign b_rd_data = m_rd_data;
+    assign b_rd_valid = pop && tags[rp[3:0]] == 2;
+endmodule
+`default_nettype wire

@@ -1,0 +1,60 @@
+LUMA3D R4 billboards — paquet préparé, aucun accès matériel dans ce lot
+
+But : mesurer le gain FPS du remplacement des arbres éloignés, sans modifier
+le terrain de R3, le renderer actif, le FPGA, le noyau, la flash ou la SD.
+R3 v2 reste la version visible, PID 302, programme luma3d-b3v2.
+
+Identités
+R3 : 131ff6d7ca404e0188bb7e0ff68c25bd2db29b52ae27c561e019f6c53dfcc270.
+R4 : d346506621fa1f5177d746c43919610e866420d22cb3fe51c9b066ea6ff98a51.
+R4 : 2 108 888 octets, CRC f95e4b0c.
+Manifeste transport : 2731f45296ca0e946d6053cf5c46bcd249f8dc5c345b2d1e8dc8742d0f4c67e7.
+Le delta R3 vers R4 occupe 83 062 octets compressés. La reconstruction locale
+par le helper C réel reproduit exactement l'ELF R4 et conserve l'ELF R3.
+
+Preuves locales
+- Constructeur explicite --renderer-tree et --world-header ; aucune copie
+  vers le renderer ou le monde actifs. Source figée sous
+  build/frozen_20261024_r4_billboards/source/.
+- ELF identique à celui du candidat artistique billboard_r3.
+- Huit captures oracle, quatre poses et deux profils, identiques aux images
+  du candidat livré ; hauteur physique/collisions/gameplay de R3 conservés.
+- Contrat ASAN/UBSAN : 600 états 800x480 et 400 états 1280x720 ; cache d'état,
+  erreurs sans PRESENT, CLI benchmark, compteurs et chauffe exclus.
+- Ressources : six atlas supplémentaires, quad partagé de quatre sommets,
+  quatre variantes de faces UV ; vérification des adresses et pixels GPU,
+  trois espèces x huit azimuts x deux rotations d'instance, Z/key/alpha.
+- Contrôleur : identité exacte R3/PID302, refus des zombies et noms étrangers,
+  PID incertain sans second lancement, parcours complet gain/non-gain et
+  injections installation/Ctrl-C/pixels entraînant le repli exclusivement R3.
+- Relecture indépendante de music : aucun blocage concret, 26 fichiers
+  taille/SHA/CRC vérifiés, quatre tests relancés sans carte.
+
+Essai proposé, après message d'autorisation du root
+1. Verrou Pro Dock exclusif ; identité CDC 11252024 et noyau candidat G3D1.
+   Confirmer en lecture le programme vivant luma3d-b3v2 et son PID 302.
+2. Garder R3 animée pendant l'installation RAM. Receiver relu exactement,
+   helper déjà qualifié retransféré dans un nouveau fichier puis vérifié CRC,
+   delta R4 appliqué seulement après validation du R3 de base. Vérifier les
+   quatre références R3 déjà présentes ; transférer et vérifier celles de R4.
+3. Annoncer la bascule, puis le premier lancement R4, avec dix secondes de
+   marge de transmission de l'annonce ; aucune attente d'approbation implicite.
+4. Pour chaque pose 0/700/1600/2200 : R3 puis R4, trois présentations de
+   chauffe exclues et trente images mesurées. Contrôleur UART en lecture seule
+   jusqu'à EXIT ; comparer ensuite les 96 000 pixels de la page 0 à la propre
+   référence de chaque variante et vérifier les compteurs GPU/DISPLAY.
+5. R4 : 75 secondes de parcours automatique sans commande UART, processus
+   encore vivant à la fin, quatre lettres observées, compteurs d'erreurs nuls.
+6. R4 reste animée seulement si la moyenne géométrique des gains est >= 10 %
+   et si aucune pose n'est plus lente de plus de 3 %. Sinon laisser R3 animée.
+   Ce critère est une règle de décision, pas une preuve statistique p95/p99.
+7. En échec après l'arrêt initial : arrêter le PID exact de l'essai avant
+   de relancer R3, vérifier sa progression, publier son PID. Jamais NEBULA.
+
+Limites
+Les FPS R4 sont encore inconnus. L'éclairage des billboards et les changements
+d'angle/LOD restent approximatifs comme documenté par art. Le terrain R3
+peut différer de la collision hors du trajet contrôlé ; le terrain corrigé
+R5 n'est pas combiné ici. Ce lot ne qualifie ni la Neo ni une campagne longue.
+Le PID 302 est une garde volontaire : après un repli donnant un nouveau PID,
+préparer un nouvel essai identifié au lieu de réutiliser ce paquet tel quel.

@@ -16,10 +16,16 @@ module gpu_copy565(
 );
     localparam IDLE=0,CHECK=1,CLIP=2,ROW=3,CHUNK=4,ADDRESS=5,READ0=6,WAIT0=7,
       READ1=8,WAIT1=9,ALIGN=10,WRITE=11,SENT=12,NEXT=13,FINISH=14,
-      BOUNDS=15,SOURCE_CLIP=16;
+      BOUNDS=15,SOURCE_CLIP=16,VALIDATE=17,CAPTURE_WAIT=18;
     reg [4:0] state;
-    wire [31:0] w1=command[63:32],w2=command[95:64],w3=command[127:96],
-        w4=command[159:128],w5=command[191:160],w6=command[223:192],w7=command[255:224];
+    // Keep COPY's descriptor near its arithmetic rather than driving its DSPs
+    // from the shared shader packet. Preserve this fabric boundary: absorbing
+    // independently enabled command registers into a DSP can reorder enables.
+    // Only IDLE/start writes it; reset clears control, so an old payload cannot
+    // issue a transaction. CAPTURE_WAIT lets the registered range settle.
+    reg [255:0] packet /* synthesis syn_preserve=1 */;
+    wire [31:0] w1=packet[63:32],w2=packet[95:64],w3=packet[127:96],
+        w4=packet[159:128],w5=packet[191:160],w6=packet[223:192],w7=packet[255:224];
     wire signed [31:0] sx={{16{w4[31]}},w4[31:16]},sy={{16{w4[15]}},w4[15:0]},
         dx={{16{w5[31]}},w5[31:16]},dy={{16{w5[15]}},w5[15:0]};
     reg [32:0] src_end,dst_end;
@@ -28,6 +34,7 @@ module gpu_copy565(
         dst_end<={3'b0,dst_base}+{17'd0,dst_stride}*{17'd0,dst_height};
     end
     wire overlap=w1<dst_end && dst_base<src_end;
+    reg [2:0] descriptor_bad;
     reg reverse;
     reg signed [31:0] l,t,r,b;
     reg signed [31:0] source_l,source_t,source_r,source_b;
@@ -59,14 +66,15 @@ module gpu_copy565(
     always @(posedge clk)begin
         if(rst)begin
             state<=IDLE;done<=0;bad<=0;valid<=0;write<=0;addr<=0;wr_mask<=-1;
-            reverse<=0;l<=0;t<=0;r<=0;b<=0;row_y<=0;cursor<=0;px<=0;count<=0;
+            reverse<=0;l<=0;t<=0;r<=0;b<=0;row_y<=0;cursor<=0;px<=0;count<=0;descriptor_bad<=0;
             source_l<=0;source_t<=0;source_r<=0;source_b<=0;
             source_row<=0;destination_row<=0;source_address<=0;destination_address<=0;
             first<=0;second<=0;aligned<=0;
         end else begin
             done<=0;
             case(state)
-            IDLE:if(start)begin bad<=0;state<=CHECK;end
+            IDLE:if(start)begin packet<=command;bad<=0;state<=CAPTURE_WAIT;end
+            CAPTURE_WAIT:state<=CHECK;
             CHECK:begin
                 // Validation only chooses the next state. Invalid descriptors
                 // never reach ROW, so private bounds can be captured regardless
@@ -74,10 +82,15 @@ module gpu_copy565(
                 l<=dx;t<=dy;r<=dx+$signed({16'd0,w6[31:16]});b<=dy+$signed({16'd0,w6[15:0]});
                 source_l<=dx-sx;source_t<=dy-sy;
                 reverse<=overlap && (dy>sy || (dy==sy && dx>sx));
-                if(w1[31:30]!=0 || w1[4:0]!=0 || w2[31:16]==0 || w2[31:16]>1024 ||
-                   w2[15:0]==0 || w2[15:0]>512 || w3[31:16]!=0 || w3[4:0]!=0 ||
-                   w3[15:0]<({1'b0,w2[31:16]}<<1) || src_end>33'h040000000 || w7!=0 ||
-                   (overlap && (w1!={2'b0,dst_base} || w3[15:0]!=dst_stride)))begin bad<=1;state<=FINISH;end
+                descriptor_bad[0]<=w1[31:30]!=0 || w1[4:0]!=0 || w2[31:16]==0 || w2[31:16]>1024;
+                descriptor_bad[1]<=w2[15:0]==0 || w2[15:0]>512 || w3[31:16]!=0 || w3[4:0]!=0 ||
+                   w3[15:0]<({1'b0,w2[31:16]}<<1);
+                descriptor_bad[2]<=src_end>33'h040000000 || w7!=0 ||
+                   (overlap && (w1!={2'b0,dst_base} || w3[15:0]!=dst_stride));
+                state<=VALIDATE;
+            end
+            VALIDATE:begin
+                if(|descriptor_bad)begin bad<=1;state<=FINISH;end
                 else state<=BOUNDS;
             end
             BOUNDS:begin
@@ -93,7 +106,9 @@ module gpu_copy565(
             CLIP:if(l>=r || t>=b)state<=FINISH;
                  else begin row_y<=reverse ? b[15:0]-1'b1:t[15:0];state<=ROW;end
             ROW:begin
-                source_row<=w1+($signed({16'd0,row_y})-dy+sy)*$signed({16'd0,w3[15:0]});
+                // source_t/l already hold dy-sy/dx-sx. Reuse these local
+                // differences instead of routing packet coordinates into DSPs.
+                source_row<=w1+($signed({16'd0,row_y})-source_t)*$signed({16'd0,w3[15:0]});
                 destination_row<={2'b0,dst_base}+row_y*dst_stride;
                 cursor<=reverse ? r[15:0]:l[15:0];state<=CHUNK;
             end
@@ -107,7 +122,7 @@ module gpu_copy565(
                 state<=ADDRESS;
             end
             ADDRESS:begin
-                source_address<=source_row+(($signed({16'd0,px})-dx+sx)<<1);
+                source_address<=source_row+(($signed({16'd0,px})-source_l)<<1);
                 destination_address<=destination_row+{15'd0,px,1'b0};second<=0;state<=READ0;
             end
             READ0:begin addr<={source_address[30:5],3'b0};valid<=1;write<=0;state<=WAIT0;end

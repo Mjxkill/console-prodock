@@ -1,0 +1,90 @@
+{
+  "hardware": false,
+  "reviewer": "root/game_perf_followup",
+  "model": "deepseek-v4.1-flash",
+  "candidate_sha256": "1960fe184ad549bd1d8a6c2b146e9d6d5b6f202bb3e0d25f29e92ebb51a225fe",
+  "scoped_result": {
+    "pullup_equivalent": true,
+    "clkdiv_reset_equivalent": true,
+    "alu_i3_mode01_equivalent": true,
+    "critical_parameter_changes": [],
+    "evidence": {
+      "pullup": {
+        "nets": {
+          "g22": [
+            "\\u_usb_softphy_top/n19_6"
+          ],
+          "r5": [
+            "n19_6"
+          ]
+        },
+        "g22_net": "\\u_usb_softphy_top/n19_6",
+        "r5_net": "n19_6",
+        "g22_status": "ok",
+        "r5_status": "ok",
+        "g22_leaves": [
+          "PHY_RESET",
+          "rst_usb"
+        ],
+        "r5_leaves": [
+          "PHY_RESET",
+          "rst_usb"
+        ]
+      },
+      "clkdiv_reset": {
+        "nets": {
+          "g22": [
+            "\\u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/n24_6_0"
+          ],
+          "r5": [
+            "\\u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/n24_6_0_3"
+          ]
+        },
+        "g22_net": "\\u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/n24_6_0",
+        "r5_net": "\\u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/n24_6_0_3",
+        "g22_status": "ok",
+        "r5_status": "ok",
+        "g22_leaves": [
+          "\\u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/reset_calib_Z"
+        ],
+        "r5_leaves": [
+          "\\u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/reset_calib_Z"
+        ]
+      },
+      "alu_i3": {
+        "status": "ok",
+        "independent": {
+          "0": true,
+          "1": true
+        },
+        "mode_counts": {
+          "1": 243,
+          "0": 592
+        },
+        "counted": 835,
+        "expected_count": 835,
+        "bad_modes": []
+      },
+      "scope": "literal public post-route USB/PLL graph comparison; not timing or graph equivalence",
+      "changed_count": 927,
+      "other_changes": 92,
+      "missing": 15,
+      "added": 15
+    }
+  },
+  "official_mode01_truth_cases": 32,
+  "generic_counterexample": {
+    "expression": "I0 ^ I1 & I3",
+    "inputs": {
+      "I0": 1,
+      "I1": 0,
+      "I3": 0
+    },
+    "verilog_expected": 1,
+    "candidate_actual": 0,
+    "effect_on_actual_mode01_and_two_LUT_cones": false
+  },
+  "disposition": "Accept only bounded audit findings on these immutable inputs, not this analyzer as a general Verilog equivalence engine. Preserve FAILED runner status and distinguish independent test PASS.",
+  "quality_score": null,
+  "cause_of_hardware_failure_proven": false
+}

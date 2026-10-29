@@ -1,0 +1,136 @@
+{
+  "status": "FAIL",
+  "bitstream_sha256": "11b3e8359132656529fadff26b180bf243a1ba11374625af895625358fceb3b1",
+  "timing_checks_ns": {
+    "setup": -3.646,
+    "hold": 0.124,
+    "recovery": -5.398,
+    "removal": 0.355
+  },
+  "minimum_pulse_slack_ns": 0.474,
+  "violated_endpoints": {
+    "setup": 141,
+    "hold": 0
+  },
+  "build": "tang/impl/console_neo_n42r0",
+  "tool_version": "V1.9.12.03",
+  "loaded": false,
+  "negative_reported_paths_by_clock": {
+    "recovery": [
+      {
+        "clock_pair": [
+          "PHY_CLKOUT:[R]",
+          "bus80_clk:[R]"
+        ],
+        "negative_reported_rows": 10,
+        "worst_slack_ns": -5.398,
+        "source": "u_usb_controller_start/reset_s4",
+        "destination": "u_usb_idle_trace/uh_0_s0",
+        "cell_ns": 0.417,
+        "route_ns": 3.444
+      },
+      {
+        "clock_pair": [
+          "bus80_clk:[R]",
+          "ddr3_sys_clk:[R]"
+        ],
+        "negative_reported_rows": 2,
+        "worst_slack_ns": -0.959,
+        "source": "u_soc/vid_hrstn_r_s0",
+        "destination": "u_scan_queue/up_1_s0",
+        "cell_ns": 0.0,
+        "route_ns": 8.011
+      },
+      {
+        "clock_pair": [
+          "clk50:[R]",
+          "ddr3_sys_clk:[R]"
+        ],
+        "negative_reported_rows": 49,
+        "worst_slack_ns": -1.35,
+        "source": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/ddr_rsti_reg_2_s0",
+        "destination": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/mc_wrdata_dly_1_66_s0",
+        "cell_ns": 0.0,
+        "route_ns": 6.304
+      },
+      {
+        "clock_pair": [
+          "vid_pclk:[F]",
+          "vid_clk5x:[F]"
+        ],
+        "negative_reported_rows": 3,
+        "worst_slack_ns": -0.997,
+        "source": "u_hdmi/g_reset[2].reset_sync_fall_s1",
+        "destination": "u_hdmi/g_ser[2].u_ser",
+        "cell_ns": 0.0,
+        "route_ns": 0.33
+      },
+      {
+        "clock_pair": [
+          "vid_pclk:[F]",
+          "vid_clk5x:[R]"
+        ],
+        "negative_reported_rows": 3,
+        "worst_slack_ns": -2.349,
+        "source": "u_hdmi/g_reset[2].reset_sync_fall_s1",
+        "destination": "u_hdmi/g_ser[2].u_ser",
+        "cell_ns": 0.0,
+        "route_ns": 0.33
+      }
+    ],
+    "setup": [
+      {
+        "clock_pair": [
+          "PHY_CLKOUT:[R]",
+          "bus80_clk:[R]"
+        ],
+        "negative_reported_rows": 57,
+        "worst_slack_ns": -3.646,
+        "source": "u_usb_msc_guard/halted_s0",
+        "destination": "u_usb_msc_port/halted_h_0_s0",
+        "cell_ns": 0.0,
+        "route_ns": 2.367
+      },
+      {
+        "clock_pair": [
+          "vid_pclk:[R]",
+          "bus80_clk:[R]"
+        ],
+        "negative_reported_rows": 1,
+        "worst_slack_ns": -0.073,
+        "source": "u_gpu/applied_toggle_s0",
+        "destination": "u_gpu/applied_sync_0_s0",
+        "cell_ns": 0.0,
+        "route_ns": 2.296
+      },
+      {
+        "clock_pair": [
+          "vid_pclk:[R]",
+          "ddr3_sys_clk:[R]"
+        ],
+        "negative_reported_rows": 19,
+        "worst_slack_ns": -0.762,
+        "source": "u_gpu/request_tag_8_s1",
+        "destination": "u_gpu/g_line_mailbox.row_8_s0",
+        "cell_ns": 0.0,
+        "route_ns": 2.766
+      }
+    ]
+  },
+  "failed_audits": {
+    "gpu_reset_tree": [
+      "Reset 0 still uses a global routing resource",
+      "Reset 4 still uses a global routing resource",
+      "Reset 9 still uses a global routing resource",
+      "Reset 11 still uses a global routing resource"
+    ],
+    "gpu_wide_controls": [
+      "gpu_debug_state[44] still uses LW",
+      "gpu_debug_state[48] still uses LW",
+      "gpu_debug_state[53] still uses LW",
+      "gpu_debug_state[55] still uses LW",
+      "u_gpu/mrst[1] still uses LW"
+    ]
+  },
+  "caveat": "Reported paths are not the complete endpoint list. CDC constraints include source clock latency; no constraint or exception is changed by this analysis. No hardware success/failure is inferred."
+}

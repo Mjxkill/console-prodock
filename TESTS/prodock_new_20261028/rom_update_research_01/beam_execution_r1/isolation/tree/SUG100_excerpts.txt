@@ -1,0 +1,593 @@
+===== PDF page 4, SUG100 =====
+Date         Version   Description
+                          Program Device updated to Programmer.
+                          A value of 2 added in Place option for Place & Route configuration.
+11/30/2023   3.8E         Loading Rate for LittleBee and Arora devices updated.
+                          Tcl command run close added.
+                          Output Base Name option added.
+                          GW2AN-9X and GW2AN-18X Loading Rate updated.
+02/02/2024   3.9E         "Enable CMSER" updated to "Enable SEU Handler".
+                          "Constraints" option added for configuring Frequency.
+                          GW5AT-60 Loading Rate values added.
+03/29/2024   4.0E
+                          Configuration option "Enable CTP" for Bitstream added.
+                          Tcl command open_project added.
+06/28/2024   4.1E         Configuration option "VCC" added in Place & Route.
+                          Virtual input/output debugging tool added.
+                          The configuration option Place Option in Place & Route now includes a
+08/09/2024   4.1.1E        new value of 3.
+                          Descriptions of the open_project command updated.
+                          The configuration option Place Option in Place & Route now includes a
+                           new value of 4.
+                          A new value "GoConfig Mode1" added to the Background
+10/25/2024   4.2E
+                           Programming configuration option for the devices Version C
+                           GW1N-2/GW1NR-2/GW1N-1P5.
+                          A new configuration option "Incremental PnR" added to Place & Route.
+                          A search function added to the Hierarchy window.
+12/31/2024   4.3E
+                          GoBert eye diagram analysis tool supported.
+                          The SPI Flash address access mode "Normal" updated to "Single" in
+03/07/2025   4.4E
+                           BitStream configuration option.
+                          The interface dark mode added.
+04/30/2025   4.4.1E
+                          The search function added in the device selection window.
+06/27/2025   4.4.2E    A new configuration option and Tcl command added to specify the CSR file.
+                          The right-click menu options for modules in the Hierarchy window
+                           updated in section 3.6.1 Right-click Menu.
+08/29/2025   4.4.3E       A new configuration option "SerDes Retiming" added under Place &
+                           Route in section 4.4.3 Synthesize.
+                          Tcl command chapter removed.
+                          Updated sections 7.1 Functional Simulation Files and 7.2 Timing
+                           Simulation Files.
+                          Updated the "Print BSRAM Initial Value" function for
+                           GW5A(S)(T)-138/GW5AT-75 devices.
+12/31/2025   4.4.4E
+                          Updated the batch data filling function of the Memory Initialization File
+                           Editor and the User Flash Initialization File Editor.
+                          Added the "Co-Place IO Registers" configuration option to "Place &
+                           Route".
+                          Updated the description in Section 7.1 Functional Simulation Files,
+                           adding prim_syn.vhd and prim_syn_a.vhd.
+03/09/2026   4.4.5E       Added Table 4-2 Conditions for IBIS Generation Supported by Each
+                           Device in Section 4.3.3 Edit Project Configuration.
+                          Added support for GW3A-20 devices.
+
+===== PDF page 7, SUG100 =====
+                                                                                                                                                Contents
+
+
+
+         3.8 Information Output Area .................................................................................................. 16
+
+    4 Gowin Software Usage ............................................................................... 19
+         4.1 Create a New Project ...................................................................................................... 19
+         4.2 Open an Existing Project ................................................................................................. 21
+         4.3 Edit a Project ................................................................................................................... 22
+         4.3.1 Edit a Project Device.................................................................................................... 23
+         4.3.2 Edit a Project File ......................................................................................................... 24
+         4.3.3 Edit Project Configuration ............................................................................................ 31
+         4.4 Manage a Project ............................................................................................................ 52
+         4.4.1 Design Summary ......................................................................................................... 52
+         4.4.2 User Constraints .......................................................................................................... 53
+         4.4.3 Synthesize ................................................................................................................... 53
+         4.4.4 Place & Route .............................................................................................................. 54
+         4.4.5 Programmer ................................................................................................................. 55
+         4.5 Archive and Restore a Project ......................................................................................... 56
+         4.5.1 Archive a Project .......................................................................................................... 56
+         4.5.2 Restore Archived Project ............................................................................................. 57
+         4.6 Exit Software ................................................................................................................... 58
+
+    5 Tools Integrated in Gowin Software .......................................................... 59
+         5.1 Physical Constraints Editor ............................................................................................. 59
+         5.2 Timing Constraint Editor .................................................................................................. 60
+         5.3 IP Core Generator ........................................................................................................... 61
+         5.4 Gowin Analyzer Oscilloscope .......................................................................................... 62
+         5.5 Gowin Power Analyzer .................................................................................................... 64
+         5.6 Memory Initialization File Editor ...................................................................................... 65
+         5.7 User Flash Initialization File Editor .................................................................................. 68
+         5.7.1 Bin File ......................................................................................................................... 68
+         5.7.2 Hex File ........................................................................................................................ 69
+         5.8 Schematic Viewer ............................................................................................................ 71
+         5.9 Virtual Input/Output Debugging Tool ............................................................................... 72
+         5.10 Eye Diagram Analysis Tool GoBert ................................................................................. 73
+
+    6 Output Files ................................................................................................. 75
+         6.1 Synthesis Report ............................................................................................................. 75
+         6.2 Place & Route Report ...................................................................................................... 76
+         6.3 Ports and Pins Report ..................................................................................................... 77
+         6.4 Timing Report .................................................................................................................. 78
+         6.5 Power Analysis Report .................................................................................................... 78
+
+    7 Simulation Files ........................................................................................... 80
+
+SUG100-4.4.6E                                                                                                                                          ii
+
+===== PDF page 10, SUG100 =====
+                                                                                                                                      List of Figures
+
+
+
+    Figure 4-22 GowinSynthesis General Configuration Option .............................................................. 33
+    Figure 4-23 GowinSynthesis Optimization Options Settings ............................................................. 34
+    Figure 4-24 Place & Route Configuration .......................................................................................... 35
+    Figure 4-25 Voltage Configuration ..................................................................................................... 37
+    Figure 4-26 Place Configuration ........................................................................................................ 38
+    Figure 4-27 Route Configuration........................................................................................................ 39
+    Figure 4-28 Dual-Purpose Pin Configuration ..................................................................................... 40
+    Figure 4-29 Unused Pin Configuration .............................................................................................. 41
+    Figure 4-30 Incremental PnR Configuration ...................................................................................... 41
+    Figure 4-31 BitStream General Configuration ................................................................................... 43
+    Figure 4-32 sysControl Configuration ................................................................................................ 44
+    Figure 4-33 Set Background Programming to I2C ............................................................................. 47
+    Figure 4-34 HOTBOOT Option .......................................................................................................... 48
+    Figure 4-35 Frequency Divider Option ............................................................................................... 49
+    Figure 4-36 Enable SEU Handler Option ........................................................................................... 49
+    Figure 4-37 Enable Error Injection Option ......................................................................................... 49
+    Figure 4-38 Feature sysControl Configuration for LittleBee/Arora I/Arora II                                 Devices ..................... 50
+    Figure 4-39 Feature sysControl Configuration for Arora V and Arora III Devices .............................. 51
+    Figure 4-40 Project Process View ...................................................................................................... 52
+    Figure 4-41 Project Summary ............................................................................................................ 53
+    Figure 4-42 Right-click Synthesize .................................................................................................... 54
+    Figure 4-43 Gowin Programmer ........................................................................................................ 56
+    Figure 4-44 Archive Project Dialog Box ............................................................................................. 57
+    Figure 4-45 Restore Archived Project Dialog Box ............................................................................. 58
+    Figure 5-1 Chip Array View ................................................................................................................ 60
+    Figure 5-2 Package View ................................................................................................................... 60
+    Figure 5-3 Create Timing Constraints ................................................................................................ 61
+    Figure 5-4 IP Core Generator ............................................................................................................ 62
+    Figure 5-5 GAO Config File View ....................................................................................................... 63
+    Figure 5-6 GAO View ......................................................................................................................... 64
+    Figure 5-7 GPA Config File View ....................................................................................................... 65
+    Figure 5-8 New Dialog Box ................................................................................................................ 66
+    Figure 5-9 New File Dialog Box ......................................................................................................... 67
+    Figure 5-10 Initialization File Configuration View ............................................................................... 67
+    Figure 5-11 Column Setting ............................................................................................................... 67
+    Figure 5-12 Batch Setting .................................................................................................................. 67
+    Figure 5-13 Batch Filling of Repeated Sequence or Incrementing/Decrementing Data .................... 68
+    Figure 5-14 New Dialog Box .............................................................................................................. 69
+    Figure 5-15 New File Dialog Box ....................................................................................................... 70
+    Figure 5-16 Initialization File Configuration View ............................................................................... 70
+
+SUG100-4.4.6E                                                                                                                                          v
+
+===== PDF page 37, SUG100 =====
+4 Gowin Software Usage                                                           4.3 Edit a Project
+
+
+
+                  Figure 4-9 Create a New File Dialog Box
+
+
+
+
+                                    ① User Verilog File              ② User VHDL File
+                                    ③ Physical Constraints File      ④ Timing Constraints File
+                                    ⑤ GowinSynthesis Constraints     ⑥ User Flash
+                                      File                             Initialization file
+                                    ⑦ GAO Config File                ⑧ Virtual Input/Output
+                                                                       Config File
+                                    ⑨ Power Analysis Config File     ⑩ Memory Initialization
+                                                                       File
+                                    ⑪ File Description
+
+
+                  3. Take creating a Verilog File for an instance. Select "Verilog File" to
+                     open the Verilog File dialog box, as shown in Figure 4-10. Check "Add
+                     to current project" by default, i.e. the new design file will be added to
+                     the current project by default.
+                  Figure 4-10 Create Verilog File Dialog Box
+
+
+
+
+                  4. Type the file name and click "OK".
+
+
+
+SUG100-4.4.6E                                                                                25(85)
+
+===== PDF page 48, SUG100 =====
+4 Gowin Software Usage                                                                 4.3 Edit a Project
+
+
+
+                        Generate SDF File: Generate a standard delay format file with the
+                         extension .sdf for netlist timing simulation after PnR, and the default
+                         value is False. For the usage, see chapter 7Simulation Files.
+                        Generate IBIS File: Generate an I/O buffer information specification
+                         file with the .ibs extension. The default value is False.
+                      The conditions for IBIS generation for each device are shown in the
+                  table below.
+                  Table 4-2 Conditions for IBIS Generation Supported by Each Device
+                  Device               I/O Type                     Drive            VCCX      I/O
+                                       LVCMOS12, LVCMOS12D          2, 4, 6, 8       NA        NA
+                                       LVCMOS15, LVCMOS15D          4, 8             NA        NA
+                  LittleBee Family,    LVCMOS18, LVCMOS18D          4, 8, 12         NA        NA
+                  Arora I              LVCMOS25, LVCMOS25D          4, 8, 12, 16     NA        NA
+                                                                    4, 8, 12, 16,
+                                       LVCMOS33, LVCMOS33D                           NA        NA
+                                                                    24
+                                       LVCMOS12, LVCMOS12D,
+                                       LVCMOS15, LVCMOS15D,
+                                       LVCMOS18, LVCMOS18D,
+                  Arora II                                          NA               NA        NA
+                                       LVCMOS25, LVCMOS25D,
+                                       LVCMOS33, LVCMOS33D,
+                                       LVDS25
+                  GW5A(S)(T)-138、 LPDDR                             8, 12, 16, 24    NA        NA
+                  GW5AT-75
+                  devices (package: SSTL135, SSTL135D               8                NA        NA
+                  UBGA324A)
+                  GW5A(S)(T)-138、
+                  GW5AT-75
+                  devices(package: LPDDR                            8, 12, 16, 24    NA        NA
+                  PBGA676A,
+                  FCPBGA676A
+                                       LVCMOS33                     4, 6, 8, 12      3.3       NA
+                  GW5A(S)(R)-25
+                                       LVDS25                       NA               3.3       Input
+                                                                    2.5, 3.5, 4.5,
+                  GW5A(T)-60           LVDS25                                        3.3       Output
+                                                                    6
+
+
+                        Generate Post-Place File: Generate a file containing only BSRAM
+                         placement information, with the extension .posp, and the default value
+                         is False.
+                        Generate Post-PNR Verilog Simulation Model File: Generate a timing
+                         simulation model file in Verilog for timing simulation with .vo extension,
+                         and the default value is False.
+                        Generate Post-PNR VHDL Simulation Model File: Generate a timing
+                         simulation model file in VHDL language with .vho extension, and the
+                         default value is False.
+                        Generate Plain Text Timing Report: Generate a timing report in text
+
+SUG100-4.4.6E                                                                                        36(85)
+
+===== PDF page 55, SUG100 =====
+4 Gowin Software Usage                                                               4.3 Edit a Project
+
+
+
+                  Figure 4-31 BitStream General Configuration
+
+
+
+
+                         The description for each parameter in Figure 4-31 is as follows.
+                        Enable CRC Check: Enable CRC Check, checked by default.
+                        Enable Compress: Enable bitstream file compress, not checked by
+                         default.
+                        Enable Encryption: Encrypt the bitstream file, and only Arora II/Arora
+                         III/Arora V devices support this option, not checked by default.
+                        Key (Hex): Key (Hex) can be configured only when "Enable Encryption"
+                         is checked, and users can customize the secret key; only Arora II/Arora
+                         III/Arora V devices support this option. The key is 0 by default. When
+                         you check this option and run Place & Route, a key file with the
+                         extension .ekey will be generated.
+                        Enable Security Bit: Enable security bit, and add security bit to the
+                         bitstream file; after adding, the bitstream cannot be read back again,
+                         checked by default.
+                        Secure Mode: Enable secure mode. Use JTAG pin as GPIO, and
+                         device can be programmed only once. This function is only supported
+                         by GW1NSER-4C, unchecked by default.
+                        Power On Reset Monitor: Power on reset monitoring, checked by
+                         default. When this option is checked, it will continuously monitor any
+                         possible voltage drop in the power rails. If the power rail voltage falls
+                         below the POR threshold, all RAM bits will be cleared and the used
+                         I/Os will be set to tri-state through internal weak pull-up resistors, and
+                         then the configuration and initialization will be completed in turn.
+                        Turn Off Bandgap: Turn off Bandgap, unchecked by default. Bandgap
+                         is used to provide constant voltage and current for some modules in
+
+SUG100-4.4.6E                                                                                    43(85)
+
+===== PDF page 56, SUG100 =====
+4 Gowin Software Usage                                                               4.3 Edit a Project
+
+
+
+                         the chip; turning off Bandgap can reduce device power. Only GW1N-1
+                         devices support this option.
+                        Print BSRAM Initial Value: Print the initial values of BSRAMs into the
+                         bitstream file and is enabled by default.
+                         -   For LittleBee and Arora I/Arora II devices, enabling this option will
+                             allow the initial values of all BSRAM locations to be printed into the
+                             bitstream file, with unused BSRAM locations printed as 0.
+                         -   For Arora V and Arora III devices, enabling this option will allow the
+                             initial values of all BSRAMs in the columns containing used
+                             BSRAM locations to be printed into the bitstream file, with unused
+                             BSRAM locations in those columns printed as 0.
+                         -   For GW5A(S)(T)-138/GW5AT-75 devices, if "MSPI JUMP Mode" or
+                             "Multi Boot Mode" is set to "Quad", and "Print BSRAM Initial Value"
+                             is checked, a drop-down menu with two options will be displayed,
+                             including "Default Mode" and "BSRAM Partial Print Mode", with
+                             "Default Mode" selected by default. When "Default Mode" is
+                             selected, the initial values of all BSRAM locations are printed into
+                             the bitstream file, and unused BSRAM locations are printed as 0;
+                             and when "BSRAM Partial Print Mode" is selected, the initial values
+                             of all BSRAMs in the columns containing used BSRAM locations
+                             are printed into the bitstream file, and unused BSRAM locations in
+                             those columns are printed as 0.
+                        Bitstream Format: Used to specify the bitstream file format, Text and
+                         Binary, and Binary by default. When the Text is selected, the *.fs file in
+                         plain text format is generated; when the Binary is selected, a bitstream
+                         file in *.fs, *.bin, and *.binx formats is generated. *.bin and *.binx are
+                         bitstream files in binary format, *.binx file contains header annotation
+                         information, and *.bin does not have header annotation information.
+                  sysControl
+                         The sysControl configuration is as shown in Figure 4-32.
+                  Figure 4-32 sysControl Configuration
+
+
+
+
+SUG100-4.4.6E                                                                                    44(85)
+
+===== PDF page 77, SUG100 =====
+5 Tools Integrated in Gowin Software                                 5.6 Memory Initialization File Editor
+
+
+
+                    Figure 5-7 GPA Config File View
+
+
+
+
+5.6 Memory Initialization File Editor
+                          The Memory Initialization File is an ASCII file with an .mi suffix. You
+                    can generate the corresponding Initialization File according to your design
+                    to specify the initial value for the memory of each address. The Memory
+                    Initialization File editor can be used to open and edit the existed .mi file.
+                        Each line in the Memory Initialization File correlates with one memory.
+                    The number of lines is the number of memories and also the memory
+                    address depth. The number of columns represents each memory bit; that is,
+                    the memory data width. The address decreases from top to bottom with the
+                    most significant bit first for each line.
+                       Gowin memory initialization file is based on .mi file. For the details, see
+                    UG285, Gowin BSRAM & SSRAM User Guide. The steps are as follows:
+                    1. In the Design area, select "File> New…" to open a "New" dialog box.
+                    2. Select "Memory Initialization File", as shown in Figure 5-8. Click "OK"
+                       and type the initialization file name in the pop-up "New File" dialog box,
+                       and then click "OK". The Initialization File Configuration View is as
+                       shown in Figure 5-9.
+
+
+
+SUG100-4.4.6E                                                                                       65(85)
+
+===== PDF page 78, SUG100 =====
+5 Tools Integrated in Gowin Software                                        5.6 Memory Initialization File Editor
+
+
+
+                    3. Start the file initialization view as shown in Figure 5-10. Type the initial
+                       value on the left side and configure the initialization file format and
+                       depth/width and view on the right side.
+                    4. On the right side, configure the depth and width for the initialization file
+                       and the format for the address and initial values in the left table.
+                              The depth and width values should be same as the Block Memory
+                               or Shadow Memory address depth and data width set in the IP
+                               Core Generator. If the address depth and data width in the
+                               initialization file are greater than the values set in the IP Core
+                               Generator, the IP Core Generator will prompt an error message. If
+                               the depth and width values are less than the address depth and
+                               data width set in the IP Core Generator, the value of the
+                               unassigned address will be initialized to 0 by default. Click
+                               "Update" after configuration.
+                              The display format of the addresses and values on the left in the
+                               table can be configured as binary, hexadecimal, and address-
+                               hexadecimal, etc.
+                    5. Type the initial value and set the view in the left table.
+                              Right-click the table header to configure the number of columns,
+                               which can be configured as 1, 8, or 16, as shown in Figure 5-11.
+                              The initial values in the table can be entered manually by
+                               double-clicking a cell or configured by right-clicking. Right-click the
+                               target cell and select "Fill with 0", which sets all bits of the initial
+                               value to 0; "Fill with 1", which sets all bits of the initial value to 1; or
+                               "Custom Fill", which allows the user to enter values as required, as
+                               shown in Figure 5-12. Selecting "Custom Fill" enables batch filling
+                               of repeated sequence or incrementing/decrementing data, as
+                               shown in Figure 5-13.
+                    6. Save the file.
+                    Figure 5-8 New Dialog Box
+
+
+
+
+SUG100-4.4.6E                                                                                              66(85)
+
+===== PDF page 79, SUG100 =====
+5 Tools Integrated in Gowin Software                                     5.6 Memory Initialization File Editor
+
+
+
+                    Figure 5-9 New File Dialog Box
+
+
+
+
+                    Figure 5-10 Initialization File Configuration View
+
+
+
+
+                    Figure 5-11 Column Setting
+
+
+
+
+                    Figure 5-12 Batch Setting
+
+
+
+
+SUG100-4.4.6E                                                                                           67(85)
+
+===== PDF page 80, SUG100 =====
+5 Tools Integrated in Gowin Software                                     5.7 User Flash Initialization File Editor
+
+
+
+                    Figure 5-13 Batch Filling of Repeated Sequence or Incrementing/Decrementing
+                    Data
+
+
+
+
+5.7 User Flash Initialization File Editor
+                          User Flash Initialization file is an ASCII file with an .fi suffix. You can
+                    generate the corresponding Initialization File according to your design to
+                    specify the initial value for the User Flash of each address. The User Flash
+                    Initialization File editor can be used to open and edit the existed. fi file.
+                         The name of User Flash initialization file is *.fi(file_name.fi). Each line
+                    in the Memory Initialization File correlates with one memory. The number of
+                    lines is the number of memories that needs to be initialized. The contents in
+                    the header bracket represent the ordinate address and the abscissa
+                    address respectively, separated by a semicolon. The contents after the
+                    brackets in each line represent the data initialized by the memory, and the
+                    data supports binary and hexadecimal, MSB first. The following are
+                    examples of the .fi file format.
+5.7.1 Bin File
+                            Bin file is a text file that consists of the 0 and 1.
+                          //Copyright (C)2014-2024 Gowin Semiconductor Corporation.
+                          //All rights reserved.
+                          //File Title: User Flash Initialization File
+                          //Tool Version: V1.9.10(64-bit)
+                          //Part Number: GW1N-LV4PG256C6/I5
+                          //Device-package: GW1N-4-PBGA256
+                          //Device Version: D
+                          //Flash Type: FLASH256K
+                          //File Format: Bin
+                          //Created Time: 2024-06-28 14:31:12
+                          [0:0] 00000000000100000001000100010000
+                          [1:1] 00000000000100010001000000000001
+
+
+
+SUG100-4.4.6E                                                                                               68(85)
+
+===== PDF page 81, SUG100 =====
+5 Tools Integrated in Gowin Software                                     5.7 User Flash Initialization File Editor
+
+
+
+
+5.7.2 Hex File
+                        The Hex file is similar to the Bin file. It consists of hexadecimal
+                    numbers 0~F.
+                          //Copyright (C)2014-2024 Gowin Semiconductor Corporation.
+                          //All rights reserved.
+                          //File Title: User Flash Initialization File
+                          //Tool Version: V1.9.10(64-bit)
+                          //Part Number: GW1N-LV4PG256C6/I5
+                          //Device-package: GW1N-4-PBGA256
+                          //Device Version: D
+                          //Flash Type: FLASH256K
+                          //File Format: Hex
+                          //Created Time: 2024-06-28 14:41:24
+                          [0:0] 00101110
+                          [1:1] 00111001
+                        Based on the new configuration file (. fi), and you can follow the below
+                    steps to use the initialization file editor.
+                    1. In the Design area, select "File> New…" to open a "New" dialog box.
+                    2. Select "User Flash Initialization File", as shown in Figure 5-14. Click
+                       "OK" and type the initialization file name in the pop-up "New File"
+                       dialog box, and then click "OK", as shown in Figure 5-15. The devices
+                       supported by User Flash Initialization File Editor are the same as the
+                       devices supported by User Flash Primitives. If the device you selected
+                       does not support User Flash, "Current device do not support flash" will
+                       pop up at the bottom of "New File" Dialog box after you click "OK".
+                    Figure 5-14 New Dialog Box
+
+
+
+
+SUG100-4.4.6E                                                                                               69(85)
+
+===== PDF page 82, SUG100 =====
+5 Tools Integrated in Gowin Software                                     5.7 User Flash Initialization File Editor
+
+
+
+                    Figure 5-15 New File Dialog Box
+
+
+
+
+                    3. Start the file initialization view as shown in Figure 5-16. Enter the initial
+                       value on the left side and configure the initialization file format and view
+                       on the right side; Part Number and User Flash are also displayed on
+                       the right.
+                    Figure 5-16 Initialization File Configuration View
+
+
+
+
+                    4. On the right side, configure Part Number, file format, address and
+                       value.
+                              Click "Part Number", then "Select Device" dialog box will pop up;
+                               you can select the other part number.
+                              The format of address and value can be configured as binary, octal,
+                               decimal, hexadecimal, etc.
+
+
+
+
+SUG100-4.4.6E                                                                                               70(85)
+
+===== PDF page 95, SUG100 =====
+8 Appendix                                                                            8.1 File Description
+
+
+
+
+                                                                     8          Appendix
+
+8.1 File Description
+                     Gowin Software supports adding physical constraints, timing
+                constraints, and other files during the project design, and a variety of
+                execution files are generated in the overall design; this section will
+                introduce these files supported by Gowin Software as shown below.
+                Table 8-1 Source Files
+                File Type   Definition                   Function
+                .gsc        Synthesis constraints file   Constraint files for the GowinSynthesis
+                                                         IP Core Generator can load an .ipc file to
+                .ipc        IP configuration file        recreate the IP after modifying the
+                                                         configuration
+                                                         Used to add physical constraints to the
+                .cst        Physical constraints file
+                                                         design
+                .sdc        Timing constraints file      Used to add timing constraints to the design
+                                                         Initialization assignment to User Flash; you
+                            User Flash initialization
+                .fi                                      can select to load it when downloading the
+                            file
+                                                         bitstream through the Programmer.
+                            RTL-level GAO                Capture the RTL signal before synthesis
+                .rao
+                            configuration file
+                            Post-synthesis GAO           Capture the Netlist signal after synthesis
+                .gao
+                            configuration file
+                            Virtual Input/Output         Used to real-time monitor and drive internal
+                .gvio
+                            Configuration File           FPGA signals
+                            Power analysis               Used to analyze the power analysis of the
+                .gpa
+                            configuration file           design
+                                                         Initialization assignment of memory; you can
+                .mi         Memory initialization file   use this initialization file when generating the
+                                                         memory through IP Core Generator.
+                                                         Verilog description file containing circuit
+                .v          Verilog source file
+                                                         structure and function
+                                                         System Verilog description file containing
+                .sv         System Verilog source file
+                                                         circuit structure and function
+                .vhd        VHDL source file             VHDL description file containing circuit
+
+
+SUG100-4.4.6E                                                                                       83(85)

@@ -1,0 +1,238 @@
+{
+  "status": "PROPOSED",
+  "reference": "tang/impl/console_neo_n44r1/impl/pnr/console_neo.tr",
+  "report_sha256": "b4feb5089134ed8e124d1b8c179befaf150cc2f932099303c956292da2cc739f",
+  "parent": "tang/impl/console_neo_n44syn",
+  "base_cst_sha256": "829ca8d538c5684e95dca500e66ee32b1dc6020ccde2fac3cbfebb70d8d5adba",
+  "candidate_cst_sha256": "96cdde3fa22e09ee8e050444e95361c3f5bcc9581c374d7c5c75fe3a140f64f5",
+  "regions": {
+    "u_soc/vid_hrstn_r_s0": "R[50:65]C[85:100]",
+    "u_gpu/prst_0_s0": "R[50:70]C[86:108]",
+    "u_gpu/prst_1_s0": "R[50:70]C[86:108]",
+    "u_accel/engine_resetn_2_s0": "R[36:64]C[70:110]",
+    "u_accel/engine_resetn_10_s0": "R[36:64]C[70:110]"
+  },
+  "evidence": [
+    {
+      "analysis": "recovery",
+      "slack_ns": -3.256,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_gpu/prst_1_s0",
+      "launch_clock": "bus80_clk:[R]",
+      "clock": "vid_pclk:[R]",
+      "arcs": [
+        {
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 1207,
+          "loc": "R56C92[0][B]",
+          "node": "u_soc/vid_hrstn_r_s0/Q",
+          "cell": "u_soc/vid_hrstn_r_s0",
+          "row": 56,
+          "col": 92
+        },
+        {
+          "delay_ns": 8.546,
+          "kind": "tNET",
+          "fanout": 1,
+          "loc": "R94C149[1][A]",
+          "node": "u_gpu/prst_1_s0/CLEAR",
+          "cell": "u_gpu/prst_1_s0",
+          "row": 94,
+          "col": 149
+        }
+      ],
+      "cell_ns": 0.0,
+      "route_ns": 8.546,
+      "diagnosis": {
+        "route_ns": 8.546,
+        "logic_ns": 0,
+        "clock_to_q_ns": 0.331,
+        "total_ns": 8.877,
+        "route_percent": 96.3,
+        "max_fanout": 1207,
+        "largest_wires": [
+          {
+            "delay_ns": 8.546,
+            "kind": "tNET",
+            "fanout": 1,
+            "loc": "R94C149[1][A]",
+            "node": "u_gpu/prst_1_s0/CLEAR",
+            "cell": "u_gpu/prst_1_s0",
+            "row": 94,
+            "col": 149
+          }
+        ],
+        "hypothesis": "Lire les contraintes et les synchroniseurs avant toute modification.",
+        "limits": "Arcs de donn\u00e9es publi\u00e9s ; hypoth\u00e8se \u00e0 tester par routage complet et contr\u00f4les fonctionnels."
+      },
+      "route_fraction": 0.963
+    },
+    {
+      "analysis": "recovery",
+      "slack_ns": -3.256,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_gpu/prst_0_s0",
+      "launch_clock": "bus80_clk:[R]",
+      "clock": "vid_pclk:[R]",
+      "arcs": [
+        {
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 1207,
+          "loc": "R56C92[0][B]",
+          "node": "u_soc/vid_hrstn_r_s0/Q",
+          "cell": "u_soc/vid_hrstn_r_s0",
+          "row": 56,
+          "col": 92
+        },
+        {
+          "delay_ns": 8.546,
+          "kind": "tNET",
+          "fanout": 1,
+          "loc": "R94C149[3][A]",
+          "node": "u_gpu/prst_0_s0/CLEAR",
+          "cell": "u_gpu/prst_0_s0",
+          "row": 94,
+          "col": 149
+        }
+      ],
+      "cell_ns": 0.0,
+      "route_ns": 8.546,
+      "diagnosis": {
+        "route_ns": 8.546,
+        "logic_ns": 0,
+        "clock_to_q_ns": 0.331,
+        "total_ns": 8.877,
+        "route_percent": 96.3,
+        "max_fanout": 1207,
+        "largest_wires": [
+          {
+            "delay_ns": 8.546,
+            "kind": "tNET",
+            "fanout": 1,
+            "loc": "R94C149[3][A]",
+            "node": "u_gpu/prst_0_s0/CLEAR",
+            "cell": "u_gpu/prst_0_s0",
+            "row": 94,
+            "col": 149
+          }
+        ],
+        "hypothesis": "Lire les contraintes et les synchroniseurs avant toute modification.",
+        "limits": "Arcs de donn\u00e9es publi\u00e9s ; hypoth\u00e8se \u00e0 tester par routage complet et contr\u00f4les fonctionnels."
+      },
+      "route_fraction": 0.963
+    },
+    {
+      "analysis": "recovery",
+      "slack_ns": -0.86,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/engine_resetn_10_s0",
+      "launch_clock": "bus80_clk:[R]",
+      "clock": "ddr3_sys_clk:[R]",
+      "arcs": [
+        {
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 1207,
+          "loc": "R56C92[0][B]",
+          "node": "u_soc/vid_hrstn_r_s0/Q",
+          "cell": "u_soc/vid_hrstn_r_s0",
+          "row": 56,
+          "col": 92
+        },
+        {
+          "delay_ns": 8.04,
+          "kind": "tNET",
+          "fanout": 1,
+          "loc": "R5C43[1][A]",
+          "node": "u_accel/engine_resetn_10_s0/CLEAR",
+          "cell": "u_accel/engine_resetn_10_s0",
+          "row": 5,
+          "col": 43
+        }
+      ],
+      "cell_ns": 0.0,
+      "route_ns": 8.04,
+      "diagnosis": {
+        "route_ns": 8.04,
+        "logic_ns": 0,
+        "clock_to_q_ns": 0.331,
+        "total_ns": 8.371,
+        "route_percent": 96.0,
+        "max_fanout": 1207,
+        "largest_wires": [
+          {
+            "delay_ns": 8.04,
+            "kind": "tNET",
+            "fanout": 1,
+            "loc": "R5C43[1][A]",
+            "node": "u_accel/engine_resetn_10_s0/CLEAR",
+            "cell": "u_accel/engine_resetn_10_s0",
+            "row": 5,
+            "col": 43
+          }
+        ],
+        "hypothesis": "Lire les contraintes et les synchroniseurs avant toute modification.",
+        "limits": "Arcs de donn\u00e9es publi\u00e9s ; hypoth\u00e8se \u00e0 tester par routage complet et contr\u00f4les fonctionnels."
+      },
+      "route_fraction": 0.96
+    },
+    {
+      "analysis": "recovery",
+      "slack_ns": -0.137,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/engine_resetn_2_s0",
+      "launch_clock": "bus80_clk:[R]",
+      "clock": "ddr3_sys_clk:[R]",
+      "arcs": [
+        {
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 1207,
+          "loc": "R56C92[0][B]",
+          "node": "u_soc/vid_hrstn_r_s0/Q",
+          "cell": "u_soc/vid_hrstn_r_s0",
+          "row": 56,
+          "col": 92
+        },
+        {
+          "delay_ns": 7.289,
+          "kind": "tNET",
+          "fanout": 1,
+          "loc": "R15C55[3][A]",
+          "node": "u_accel/engine_resetn_2_s0/CLEAR",
+          "cell": "u_accel/engine_resetn_2_s0",
+          "row": 15,
+          "col": 55
+        }
+      ],
+      "cell_ns": 0.0,
+      "route_ns": 7.289,
+      "diagnosis": {
+        "route_ns": 7.289,
+        "logic_ns": 0,
+        "clock_to_q_ns": 0.331,
+        "total_ns": 7.62,
+        "route_percent": 95.7,
+        "max_fanout": 1207,
+        "largest_wires": [
+          {
+            "delay_ns": 7.289,
+            "kind": "tNET",
+            "fanout": 1,
+            "loc": "R15C55[3][A]",
+            "node": "u_accel/engine_resetn_2_s0/CLEAR",
+            "cell": "u_accel/engine_resetn_2_s0",
+            "row": 15,
+            "col": 55
+          }
+        ],
+        "hypothesis": "Lire les contraintes et les synchroniseurs avant toute modification.",
+        "limits": "Arcs de donn\u00e9es publi\u00e9s ; hypoth\u00e8se \u00e0 tester par routage complet et contr\u00f4les fonctionnels."
+      },
+      "route_fraction": 0.9570000000000001
+    }
+  ],
+  "scope": "Physical hypothesis; same netlist and functions, no falsepath or multicycle added; requires full route and qualification."
+}

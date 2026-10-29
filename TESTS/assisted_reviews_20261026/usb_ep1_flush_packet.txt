@@ -1,0 +1,2136 @@
+AUDIT CIBLE : défaut EP1 réellement reproduit, candidat isolé uniquement.
+Fichier de production partagé Neo/Pro Dock, aucune modification intégrée encore.
+Le banc source doit échouer sur le défaut EP0/EP2 et passer contrôleEP1.
+Les références matérielles ne doivent pas être modifiées ni rechargées.
+
+FILE tang/rtl/usb/sync_fifo/usb_fifo.v SHA256 ad5bc3378a7266b6e40e327210d85166aeedb01d080901a66b00ae3e01660307
+1: //
+2: // File name          :usb_fifo.v
+3: // Module name        :usb_fifo.v
+4: // Created by         :GaoYun Semi
+5: // Author             :winson(Winson)
+6: // Created On         :2022-05-19 18:22 GuangZhou
+7: // Last Modified      :
+8: // Update Count       :2022-05-19 18:22
+9: // Description        :
+10: //                     
+11: //                     
+12: //----------------------------------------------------------------------
+13: //===========================================
+14: `define    EP1_IN_EN
+15: // EP1 IN carries mass-storage transfers: a short packet ends a data phase,
+16: // so only bytes the application has committed may be offered to the host.
+17: `define    EP1_IN_PACKET
+18: `define    EP2_IN_EN
+19: //`define    EP3_IN_EN
+20: //`define    EP4_IN_EN
+21: //`define    EP5_IN_EN
+22: //`define    EP6_IN_EN
+23: //`define    EP7_IN_EN
+24: //`define    EP8_IN_EN
+25: //`define    EP9_IN_EN
+26: //`define    EP10_IN_EN
+27: //`define    EP11_IN_EN
+28: //`define    EP12_IN_EN
+29: //`define    EP13_IN_EN
+30: //`define    EP14_IN_EN
+31: //`define    EP15_IN_EN
+32: `define    EP1_OUT_EN
+33: `define    EP2_OUT_EN
+34: //`define    EP3_OUT_EN
+35: //`define    EP4_OUT_EN
+36: //`define    EP5_OUT_EN
+37: //`define    EP6_OUT_EN
+38: //`define    EP7_OUT_EN
+39: //`define    EP8_OUT_EN
+40: //`define    EP9_OUT_EN
+41: //`define    EP10_OUT_EN
+42: //`define    EP11_OUT_EN
+43: //`define    EP12_OUT_EN
+44: //`define    EP13_OUT_EN
+45: //`define    EP14_OUT_EN
+46: //`define    EP15_OUT_EN
+47: `define     EP1_IN_BUF_ASIZE     4'd12
+48: `define     EP2_IN_BUF_ASIZE     4'd12
+49: `define     EP3_IN_BUF_ASIZE     4'd12
+50: `define     EP4_IN_BUF_ASIZE     4'd12
+51: `define     EP5_IN_BUF_ASIZE     4'd12
+52: `define     EP6_IN_BUF_ASIZE     4'd12
+53: `define     EP7_IN_BUF_ASIZE     4'd12
+54: `define     EP8_IN_BUF_ASIZE     4'd12
+55: `define     EP9_IN_BUF_ASIZE     4'd12
+56: `define     EP10_IN_BUF_ASIZE    4'd12
+57: `define     EP11_IN_BUF_ASIZE    4'd12
+58: `define     EP12_IN_BUF_ASIZE    4'd12
+59: `define     EP13_IN_BUF_ASIZE    4'd12
+60: `define     EP14_IN_BUF_ASIZE    4'd12
+61: `define     EP15_IN_BUF_ASIZE    4'd12
+62: `define     EP1_OUT_BUF_ASIZE    4'd12
+63: `define     EP2_OUT_BUF_ASIZE    4'd12
+64: `define     EP3_OUT_BUF_ASIZE    4'd12
+65: `define     EP4_OUT_BUF_ASIZE    4'd12
+66: `define     EP5_OUT_BUF_ASIZE    4'd12
+67: `define     EP6_OUT_BUF_ASIZE    4'd12
+68: `define     EP7_OUT_BUF_ASIZE    4'd12
+69: `define     EP8_OUT_BUF_ASIZE    4'd12
+70: `define     EP9_OUT_BUF_ASIZE    4'd12
+71: `define     EP10_OUT_BUF_ASIZE   4'd12
+72: `define     EP11_OUT_BUF_ASIZE   4'd12
+73: `define     EP12_OUT_BUF_ASIZE   4'd12
+74: `define     EP13_OUT_BUF_ASIZE   4'd12
+75: `define     EP14_OUT_BUF_ASIZE   4'd12
+76: `define     EP15_OUT_BUF_ASIZE   4'd12
+77: `define     EP1_OUT_BUF_AFULL    13'd2048
+78: `define     EP2_OUT_BUF_AFULL    13'd2048
+79: `define     EP3_OUT_BUF_AFULL    13'd2048
+80: `define     EP4_OUT_BUF_AFULL    13'd2048
+81: `define     EP5_OUT_BUF_AFULL    13'd2048
+82: `define     EP6_OUT_BUF_AFULL    13'd2048
+83: `define     EP7_OUT_BUF_AFULL    13'd2048
+84: `define     EP8_OUT_BUF_AFULL    13'd2048
+85: `define     EP9_OUT_BUF_AFULL    13'd2048
+86: `define     EP10_OUT_BUF_AFULL   13'd2048
+87: `define     EP11_OUT_BUF_AFULL   13'd2048
+88: `define     EP12_OUT_BUF_AFULL   13'd2048
+89: `define     EP13_OUT_BUF_AFULL   13'd2048
+90: `define     EP14_OUT_BUF_AFULL   13'd2048
+91: `define     EP15_OUT_BUF_AFULL   13'd2048
+92: `define CONSOLE_USB_DIAG
+93: module usb_fifo
+94: (
+95: `ifdef CONSOLE_USB_DIAG
+96:      output [31:0] diagnostic_data,
+97: `endif
+98:      input              i_clk         //clock
+99:     ,input              i_reset       //reset
+100:     ,input      [3:0]   i_usb_endpt   //
+101:     ,input              i_usb_rxact   //
+102:     ,input              i_usb_rxval   //
+103:     ,input              i_usb_rxpktval//
+104:     ,input      [7:0]   i_usb_rxdat   //
+105:     ,output             o_usb_rxrdy   //
+106:     ,input              i_usb_txact   //
+107:     ,input              i_usb_txpop   //
+108:     ,input              i_usb_txpktfin//
+109:     ,output             o_usb_txcork  //
+110:     ,output     [7:0]   o_usb_txdat   //
+111:     ,output     [11:0]  o_usb_txlen   //
+112:     //Endpoint 1
+113:     `ifdef EP1_IN_EN
+114:     ,input              i_ep1_tx_clk  //
+115:     ,input      [11:0]  i_ep1_tx_max //
+116:     ,input              i_ep1_tx_dval //
+117:     ,input      [7:0]   i_ep1_tx_data //
+118:     `ifdef EP1_IN_PACKET
+119:     ,input              i_ep1_flush        // i_clk, registered: empties both EP1 buffers
+120:     ,input      [15:0]  i_ep1_tx_committed // i_clk: running count of committed bytes
+121:     ,output     [15:0]  o_ep1_tx_sent      // i_clk: running count of acknowledged bytes
+122:     `endif
+123:     `endif
+124:     `ifdef EP1_OUT_EN
+125:     ,input              i_ep1_rx_clk  //
+126:     ,input              i_ep1_rx_rdy  //
+127:     ,output             o_ep1_rx_dval //
+128:     ,output     [7:0]   o_ep1_rx_data //
+129:     `endif
+130:     //Endpoint 2
+131:     `ifdef EP2_IN_EN
+132:     ,input              i_ep2_tx_clk  //
+133:     ,input      [11:0]  i_ep2_tx_max //
+134:     ,input              i_ep2_tx_dval //
+135:     ,input      [7:0]   i_ep2_tx_data //
+136:     `endif
+137:     `ifdef EP2_OUT_EN
+138:     ,input              i_ep2_rx_clk  //
+139:     ,input              i_ep2_rx_rdy  //
+140:     ,output             o_ep2_rx_dval //
+141:     ,output     [7:0]   o_ep2_rx_data //
+142:     `endif
+143:     //Endpoint 3
+144:     `ifdef EP3_IN_EN
+145:     ,input              i_ep3_tx_clk  //
+146:     ,input      [11:0]  i_ep3_tx_max //
+147:     ,input              i_ep3_tx_dval //
+148:     ,input      [7:0]   i_ep3_tx_data //
+149:     `endif
+150:     `ifdef EP3_OUT_EN
+151:     ,input              i_ep3_rx_clk  //
+152:     ,input              i_ep3_rx_rdy  //
+153:     ,output             o_ep3_rx_dval //
+154:     ,output     [7:0]   o_ep3_rx_data //
+155:     `endif
+156:     //Endpoint 4
+157:     `ifdef EP4_IN_EN
+158:     ,input              i_ep4_tx_clk  //
+159:     ,input      [11:0]  i_ep4_tx_max //
+160:     ,input              i_ep4_tx_dval //
+161:     ,input      [7:0]   i_ep4_tx_data //
+162:     `endif
+163:     `ifdef EP4_OUT_EN
+164:     ,input              i_ep4_rx_clk  //
+165:     ,input              i_ep4_rx_rdy  //
+166:     ,output             o_ep4_rx_dval //
+167:     ,output     [7:0]   o_ep4_rx_data //
+168:     `endif
+169:     //Endpoint 5
+170:     `ifdef EP5_IN_EN
+171:     ,input              i_ep5_tx_clk  //
+172:     ,input      [11:0]  i_ep5_tx_max //
+173:     ,input              i_ep5_tx_dval //
+174:     ,input      [7:0]   i_ep5_tx_data //
+175:     `endif
+176:     `ifdef EP5_OUT_EN
+177:     ,input              i_ep5_rx_clk  //
+178:     ,input              i_ep5_rx_rdy  //
+179:     ,output             o_ep5_rx_dval //
+180:     ,output     [7:0]   o_ep5_rx_data //
+181:     `endif
+182:     //Endpoint 6
+183:     `ifdef EP6_IN_EN
+184:     ,input              i_ep6_tx_clk  //
+185:     ,input      [11:0]  i_ep6_tx_max //
+186:     ,input              i_ep6_tx_dval //
+187:     ,input      [7:0]   i_ep6_tx_data //
+188:     `endif
+189:     `ifdef EP6_OUT_EN
+190:     ,input              i_ep6_rx_clk  //
+191:     ,input              i_ep6_rx_rdy  //
+192:     ,output             o_ep6_rx_dval //
+193:     ,output     [7:0]   o_ep6_rx_data //
+194:     `endif
+195:     //Endpoint 7
+196:     `ifdef EP7_IN_EN
+197:     ,input              i_ep7_tx_clk  //
+198:     ,input      [11:0]  i_ep7_tx_max //
+199:     ,input              i_ep7_tx_dval //
+200:     ,input      [7:0]   i_ep7_tx_data //
+201:     `endif
+202:     `ifdef EP7_OUT_EN
+203:     ,input              i_ep7_rx_clk  //
+204:     ,input              i_ep7_rx_rdy  //
+205:     ,output             o_ep7_rx_dval //
+206:     ,output     [7:0]   o_ep7_rx_data //
+207:     `endif
+208:     //Endpoint 8
+209:     `ifdef EP8_IN_EN
+210:     ,input              i_ep8_tx_clk  //
+211:     ,input      [11:0]  i_ep8_tx_max //
+212:     ,input              i_ep8_tx_dval //
+213:     ,input      [7:0]   i_ep8_tx_data //
+214:     `endif
+215:     `ifdef EP8_OUT_EN
+216:     ,input              i_ep8_rx_clk  //
+217:     ,input              i_ep8_rx_rdy  //
+218:     ,output             o_ep8_rx_dval //
+219:     ,output     [7:0]   o_ep8_rx_data //
+220:     `endif
+221:     //Endpoint 9
+222:     `ifdef EP9_IN_EN
+223:     ,input              i_ep9_tx_clk  //
+224:     ,input      [11:0]  i_ep9_tx_max //
+225:     ,input              i_ep9_tx_dval //
+226:     ,input      [7:0]   i_ep9_tx_data //
+227:     `endif
+228:     `ifdef EP9_OUT_EN
+229:     ,input              i_ep9_rx_clk  //
+230:     ,input              i_ep9_rx_rdy  //
+231:     ,output             o_ep9_rx_dval //
+232:     ,output     [7:0]   o_ep9_rx_data //
+233:     `endif
+234:     //Endpoint 10
+235:     `ifdef EP10_IN_EN
+236:     ,input              i_ep10_tx_clk  //
+237:     ,input      [11:0]  i_ep10_tx_max //
+238:     ,input              i_ep10_tx_dval //
+239:     ,input      [7:0]   i_ep10_tx_data //
+240:     `endif
+241:     `ifdef EP10_OUT_EN
+242:     ,input              i_ep10_rx_clk  //
+243:     ,input              i_ep10_rx_rdy  //
+244:     ,output             o_ep10_rx_dval //
+245:     ,output     [7:0]   o_ep10_rx_data //
+246:     `endif
+247:     //Endpoint 11
+248:     `ifdef EP11_IN_EN
+249:     ,input              i_ep11_tx_clk  //
+250:     ,input      [11:0]  i_ep11_tx_max //
+251:     ,input              i_ep11_tx_dval //
+252:     ,input      [7:0]   i_ep11_tx_data //
+253:     `endif
+254:     `ifdef EP11_OUT_EN
+255:     ,input              i_ep11_rx_clk  //
+256:     ,input              i_ep11_rx_rdy  //
+257:     ,output             o_ep11_rx_dval //
+258:     ,output     [7:0]   o_ep11_rx_data //
+259:     `endif
+260:     //Endpoint 12
+261:     `ifdef EP12_IN_EN
+262:     ,input              i_ep12_tx_clk  //
+263:     ,input      [11:0]  i_ep12_tx_max //
+264:     ,input              i_ep12_tx_dval //
+265:     ,input      [7:0]   i_ep12_tx_data //
+266:     `endif
+267:     `ifdef EP12_OUT_EN
+268:     ,input              i_ep12_rx_clk  //
+269:     ,input              i_ep12_rx_rdy  //
+270:     ,output             o_ep12_rx_dval //
+271:     ,output     [7:0]   o_ep12_rx_data //
+272:     `endif
+273:     //Endpoint 13
+274:     `ifdef EP13_IN_EN
+275:     ,input              i_ep13_tx_clk  //
+276:     ,input      [11:0]  i_ep13_tx_max //
+277:     ,input              i_ep13_tx_dval //
+278:     ,input      [7:0]   i_ep13_tx_data //
+279:     `endif
+280:     `ifdef EP13_OUT_EN
+281:     ,input              i_ep13_rx_clk  //
+282:     ,input              i_ep13_rx_rdy  //
+283:     ,output             o_ep13_rx_dval //
+284:     ,output     [7:0]   o_ep13_rx_data //
+285:     `endif
+286:     //Endpoint 14
+287:     `ifdef EP14_IN_EN
+288:     ,input              i_ep14_tx_clk  //
+289:     ,input      [11:0]  i_ep14_tx_max //
+290:     ,input              i_ep14_tx_dval //
+291:     ,input      [7:0]   i_ep14_tx_data //
+292:     `endif
+293:     `ifdef EP14_OUT_EN
+294:     ,input              i_ep14_rx_clk  //
+295:     ,input              i_ep14_rx_rdy  //
+296:     ,output             o_ep14_rx_dval //
+297:     ,output     [7:0]   o_ep14_rx_data //
+298:     `endif
+299:     //Endpoint 15
+300:     `ifdef EP15_IN_EN
+301:     ,input              i_ep15_tx_clk  //
+302:     ,input      [11:0]  i_ep15_tx_max //
+303:     ,input              i_ep15_tx_dval //
+304:     ,input      [7:0]   i_ep15_tx_data //
+305:     `endif
+306:     `ifdef EP15_OUT_EN
+307:     ,input              i_ep15_rx_clk  //
+308:     ,input              i_ep15_rx_rdy  //
+309:     ,output             o_ep15_rx_dval //
+310:     ,output     [7:0]   o_ep15_rx_data //
+311:     `endif
+312: 
+313: );
+314: 
+315: 
+316: 
+317: wire [15:1] usb_rxrdy ;
+318: wire [15:1] usb_txcork;
+319: wire [ 7:0] usb_txdat [15:1];
+320: wire [11:0] usb_txlen [15:1];
+321: wire [15:1] ep_clk    ;
+322: wire [15:1] ep_rx_rdy ;
+323: wire [15:1] ep_rx_dval;
+324: reg  [ 3:0] s_endpt_sel;
+325: reg         s_usb_txcork;
+326: reg         s_usb_rxrdy ;
+327: reg  [11:0] s_usb_txlen ;
+328: // Length/CORK are registered for s_endpt_sel. On an endpoint change,
+329: // never expose the preceding endpoint's offer to the controller. In
+330: // particular EP0's open zero length would become a spurious bulk ZLP.
+331: wire tx_endpoint_ready = i_usb_endpt == s_endpt_sel;
+332: // An empty IN poll may strobe POP while a newly arrived UART byte is
+333: // already in RAM but not yet visible through the registered length.
+334: // Advance packet RAM only for an advertised payload, never for that ZLP.
+335: wire usb_payload_pop = i_usb_txpop && tx_endpoint_ready &&
+336:                        !s_usb_txcork && s_usb_txlen != 0;
+337: 
+338: // Bulk IN retransmissions must keep exactly the original payload length.
+339: // After a lost host ACK the FIFO rewinds, but UART bytes may have arrived
+340: // meanwhile. Including them in the retry makes the host discard those NEW
+341: // bytes with the duplicate packet. Freeze the advertised length on its
+342: // first read and release it only when the controller acknowledges pktfin.
+343: reg [15:1] tx_pending;
+344: reg [11:0] tx_saved_len [15:1];
+345: // ACK changes pkt_rp immediately, but wrnum -> wrnum_d0 -> advertised
+346: // length takes three clocks to catch up. Do not publish that stale count
+347: // as a NEW packet when the next IN arrives immediately after retirement.
+348: reg [2:0] tx_retire;
+349: always @(posedge i_clk or posedge i_reset)begin
+350:     if(i_reset)tx_retire<=0;
+351:     else tx_retire<={tx_retire[1:0],i_usb_txpktfin && i_usb_endpt!=0};
+352: end
+353: `ifdef CONSOLE_USB_DIAG
+354: assign diagnostic_data={4'b0,tx_pending[2],s_usb_txcork,i_usb_txact,usb_payload_pop,
+355:                        s_usb_txlen,usb_txlen[2]};
+356: `endif
+357: always @(posedge i_clk or posedge i_reset) begin
+358:     if (i_reset) begin
+359:         tx_pending <= 0;
+360:     end
+361:     else if (i_usb_endpt != 0) begin
+362:         if (i_usb_txpktfin) begin
+363:             tx_pending[i_usb_endpt] <= 1'b0;
+364:         end
+365: `ifdef EP1_IN_PACKET
+366:         // A flushed packet must not be replayed with its old length.
+367:         else if (i_ep1_flush && i_usb_endpt == 4'd1) begin
+368:             tx_pending[1] <= 1'b0;
+369:         end
+370: `endif
+371:         // An empty IN poll can strobe POP without transferring a payload.
+372:         // Reserving its zero length would permanently block later arrivals.
+373:         else if (usb_payload_pop && !tx_pending[i_usb_endpt]) begin
+374:             tx_pending[i_usb_endpt] <= 1'b1;
+375:             tx_saved_len[i_usb_endpt] <= s_usb_txlen;
+376:         end
+377:     end
+378: end
+379: `ifdef EP1_IN_PACKET
+380: wire ep1_reset = i_reset | i_ep1_flush;
+381: `else
+382: wire ep1_reset = i_reset;
+383: `endif
+384: `ifdef EP1_IN_EN
+385: wire [ 7:0] ep1_txdat;
+386: wire        ep1_txcork;
+387: wire [`EP1_IN_BUF_ASIZE:0] ep1_txlen;
+388: `ifdef EP1_IN_PACKET
+389: // Offer min(committed - acknowledged, max), and only once those bytes have
+390: // reached the packet RAM. A partially written block is never visible, so
+391: // the host cannot take it for a short packet. tx_retire hides the three
+392: // clocks during which ep1_offer and ep1_txlen still describe the packet
+393: // that was just acknowledged.
+394: reg  [15:0] ep1_sent;
+395: reg  [11:0] ep1_offer;
+396: wire [15:0] ep1_remaining = i_ep1_tx_committed - ep1_sent;
+397: always @(posedge i_clk or posedge i_reset) begin
+398:     if (i_reset) begin
+399:         ep1_sent  <= 16'd0;
+400:         ep1_offer <= 12'd0;
+401:     end
+402:     else begin
+403:         if (i_ep1_flush)
+404:             ep1_sent <= 16'd0;
+405:         else if (i_usb_txpktfin && i_usb_endpt == 4'd1 && tx_pending[1])
+406:             ep1_sent <= ep1_sent + {4'd0, tx_saved_len[1]};
+407:         ep1_offer <= (i_ep1_flush || ep1_remaining >= 16'h8000) ? 12'd0 :
+408:                      (ep1_remaining >= {4'd0, i_ep1_tx_max}) ? i_ep1_tx_max : ep1_remaining[11:0];
+409:     end
+410: end
+411: assign o_ep1_tx_sent = ep1_sent;
+412: assign usb_txlen[1]  = (ep1_txlen >= {1'b0, ep1_offer}) ? ep1_offer : 12'd0;
+413: `else
+414: assign usb_txlen[1]  = (ep1_txlen >= i_ep1_tx_max) ? i_ep1_tx_max : ep1_txlen[11:0];
+415: `endif
+416: assign usb_txcork[1] = ep1_txcork;
+417: assign usb_txdat[1]  = ep1_txdat;
+418: `else
+419: assign usb_txlen[1]  = 12'd0;
+420: assign usb_txcork[1] = 1'b1;
+421: assign usb_txdat[1]  = 8'd0;
+422: `endif
+423: `ifdef EP2_IN_EN
+424: wire [ 7:0] ep2_txdat;
+425: wire        ep2_txcork;
+426: wire [`EP2_IN_BUF_ASIZE:0] ep2_txlen;
+427: assign usb_txlen[2]  = (ep2_txlen >= i_ep2_tx_max) ? i_ep2_tx_max : ep2_txlen[11:0];
+428: assign usb_txcork[2]  = ep2_txcork;
+429: assign usb_txdat[2]   = ep2_txdat;
+430: `else
+431: assign usb_txlen[2]   = 12'd0;
+432: assign usb_txcork[2]  = 1'b1;
+433: assign usb_txdat[2]   = 8'd0;
+434: `endif
+435: `ifdef EP3_IN_EN
+436: wire [ 7:0] ep3_txdat;
+437: wire        ep3_txcork;
+438: wire [`EP3_IN_BUF_ASIZE:0] ep3_txlen;
+439: assign usb_txlen[3]  = (ep3_txlen >= i_ep3_tx_max) ? i_ep3_tx_max : ep3_txlen[11:0];
+440: assign usb_txcork[3]  = ep3_txcork;
+441: assign usb_txdat[3]   = ep3_txdat;
+442: `else
+443: assign usb_txlen[3]   = 12'd0;
+444: assign usb_txcork[3]  = 1'b1;
+445: assign usb_txdat[3]   = 8'd0;
+446: `endif
+447: `ifdef EP4_IN_EN
+448: wire [ 7:0] ep4_txdat;
+449: wire        ep4_txcork;
+450: wire [`EP4_IN_BUF_ASIZE:0] ep4_txlen;
+451: assign usb_txlen[4]  = (ep4_txlen >= i_ep4_tx_max) ? i_ep4_tx_max : ep4_txlen[11:0];
+452: assign usb_txcork[4]  = ep4_txcork;
+453: assign usb_txdat[4]   = ep4_txdat;
+454: `else
+455: assign usb_txlen[4]   = 12'd0;
+456: assign usb_txcork[4]  = 1'b1;
+457: assign usb_txdat[4]   = 8'd0;
+458: `endif
+459: `ifdef EP5_IN_EN
+460: wire [ 7:0] ep5_txdat;
+461: wire        ep5_txcork;
+462: wire [`EP5_IN_BUF_ASIZE:0] ep5_txlen;
+463: assign usb_txlen[5]  = (ep5_txlen >= i_ep5_tx_max) ? i_ep5_tx_max : ep5_txlen[11:0];
+464: assign usb_txcork[5]  = ep5_txcork;
+465: assign usb_txdat[5]   = ep5_txdat;
+466: `else
+467: assign usb_txlen[5]   = 12'd0;
+468: assign usb_txcork[5]  = 1'b1;
+469: assign usb_txdat[5]   = 8'd0;
+470: `endif
+471: `ifdef EP6_IN_EN
+472: wire [ 7:0] ep6_txdat;
+473: wire        ep6_txcork;
+474: wire [`EP6_IN_BUF_ASIZE:0] ep6_txlen;
+475: assign usb_txlen[6]  = (ep6_txlen >= i_ep6_tx_max) ? i_ep6_tx_max : ep6_txlen[11:0];
+476: assign usb_txcork[6]  = ep6_txcork;
+477: assign usb_txdat[6]   = ep6_txdat;
+478: `else
+479: assign usb_txlen[6]   = 12'd0;
+480: assign usb_txcork[6]  = 1'b1;
+481: assign usb_txdat[6]   = 8'd0;
+482: `endif
+483: `ifdef EP7_IN_EN
+484: wire [ 7:0] ep7_txdat;
+485: wire        ep7_txcork;
+486: wire [`EP7_IN_BUF_ASIZE:0] ep7_txlen;
+487: assign usb_txlen[7]  = (ep7_txlen >= i_ep7_tx_max) ? i_ep7_tx_max : ep7_txlen[11:0];
+488: assign usb_txcork[7]  = ep7_txcork;
+489: assign usb_txdat[7]   = ep7_txdat;
+490: `else
+491: assign usb_txlen[7]   = 12'd0;
+492: assign usb_txcork[7]  = 1'b1;
+493: assign usb_txdat[7]   = 8'd0;
+494: `endif
+495: `ifdef EP8_IN_EN
+496: wire [ 7:0] ep8_txdat;
+497: wire        ep8_txcork;
+498: wire [`EP8_IN_BUF_ASIZE:0] ep8_txlen;
+499: assign usb_txlen[8]  = (ep8_txlen >= i_ep8_tx_max) ? i_ep8_tx_max : ep8_txlen[11:0];
+500: assign usb_txcork[8]  = ep8_txcork;
+501: assign usb_txdat[8]   = ep8_txdat;
+502: `else
+503: assign usb_txlen[8]   = 12'd0;
+504: assign usb_txcork[8]  = 1'b1;
+505: assign usb_txdat[8]   = 8'd0;
+506: `endif
+507: `ifdef EP9_IN_EN
+508: wire [ 7:0] ep9_txdat;
+509: wire        ep9_txcork;
+510: wire [`EP9_IN_BUF_ASIZE:0] ep9_txlen;
+511: assign usb_txlen[9]  = (ep9_txlen >= i_ep9_tx_max) ? i_ep9_tx_max : ep9_txlen[11:0];
+512: assign usb_txcork[9]  = ep9_txcork;
+513: assign usb_txdat[9]   = ep9_txdat;
+514: `else
+515: assign usb_txlen[9]   = 12'd0;
+516: assign usb_txcork[9]  = 1'b1;
+517: assign usb_txdat[9]   = 8'd0;
+518: `endif
+519: `ifdef EP10_IN_EN
+520: wire [ 7:0] ep10_txdat;
+521: wire        ep10_txcork;
+522: wire [`EP10_IN_BUF_ASIZE:0] ep10_txlen;
+523: assign usb_txlen[10]  = (ep10_txlen >= i_ep10_tx_max) ? i_ep10_tx_max : ep10_txlen[11:0];
+524: assign usb_txcork[10] = ep10_txcork;
+525: assign usb_txdat[10]  = ep10_txdat;
+526: `else
+527: assign usb_txlen[10]  = 12'd0;
+528: assign usb_txcork[10] = 1'b1;
+529: assign usb_txdat[10]  = 8'd0;
+530: `endif
+531: `ifdef EP11_IN_EN
+532: wire [ 7:0] ep11_txdat;
+533: wire        ep11_txcork;
+534: wire [`EP11_IN_BUF_ASIZE:0] ep11_txlen;
+535: assign usb_txlen[11]  = (ep11_txlen >= i_ep11_tx_max) ? i_ep11_tx_max : ep11_txlen[11:0];
+536: assign usb_txcork[11] = ep11_txcork;
+537: assign usb_txdat[11]  = ep11_txdat;
+538: `else
+539: assign usb_txlen[11]  = 12'd0;
+540: assign usb_txcork[11] = 1'b1;
+541: assign usb_txdat[11]  = 8'd0;
+542: `endif
+543: `ifdef EP12_IN_EN
+544: wire [ 7:0] ep12_txdat;
+545: wire        ep12_txcork;
+546: wire [`EP12_IN_BUF_ASIZE:0] ep12_txlen;
+547: assign usb_txlen[12]  = (ep12_txlen >= i_ep12_tx_max) ? i_ep12_tx_max : ep12_txlen[11:0];
+548: assign usb_txcork[12] = ep12_txcork;
+549: assign usb_txdat[12]  = ep12_txdat;
+550: `else
+551: assign usb_txlen[12]  = 12'd0;
+552: assign usb_txcork[12] = 1'b1;
+553: assign usb_txdat[12]  = 8'd0;
+554: `endif
+555: `ifdef EP13_IN_EN
+556: wire [ 7:0] ep13_txdat;
+557: wire        ep13_txcork;
+558: wire [`EP13_IN_BUF_ASIZE:0] ep13_txlen;
+559: assign usb_txlen[13]  = (ep13_txlen >= i_ep13_tx_max) ? i_ep13_tx_max : ep13_txlen[11:0];
+560: assign usb_txcork[13] = ep13_txcork;
+561: assign usb_txdat[13]  = ep13_txdat;
+562: `else
+563: assign usb_txlen[13]  = 12'd0;
+564: assign usb_txcork[13] = 1'b1;
+565: assign usb_txdat[13]  = 8'd0;
+566: `endif
+567: `ifdef EP14_IN_EN
+568: wire [ 7:0] ep14_txdat;
+569: wire        ep14_txcork;
+570: wire [`EP14_IN_BUF_ASIZE:0] ep14_txlen;
+571: assign usb_txlen[14]  = (ep14_txlen >= i_ep14_tx_max) ? i_ep14_tx_max : ep14_txlen[11:0];
+572: assign usb_txcork[14] = ep14_txcork;
+573: assign usb_txdat[14]  = ep14_txdat;
+574: `else
+575: assign usb_txlen[14]  = 12'd0;
+576: assign usb_txcork[14] = 1'b1;
+577: assign usb_txdat[14]  = 8'd0;
+578: `endif
+579: `ifdef EP15_IN_EN
+580: wire [ 7:0] ep15_txdat;
+581: wire        ep15_txcork;
+582: wire [`EP15_IN_BUF_ASIZE:0] ep15_txlen;
+583: assign usb_txlen[15]  = (ep15_txlen >= i_ep15_tx_max) ? i_ep15_tx_max : ep15_txlen[11:0];
+584: assign usb_txcork[15] = ep15_txcork;
+585: assign usb_txdat[15]  = ep15_txdat;
+586: `else
+587: assign usb_txlen[15]  = 12'd0;
+588: assign usb_txcork[15] = 1'b1;
+589: assign usb_txdat[15]  = 8'd0;
+590: `endif
+591: `ifdef EP1_OUT_EN
+592: wire ep1_rx_rdy;
+593: assign usb_rxrdy[1]   = ep1_rx_rdy;
+594: `else
+595: assign usb_rxrdy[1]   = 1'b0;
+596: `endif
+597: `ifdef EP2_OUT_EN
+598: wire ep2_rx_rdy;
+599: assign usb_rxrdy[2]   = ep2_rx_rdy;
+600: `else
+601: assign usb_rxrdy[2]   = 1'b0;
+602: `endif
+603: `ifdef EP3_OUT_EN
+604: wire ep3_rx_rdy;
+605: assign usb_rxrdy[3]   = ep3_rx_rdy;
+606: `else
+607: assign usb_rxrdy[3]   = 1'b0;
+608: `endif
+609: `ifdef EP4_OUT_EN
+610: wire ep4_rx_rdy;
+611: assign usb_rxrdy[4]   = ep4_rx_rdy;
+612: `else
+613: assign usb_rxrdy[4]   = 1'b0;
+614: `endif
+615: `ifdef EP5_OUT_EN
+616: wire ep5_rx_rdy;
+617: assign usb_rxrdy[5]   = ep5_rx_rdy;
+618: `else
+619: assign usb_rxrdy[5]   = 1'b0;
+620: `endif
+621: `ifdef EP6_OUT_EN
+622: wire ep6_rx_rdy;
+623: assign usb_rxrdy[6]   = ep6_rx_rdy;
+624: `else
+625: assign usb_rxrdy[6]   = 1'b0;
+626: `endif
+627: `ifdef EP7_OUT_EN
+628: wire ep7_rx_rdy;
+629: assign usb_rxrdy[7]   = ep7_rx_rdy;
+630: `else
+631: assign usb_rxrdy[7]   = 1'b0;
+632: `endif
+633: `ifdef EP8_OUT_EN
+634: wire ep8_rx_rdy;
+635: assign usb_rxrdy[8]   = ep8_rx_rdy;
+636: `else
+637: assign usb_rxrdy[8]   = 1'b0;
+638: `endif
+639: `ifdef EP9_OUT_EN
+640: wire ep9_rx_rdy;
+641: assign usb_rxrdy[9]   = ep9_rx_rdy;
+642: `else
+643: assign usb_rxrdy[9]  = 1'b0;
+644: `endif
+645: `ifdef EP10_OUT_EN
+646: wire ep10_rx_rdy;
+647: assign usb_rxrdy[10]  = ep10_rx_rdy;
+648: `else
+649: assign usb_rxrdy[10]  = 1'b0;
+650: `endif
+651: `ifdef EP11_OUT_EN
+652: wire ep11_rx_rdy;
+653: assign usb_rxrdy[11]  = ep11_rx_rdy;
+654: `else
+655: assign usb_rxrdy[11]  = 1'b0;
+656: `endif
+657: `ifdef EP12_OUT_EN
+658: wire ep12_rx_rdy;
+659: assign usb_rxrdy[12]  = ep12_rx_rdy;
+660: `else
+661: assign usb_rxrdy[12]  = 1'b0;
+662: `endif
+663: `ifdef EP13_OUT_EN
+664: wire ep13_rx_rdy;
+665: assign usb_rxrdy[13]  = ep13_rx_rdy;
+666: `else
+667: assign usb_rxrdy[13]  = 1'b0;
+668: `endif
+669: `ifdef EP14_OUT_EN
+670: wire ep14_rx_rdy;
+671: assign usb_rxrdy[14]  = ep14_rx_rdy;
+672: `else
+673: assign usb_rxrdy[14]  = 1'b0;
+674: `endif
+675: `ifdef EP15_OUT_EN
+676: wire ep15_rx_rdy;
+677: assign usb_rxrdy[15]  = ep15_rx_rdy;
+678: `else
+679: assign usb_rxrdy[15]  = 1'b0;
+680: `endif
+681: always @(posedge i_clk or posedge i_reset) begin
+682:     if (i_reset) begin
+683:         s_endpt_sel <= 4'd0;
+684:     end
+685:     else begin
+686:         s_endpt_sel <= i_usb_endpt;
+687:     end
+688: end
+689: 
+690: always @(posedge i_clk or posedge i_reset) begin
+691:     if (i_reset) begin
+692:         s_usb_txcork <= 1'b1;
+693:         s_usb_rxrdy  <= 1'b0;
+694:         s_usb_txlen  <= 12'd0;
+695:     end
+696:     else begin
+697:         if (i_usb_endpt == 4'd0) begin
+698:             s_usb_txcork <= 1'b0;
+699:             s_usb_rxrdy  <= 1'b0;
+700:             s_usb_txlen  <= 12'd0;
+701:         end
+702:         else begin
+703:             s_usb_rxrdy  <= usb_rxrdy[i_usb_endpt];
+704:             // Publish availability together with length. A controller waiting
+705:             // on an empty FIFO must be allowed to acquire late UART data.
+706:             // Once open, the packet stays fixed until the transfer ends.
+707:             // Endpoint selection may also arrive together with txact.
+708:             if(i_usb_txpktfin || (|tx_retire))begin
+709:                 s_usb_txlen<=0;
+710:                 s_usb_txcork<=1;
+711:             end else if (!i_usb_txact || i_usb_endpt != s_endpt_sel || s_usb_txcork) begin
+712:                 s_usb_txlen <= tx_pending[i_usb_endpt] ? tx_saved_len[i_usb_endpt] : usb_txlen[i_usb_endpt];
+713:                 s_usb_txcork <= (tx_pending[i_usb_endpt] ? tx_saved_len[i_usb_endpt] : usb_txlen[i_usb_endpt]) == 0;
+714:             end
+715:         end
+716:     end
+717: end
+718: 
+719: 
+720: 
+721: `ifdef EP1_IN_EN
+722:     usb_tx_buf #(
+723:          .P_ENDPOINT (1               )
+724:         ,.P_DSIZE    (8               )
+725:         ,.P_ASIZE    (`EP1_IN_BUF_ASIZE)
+726:         ,.P_SYNC     (1  )
+727:     )usb_tx_buf_ep1
+728:     (
+729:          .i_clk         (i_clk         )//clock
+730:         ,.i_reset       (ep1_reset     )//reset
+731:         ,.i_usb_endpt   (s_endpt_sel   )//
+732:         ,.i_usb_txact   (i_usb_txact   )//
+733:         ,.i_usb_txpop   (usb_payload_pop)//
+734:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+735:         ,.o_usb_txdat   (ep1_txdat     )//
+736:         ,.o_usb_txcork  (ep1_txcork    )//
+737:         ,.o_usb_txlen   (ep1_txlen     )//
+738:         ,.i_ep_clk      (i_ep1_tx_clk  )//
+739:         ,.i_ep_tx_dval  (i_ep1_tx_dval )//
+740:         ,.i_ep_tx_data  (i_ep1_tx_data )//
+741:     );
+742: `endif
+743: `ifdef EP1_OUT_EN
+744:     usb_rx_buf #(
+745:          .P_ENDPOINT (1  )
+746:         ,.P_AFULL    (`EP1_OUT_BUF_AFULL)
+747:         ,.P_DSIZE    (8  )
+748:         ,.P_ASIZE    (`EP1_OUT_BUF_ASIZE)
+749:         ,.P_SYNC     (1  )
+750:     )usb_rx_buf_ep1
+751:     (
+752:          .i_clk         (i_clk         )//clock
+753:         ,.i_reset       (ep1_reset     )//reset
+754:         ,.i_usb_endpt   (s_endpt_sel   )//
+755:         ,.i_usb_rxact   (i_usb_rxact   )//
+756:         ,.i_usb_rxval   (i_usb_rxval   )//
+757:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+758:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+759:         ,.o_usb_rxrdy   (ep1_rx_rdy    )//
+760:         ,.i_ep_clk      (i_ep1_rx_clk  )//
+761:         ,.i_ep_rx_rdy   (i_ep1_rx_rdy  )//
+762:         ,.o_ep_rx_dval  (o_ep1_rx_dval )//
+763:         ,.o_ep_rx_data  (o_ep1_rx_data )//
+764:     );
+765: `endif
+766: `ifdef EP2_IN_EN
+767:     usb_tx_buf #(
+768:          .P_ENDPOINT (2  )
+769:         ,.P_DSIZE    (8  )
+770:         ,.P_ASIZE    (`EP2_IN_BUF_ASIZE)
+771:     )usb_tx_buf_ep2
+772:     (
+773:          .i_clk         (i_clk         )//clock
+774:         ,.i_reset       (i_reset       )//reset
+775:         ,.i_usb_endpt   (s_endpt_sel   )//
+776:         ,.i_usb_txact   (i_usb_txact   )//
+777:         ,.i_usb_txpop   (usb_payload_pop)//
+778:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+779:         ,.o_usb_txdat   (ep2_txdat     )//
+780:         ,.o_usb_txcork  (ep2_txcork    )//
+781:         ,.o_usb_txlen   (ep2_txlen     )//
+782:         ,.i_ep_clk      (i_ep2_tx_clk  )//
+783:         ,.i_ep_tx_dval  (i_ep2_tx_dval )//
+784:         ,.i_ep_tx_data  (i_ep2_tx_data )//
+785:     );
+786: `endif
+787: `ifdef EP2_OUT_EN
+788:     usb_rx_buf #(
+789:          .P_ENDPOINT (2  )
+790:         ,.P_AFULL    (`EP2_OUT_BUF_AFULL)
+791:         ,.P_DSIZE    (8  )
+792:         ,.P_ASIZE    (`EP2_OUT_BUF_ASIZE)
+793:     )usb_rx_buf_ep2
+794:     (
+795:          .i_clk         (i_clk         )//clock
+796:         ,.i_reset       (i_reset       )//reset
+797:         ,.i_usb_endpt   (s_endpt_sel   )//
+798:         ,.i_usb_rxact   (i_usb_rxact   )//
+799:         ,.i_usb_rxval   (i_usb_rxval   )//
+800:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+801:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+802:         ,.o_usb_rxrdy   (ep2_rx_rdy    )//
+803:         ,.i_ep_clk      (i_ep2_rx_clk  )//
+804:         ,.i_ep_rx_rdy   (i_ep2_rx_rdy  )//
+805:         ,.o_ep_rx_dval  (o_ep2_rx_dval )//
+806:         ,.o_ep_rx_data  (o_ep2_rx_data )//
+807:     );
+808: `endif
+809: 
+810: `ifdef EP3_IN_EN
+811:     usb_tx_buf #(
+812:          .P_ENDPOINT (3  )
+813:         ,.P_DSIZE    (8  )
+814:         ,.P_ASIZE    (`EP3_IN_BUF_ASIZE)
+815:     )usb_tx_buf_ep3
+816:     (
+817:          .i_clk         (i_clk         )//clock
+818:         ,.i_reset       (i_reset       )//reset
+819:         ,.i_usb_endpt   (s_endpt_sel   )//
+820:         ,.i_usb_txact   (i_usb_txact   )//
+821:         ,.i_usb_txpop   (usb_payload_pop)//
+822:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+823:         ,.o_usb_txdat   (ep3_txdat     )//
+824:         ,.o_usb_txcork  (ep3_txcork    )//
+825:         ,.o_usb_txlen   (ep3_txlen     )//
+826:         ,.i_ep_clk      (i_ep3_tx_clk  )//
+827:         ,.i_ep_tx_dval  (i_ep3_tx_dval )//
+828:         ,.i_ep_tx_data  (i_ep3_tx_data )//
+829:     );
+830: `endif
+831: `ifdef EP3_OUT_EN
+832:     usb_rx_buf #(
+833:          .P_ENDPOINT (3  )
+834:         ,.P_AFULL    (`EP3_OUT_BUF_AFULL)
+835:         ,.P_DSIZE    (8  )
+836:         ,.P_ASIZE    (`EP3_OUT_BUF_ASIZE)
+837:     )usb_rx_buf_ep3
+838:     (
+839:          .i_clk         (i_clk         )//clock
+840:         ,.i_reset       (i_reset       )//reset
+841:         ,.i_usb_endpt   (s_endpt_sel   )//
+842:         ,.i_usb_rxact   (i_usb_rxact   )//
+843:         ,.i_usb_rxval   (i_usb_rxval   )//
+844:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+845:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+846:         ,.o_usb_rxrdy   (ep3_rx_rdy    )//
+847:         ,.i_ep_clk      (i_ep3_rx_clk  )//
+848:         ,.i_ep_rx_rdy   (i_ep3_rx_rdy  )//
+849:         ,.o_ep_rx_dval  (o_ep3_rx_dval )//
+850:         ,.o_ep_rx_data  (o_ep3_rx_data )//
+851:     );
+852: `endif
+853: 
+854: `ifdef EP4_IN_EN
+855:     usb_tx_buf #(
+856:          .P_ENDPOINT (4  )
+857:         ,.P_DSIZE    (8  )
+858:         ,.P_ASIZE    (`EP4_IN_BUF_ASIZE)
+859:     )usb_tx_buf_ep4
+860:     (
+861:          .i_clk         (i_clk         )//clock
+862:         ,.i_reset       (i_reset       )//reset
+863:         ,.i_usb_endpt   (s_endpt_sel   )//
+864:         ,.i_usb_txact   (i_usb_txact   )//
+865:         ,.i_usb_txpop   (usb_payload_pop)//
+866:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+867:         ,.o_usb_txdat   (ep4_txdat     )//
+868:         ,.o_usb_txcork  (ep4_txcork    )//
+869:         ,.o_usb_txlen   (ep4_txlen     )//
+870:         ,.i_ep_clk      (i_ep4_tx_clk  )//
+871:         ,.i_ep_tx_dval  (i_ep4_tx_dval )//
+872:         ,.i_ep_tx_data  (i_ep4_tx_data )//
+873:     );
+874: `endif
+875: `ifdef EP4_OUT_EN
+876:     usb_rx_buf #(
+877:          .P_ENDPOINT (4  )
+878:         ,.P_AFULL    (`EP4_OUT_BUF_AFULL)
+879:         ,.P_DSIZE    (8  )
+880:         ,.P_ASIZE    (`EP4_OUT_BUF_ASIZE)
+881:     )usb_rx_buf_ep4
+882:     (
+883:          .i_clk         (i_clk         )//clock
+884:         ,.i_reset       (i_reset       )//reset
+885:         ,.i_usb_endpt   (s_endpt_sel   )//
+886:         ,.i_usb_rxact   (i_usb_rxact   )//
+887:         ,.i_usb_rxval   (i_usb_rxval   )//
+888:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+889:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+890:         ,.o_usb_rxrdy   (ep4_rx_rdy    )//
+891:         ,.i_ep_clk      (i_ep4_rx_clk  )//
+892:         ,.i_ep_rx_rdy   (i_ep4_rx_rdy  )//
+893:         ,.o_ep_rx_dval  (o_ep4_rx_dval )//
+894:         ,.o_ep_rx_data  (o_ep4_rx_data )//
+895:     );
+896: `endif
+897: 
+898: `ifdef EP5_IN_EN
+899:     usb_tx_buf #(
+900:          .P_ENDPOINT (5  )
+901:         ,.P_DSIZE    (8  )
+902:         ,.P_ASIZE    (`EP5_IN_BUF_ASIZE)
+903:     )usb_tx_buf_ep5
+904:     (
+905:          .i_clk         (i_clk         )//clock
+906:         ,.i_reset       (i_reset       )//reset
+907:         ,.i_usb_endpt   (s_endpt_sel   )//
+908:         ,.i_usb_txact   (i_usb_txact   )//
+909:         ,.i_usb_txpop   (usb_payload_pop)//
+910:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+911:         ,.o_usb_txdat   (ep5_txdat     )//
+912:         ,.o_usb_txcork  (ep5_txcork    )//
+913:         ,.o_usb_txlen   (ep5_txlen     )//
+914:         ,.i_ep_clk      (i_ep5_tx_clk  )//
+915:         ,.i_ep_tx_dval  (i_ep5_tx_dval )//
+916:         ,.i_ep_tx_data  (i_ep5_tx_data )//
+917:     );
+918: `endif
+919: `ifdef EP5_OUT_EN
+920:     usb_rx_buf #(
+921:          .P_ENDPOINT (5  )
+922:         ,.P_AFULL    (`EP5_OUT_BUF_AFULL)
+923:         ,.P_DSIZE    (8  )
+924:         ,.P_ASIZE    (`EP5_OUT_BUF_ASIZE)
+925:     )usb_rx_buf_ep5
+926:     (
+927:          .i_clk         (i_clk         )//clock
+928:         ,.i_reset       (i_reset       )//reset
+929:         ,.i_usb_endpt   (s_endpt_sel   )//
+930:         ,.i_usb_rxact   (i_usb_rxact   )//
+931:         ,.i_usb_rxval   (i_usb_rxval   )//
+932:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+933:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+934:         ,.o_usb_rxrdy   (ep5_rx_rdy    )//
+935:         ,.i_ep_clk      (i_ep5_rx_clk  )//
+936:         ,.i_ep_rx_rdy   (i_ep5_rx_rdy  )//
+937:         ,.o_ep_rx_dval  (o_ep5_rx_dval )//
+938:         ,.o_ep_rx_data  (o_ep5_rx_data )//
+939:     );
+940: `endif
+941: `ifdef EP6_IN_EN
+942:     usb_tx_buf #(
+943:          .P_ENDPOINT (6  )
+944:         ,.P_DSIZE    (8  )
+945:         ,.P_ASIZE    (`EP6_IN_BUF_ASIZE)
+946:     )usb_tx_buf_ep6
+947:     (
+948:          .i_clk         (i_clk         )//clock
+949:         ,.i_reset       (i_reset       )//reset
+950:         ,.i_usb_endpt   (s_endpt_sel   )//
+951:         ,.i_usb_txact   (i_usb_txact   )//
+952:         ,.i_usb_txpop   (usb_payload_pop)//
+953:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+954:         ,.o_usb_txdat   (ep6_txdat     )//
+955:         ,.o_usb_txcork  (ep6_txcork    )//
+956:         ,.o_usb_txlen   (ep6_txlen     )//
+957:         ,.i_ep_clk      (i_ep6_tx_clk  )//
+958:         ,.i_ep_tx_dval  (i_ep6_tx_dval )//
+959:         ,.i_ep_tx_data  (i_ep6_tx_data )//
+960:     );
+961: `endif
+962: `ifdef EP6_OUT_EN
+963:     usb_rx_buf #(
+964:          .P_ENDPOINT (6  )
+965:         ,.P_AFULL    (`EP6_OUT_BUF_AFULL)
+966:         ,.P_DSIZE    (8  )
+967:         ,.P_ASIZE    (`EP6_OUT_BUF_ASIZE)
+968:     )usb_rx_buf_ep6
+969:     (
+970:          .i_clk         (i_clk         )//clock
+971:         ,.i_reset       (i_reset       )//reset
+972:         ,.i_usb_endpt   (s_endpt_sel   )//
+973:         ,.i_usb_rxact   (i_usb_rxact   )//
+974:         ,.i_usb_rxval   (i_usb_rxval   )//
+975:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+976:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+977:         ,.o_usb_rxrdy   (ep6_rx_rdy    )//
+978:         ,.i_ep_clk      (i_ep6_rx_clk  )//
+979:         ,.i_ep_rx_rdy   (i_ep6_rx_rdy  )//
+980:         ,.o_ep_rx_dval  (o_ep6_rx_dval )//
+981:         ,.o_ep_rx_data  (o_ep6_rx_data )//
+982:     );
+983: `endif
+984: `ifdef EP7_IN_EN
+985:     usb_tx_buf #(
+986:          .P_ENDPOINT (7  )
+987:         ,.P_DSIZE    (8  )
+988:         ,.P_ASIZE    (`EP7_IN_BUF_ASIZE)
+989:     )usb_tx_buf_ep7
+990:     (
+991:          .i_clk         (i_clk         )//clock
+992:         ,.i_reset       (i_reset       )//reset
+993:         ,.i_usb_endpt   (s_endpt_sel   )//
+994:         ,.i_usb_txact   (i_usb_txact   )//
+995:         ,.i_usb_txpop   (usb_payload_pop)//
+996:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+997:         ,.o_usb_txdat   (ep7_txdat     )//
+998:         ,.o_usb_txcork  (ep7_txcork    )//
+999:         ,.o_usb_txlen   (ep7_txlen     )//
+1000:         ,.i_ep_clk      (i_ep7_tx_clk  )//
+1001:         ,.i_ep_tx_dval  (i_ep7_tx_dval )//
+1002:         ,.i_ep_tx_data  (i_ep7_tx_data )//
+1003:     );
+1004: `endif
+1005: `ifdef EP7_OUT_EN
+1006:     usb_rx_buf #(
+1007:          .P_ENDPOINT (7  )
+1008:         ,.P_AFULL    (`EP7_OUT_BUF_AFULL)
+1009:         ,.P_DSIZE    (8  )
+1010:         ,.P_ASIZE    (`EP7_OUT_BUF_ASIZE)
+1011:     )usb_rx_buf_ep7
+1012:     (
+1013:          .i_clk         (i_clk         )//clock
+1014:         ,.i_reset       (i_reset       )//reset
+1015:         ,.i_usb_endpt   (s_endpt_sel   )//
+1016:         ,.i_usb_rxact   (i_usb_rxact   )//
+1017:         ,.i_usb_rxval   (i_usb_rxval   )//
+1018:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+1019:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+1020:         ,.o_usb_rxrdy   (ep7_rx_rdy    )//
+1021:         ,.i_ep_clk      (i_ep7_rx_clk  )//
+1022:         ,.i_ep_rx_rdy   (i_ep7_rx_rdy  )//
+1023:         ,.o_ep_rx_dval  (o_ep7_rx_dval )//
+1024:         ,.o_ep_rx_data  (o_ep7_rx_data )//
+1025:     );
+1026: `endif
+1027: `ifdef EP8_IN_EN
+1028:     usb_tx_buf #(
+1029:          .P_ENDPOINT (8  )
+1030:         ,.P_DSIZE    (8  )
+1031:         ,.P_ASIZE    (`EP8_IN_BUF_ASIZE)
+1032:     )usb_tx_buf_ep8
+1033:     (
+1034:          .i_clk         (i_clk         )//clock
+1035:         ,.i_reset       (i_reset       )//reset
+1036:         ,.i_usb_endpt   (s_endpt_sel   )//
+1037:         ,.i_usb_txact   (i_usb_txact   )//
+1038:         ,.i_usb_txpop   (usb_payload_pop)//
+1039:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+1040:         ,.o_usb_txdat   (ep8_txdat     )//
+1041:         ,.o_usb_txcork  (ep8_txcork    )//
+1042:         ,.o_usb_txlen   (ep8_txlen     )//
+1043:         ,.i_ep_clk      (i_ep8_tx_clk  )//
+1044:         ,.i_ep_tx_dval  (i_ep8_tx_dval )//
+1045:         ,.i_ep_tx_data  (i_ep8_tx_data )//
+1046:     );
+1047: `endif
+1048: `ifdef EP8_OUT_EN
+1049:     usb_rx_buf #(
+1050:          .P_ENDPOINT (8  )
+1051:         ,.P_AFULL    (`EP8_OUT_BUF_AFULL)
+1052:         ,.P_DSIZE    (8  )
+1053:         ,.P_ASIZE    (`EP8_OUT_BUF_ASIZE)
+1054:     )usb_rx_buf_ep8
+1055:     (
+1056:          .i_clk         (i_clk         )//clock
+1057:         ,.i_reset       (i_reset       )//reset
+1058:         ,.i_usb_endpt   (s_endpt_sel   )//
+1059:         ,.i_usb_rxact   (i_usb_rxact   )//
+1060:         ,.i_usb_rxval   (i_usb_rxval   )//
+1061:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+1062:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+1063:         ,.o_usb_rxrdy   (ep8_rx_rdy    )//
+1064:         ,.i_ep_clk      (i_ep8_rx_clk  )//
+1065:         ,.i_ep_rx_rdy   (i_ep8_rx_rdy  )//
+1066:         ,.o_ep_rx_dval  (o_ep8_rx_dval )//
+1067:         ,.o_ep_rx_data  (o_ep8_rx_data )//
+1068:     );
+1069: `endif
+1070: `ifdef EP9_IN_EN
+1071:     usb_tx_buf #(
+1072:          .P_ENDPOINT (9  )
+1073:         ,.P_DSIZE    (8  )
+1074:         ,.P_ASIZE    (`EP9_IN_BUF_ASIZE)
+1075:     )usb_tx_buf_ep9
+1076:     (
+1077:          .i_clk         (i_clk         )//clock
+1078:         ,.i_reset       (i_reset       )//reset
+1079:         ,.i_usb_endpt   (s_endpt_sel   )//
+1080:         ,.i_usb_txact   (i_usb_txact   )//
+1081:         ,.i_usb_txpop   (usb_payload_pop)//
+1082:         ,.i_usb_txpktfin(i_usb_txpktfin)//
+1083:         ,.o_usb_txdat   (ep9_txdat     )//
+1084:         ,.o_usb_txcork  (ep9_txcork    )//
+1085:         ,.o_usb_txlen   (ep9_txlen     )//
+1086:         ,.i_ep_clk      (i_ep9_tx_clk  )//
+1087:         ,.i_ep_tx_dval  (i_ep9_tx_dval )//
+1088:         ,.i_ep_tx_data  (i_ep9_tx_data )//
+1089:     );
+1090: `endif
+1091: `ifdef EP9_OUT_EN
+1092:     usb_rx_buf #(
+1093:          .P_ENDPOINT (9  )
+1094:         ,.P_AFULL    (`EP9_OUT_BUF_AFULL)
+1095:         ,.P_DSIZE    (8  )
+1096:         ,.P_ASIZE    (`EP9_OUT_BUF_ASIZE)
+1097:     )usb_rx_buf_ep9
+1098:     (
+1099:          .i_clk         (i_clk         )//clock
+1100:         ,.i_reset       (i_reset       )//reset
+1101:         ,.i_usb_endpt   (s_endpt_sel   )//
+1102:         ,.i_usb_rxact   (i_usb_rxact   )//
+1103:         ,.i_usb_rxval   (i_usb_rxval   )//
+1104:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+1105:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+1106:         ,.o_usb_rxrdy   (ep9_rx_rdy    )//
+1107:         ,.i_ep_clk      (i_ep9_rx_clk  )//
+1108:         ,.i_ep_rx_rdy   (i_ep9_rx_rdy  )//
+1109:         ,.o_ep_rx_dval  (o_ep9_rx_dval )//
+1110:         ,.o_ep_rx_data  (o_ep9_rx_data )//
+1111:     );
+1112: `endif
+1113: `ifdef EP10_IN_EN
+1114:     usb_tx_buf #(
+1115:          .P_ENDPOINT (10 )
+1116:         ,.P_DSIZE    (8  )
+1117:         ,.P_ASIZE    (`EP10_IN_BUF_ASIZE)
+1118:     )usb_tx_buf_ep10
+1119:     (
+1120:          .i_clk         (i_clk          )//clock
+1121:         ,.i_reset       (i_reset        )//reset
+1122:         ,.i_usb_endpt   (s_endpt_sel    )//
+1123:         ,.i_usb_txact   (i_usb_txact    )//
+1124:         ,.i_usb_txpop   (usb_payload_pop)//
+1125:         ,.i_usb_txpktfin(i_usb_txpktfin )//
+1126:         ,.o_usb_txdat   (ep10_txdat     )//
+1127:         ,.o_usb_txcork  (ep10_txcork    )//
+1128:         ,.o_usb_txlen   (ep10_txlen     )//
+1129:         ,.i_ep_clk      (i_ep10_tx_clk  )//
+1130:         ,.i_ep_tx_dval  (_ep10_tx_dval  )//
+1131:         ,.i_ep_tx_data  (_ep10_tx_data  )//
+1132:     );
+1133: `endif
+1134: `ifdef EP10_OUT_EN
+1135:     usb_rx_buf #(
+1136:          .P_ENDPOINT (10  )
+1137:         ,.P_AFULL    (`EP10_OUT_BUF_AFULL)
+1138:         ,.P_DSIZE    (8  )
+1139:         ,.P_ASIZE    (`EP10_OUT_BUF_ASIZE)
+1140:     )usb_rx_buf_ep10
+1141:     (
+1142:          .i_clk         (i_clk          )//clock
+1143:         ,.i_reset       (i_reset        )//reset
+1144:         ,.i_usb_endpt   (s_endpt_sel    )//
+1145:         ,.i_usb_rxact   (i_usb_rxact    )//
+1146:         ,.i_usb_rxval   (i_usb_rxval    )//
+1147:         ,.i_usb_rxpktval(i_usb_rxpktval )//
+1148:         ,.i_usb_rxdat   (i_usb_rxdat    )//
+1149:         ,.o_usb_rxrdy   (ep10_rx_rdy    )//
+1150:         ,.i_ep_clk      (i_ep10_rx_clk  )//
+1151:         ,.i_ep_rx_rdy   (i_ep10_rx_rdy  )//
+1152:         ,.o_ep_rx_dval  (o_ep10_rx_dval )//
+1153:         ,.o_ep_rx_data  (o_ep10_rx_data )//
+1154:     );
+1155: `endif
+1156: `ifdef EP11_IN_EN
+1157:     usb_tx_buf #(
+1158:          .P_ENDPOINT (11 )
+1159:         ,.P_DSIZE    (8  )
+1160:         ,.P_ASIZE    (`EP11_IN_BUF_ASIZE)
+1161:     )usb_tx_buf_ep11
+1162:     (
+1163:          .i_clk         (i_clk          )//clock
+1164:         ,.i_reset       (i_reset        )//reset
+1165:         ,.i_usb_endpt   (s_endpt_sel    )//
+1166:         ,.i_usb_txact   (i_usb_txact    )//
+1167:         ,.i_usb_txpop   (usb_payload_pop)//
+1168:         ,.i_usb_txpktfin(i_usb_txpktfin )//
+1169:         ,.o_usb_txdat   (ep11_txdat     )//
+1170:         ,.o_usb_txcork  (ep11_txcork    )//
+1171:         ,.o_usb_txlen   (ep11_txlen     )//
+1172:         ,.i_ep_clk      (i_ep11_tx_clk  )//
+1173:         ,.i_ep_tx_dval  (i_ep11_tx_dval )//
+1174:         ,.i_ep_tx_data  (i_ep11_tx_data )//
+1175:     );
+1176: `endif
+1177: `ifdef EP11_OUT_EN
+1178:     usb_rx_buf #(
+1179:          .P_ENDPOINT (11 )
+1180:         ,.P_AFULL    (`EP11_OUT_BUF_AFULL)
+1181:         ,.P_DSIZE    (8  )
+1182:         ,.P_ASIZE    (`EP11_OUT_BUF_ASIZE)
+1183:     )usb_rx_buf_ep11
+1184:     (
+1185:          .i_clk         (i_clk          )//clock
+1186:         ,.i_reset       (i_reset        )//reset
+1187:         ,.i_usb_endpt   (s_endpt_sel    )//
+1188:         ,.i_usb_rxact   (i_usb_rxact    )//
+1189:         ,.i_usb_rxval   (i_usb_rxval    )//
+1190:         ,.i_usb_rxpktval(i_usb_rxpktval )//
+1191:         ,.i_usb_rxdat   (i_usb_rxdat    )//
+1192:         ,.o_usb_rxrdy   (ep11_rx_rdy    )//
+1193:         ,.i_ep_clk      (i_ep11_rx_clk  )//
+1194:         ,.i_ep_rx_rdy   (i_ep11_rx_rdy  )//
+1195:         ,.o_ep_rx_dval  (o_ep11_rx_dval )//
+1196:         ,.o_ep_rx_data  (o_ep11_rx_data )//
+1197:     );
+1198: `endif
+1199: `ifdef EP12_IN_EN
+1200:     usb_tx_buf #(
+1201:          .P_ENDPOINT (12 )
+1202:         ,.P_DSIZE    (8  )
+1203:         ,.P_ASIZE    (10 )
+1204:         ,.P_ASIZE    (`EP12_IN_BUF_ASIZE)
+1205:     )usb_tx_buf_ep12
+1206:     (
+1207:          .i_clk         (i_clk          )//clock
+1208:         ,.i_reset       (i_reset        )//reset
+1209:         ,.i_usb_endpt   (s_endpt_sel    )//
+1210:         ,.i_usb_txact   (i_usb_txact    )//
+1211:         ,.i_usb_txpop   (usb_payload_pop)//
+1212:         ,.i_usb_txpktfin(i_usb_txpktfin )//
+1213:         ,.o_usb_txdat   (ep12_txdat     )//
+1214:         ,.o_usb_txcork  (ep12_txcork    )//
+1215:         ,.o_usb_txlen   (ep12_txlen     )//
+1216:         ,.i_ep_clk      (i_ep12_tx_clk  )//
+1217:         ,.i_ep_tx_dval  (i_ep12_tx_dval )//
+1218:         ,.i_ep_tx_data  (i_ep12_tx_data )//
+1219:     );
+1220: `endif
+1221: `ifdef EP12_OUT_EN
+1222:     usb_rx_buf #(
+1223:          .P_ENDPOINT (12 )
+1224:         ,.P_AFULL    (`EP12_OUT_BUF_AFULL)
+1225:         ,.P_DSIZE    (8  )
+1226:         ,.P_ASIZE    (`EP12_OUT_BUF_ASIZE)
+1227:     )usb_rx_buf_ep12
+1228:     (
+1229:          .i_clk         (i_clk          )//clock
+1230:         ,.i_reset       (i_reset        )//reset
+1231:         ,.i_usb_endpt   (s_endpt_sel    )//
+1232:         ,.i_usb_rxact   (i_usb_rxact    )//
+1233:         ,.i_usb_rxval   (i_usb_rxval    )//
+1234:         ,.i_usb_rxpktval(i_usb_rxpktval )//
+1235:         ,.i_usb_rxdat   (i_usb_rxdat    )//
+1236:         ,.o_usb_rxrdy   (ep12_rx_rdy    )//
+1237:         ,.i_ep_clk      (i_ep12_rx_clk  )//
+1238:         ,.i_ep_rx_rdy   (i_ep12_rx_rdy  )//
+1239:         ,.o_ep_rx_dval  (o_ep12_rx_dval )//
+1240:         ,.o_ep_rx_data  (o_ep12_rx_data )//
+1241:     );
+1242: `endif
+1243: `ifdef EP13_IN_EN
+1244:     usb_tx_buf #(
+1245:          .P_ENDPOINT (13 )
+1246:         ,.P_DSIZE    (8  )
+1247:         ,.P_ASIZE    (`EP13_IN_BUF_ASIZE)
+1248:     )usb_tx_buf_ep13
+1249:     (
+1250:          .i_clk         (i_clk          )//clock
+1251:         ,.i_reset       (i_reset        )//reset
+1252:         ,.i_usb_endpt   (s_endpt_sel    )//
+1253:         ,.i_usb_txact   (i_usb_txact    )//
+1254:         ,.i_usb_txpop   (usb_payload_pop)//
+1255:         ,.i_usb_txpktfin(i_usb_txpktfin )//
+1256:         ,.o_usb_txdat   (ep13_txdat     )//
+1257:         ,.o_usb_txcork  (ep13_txcork    )//
+1258:         ,.o_usb_txlen   (ep13_txlen     )//
+1259:         ,.i_ep_clk      (i_ep13_tx_clk  )//
+1260:         ,.i_ep_tx_dval  (i_ep13_tx_dval )//
+1261:         ,.i_ep_tx_data  (i_ep13_tx_data )//
+1262:     );
+1263: `endif
+1264: `ifdef EP13_OUT_EN
+1265:     usb_rx_buf #(
+1266:          .P_ENDPOINT (13 )
+1267:         ,.P_AFULL    (`EP13_OUT_BUF_AFULL)
+1268:         ,.P_DSIZE    (8  )
+1269:         ,.P_ASIZE    (`EP13_OUT_BUF_ASIZE)
+1270:     )usb_rx_buf_ep13
+1271:     (
+1272:          .i_clk         (i_clk         )//clock
+1273:         ,.i_reset       (i_reset       )//reset
+1274:         ,.i_usb_endpt   (s_endpt_sel   )//
+1275:         ,.i_usb_rxact   (i_usb_rxact   )//
+1276:         ,.i_usb_rxval   (i_usb_rxval   )//
+1277:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+1278:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+1279:         ,.o_usb_rxrdy   (ep13_rx_rdy    )//
+1280:         ,.i_ep_clk      (i_ep13_rx_clk  )//
+1281:         ,.i_ep_rx_rdy   (i_ep13_rx_rdy  )//
+1282:         ,.o_ep_rx_dval  (o_ep13_rx_dval )//
+1283:         ,.o_ep_rx_data  (o_ep13_rx_data )//
+1284:     );
+1285: `endif
+1286: `ifdef EP14_IN_EN
+1287:     usb_tx_buf #(
+1288:          .P_ENDPOINT (14 )
+1289:         ,.P_DSIZE    (8  )
+1290:         ,.P_ASIZE    (`EP14_IN_BUF_ASIZE)
+1291:     )usb_tx_buf_ep14
+1292:     (
+1293:          .i_clk         (i_clk          )//clock
+1294:         ,.i_reset       (i_reset        )//reset
+1295:         ,.i_usb_endpt   (s_endpt_sel    )//
+1296:         ,.i_usb_txact   (i_usb_txact    )//
+1297:         ,.i_usb_txpop   (usb_payload_pop)//
+1298:         ,.i_usb_txpktfin(i_usb_txpktfin )//
+1299:         ,.o_usb_txdat   (ep14_txdat     )//
+1300:         ,.o_usb_txcork  (ep14_txcork    )//
+1301:         ,.o_usb_txlen   (ep14_txlen     )//
+1302:         ,.i_ep_clk      (i_ep14_tx_clk  )//
+1303:         ,.i_ep_tx_dval  (i_ep14_tx_dval )//
+1304:         ,.i_ep_tx_data  (i_ep14_tx_data )//
+1305:     );
+1306: `endif
+1307: `ifdef EP14_OUT_EN
+1308:     usb_rx_buf #(
+1309:          .P_ENDPOINT (14 )
+1310:         ,.P_AFULL    (EP14_OUT_BUF_AFULL)
+1311:         ,.P_DSIZE    (8  )
+1312:         ,.P_ASIZE    (EP14_OUT_BUF_ASIZE)
+1313:     )usb_rx_buf_ep14
+1314:     (
+1315:          .i_clk         (i_clk         )//clock
+1316:         ,.i_reset       (i_reset       )//reset
+1317:         ,.i_usb_endpt   (s_endpt_sel   )//
+1318:         ,.i_usb_rxact   (i_usb_rxact   )//
+1319:         ,.i_usb_rxval   (i_usb_rxval   )//
+1320:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+1321:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+1322:         ,.o_usb_rxrdy   (ep14_rx_rdy    )//
+1323:         ,.i_ep_clk      (i_ep14_rx_clk  )//
+1324:         ,.i_ep_rx_rdy   (i_ep14_rx_rdy  )//
+1325:         ,.o_ep_rx_dval  (o_ep14_rx_dval )//
+1326:         ,.o_ep_rx_data  (o_ep14_rx_data )//
+1327:     );
+1328: `endif
+1329: `ifdef EP15_IN_EN
+1330:     usb_tx_buf #(
+1331:          .P_ENDPOINT (15 )
+1332:         ,.P_DSIZE    (8  )
+1333:         ,.P_ASIZE    (`EP15_IN_BUF_ASIZE)
+1334:     )usb_tx_buf_ep15
+1335:     (
+1336:          .i_clk         (i_clk          )//clock
+1337:         ,.i_reset       (i_reset        )//reset
+1338:         ,.i_usb_endpt   (s_endpt_sel    )//
+1339:         ,.i_usb_txact   (i_usb_txact    )//
+1340:         ,.i_usb_txpop   (usb_payload_pop)//
+1341:         ,.i_usb_txpktfin(i_usb_txpktfin )//
+1342:         ,.o_usb_txdat   (ep15_txdat     )//
+1343:         ,.o_usb_txcork  (ep15_txcork    )//
+1344:         ,.o_usb_txlen   (ep15_txlen     )//
+1345:         ,.i_ep_clk      (i_ep15_tx_clk  )//
+1346:         ,.i_ep_tx_dval  (i_ep15_tx_dval )//
+1347:         ,.i_ep_tx_data  (i_ep15_tx_data )//
+1348:     );
+1349: `endif
+1350: `ifdef EP15_OUT_EN
+1351:     usb_rx_buf #(
+1352:          .P_ENDPOINT (15 )
+1353:         ,.P_AFULL    (EP15_OUT_BUF_AFULL)
+1354:         ,.P_DSIZE    (8  )
+1355:         ,.P_ASIZE    (EP15_OUT_BUF_ASIZE)
+1356:     )usb_rx_buf_ep15
+1357:     (
+1358:          .i_clk         (i_clk         )//clock
+1359:         ,.i_reset       (i_reset       )//reset
+1360:         ,.i_usb_endpt   (s_endpt_sel   )//
+1361:         ,.i_usb_rxact   (i_usb_rxact   )//
+1362:         ,.i_usb_rxval   (i_usb_rxval   )//
+1363:         ,.i_usb_rxpktval(i_usb_rxpktval)//
+1364:         ,.i_usb_rxdat   (i_usb_rxdat   )//
+1365:         ,.o_usb_rxrdy   (ep15_rx_rdy    )//
+1366:         ,.i_ep_clk      (i_ep15_rx_clk  )//
+1367:         ,.i_ep_rx_rdy   (i_ep15_rx_rdy  )//
+1368:         ,.o_ep_rx_dval  (o_ep15_rx_dval )//
+1369:         ,.o_ep_rx_data  (o_ep15_rx_data )//
+1370:     );
+1371: `endif
+1372: 
+1373: 
+1374: assign o_usb_txcork = !tx_endpoint_ready || s_usb_txcork;
+1375: assign o_usb_rxrdy  = s_usb_rxrdy ;
+1376: // CORK suppresses the stale offer; keep the length datapath registered.
+1377: assign o_usb_txlen  = s_usb_txlen;
+1378: assign o_usb_txdat  = usb_txdat[i_usb_endpt];
+1379: 
+1380: endmodule
+1381: 
+1382: 
+1383: 
+1384: module usb_tx_buf #(
+1385:     parameter P_ENDPOINT = 1,
+1386:     parameter P_DSIZE    = 8,
+1387:     parameter P_ASIZE    = 9,
+1388:     // 1 : l'application écrit avec l'horloge du contrôleur USB ; la FIFO de changement
+1389:     // d'horloge (64 octets en registres) est alors supprimée. 0 : comportement d'origine.
+1390:     parameter P_SYNC     = 0
+1391: )
+1392: (
+1393:     input                      i_clk         ,//clock
+1394:     input                      i_reset       ,//reset
+1395:     input      [3:0]           i_usb_endpt   ,//
+1396:     input                      i_usb_txact   ,//
+1397:     input                      i_usb_txpop   ,//
+1398:     input                      i_usb_txpktfin,//
+1399:     output     [P_DSIZE-1:0]   o_usb_txdat   ,//
+1400:     output                     o_usb_txcork  ,//
+1401:     output     [P_ASIZE:0]     o_usb_txlen   ,//
+1402:     input                      i_ep_clk      ,//
+1403:     input                      i_ep_tx_dval  ,//
+1404:     input      [P_DSIZE-1:0]   i_ep_tx_data   //
+1405: );
+1406: //==============================================================
+1407: //======cross fifo
+1408:     wire               pkt_fifo_wr;
+1409:     wire               pkt_fifo_wr_act;
+1410:     wire               pkt_fifo_wr_pktval;
+1411:     wire [P_DSIZE-1:0] pkt_fifo_wr_data;
+1412:     wire               pkt_fifo_rd;
+1413:     reg                pkt_fifo_rd_dval;
+1414:     wire [P_DSIZE-1:0] pkt_fifo_rd_data;
+1415:     wire [P_ASIZE  :0] pkt_fifo_wr_num;
+1416:     reg  [P_ASIZE  :0] pkt_fifo_wr_num_d0;
+1417:     wire               pkt_fifo_empty;
+1418:     wire               c_fifo_wr;
+1419:     wire [P_DSIZE-1:0] c_fifo_wr_data;
+1420:     reg                c_fifo_rd;
+1421:     reg                c_fifo_rd_dval;
+1422:     wire [P_DSIZE-1:0] c_fifo_rd_data;
+1423:     assign c_fifo_wr      = i_ep_tx_dval;
+1424:     assign c_fifo_wr_data = i_ep_tx_data;
+1425:     wire c_fifo_empty;
+1426:     generate if (P_SYNC == 0) begin : g_cross
+1427:     clk_cross_fifo #(
+1428:        .DSIZE (8  )
+1429:       ,.ASIZE (6  )
+1430:       ,.AEMPT (1  )
+1431:       ,.AFULL (32 )
+1432:     )clk_cross_fifo
+1433:     (
+1434:          .WrClock    (i_ep_clk      )
+1435:         ,.Reset      (i_reset       )
+1436:         ,.WrEn       (c_fifo_wr     )
+1437:         ,.Data       (c_fifo_wr_data)
+1438:         ,.AlmostFull (              )
+1439:         ,.Full       ()
+1440:         ,.RdClock    (i_clk         )
+1441:         ,.RPReset    (i_reset       )
+1442:         ,.RdEn       (c_fifo_rd     )
+1443:         ,.Q          (c_fifo_rd_data)
+1444:         ,.AlmostEmpty()
+1445:         ,.Empty      (c_fifo_empty  )
+1446:     );
+1447: 
+1448: 
+1449: 
+1450:     end else begin : g_sync
+1451:         assign c_fifo_empty   = 1'b1;
+1452:         assign c_fifo_rd_data = {P_DSIZE{1'b0}};
+1453:     end endgenerate
+1454:     always@(posedge i_clk, posedge i_reset) begin
+1455:         if (i_reset) begin
+1456:             c_fifo_rd <= 1'b0;
+1457:         end
+1458:         else begin
+1459:             if (c_fifo_empty) begin
+1460:                 c_fifo_rd <= 1'b0;
+1461:             end
+1462:             else begin
+1463:                 c_fifo_rd <= 1'b1;
+1464:             end
+1465:         end
+1466:     end
+1467:     always@(posedge i_clk, posedge i_reset) begin
+1468:         if (i_reset) begin
+1469:             c_fifo_rd_dval <= 1'b0;
+1470:         end
+1471:         else begin
+1472:             c_fifo_rd_dval <= c_fifo_rd & (!c_fifo_empty);
+1473:         end
+1474:     end
+1475: 
+1476: //==============================================================
+1477: //======usb packet crc check fifo
+1478: assign pkt_fifo_wr        = P_SYNC ? i_ep_tx_dval : c_fifo_rd_dval;
+1479: assign pkt_fifo_wr_data   = P_SYNC ? i_ep_tx_data : c_fifo_rd_data;
+1480: assign pkt_fifo_rd_pktfin = i_usb_txpktfin&(i_usb_endpt==P_ENDPOINT);
+1481: assign pkt_fifo_rd_act    = i_usb_txact&(i_usb_endpt==P_ENDPOINT);
+1482: assign pkt_fifo_rd        = i_usb_txpop&(i_usb_endpt==P_ENDPOINT);
+1483: assign o_usb_txdat        = pkt_fifo_rd_data;
+1484: assign o_usb_txcork       = pkt_fifo_empty;
+1485: assign o_usb_txlen        = pkt_fifo_wr_num_d0;
+1486: 
+1487:     always@(posedge i_clk, posedge i_reset) begin
+1488:         if (i_reset) begin
+1489:             pkt_fifo_wr_num_d0 <= 1'b0;
+1490:         end
+1491:         else begin
+1492:             pkt_fifo_wr_num_d0 <= pkt_fifo_wr_num;
+1493:         end
+1494:     end
+1495: 
+1496:     sync_tx_pkt_fifo #(
+1497:          .DSIZE (P_DSIZE)
+1498:         ,.ASIZE (P_ASIZE)
+1499:     )sync_tx_pkt_fifo
+1500:     (
+1501:          .CLK   (i_clk              )
+1502:         ,.RSTn  (!i_reset           )
+1503:         ,.write (pkt_fifo_wr        )
+1504:         ,.iData (pkt_fifo_wr_data   )
+1505:         ,.pktfin(pkt_fifo_rd_pktfin )
+1506:         ,.txact (pkt_fifo_rd_act    )
+1507:         ,.read  (pkt_fifo_rd        )
+1508:         ,.oData (pkt_fifo_rd_data   )
+1509:         ,.wrnum (pkt_fifo_wr_num    )
+1510:         ,.full  (                   )
+1511:         ,.empty (pkt_fifo_empty     )
+1512:     );
+1513: endmodule
+1514: 
+1515: 
+1516: module usb_rx_buf #(
+1517:     parameter P_ENDPOINT = 1,
+1518:     parameter P_AFULL    = 400,
+1519:     parameter P_DSIZE    = 8,
+1520:     parameter P_ASIZE    = 9,
+1521:     // 1 : l'application lit avec l'horloge du contrôleur USB, sans FIFO de changement
+1522:     // d'horloge : un octet peut encore sortir le cycle qui suit la retombée de rdy.
+1523:     parameter P_SYNC     = 0
+1524: )
+1525: (
+1526:     input                  i_clk         ,//clock
+1527:     input                  i_reset       ,//reset
+1528:     input  [3:0]           i_usb_endpt   ,//
+1529:     input                  i_usb_rxact   ,//
+1530:     input                  i_usb_rxpktval,//
+1531:     input                  i_usb_rxval   ,//
+1532:     input  [P_DSIZE-1:0]   i_usb_rxdat   ,//
+1533:     output                 o_usb_rxrdy   ,//
+1534:     input                  i_ep_clk      ,//
+1535:     input                  i_ep_rx_rdy   ,//
+1536:     output                 o_ep_rx_dval  ,//
+1537:     output [P_DSIZE-1:0]   o_ep_rx_data   //
+1538: );
+1539:     reg                pkt_fifo_wr;
+1540:     reg                pkt_fifo_wr_act;
+1541:     reg                pkt_fifo_wr_pktval;
+1542:     reg  [P_DSIZE-1:0] pkt_fifo_wr_data;
+1543:     reg                pkt_fifo_rd;
+1544:     reg                pkt_fifo_rd_dval;
+1545:     wire [P_DSIZE-1:0] pkt_fifo_rd_data;
+1546:     wire [P_ASIZE  :0] pkt_fifo_wr_num;
+1547:     wire               c_fifo_wr;
+1548:     wire [P_DSIZE-1:0] c_fifo_wr_data;
+1549:     wire               c_fifo_afull;
+1550:     reg                c_fifo_rd;
+1551:     reg                c_fifo_dval;
+1552:     wire [P_DSIZE-1:0] c_fifo_rd_data;
+1553: 
+1554: //==============================================================
+1555: //======usb rx
+1556:     always @(posedge i_clk or posedge i_reset) begin
+1557:         if (i_reset) begin
+1558:             pkt_fifo_wr <= 1'b0;
+1559:             pkt_fifo_wr_act <= 1'b0;
+1560:             pkt_fifo_wr_pktval <= 1'b0;
+1561:             pkt_fifo_wr_data <= 'd0;
+1562:         end
+1563:         else begin
+1564:             pkt_fifo_wr <= i_usb_rxval&(i_usb_endpt==P_ENDPOINT);
+1565:             pkt_fifo_wr_act <= i_usb_rxact&(i_usb_endpt==P_ENDPOINT);
+1566:             pkt_fifo_wr_pktval <= i_usb_rxpktval&(i_usb_endpt==P_ENDPOINT);
+1567:             pkt_fifo_wr_data <= i_usb_rxdat;
+1568:         end
+1569:     end
+1570: //==============================================================
+1571: //======usb packet crc check fifo
+1572:     sync_rx_pkt_fifo  #(
+1573:          .DSIZE (P_DSIZE )
+1574:         ,.ASIZE (P_ASIZE )
+1575:     )sync_rx_pkt_fifo
+1576:     (
+1577:          .CLK   (i_clk               )
+1578:         ,.RSTn  (!i_reset            )
+1579:         ,.write (pkt_fifo_wr         )
+1580:         ,.iData (pkt_fifo_wr_data    )
+1581:         ,.pktval(pkt_fifo_wr_pktval  )
+1582:         ,.rxact (pkt_fifo_wr_act     )
+1583:         ,.read  (pkt_fifo_rd         )
+1584:         ,.oData (pkt_fifo_rd_data    )
+1585:         ,.wrnum (pkt_fifo_wr_num     )
+1586:         ,.full  (                    )
+1587:         ,.empty (pkt_fifo_empty      )
+1588:     );
+1589:     always@(posedge i_clk, posedge i_reset) begin
+1590:         if (i_reset) begin
+1591:             pkt_fifo_rd <= 1'b0;
+1592:         end
+1593:         else begin
+1594:             if (pkt_fifo_empty||(c_fifo_afull)) begin
+1595:                 pkt_fifo_rd <= 1'b0;
+1596:             end
+1597:             else begin
+1598:                 pkt_fifo_rd <= 1'b1;
+1599:             end
+1600:         end
+1601:     end
+1602:     always@(posedge i_clk, posedge i_reset) begin
+1603:         if (i_reset) begin
+1604:             pkt_fifo_rd_dval <= 1'b0;
+1605:         end
+1606:         else begin
+1607:             pkt_fifo_rd_dval <= pkt_fifo_rd & (!pkt_fifo_empty);
+1608:         end
+1609:     end
+1610: //==============================================================
+1611: //======cross fifo
+1612: assign c_fifo_wr      = pkt_fifo_rd_dval;
+1613: assign c_fifo_wr_data = pkt_fifo_rd_data;
+1614:     wire c_fifo_empty;
+1615:     generate if (P_SYNC == 0) begin : g_cross
+1616:     clk_cross_fifo #(
+1617:        .DSIZE (8  )
+1618:       ,.ASIZE (6  )
+1619:       ,.AEMPT (1  )
+1620:       ,.AFULL (32 )
+1621:     )clk_cross_fifo
+1622:     (
+1623:          .WrClock    (i_clk         )
+1624:         ,.Reset      (i_reset       )
+1625:         ,.WrEn       (c_fifo_wr     )
+1626:         ,.Data       (c_fifo_wr_data)
+1627:         ,.AlmostFull (c_fifo_afull  )
+1628:         ,.Full       ()
+1629:         ,.RdClock    (i_ep_clk      )
+1630:         ,.RPReset    (i_reset       )
+1631:         ,.RdEn       (c_fifo_rd&i_ep_rx_rdy)
+1632:         ,.Q          (c_fifo_rd_data)
+1633:         ,.AlmostEmpty()
+1634:         ,.Empty      (c_fifo_empty  )
+1635:     );
+1636:     end else begin : g_sync
+1637:         assign c_fifo_afull   = !i_ep_rx_rdy;
+1638:         assign c_fifo_empty   = 1'b1;
+1639:         assign c_fifo_rd_data = {P_DSIZE{1'b0}};
+1640:     end endgenerate
+1641:     //dual_fifo_top dual_fifo_top(
+1642:     //    .WrClk      (i_clk          ), //input WrClk
+1643:     //    .WrReset    (i_reset        ), //input WrReset
+1644:     //    .RdReset    (i_reset        ), //input RdReset
+1645:     //    .WrEn       (c_fifo_wr      ), //input WrEn
+1646:     //    .Data       (c_fifo_wr_data ), //input [7:0] Data
+1647:     //    .RdClk      (i_ep_clk       ), //input RdClk
+1648:     //    .RdEn       (c_fifo_rd      ), //input RdEn
+1649:     //    .Almost_Full(c_fifo_afull   ), //output Almost_Full
+1650:     //    .Q          (c_fifo_rd_data ), //output [7:0] Q
+1651:     //    .Empty      (c_fifo_empty   ), //output Empty
+1652:     //    .Full       () //output Full
+1653:     //);
+1654:     always@(posedge i_ep_clk, posedge i_reset) begin
+1655:         if (i_reset) begin
+1656:             c_fifo_rd <= 1'b0;
+1657:         end
+1658:         else begin
+1659: //            if (c_fifo_rd||c_fifo_empty||(!i_ep_rx_rdy)) begin
+1660:             if (c_fifo_empty||(!i_ep_rx_rdy)) begin
+1661:                 c_fifo_rd <= 1'b0;
+1662:             end
+1663:             else begin
+1664:                 c_fifo_rd <= 1'b1;
+1665:             end
+1666:         end
+1667:     end
+1668:     always@(posedge i_ep_clk, posedge i_reset) begin
+1669:         if (i_reset) begin
+1670:             c_fifo_dval <= 1'b0;
+1671:         end
+1672:         else begin
+1673:             // Valid doit correspondre au même transfert que RdEn.
+1674:             if (c_fifo_rd & i_ep_rx_rdy & (!c_fifo_empty)) begin
+1675:                 c_fifo_dval <= 1'b1;
+1676:             end
+1677:             //else if (!i_ep_rx_rdy) begin
+1678:             //    c_fifo_dval <= c_fifo_dval;
+1679:             //end
+1680:             else begin
+1681:                 c_fifo_dval <= 1'b0;
+1682:             end
+1683:         end
+1684:     end
+1685:     assign o_usb_rxrdy  = pkt_fifo_wr_num < P_AFULL;
+1686:     assign o_ep_rx_dval = P_SYNC ? pkt_fifo_rd_dval : c_fifo_dval;
+1687:     assign o_ep_rx_data = P_SYNC ? pkt_fifo_rd_data : c_fifo_rd_data;
+1688: 
+1689: endmodule
+1690: 
+1691: module clk_cross_fifo (
+1692:       Q,
+1693:       Full,
+1694:       Empty,
+1695:       AlmostEmpty,
+1696:       AlmostFull,
+1697:       Data,
+1698:       WrEn,
+1699:       WrClock,
+1700:       Reset,
+1701:       RdEn,
+1702:       RdClock,
+1703:       RPReset
+1704:       );
+1705:       parameter             DSIZE = 8;
+1706:       parameter             ASIZE = 6;
+1707:       parameter             AEMPT = 1;
+1708:       parameter             AFULL = 32;
+1709: 
+1710:       output  [DSIZE-1:0]   Q;
+1711:       output                Full;
+1712:       output                Empty;
+1713:       output                AlmostEmpty;
+1714:       output                AlmostFull;
+1715:       input   [DSIZE-1:0]   Data;
+1716:       input                 WrEn;
+1717:       input                 WrClock;
+1718:       input                 Reset;
+1719:       input                 RdEn;
+1720:       input                 RdClock;
+1721:       input                 RPReset;
+1722:   
+1723:       reg     [DSIZE-1:0]   Q;
+1724:       reg                   AlmostEmpty;
+1725:       reg                   AlmostFull;
+1726:       reg                   Full;
+1727:       reg                   Empty;
+1728:       reg       [ASIZE:0]   wptr;
+1729:       reg       [ASIZE:0]   rptr; 
+1730:       reg       [ASIZE:0]   wq2_rptr;
+1731:       reg       [ASIZE:0]   rq2_wptr; 
+1732:       reg       [ASIZE:0]   wq1_rptr;
+1733:       reg       [ASIZE:0]   rq1_wptr;
+1734:       reg       [ASIZE:0]   rbin;
+1735:       reg       [ASIZE:0]   wbin;
+1736: 
+1737:       reg       [DSIZE-1:0] mem[0:(1<<ASIZE)-1];
+1738: 
+1739:       wire      [ASIZE-1:0] waddr;
+1740:       wire      [ASIZE-1:0] raddr;
+1741:       wire      [ASIZE:0]   rgraynext;
+1742:       wire      [ASIZE:0]   rbinnext;
+1743:       wire      [ASIZE:0]   wgraynext;
+1744:       wire      [ASIZE:0]   wbinnext;
+1745:       wire                  rempty_val;
+1746:       wire                  wfull_val;
+1747:       wire      [ASIZE:0]   wcount_r;
+1748:       wire      [ASIZE:0]   rcnt_sub;
+1749:       wire      [ASIZE:0]   rcount_w;
+1750:       wire      [ASIZE:0]   wcnt_sub;    
+1751: 
+1752:       always@(posedge RdClock)
+1753:       begin
+1754:         if(RdEn)
+1755:           Q <= mem[raddr];
+1756:       end
+1757: 
+1758:       always@(posedge WrClock)
+1759:       begin
+1760:         if(WrEn && !Full)
+1761:           mem[waddr] <= Data;
+1762:       end
+1763: 
+1764:       always @(posedge WrClock or posedge Reset)
+1765:       begin
+1766:         if (Reset)
+1767:           {wq2_rptr,wq1_rptr} <= 0;
+1768:         else
+1769:           {wq2_rptr,wq1_rptr} <= {wq1_rptr,rptr};
+1770:       end
+1771: 
+1772:       always @(posedge RdClock or posedge RPReset)
+1773:       begin
+1774:         if (RPReset)
+1775:           {rq2_wptr,rq1_wptr} <= 0;
+1776:         else
+1777:           {rq2_wptr,rq1_wptr} <= {rq1_wptr,wptr};
+1778:       end
+1779: 
+1780:       always @(posedge RdClock or posedge RPReset)
+1781:       begin
+1782:         if (RPReset)
+1783:           {rbin, rptr} <= 0;
+1784:         else
+1785:           {rbin, rptr} <= {rbinnext, rgraynext};
+1786:       end
+1787: 
+1788:       assign raddr      = rbin[ASIZE-1:0];
+1789:       assign rbinnext   = rbin + (RdEn & ~Empty);
+1790:       assign rgraynext  = (rbinnext>>1) ^ rbinnext;
+1791:       assign rempty_val = (rgraynext == rq2_wptr);
+1792: 
+1793:       assign wcount_r   = gry2bin(rq2_wptr);
+1794:       assign rcnt_sub   = {(wcount_r[ASIZE] ^ rbinnext[ASIZE]), wcount_r[ASIZE-1:0]} - {1'b0, rbinnext[ASIZE-1:0]};
+1795:       assign arempty_val= rcnt_sub <= AEMPT;
+1796: 
+1797:       always @(posedge RdClock or posedge RPReset)
+1798:       begin
+1799:       if (RPReset)
+1800:         Empty <= 1'b1;
+1801:       else
+1802:         Empty <= rempty_val;
+1803:       end
+1804: 
+1805:       always @(posedge RdClock or posedge RPReset)
+1806:       begin
+1807:       if (RPReset)
+1808:         AlmostEmpty <= 1'b1;
+1809:       else
+1810:         AlmostEmpty <= arempty_val;
+1811:       end
+1812:  
+1813:       always @(posedge WrClock or posedge Reset)
+1814:       begin
+1815:         if (Reset)
+1816:           {wbin, wptr} <= 0;
+1817:         else
+1818:           {wbin, wptr} <= {wbinnext, wgraynext};
+1819:       end
+1820:    
+1821:       assign waddr      = wbin[ASIZE-1:0];
+1822:       assign wbinnext   = wbin + (WrEn & ~Full);
+1823:       assign wgraynext  = (wbinnext>>1) ^ wbinnext;
+1824:       assign wfull_val  = (wgraynext == {~wq2_rptr[ASIZE:ASIZE-1],
+1825:                                           wq2_rptr[ASIZE-2:0]});
+1826:   
+1827:       assign rcount_w   = gry2bin(wq2_rptr);
+1828:       assign wcnt_sub   = {(rcount_w[ASIZE] ^ wbinnext[ASIZE]), wbinnext[ASIZE-1:0]} - {1'b0, rcount_w[ASIZE-1:0]};
+1829:       assign awfull_val = wcnt_sub >= AFULL;
+1830: 
+1831:       always @(posedge WrClock or posedge Reset)
+1832:       begin
+1833:         if (Reset)
+1834:           Full <= 1'b0;
+1835:         else
+1836:           Full <= wfull_val;
+1837:       end
+1838: 
+1839:       always @(posedge WrClock or posedge Reset)
+1840:       begin
+1841:         if (Reset)
+1842:           AlmostFull <= 1'b0;
+1843:         else
+1844:           AlmostFull <= awfull_val;
+1845:       end
+1846: 
+1847:       function [ASIZE:0]gry2bin;
+1848:         input [ASIZE:0] gry_code;
+1849:         integer         i;
+1850:         begin
+1851:           gry2bin[ASIZE]=gry_code[ASIZE];    
+1852:           for(i=ASIZE-1;i>=0;i=i-1)        
+1853:             gry2bin[i]=gry2bin[i+1]^gry_code[i];
+1854:         end
+1855:       endfunction
+1856: 
+1857: endmodule
+
+FILE TESTS/hdl_inventory_20261026/analysis/ep1_flush_review_tb.sv SHA256 54bb3e3861f78b15fe2af379599430cdedacf77e086dc92d2f2eac60588961ea
+1: `timescale 1ns/1ps
+2: // Review probe: a locally flushed, unacknowledged EP1 packet must not be
+3: // offered again when the flush occurred while another endpoint was selected.
+4: module ep1_flush_review_tb;
+5: reg clk=0, reset=1, flush=0;
+6: always #8.333 clk=~clk;
+7: reg [3:0] endpoint=1;
+8: reg txact=0, txpop=0, txpktfin=0, dval=0;
+9: reg [7:0] data=0;
+10: reg [15:0] committed=0;
+11: wire [15:0] sent;
+12: wire [11:0] txlen;
+13: wire cork;
+14: wire [7:0] txdata;
+15: integer selected=0, i;
+16: usb_fifo dut(
+17:  .i_clk(clk), .i_reset(reset), .i_usb_endpt(endpoint),
+18:  .i_usb_txact(txact), .i_usb_txpop(txpop), .i_usb_txpktfin(txpktfin),
+19:  .o_usb_txdat(txdata), .o_usb_txcork(cork), .o_usb_txlen(txlen),
+20:  .i_usb_rxact(1'b0), .i_usb_rxval(1'b0), .i_usb_rxdat(8'b0), .i_usb_rxpktval(1'b0), .o_usb_rxrdy(),
+21:  .i_ep1_tx_clk(clk), .i_ep1_tx_max(12'd512), .i_ep1_tx_dval(dval), .i_ep1_tx_data(data),
+22:  .i_ep1_flush(flush), .i_ep1_tx_committed(committed), .o_ep1_tx_sent(sent),
+23:  .i_ep1_rx_clk(clk), .i_ep1_rx_rdy(1'b1), .o_ep1_rx_dval(), .o_ep1_rx_data(),
+24:  .i_ep2_tx_clk(clk), .i_ep2_tx_max(12'd512), .i_ep2_tx_dval(1'b0), .i_ep2_tx_data(8'b0),
+25:  .i_ep2_rx_clk(clk), .i_ep2_rx_rdy(1'b1), .o_ep2_rx_dval(), .o_ep2_rx_data(), .diagnostic_data()
+26: );
+27: initial begin
+28:  if($value$plusargs("FLUSH_ENDPOINT=%d",selected))begin end
+29:  repeat(6) @(negedge clk); reset=0;
+30:  for(i=0;i<13;i=i+1)begin @(negedge clk);dval=1;data=8'ha0+i;end
+31:  @(negedge clk);dval=0;committed=13;
+32:  repeat(12) @(negedge clk);
+33:  if(cork || txlen!=13)$fatal(1,"initial packet not offered");
+34:  txact=1;txpop=1;
+35:  @(negedge clk);txpop=0;
+36:  repeat(5) @(negedge clk);txact=0;
+37:  repeat(5) @(negedge clk);
+38:  if(!dut.tx_pending[1])$fatal(1,"no unacknowledged packet created");
+39:  endpoint=selected;
+40:  repeat(3) @(negedge clk); flush=1;committed=0;
+41:  repeat(64) @(negedge clk);flush=0;
+42:  repeat(5) @(negedge clk);endpoint=1;
+43:  repeat(8) @(negedge clk);
+44:  $display("FLUSH_ENDPOINT=%0d pending=%0b packet_ram_count=%0d offered=%0d cork=%0b retained_data=%h",selected,dut.tx_pending[1],dut.ep1_txlen,txlen,cork,txdata);
+45:  if(!cork || txlen!=0 || dut.tx_pending[1])
+46:    $fatal(1,"STALE_EP1_AFTER_FLUSH: an empty flushed FIFO still advertises the old packet");
+47:  $display("PASS flushed packet not offered");$finish;
+48: end
+49: initial begin #100000;$fatal(1,"timeout");end
+50: endmodule
+
+FILE TESTS/hdl_inventory_20261026/analysis/ep1_flush_review.json SHA256 80048ab5d76541955906247c8a063eaf338aeab55303c4ad7cbed2c4322bf8f1
+1: {
+2:   "scope": "Actual USB FIFO EP1 partial IN without ACK, local endpoint flush; no vendor USB packet model in this probe",
+3:   "cases": [
+4:     {
+5:       "endpoint_during_flush": 1,
+6:       "returncode": 0,
+7:       "stdout": "FLUSH_ENDPOINT=1 pending=0 packet_ram_count=0 offered=0 cork=1 retained_data=a0\nPASS flushed packet not offered\nTESTS/hdl_inventory_20261026/analysis/ep1_flush_review_tb.sv:47: $finish called at 2049918 (1ps)\n",
+8:       "stderr": "",
+9:       "assertion_passed": true
+10:     },
+11:     {
+12:       "endpoint_during_flush": 0,
+13:       "returncode": 1,
+14:       "stdout": "FLUSH_ENDPOINT=0 pending=1 packet_ram_count=0 offered=13 cork=0 retained_data=a0\nFATAL: TESTS/hdl_inventory_20261026/analysis/ep1_flush_review_tb.sv:46: STALE_EP1_AFTER_FLUSH: an empty flushed FIFO still advertises the old packet\n       Time: 2049918  Scope: ep1_flush_review_tb\n",
+15:       "stderr": "",
+16:       "assertion_passed": false
+17:     },
+18:     {
+19:       "endpoint_during_flush": 2,
+20:       "returncode": 1,
+21:       "stdout": "FLUSH_ENDPOINT=2 pending=1 packet_ram_count=0 offered=13 cork=0 retained_data=a0\nFATAL: TESTS/hdl_inventory_20261026/analysis/ep1_flush_review_tb.sv:46: STALE_EP1_AFTER_FLUSH: an empty flushed FIFO still advertises the old packet\n       Time: 2049918  Scope: ep1_flush_review_tb\n",
+22:       "stderr": "",
+23:       "assertion_passed": false
+24:     }
+25:   ],
+26:   "sha256": {
+27:     "TESTS/hdl_inventory_20261026/analysis/ep1_flush_review_tb.sv": "54bb3e3861f78b15fe2af379599430cdedacf77e086dc92d2f2eac60588961ea",
+28:     "tang/rtl/usb/sync_fifo/usb_fifo.v": "ad5bc3378a7266b6e40e327210d85166aeedb01d080901a66b00ae3e01660307",
+29:     "tang/rtl/usb/sync_fifo/sync_tx_pkt_fifo.v": "7fc5cce353f5481ec099b90a135685024c690a0b4eace70c5f7d0cb2e6c8b488",
+30:     "tang/rtl/usb/sync_fifo/sync_rx_pkt_fifo.v": "efd0b9e334ca838248d40db1eb07ddeecb1b85a8f018ecae6d55c3673c3d1f12"
+31:   }
+32: }
+
+FILE TESTS/hdl_inventory_20261026/analysis/REVIEW.txt SHA256 06d989e59e9b80c69ad46a180ec633a7eb42fb714e813283c65dfb63d022d874
+1: REVUE DES 16 FICHIERS HDL DE PLUS DE 1 000 LIGNES — 26 OCTOBRE 2026
+2: 
+3: Portée
+4: ======
+5: Inventaire ownership.json, sources du projet, comparaison aux copies figées
+6: Neo N56r19 et Pro Dock G22r0. Les copies de build et les netlists de mapping
+7: ne sont pas comptées comme nouveaux fichiers source. Le tableau machine
+8: review.json donne les 16 chemins, les empreintes, les lignes protégées et
+9: lisibles, la présence dans chaque snapshot et une appréciation par fichier.
+10: 
+11: 14 fichiers contiennent des blocs chiffrés Gowin. Leur interface, leurs
+12: configurations et leur intégration ont été examinées ; le chiffrement n'a
+13: pas été contourné. Il serait faux de revendiquer une revue de leur logique
+14: interne à partir de ces fichiers. Les deux fichiers entièrement lisibles
+15: sont usb_fifo.v (1857 lignes) et l'ancien gw_ahb_ddr3.v (1046 lignes).
+16: 
+17: F01 — DÉFAUT REPRODUIT : purge EP1 incomplète selon l'endpoint sélectionné
+18: =======================================================================
+19: Priorité : élevée pour la récupération du stockage USB (MSC).
+20: Source : tang/rtl/usb/sync_fifo/usb_fifo.v:351-371, 705-714.
+21: Ce fichier est byte-identique dans les snapshots R19 et G22r0.
+22: 
+23: La purge i_ep1_flush remet la FIFO de paquets à zéro, mais ne remet
+24: tx_pending[1] à zéro que si i_usb_endpt==1. Si un paquet EP1 a été commencé
+25: sans ACK, puis que la purge arrive pendant EP0 (requête de contrôle BOT)
+26: ou EP2 (CDC), l'ancien tx_saved_len reste réservé. À la prochaine sélection
+27: d'EP1, la longueur réservée est proposée même si la FIFO a été vidée.
+28: 
+29: Reproduction sur les sources actuelles, sans substitution de la FIFO :
+30:   - écrire 13 octets A0..AC et les valider ;
+31:   - commencer la lecture sans ACK pour créer une reprise en attente ;
+32:   - sélectionner EP0 ou EP2, purger pendant 64 cycles, committed=0 ;
+33:   - revenir sur EP1 et laisser les registres de longueur se stabiliser.
+34: 
+35: Résultat : pending=1, packet_ram_count=0, offered=13, cork=0,
+36: retained_data=A0. Le test échoue sur l'invariant « pas d'offre après purge ».
+37: Le contrôle avec EP1 sélectionné pendant la même purge passe : pending=0,
+38: offered=0, cork=1. Les journaux d'échec sont conservés, pas convertis en PASS.
+39: 
+40: Preuves : ep1_flush_review_tb.sv, ep1_flush_review.json,
+41: ep1_flush_compile.log. Le banc pilote l'interface du contrôleur, sans modèle
+42: de transaction USB ni PHY : il prouve le défaut logique de purge, pas une
+43: capture de corruption sur le câble. L'intégration permet cette situation :
+44: usb_uart_config produit le reset BOT depuis EP0 ; usb_msc_port transforme
+45: ce reset en handback_active/ep_flush (lignes128-141).
+46: 
+47: Correction proposée, non appliquée : la purge EP1 doit invalider l'état de
+48: reprise et l'offre de cet endpoint indépendamment du multiplexeur courant,
+49: et bloquer l'offre/pop durant la purge. Préserver les paquets EP2 et les
+50: reprises ordinaires sans ACK. Compléter les essais BOT avec perte d'ACK,
+51: changement d'endpoint, purge, puis nouveau paquet. Les tests existants
+52: continuellement centrés sur EP1 ne couvrent pas cette combinaison.
+53: 
+54: Ce défaut USB n'explique pas le blocage CLEAR du GPU Neo. Aucun lien causal
+55: avec ce blocage n'a été démontré par cette revue.
+56: 
+57: F02 — INCOMPATIBILITÉ CONFIRMÉE DANS UN ANCIEN PONT DDR NON UTILISÉ
+58: ================================================================
+59: Source : tang/rtl/ae350/ddr3_memory/gw_ahb_ddr3.v:191-196,339-358.
+60: Le pont manipule128 bits et16 bits de masque ; l'IP adjacente expose256 bits
+61: et32 bits de masque. L'élaboration Icarus confirme les extensions/troncatures.
+62: Un masque haut étendu par zéro ne protège pas les16 octets supplémentaires
+63: sur une interface DDR dont un bit de masque à1 inhibe l'écriture.
+64: L'adresse {3'b000,cmd_addr[25:1]} est en outre une adaptation historique
+65: au chemin128 bits, pas un adaptateur complet x32/1Go.
+66: 
+67: Preuve : historical_ddr_widths.log, stubs de ports tirés de l'interface
+68: lisible réelle. Ces stubs n'émulent pas la DDR ; seul le câblage des largeurs
+69: est vérifié. Le contrôle de flux fait aussi traverser directement des
+70: indicateurs entre HCLK et lpddr_clk : à revoir si ce pont est réutilisé
+71: avec deux horloges indépendantes.
+72: 
+73: Portée essentielle : ce fichier n'est ni dans R19 ni dans G22r0. Ceux-ci
+74: utilisent tang/rtl/board/sipeed/gw_ahb_ddr3.v, séparé de l'IP et entouré
+75: d'un adaptateur d'interface. Le problème de cet ancien fichier n'est donc
+76: pas une preuve sur la panne actuelle. Ne pas le sélectionner par son nom
+77: identique au pont actif.
+78: 
+79: F03 — LIMITE DE ROBUSTESSE : SATURATION TX NON SIGNALÉE À L'APPLICATION
+80: =====================================================================
+81: Source : usb_fifo.v:1423,1433-1442,1478,1496-1511.
+82: Les sorties Full des FIFO TX ne sont pas exploitées ; l'application émet
+83: une impulsion dval, sans entrée ready ni compteur de pertes dans ce bloc.
+84: Le petit FIFO est vidé vers le FIFO paquet sans considérer son état plein.
+85: Si l'hôte cesse de retirer les données alors que l'UART continue, des octets
+86: peuvent être abandonnés à saturation. La FIFO paquet EP2 vaut4 096 octets.
+87: Le pont UART2, à débit fixe 115 200 et 8N1, n'a pas de retour CTS vers le CPU.
+88: Ce point est une limite structurelle, pas une corruption reproduite sur carte
+89: dans cette revue ; ce n'est pas un défaut du calcul des pointeurs Gray.
+90: 
+91: À traiter selon le contrat console : contrôle de flux bout en bout, ou
+92: compteur de débordement et perte explicitement signalée. Un tampon fini
+93: seul ne garantit pas l'absence de pertes quand le consommateur s'arrête.
+94: 
+95: F04 — MAINTENABILITÉ ET BRANCHES NON QUALIFIÉES
+96: =============================================
+97: usb_fifo.v contient surtout la répétition des endpoints 1 à 15. Seuls 1 et 2
+98: sont activés dans ce profil. Les branches OUT14 et OUT15 emploient des noms de
+99: macros ASIZE/AFULL sans accent grave ; elles ne constituent pas des
+100: extensions prêtes à activer. Les net implicites pkt_fifo_rd_pktfin,
+101: pkt_fifo_rd_act, pkt_fifo_empty, arempty_val et awfull_val sont signalés
+102: par -Wall ; ils ont ici la largeur 1 attendue, donc pas un défaut de largeur
+103: prouvé dans les chemins actifs. Les déclarer explicitement et factoriser
+104: les endpoints serait utile, dans une modification distincte et testée.
+105: 
+106: FIFO ET HORLOGES : CE QUI A EFFECTIVEMENT ÉTÉ TESTÉ
+107: ================================================
+108: EP1 active P_SYNC=1 : suppression de la petite FIFO asynchrone, transactions
+109: du module MSC dans phy_clk. Le passage vers l'AHB est assuré ailleurs.
+110: EP2 conserve P_SYNC=0 et deux clk_cross_fifo. Dans les top Pro Dock et Neo,
+111: i_ep2_tx_clk, i_ep2_rx_clk et i_clk sont tous phy_clk : cette paire n'est
+112: pas, dans cette intégration, deux oscillateurs indépendants. La FIFO reste
+113: capable de gérer deux horloges selon le modèle numérique testé.
+114: 
+115: check_usb_cdc_sim.py a été rejoué avec les sources identifiées par SHA :
+116: 18 cas de débit/phase :125/124,5,124,5/125,60/59,94,60/60,80/60,60/80 MHz,
+117: chacun aux phases 0, 0,317 et 3,713 ns. PASS, avec bouclage de pointeurs, états
+118: plein/vide, trafic aléatoire, reset et arrêt/reprise d'horloges. Chaque cas
+119: vérifie plus de 59 000 octets. Le témoin de reset ancien échoue comme attendu ;
+120: le reset commun avec modèle officiel du contrôleur passe.
+121: Preuve : usb_cdc_result.json (20 cas dont le témoin négatif attendu).
+122: 
+123: Limites : pas de métastabilité, pas de skew de routage Gray, pas de
+124: recovery/removal physique, pas de certification HS analogique. Le protocole
+125: exige un reset cohérent des deux côtés ; la possibilité de resets séparés
+126: dans le module générique ne valide pas une réinitialisation unilatérale.
+127: 
+128: REVUE DES AUTRES BLOCS / USAGE RÉEL
+129: ==================================
+130: Les huit fichiers DDR protégés ont 144 lignes lisibles chacun. Leurs ports
+131: natifs/DDR, leur division 1:4 et les configurations voisines sont inventoriés.
+132: La variante x16 a128 bits côté utilisateur ; les variantes x32 ont256 bits.
+133: Les wrappers x32 n'envoient que addr[27:0] au coeur : avec 15 rangées,
+134: 10 colonnes,3 banques et un mot32 bits, cela représente 1 Go. La largeur
+135: externe 29 bits ne constitue donc pas à elle seule un bit d'adresse perdu.
+136: rd_data_end est un alias de rd_data_valid dans ces wrappers, pas une
+137: confirmation de fin de commande AHB. ref_req/burst ne sont pas transmis
+138: au coeur dans ces configurations ; ne pas les traiter comme commandes
+139: dynamiques disponibles sans vérifier le mode généré.
+140: 
+141: Les quatre fichiers Neo DDR6 appartiennent aux expériences antérieures,
+142: pas à R19. Les profils 300/325/400 définissent explicitement les paramètres
+143: et remplacements PLL. Le profil initial DDR6 garde une configuration 400 MHz
+144: et une PLL 300 MHz : déjà historique, il n'est pas une base cohérente à
+145: reprendre sans correction du profil. R19 et G22r0 utilisent byte pour byte
+146: la même IP DDR5.9 x32. Son gwmc_param conserve tCK = 2500 ps alors que la PLL
+147: est utilisée à 300 MHz. C'est une limite de configuration historique à
+148: examiner sur les temporisations générées, particulièrement le refresh ;
+149: la lecture du wrapper chiffré ne permet pas d'en déduire une période de
+150: refresh mesurée, ni la cause du CLEAR bloqué. Aucun changement d'IP ici.
+151: 
+152: Les trois AE350 représentent trois interfaces différentes. Le wrapper
+153: EXTS/GPIO/SPI séparés de 4838 lignes est celui de G22r0. R19 contient à ce
+154: chemin un autre fichier de 946 lignes ; ne pas lui appliquer les conclusions
+155: sur le reset de l'ancienne netlist protégée. L'horloge DDR_HCLK est reliée
+156: directement à DDR_CLK ; EXTS_HCLK, quand il existe, à AHB_CLK. La présence
+157: d'une horloge sur ces ports ne prouve pas la libération d'un reset interne.
+158: 
+159: Le diviseur Integer_Division_Top compte 13 928 lignes dont 13 884 protégées ;
+160: configuration 32/32 non signée, 37 cycles, 3 bits fractionnels. Ses 44 lignes visibles
+161: ne justifient pas une réécriture du diviseur. Il figure dans les snapshots
+162: mais son module/instance n'apparaît dans aucune des netlists R19/G22r0.
+163: Le pont UART2 réellement utilisé est à diviseur constant. Ce fichier ne
+164: constitue donc pas une consommation FPGA active de ces deux versions.
+165: 
+166: Le PHY et le contrôleur USB sont actifs dans R19, avec wrappers UTMI 8 bits
+167: et horloges de l'intégration 60/960 MHz. Les fichiers IP actuels ne sont pas
+168: byte-identiques aux IP archivées dans G22r0 : leurs résultats matériels ne
+169: doivent pas être fusionnés. Le modèle officiel employé par le test de reset
+170: est vérifié contre le fichier actuel du contrôleur avant simulation.
+171: Leur logique interne reste hors de cette revue de sources protégées.
+172: 
+173: Suite proposée
+174: ==============
+175: 1. Corriger F01 dans une modification partagée distincte, avec tests de
+176:    récupération BOT/ACK/CDC, régressions complètes et deux candidats.
+177: 2. Documenter/traiter la saturation TX ; ne pas assimiler les pertes de
+178:    tampon à un erratum matériel FIFO.
+179: 3. Marquer les sources historiques incompatibles et nettoyer les branches
+180:    inactives sans modifier les archives protégées.
+181: 4. Poursuivre séparément le diagnostic GPU Neo sur son handshake effectif.
+182: 
+183: Aucune source HDL de production modifiée. Aucun routage, chargement FPGA,
+184: accès matériel, écriture SD/flash ou modification des références Pro Dock
+185: n'a été effectué pour cette revue. La revue ne conclut pas « sans défaut ».

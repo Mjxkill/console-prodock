@@ -1,0 +1,466 @@
+tang/rtl/ae350/soc/riscv_ae350_soc.v
+     1 //
+     2 //Written by GowinSynthesis
+     3 //Tool Version "V1.9.10.03 (64-bit)"
+     4 //Sat Oct 26 23:45:30 2024
+     5 
+     6 //Source file index table:
+     7 //file0 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_top.v"
+     8 //file1 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_soc.v"
+     9 //file2 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_ddr3.v"
+    10 //file3 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_flash.v"
+    11 //file4 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/ddr3_1_4code_hs.v"
+    12 //file5 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/DDR3_TOP.v"
+    13 //file6 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/fifo_top_32to128.v"
+    14 //file7 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/fifo_top_128to32.v"
+    15 //file8 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/gw_dtcm.v"
+    16 //file9 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/RiscV_AE350_SOC/data/gw_itcm.v"
+    17 `timescale 100 ps/100 ps
+ 35811 module RiscV_AE350_SOC_Top (
+ 35812   FLASH_SPI_CSN,
+ 35813   FLASH_SPI_MISO,
+ 35814   FLASH_SPI_MOSI,
+ 35815   FLASH_SPI_CLK,
+ 35816   FLASH_SPI_HOLDN,
+ 35817   FLASH_SPI_WPN,
+ 35818   DDR_HRDATA,
+ 35819   DDR_HREADY,
+ 35820   DDR_HRESP,
+ 35821   DDR_HADDR,
+ 35822   DDR_HBURST,
+ 35823   DDR_HPROT,
+ 35824   DDR_HSIZE,
+ 35825   DDR_HTRANS,
+ 35826   DDR_HWDATA,
+ 35827   DDR_HWRITE,
+ 35828   DDR_HCLK,
+ 35829   DDR_HRSTN,
+ 35830   TCK_IN,
+ 35831   TMS_IN,
+ 35832   TRST_IN,
+ 35833   TDI_IN,
+ 35834   TDO_OUT,
+ 35835   TDO_OE,
+ 35836   UART2_TXD,
+ 35837   UART2_RTSN,
+ 35838   UART2_RXD,
+ 35839   UART2_CTSN,
+ 35840   UART2_DCDN,
+ 35841   UART2_DSRN,
+ 35842   UART2_RIN,
+ 35843   UART2_DTRN,
+ 35844   UART2_OUT1N,
+ 35845   UART2_OUT2N,
+ 35846   GPIO,
+ 35847   CORE_CLK,
+ 35848   DDR_CLK,
+ 35849   AHB_CLK,
+ 35850   APB_CLK,
+ 35851   RTC_CLK,
+ 35852   POR_RSTN,
+ 35853   HW_RSTN
+ 35854 )
+ 35855 ;
+ 35856 inout FLASH_SPI_CSN;
+ 35857 inout FLASH_SPI_MISO;
+ 35858 inout FLASH_SPI_MOSI;
+ 35859 inout FLASH_SPI_CLK;
+ 35860 inout FLASH_SPI_HOLDN;
+ 35861 inout FLASH_SPI_WPN;
+ 35862 input [63:0] DDR_HRDATA;
+ 35863 input DDR_HREADY;
+ 35864 input DDR_HRESP;
+ 35865 output [31:0] DDR_HADDR;
+ 35866 output [2:0] DDR_HBURST;
+ 35867 output [3:0] DDR_HPROT;
+ 35868 output [2:0] DDR_HSIZE;
+ 35869 output [1:0] DDR_HTRANS;
+ 35870 output [63:0] DDR_HWDATA;
+ 35871 output DDR_HWRITE;
+ 35872 output DDR_HCLK;
+ 35873 output DDR_HRSTN;
+ 35874 input TCK_IN;
+ 35875 input TMS_IN;
+ 35876 input TRST_IN;
+ 35877 input TDI_IN;
+ 35878 output TDO_OUT;
+ 35879 output TDO_OE;
+ 35880 output UART2_TXD;
+ 35881 output UART2_RTSN;
+ 35882 input UART2_RXD;
+ 35883 input UART2_CTSN;
+ 35884 input UART2_DCDN;
+ 35885 input UART2_DSRN;
+ 35886 input UART2_RIN;
+ 35887 output UART2_DTRN;
+ 35888 output UART2_OUT1N;
+ 35889 output UART2_OUT2N;
+ 35890 inout [31:0] GPIO;
+ 35891 input CORE_CLK;
+ 35892 input DDR_CLK;
+ 35893 input AHB_CLK;
+ 35894 input APB_CLK;
+ 35895 input RTC_CLK;
+ 35896 input POR_RSTN;
+ 35897 input HW_RSTN;
+ 35898 wire FLASH_SPI_CSN_in;
+ 35899 wire FLASH_SPI_MISO_in;
+ 35900 wire FLASH_SPI_MOSI_in;
+ 35901 wire FLASH_SPI_CLK_in;
+ 35902 wire FLASH_SPI_HOLDN_in;
+ 35903 wire FLASH_SPI_WPN_in;
+ 35904 wire IO_7;
+ 35905 wire IO_7_37;
+ 35906 wire IO_7_38;
+ 35907 wire IO_7_39;
+ 35908 wire IO_7_40;
+ 35909 wire IO_7_41;
+ 35910 wire IO_7_42;
+ 35911 wire IO_7_43;
+ 35912 wire IO_7_44;
+ 35913 wire IO_7_45;
+ 35914 wire IO_7_46;
+ 35915 wire IO_7_47;
+ 35916 wire IO_7_48;
+ 35917 wire IO_7_49;
+ 35918 wire IO_7_50;
+ 35919 wire IO_7_51;
+ 35920 wire IO_7_52;
+ 35921 wire IO_7_53;
+ 35922 wire IO_7_54;
+ 35923 wire IO_7_55;
+ 35924 wire IO_7_56;
+ 35925 wire IO_7_57;
+ 35926 wire IO_7_58;
+ 35927 wire IO_7_59;
+ 35928 wire IO_7_60;
+ 35929 wire IO_7_61;
+ 35930 wire IO_7_62;
+ 35931 wire IO_7_63;
+ 35932 wire IO_7_64;
+ 35933 wire IO_7_65;
+ 35934 wire IO_7_66;
+ 35935 wire IO_7_67;
+ 35936 wire IO_7_68;
+ 35937 wire spi1_csn_out;
+ 35938 wire n250_3;
+ 35939 wire [31:0] GPIO_in;
+ 35940 wire [31:0] GPIO_OUT;
+ 35941 wire [0:0] spi_out_r;
+ 35942 wire VCC;
+ 35943 wire GND;
+ 35944   IOBUF FLASH_SPI_CSN_iobuf (
+ 35945     .O(FLASH_SPI_CSN_in),
+ 35946     .IO(FLASH_SPI_CSN),
+ 35947     .I(spi1_csn_out),
+ 35948     .OEN(GND) 
+ 35949 );
+ 35950   IOBUF FLASH_SPI_MISO_iobuf (
+ 35951     .O(FLASH_SPI_MISO_in),
+ 35952     .IO(FLASH_SPI_MISO),
+ 35953     .I(VCC),
+ 35954     .OEN(IO_7_68) 
+ 35955 );
+ 35956   IOBUF FLASH_SPI_MOSI_iobuf (
+ 35957     .O(FLASH_SPI_MOSI_in),
+ 35958     .IO(FLASH_SPI_MOSI),
+ 35959     .I(spi_out_r[0]),
+ 35960     .OEN(GND) 
+ 35961 );
+ 35962   IOBUF FLASH_SPI_CLK_iobuf (
+ 35963     .O(FLASH_SPI_CLK_in),
+ 35964     .IO(FLASH_SPI_CLK),
+ 35965     .I(n250_3),
+ 35966     .OEN(GND) 
+ 35967 );
+ 35968   IOBUF FLASH_SPI_HOLDN_iobuf (
+ 35969     .O(FLASH_SPI_HOLDN_in),
+ 35970     .IO(FLASH_SPI_HOLDN),
+ 35971     .I(VCC),
+ 35972     .OEN(GND) 
+ 35973 );
+ 35974   IOBUF FLASH_SPI_WPN_iobuf (
+ 35975     .O(FLASH_SPI_WPN_in),
+ 35976     .IO(FLASH_SPI_WPN),
+ 35977     .I(VCC),
+ 35978     .OEN(GND) 
+ 35979 );
+ 35980   IOBUF GPIO_0_iobuf (
+ 35981     .O(GPIO_in[0]),
+ 35982     .IO(GPIO[0]),
+ 35983     .I(GPIO_OUT[0]),
+ 35984     .OEN(IO_7) 
+ 35985 );
+ 35986   IOBUF GPIO_1_iobuf (
+ 35987     .O(GPIO_in[1]),
+ 35988     .IO(GPIO[1]),
+ 35989     .I(GPIO_OUT[1]),
+ 35990     .OEN(IO_7_37) 
+ 35991 );
+ 35992   IOBUF GPIO_2_iobuf (
+ 35993     .O(GPIO_in[2]),
+ 35994     .IO(GPIO[2]),
+ 35995     .I(GPIO_OUT[2]),
+ 35996     .OEN(IO_7_38) 
+ 35997 );
+ 35998   IOBUF GPIO_3_iobuf (
+ 35999     .O(GPIO_in[3]),
+ 36000     .IO(GPIO[3]),
+ 36001     .I(GPIO_OUT[3]),
+ 36002     .OEN(IO_7_39) 
+ 36003 );
+ 36004   IOBUF GPIO_4_iobuf (
+ 36005     .O(GPIO_in[4]),
+ 36006     .IO(GPIO[4]),
+ 36007     .I(GPIO_OUT[4]),
+ 36008     .OEN(IO_7_40) 
+ 36009 );
+ 36010   IOBUF GPIO_5_iobuf (
+ 36011     .O(GPIO_in[5]),
+ 36012     .IO(GPIO[5]),
+ 36013     .I(GPIO_OUT[5]),
+ 36014     .OEN(IO_7_41) 
+ 36015 );
+ 36016   IOBUF GPIO_6_iobuf (
+ 36017     .O(GPIO_in[6]),
+ 36018     .IO(GPIO[6]),
+ 36019     .I(GPIO_OUT[6]),
+ 36020     .OEN(IO_7_42) 
+ 36021 );
+ 36022   IOBUF GPIO_7_iobuf (
+ 36023     .O(GPIO_in[7]),
+ 36024     .IO(GPIO[7]),
+ 36025     .I(GPIO_OUT[7]),
+ 36026     .OEN(IO_7_43) 
+ 36027 );
+ 36028   IOBUF GPIO_8_iobuf (
+ 36029     .O(GPIO_in[8]),
+ 36030     .IO(GPIO[8]),
+ 36031     .I(GPIO_OUT[8]),
+ 36032     .OEN(IO_7_44) 
+ 36033 );
+ 36034   IOBUF GPIO_9_iobuf (
+ 36035     .O(GPIO_in[9]),
+ 36036     .IO(GPIO[9]),
+ 36037     .I(GPIO_OUT[9]),
+ 36038     .OEN(IO_7_45) 
+ 36039 );
+ 36040   IOBUF GPIO_10_iobuf (
+ 36041     .O(GPIO_in[10]),
+ 36042     .IO(GPIO[10]),
+ 36043     .I(GPIO_OUT[10]),
+ 36044     .OEN(IO_7_46) 
+ 36045 );
+ 36046   IOBUF GPIO_11_iobuf (
+ 36047     .O(GPIO_in[11]),
+ 36048     .IO(GPIO[11]),
+ 36049     .I(GPIO_OUT[11]),
+ 36050     .OEN(IO_7_47) 
+ 36051 );
+ 36052   IOBUF GPIO_12_iobuf (
+ 36053     .O(GPIO_in[12]),
+ 36054     .IO(GPIO[12]),
+ 36055     .I(GPIO_OUT[12]),
+ 36056     .OEN(IO_7_48) 
+ 36057 );
+ 36058   IOBUF GPIO_13_iobuf (
+ 36059     .O(GPIO_in[13]),
+ 36060     .IO(GPIO[13]),
+ 36061     .I(GPIO_OUT[13]),
+ 36062     .OEN(IO_7_49) 
+ 36063 );
+ 36064   IOBUF GPIO_14_iobuf (
+ 36065     .O(GPIO_in[14]),
+ 36066     .IO(GPIO[14]),
+ 36067     .I(GPIO_OUT[14]),
+ 36068     .OEN(IO_7_50) 
+ 36069 );
+ 36070   IOBUF GPIO_15_iobuf (
+ 36071     .O(GPIO_in[15]),
+ 36072     .IO(GPIO[15]),
+ 36073     .I(GPIO_OUT[15]),
+ 36074     .OEN(IO_7_51) 
+ 36075 );
+ 36076   IOBUF GPIO_16_iobuf (
+ 36077     .O(GPIO_in[16]),
+ 36078     .IO(GPIO[16]),
+ 36079     .I(GPIO_OUT[16]),
+ 36080     .OEN(IO_7_52) 
+ 36081 );
+ 36082   IOBUF GPIO_17_iobuf (
+ 36083     .O(GPIO_in[17]),
+ 36084     .IO(GPIO[17]),
+ 36085     .I(GPIO_OUT[17]),
+ 36086     .OEN(IO_7_53) 
+ 36087 );
+ 36088   IOBUF GPIO_18_iobuf (
+ 36089     .O(GPIO_in[18]),
+ 36090     .IO(GPIO[18]),
+ 36091     .I(GPIO_OUT[18]),
+ 36092     .OEN(IO_7_54) 
+ 36093 );
+ 36094   IOBUF GPIO_19_iobuf (
+ 36095     .O(GPIO_in[19]),
+ 36096     .IO(GPIO[19]),
+ 36097     .I(GPIO_OUT[19]),
+ 36098     .OEN(IO_7_55) 
+ 36099 );
+ 36100   IOBUF GPIO_20_iobuf (
+ 36101     .O(GPIO_in[20]),
+ 36102     .IO(GPIO[20]),
+ 36103     .I(GPIO_OUT[20]),
+ 36104     .OEN(IO_7_56) 
+ 36105 );
+ 36106   IOBUF GPIO_21_iobuf (
+ 36107     .O(GPIO_in[21]),
+ 36108     .IO(GPIO[21]),
+ 36109     .I(GPIO_OUT[21]),
+ 36110     .OEN(IO_7_57) 
+ 36111 );
+ 36112   IOBUF GPIO_22_iobuf (
+ 36113     .O(GPIO_in[22]),
+ 36114     .IO(GPIO[22]),
+ 36115     .I(GPIO_OUT[22]),
+ 36116     .OEN(IO_7_58) 
+ 36117 );
+ 36118   IOBUF GPIO_23_iobuf (
+ 36119     .O(GPIO_in[23]),
+ 36120     .IO(GPIO[23]),
+ 36121     .I(GPIO_OUT[23]),
+ 36122     .OEN(IO_7_59) 
+ 36123 );
+ 36124   IOBUF GPIO_24_iobuf (
+ 36125     .O(GPIO_in[24]),
+ 36126     .IO(GPIO[24]),
+ 36127     .I(GPIO_OUT[24]),
+ 36128     .OEN(IO_7_60) 
+ 36129 );
+ 36130   IOBUF GPIO_25_iobuf (
+ 36131     .O(GPIO_in[25]),
+ 36132     .IO(GPIO[25]),
+ 36133     .I(GPIO_OUT[25]),
+ 36134     .OEN(IO_7_61) 
+ 36135 );
+ 36136   IOBUF GPIO_26_iobuf (
+ 36137     .O(GPIO_in[26]),
+ 36138     .IO(GPIO[26]),
+ 36139     .I(GPIO_OUT[26]),
+ 36140     .OEN(IO_7_62) 
+ 36141 );
+ 36142   IOBUF GPIO_27_iobuf (
+ 36143     .O(GPIO_in[27]),
+ 36144     .IO(GPIO[27]),
+ 36145     .I(GPIO_OUT[27]),
+ 36146     .OEN(IO_7_63) 
+ 36147 );
+ 36148   IOBUF GPIO_28_iobuf (
+ 36149     .O(GPIO_in[28]),
+ 36150     .IO(GPIO[28]),
+ 36151     .I(GPIO_OUT[28]),
+ 36152     .OEN(IO_7_64) 
+ 36153 );
+ 36154   IOBUF GPIO_29_iobuf (
+ 36155     .O(GPIO_in[29]),
+ 36156     .IO(GPIO[29]),
+ 36157     .I(GPIO_OUT[29]),
+ 36158     .OEN(IO_7_65) 
+ 36159 );
+ 36160   IOBUF GPIO_30_iobuf (
+ 36161     .O(GPIO_in[30]),
+ 36162     .IO(GPIO[30]),
+ 36163     .I(GPIO_OUT[30]),
+ 36164     .OEN(IO_7_66) 
+ 36165 );
+ 36166   IOBUF GPIO_31_iobuf (
+ 36167     .O(GPIO_in[31]),
+ 36168     .IO(GPIO[31]),
+ 36169     .I(GPIO_OUT[31]),
+ 36170     .OEN(IO_7_67) 
+ 36171 );
+ 36172   RiscV_AE350_SOC u_RiscV_AE350_SOC (
+ 36173     .POR_RSTN(POR_RSTN),
+ 36174     .HW_RSTN(HW_RSTN),
+ 36175     .CORE_CLK(CORE_CLK),
+ 36176     .DDR_CLK(DDR_CLK),
+ 36177     .AHB_CLK(AHB_CLK),
+ 36178     .APB_CLK(APB_CLK),
+ 36179     .TCK_IN(TCK_IN),
+ 36180     .RTC_CLK(RTC_CLK),
+ 36181     .DDR_HREADY(DDR_HREADY),
+ 36182     .DDR_HRESP(DDR_HRESP),
+ 36183     .TMS_IN(TMS_IN),
+ 36184     .TRST_IN(TRST_IN),
+ 36185     .TDI_IN(TDI_IN),
+ 36186     .UART2_RXD(UART2_RXD),
+ 36187     .UART2_CTSN(UART2_CTSN),
+ 36188     .UART2_DCDN(UART2_DCDN),
+ 36189     .UART2_DSRN(UART2_DSRN),
+ 36190     .UART2_RIN(UART2_RIN),
+ 36191     .FLASH_SPI_MISO_in(FLASH_SPI_MISO_in),
+ 36192     .FLASH_SPI_CLK_in(FLASH_SPI_CLK_in),
+ 36193     .DDR_HRDATA(DDR_HRDATA[63:0]),
+ 36194     .GPIO_in(GPIO_in[31:0]),
+ 36195     .DDR_HRSTN(DDR_HRSTN),
+ 36196     .DDR_HWRITE(DDR_HWRITE),
+ 36197     .TDO_OUT(TDO_OUT),
+ 36198     .TDO_OE(TDO_OE),
+ 36199     .UART2_TXD(UART2_TXD),
+ 36200     .UART2_RTSN(UART2_RTSN),
+ 36201     .UART2_DTRN(UART2_DTRN),
+ 36202     .UART2_OUT1N(UART2_OUT1N),
+ 36203     .UART2_OUT2N(UART2_OUT2N),
+ 36204     .IO_7(IO_7),
+ 36205     .IO_7_5(IO_7_37),
+ 36206     .IO_7_6(IO_7_38),
+ 36207     .IO_7_7(IO_7_39),
+ 36208     .IO_7_8(IO_7_40),
+ 36209     .IO_7_9(IO_7_41),
+ 36210     .IO_7_10(IO_7_42),
+ 36211     .IO_7_11(IO_7_43),
+ 36212     .IO_7_12(IO_7_44),
+ 36213     .IO_7_13(IO_7_45),
+ 36214     .IO_7_14(IO_7_46),
+ 36215     .IO_7_15(IO_7_47),
+ 36216     .IO_7_16(IO_7_48),
+ 36217     .IO_7_17(IO_7_49),
+ 36218     .IO_7_18(IO_7_50),
+ 36219     .IO_7_19(IO_7_51),
+ 36220     .IO_7_20(IO_7_52),
+ 36221     .IO_7_21(IO_7_53),
+ 36222     .IO_7_22(IO_7_54),
+ 36223     .IO_7_23(IO_7_55),
+ 36224     .IO_7_24(IO_7_56),
+ 36225     .IO_7_25(IO_7_57),
+ 36226     .IO_7_26(IO_7_58),
+ 36227     .IO_7_27(IO_7_59),
+ 36228     .IO_7_28(IO_7_60),
+ 36229     .IO_7_29(IO_7_61),
+ 36230     .IO_7_30(IO_7_62),
+ 36231     .IO_7_31(IO_7_63),
+ 36232     .IO_7_32(IO_7_64),
+ 36233     .IO_7_33(IO_7_65),
+ 36234     .IO_7_34(IO_7_66),
+ 36235     .IO_7_35(IO_7_67),
+ 36236     .IO_7_36(IO_7_68),
+ 36237     .spi1_csn_out(spi1_csn_out),
+ 36238     .n250_3(n250_3),
+ 36239     .DDR_HADDR(DDR_HADDR[31:0]),
+ 36240     .DDR_HBURST(DDR_HBURST[2:0]),
+ 36241     .DDR_HPROT(DDR_HPROT[3:0]),
+ 36242     .DDR_HSIZE(DDR_HSIZE[2:0]),
+ 36243     .DDR_HTRANS(DDR_HTRANS[1:0]),
+ 36244     .DDR_HWDATA(DDR_HWDATA[63:0]),
+ 36245     .GPIO_OUT(GPIO_OUT[31:0]),
+ 36246     .spi_out_r(spi_out_r[0])
+ 36247 );
+ 36248   VCC VCC_cZ (
+ 36249     .V(VCC)
+ 36250 );
+ 36251   GND GND_cZ (
+ 36252     .G(GND)
+ 36253 );
+ 36254   GSR GSR (
+ 36255     .GSRI(VCC) 
+ 36256 );
+ 36257 assign DDR_HCLK = DDR_CLK;
+ 36258 endmodule /* RiscV_AE350_SOC_Top */

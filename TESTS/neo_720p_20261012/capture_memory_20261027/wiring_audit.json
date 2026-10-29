@@ -1,0 +1,107 @@
+{
+  "passed": true,
+  "hardware_access": false,
+  "routing_started": false,
+  "netlist_sha256": "d773dca99127093b27e713f195b9ff62207c01a7810130c55d5d99499700d4cc",
+  "inputs": {
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/audit_wiring.py": "bf2ac66542e98fe019c932e7c04b1c2c2651bb7839610e174677a6f890afeac6",
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/build_memory_capture.py": "142e487cabe161ffbc9835792ee88f39ecd3cff3caf87238ed9e9b21ec66fbcc",
+    "/home/michael/console/tang/impl/console_neo_n56r21_capture_memory/parent.vg": "dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6",
+    "/home/michael/console/tang/impl/console_neo_n56r21_capture_memory/console_neo.vg": "d773dca99127093b27e713f195b9ff62207c01a7810130c55d5d99499700d4cc",
+    "/home/michael/console/tang/impl/console_neo_n56r21_capture_memory/assembly.json": "bdfe9387fcca6195c4779e69536db88fbb05aa8f8ee50c7122ad443fa1afdfb4"
+  },
+  "old_wire_assign_declarations": {
+    "gpu_accel": {
+      "old_preserved": 1143,
+      "new_observation_declarations": [
+        "wire trace_pixel_valid;"
+      ]
+    },
+    "gpu_geometry": {
+      "old_preserved": 11375,
+      "new_observation_declarations": []
+    },
+    "gpu_v1": {
+      "old_preserved": 9330,
+      "new_observation_declarations": [
+        "wire [23:0] trace_copy_sample;"
+      ]
+    },
+    "gpu_copy565": {
+      "old_preserved": 4869,
+      "new_observation_declarations": [
+        "assign trace_copy_sample[0] = packet[80];",
+        "assign trace_copy_sample[10] = packet_0[82];",
+        "assign trace_copy_sample[11] = packet_0[83];",
+        "assign trace_copy_sample[12] = packet_0[84];",
+        "assign trace_copy_sample[13] = packet_0[85];",
+        "assign trace_copy_sample[14] = packet_0[86];",
+        "assign trace_copy_sample[15] = packet_0[87];",
+        "assign trace_copy_sample[16] = n7630_6;",
+        "assign trace_copy_sample[17] = n577_9;",
+        "assign trace_copy_sample[18] = state[41];",
+        "assign trace_copy_sample[19] = trace_copy_idle;",
+        "assign trace_copy_sample[1] = packet[81];",
+        "assign trace_copy_sample[20] = trace_copy_check;",
+        "assign trace_copy_sample[21] = trace_copy_validate;",
+        "assign trace_copy_sample[22] = copy_bad;",
+        "assign trace_copy_sample[23] = copy_done;",
+        "assign trace_copy_sample[2] = packet[82];",
+        "assign trace_copy_sample[3] = packet[83];",
+        "assign trace_copy_sample[4] = packet[84];",
+        "assign trace_copy_sample[5] = packet[85];",
+        "assign trace_copy_sample[6] = packet[86];",
+        "assign trace_copy_sample[7] = packet[87];",
+        "assign trace_copy_sample[8] = packet_0[80];",
+        "assign trace_copy_sample[9] = packet_0[81];",
+        "wire trace_copy_idle,trace_copy_low_one,trace_copy_check,trace_copy_validate;"
+      ]
+    }
+  },
+  "event_port_chain": {
+    "gpu_accel.u_v1.trace_mem_events": "{v1_accepted,v1_pending,trace_pixel_valid}",
+    "gpu_geometry.u_pixels.trace_mem_events": "trace_mem_events[2:0]",
+    "gpu_v1.u_capture.mem_events": "{trace_mem_events[2:0],native_issue}"
+  },
+  "event_truth_cases": 64,
+  "copy_state_reset_start_truth_cases": 128,
+  "sample_aliases_lsb_first": {
+    "0": "packet[80]",
+    "1": "packet[81]",
+    "2": "packet[82]",
+    "3": "packet[83]",
+    "4": "packet[84]",
+    "5": "packet[85]",
+    "6": "packet[86]",
+    "7": "packet[87]",
+    "8": "packet_0[80]",
+    "9": "packet_0[81]",
+    "10": "packet_0[82]",
+    "11": "packet_0[83]",
+    "12": "packet_0[84]",
+    "13": "packet_0[85]",
+    "14": "packet_0[86]",
+    "15": "packet_0[87]",
+    "16": "n7630_6",
+    "17": "n577_9",
+    "18": "state[41]",
+    "19": "trace_copy_idle",
+    "20": "trace_copy_check",
+    "21": "trace_copy_validate",
+    "22": "copy_bad",
+    "23": "copy_done"
+  },
+  "reset_driver": [
+    [
+      "n577_s4",
+      [
+        "INV",
+        {
+          "O": "n577_9",
+          "I": "gpu_debug_state[50]"
+        }
+      ]
+    ]
+  ],
+  "scope": "Exact composite netlist connections plus exhaustive Boolean evaluation; complements actual helper and COPY simulations, no physical timing claim"
+}

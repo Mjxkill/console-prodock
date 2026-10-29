@@ -1,0 +1,83 @@
+## Périmètre et conclusion
+
+Analyse statique du seul fichier fourni, `FILE TESTS/assisted_reviews_20261026/queue_monitor.py`. **Aucun test n’a été exécuté** et aucune modification n’a été réalisée.
+
+Le moniteur possède deux protections nominales utiles :
+
+- exclusion mutuelle des moniteurs pour une même queue via `flock` (`queue_monitor.py:77-78`) ;
+- claim atomique d’un nom de job avec `open('x')` (`queue_monitor.py:90-95`).
+
+En revanche, le lancement n’est pas transactionnel, le code de retour des enfants est ignoré, et l’état de la file ne distingue pas correctement succès, échec et job non résolu. Les principaux risques sont donc :
+
+1. une erreur de lancement d’un job arrête tout le moniteur et laisse un claim orphelin ;
+2. un job en échec peut être présenté comme une file inerte réussie ;
+3. un processus mort laissant `RUNNING` peut bloquer indéfiniment ;
+4. la reprise après arrêt n’a pas de protocole de réconciliation de la propriété du job.
+
+---
+
+## Défauts prioritaires
+
+### P0 — Une erreur locale de lancement devient une erreur globale
+
+Le claim est créé avant l’ouverture du log et avant `Popen` (`queue_monitor.py:90-100`). Aucune exception locale n’estrattrapée autour de ces opérations.
+
+Séquence reproductible :
+
+1. `job.claim` est créé ;
+2. `job.log` existe déjà et `open('xb')` lève `FileExistsError` (`queue_monitor.py:96`), ou `Popen` lève une `OSError` (`queue_monitor.py:99`) ;
+3. le claim reste sur disque ;
+4. le moniteur s’arrête par exception.
+
+Au redémarrage :
+
+- si le job n’a ni `status.json` ni répertoire `HERE/name`, il reste dans `ready` (`queue_monitor.py:55-56`) ;
+- mais le claim existant empêche tout nouveau lancement (`queue_monitor.py:94-95`) ;
+- `ready` non vide empêche la sortie idle (`queue_monitor.py:109-113`).
+
+Résultat déduit : **boucle infinie sans possibilité de reprise**.
+
+### P0 — Le code de sortie du job est perdu
+
+Lors du nettoyage d’un enfant, seuls `poll() != None`, la fermeture du log et la suppression de l’entrée sont traités ; `returncode` n’est jamais lu (`queue_monitor.py:81-84`).
+
+Conséquences :
+
+- un enfant terminé avec code `1` et sans statut est treated comme absent ;
+- si `HERE/name` existe déjà, le job n’est plus `ready` et le moniteur peut afficher `QUEUE_IDLE` avec un succès trompeur ;
+- si `HERE/name` n’existe pas, le cas de claim orphelin décrit ci-dessus produit une boucle infinie ;
+- un statut `FAILED` n’est jamais comptabilisé comme échec de la queue.
+
+L’idle check ne regarde que `children`, `active` et `ready` (`queue_monitor.py:109-113`) ; un statut d’échec n’est jamaisconsulté.
+
+### P0 — L’échec d’une dépendance bloque correctement, mais est masqué
+
+La condition de dépendance est correcte : seul le statut exact `COMPLETED_REVIEW_PENDING_VALIDATION` autorise le lancement (`queue_monitor.py:17`, `queue_monitor.py:55-56`).
+
+En revanche :
+
+- un job dépendant d’un job `FAILED` ne sera pas lancé, ce qui est desirable ;
+- mais l’échec de la dépendance n’est pas signalé ;
+- la file finit par afficher `QUEUE_IDLE: no prepared task remains` et retourne un code de succès implicite (`queue_monitor.py:109-119`).
+
+Un cas voisin existe pour un nom de `watch` sans `status.json` : il n’est ni actif, ni failed, ni ready ; la file peut donc également être déclarée idle alors qu’une dépendance n’a jamais été satisfaite.
+
+### P1 — La reprise après arrêt ne réconcilie pas la propriété d’un job
+
+Le claim ne contient pas de PID (`queue_monitor.py:93`) et les enfants suivis sont uniquement en mémoire (`queue_monitor.py:75`). Après un arrêt du moniteur :
+
+- le claim empêche généralement un second lancement pour le même répertoire de queue ;
+- mais le nouveau moniteur ne peut pas distinguer :
+  - un enfant encore vivant ;
+  - un enfant arrêté sans avoir écrit son statut ;
+  - un claim créé juste avant un crash, sans enfant ;
+- un ancien statut `RUNNING` reste compté comme actif indéfiniment (`queue_monitor.py:54`, `queue_monitor.py:86-87`).
+
+Le claim et le lock sont également作用域 du répertoire de la queue (`work = path.parent`, `queue_monitor.py:74`, `queue_monitor.py:77`, `queue_monitor.py:90`). Deux queues placées dans des répertoires différents n’utilisent pas le même claim. La protection contre un double lancement n’est donc garantie que dans ce périmètre, et seulement si le premier enfant a déjà produit un statut ou un répertoire.
+
+### P1 — Un statut local malformé peut arrêter tout le moniteur
+
+`read_status` ne traite que `JSONDecodeError` (`queue_monitor.py:19-26`) :
+
+- un JSON invalide est perpetualisé comme `STATUS_WRITE_IN_PROGRESS`, donc compte comme actif ;
+- un objet JSON valide sans clé `status` provoque un `

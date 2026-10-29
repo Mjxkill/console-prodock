@@ -1,0 +1,63 @@
+{
+  "passed": true,
+  "controls": [
+    {
+      "net": "u_accel/u_v1/n56220_6",
+      "driver": "u_accel/u_v1/n56220_s2",
+      "primitive": "LUT4",
+      "pins": {
+        "I0": "gpu_debug_state[46]",
+        "I1": "u_accel/u_v1/state[0]",
+        "I2": "u_accel/v1_select",
+        "I3": "gpu_debug_state_145[98]",
+        "F": "u_accel/u_v1/n56220_6"
+      },
+      "init": "16'h8000",
+      "loads": 312,
+      "not_in_global_table": true,
+      "errors": []
+    },
+    {
+      "net": "u_gpu_debug/n2835_5",
+      "driver": "u_gpu_debug/n2835_s1",
+      "primitive": "LUT2",
+      "pins": {
+        "I0": "u_gpu_debug/req_s[1]",
+        "I1": "u_gpu_debug/ack",
+        "F": "u_gpu_debug/n2835_5"
+      },
+      "init": "4'h6",
+      "loads": 283,
+      "not_in_global_table": true,
+      "errors": []
+    },
+    {
+      "net": "u_gpu_debug/mem_up[1]",
+      "driver": "u_gpu_debug/mem_up_1_s0",
+      "primitive": "DFFCE",
+      "pins": {
+        "D": "u_gpu_debug/mem_up[0]",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "CLEAR": "u_gpu_debug/gowin_split_inv_from_n3932_s2_onet",
+        "Q": "u_gpu_debug/mem_up[1]"
+      },
+      "init": "1'b0",
+      "loads": 2,
+      "not_in_global_table": true,
+      "errors": []
+    }
+  ],
+  "changed_sources": [
+    "tang/boards/neo/neo.cst"
+  ],
+  "same_synthesis_netlist": true,
+  "checks_sha256": {
+    "tang/impl/console_neo_n56r1/console_neo.vg": "c05e9b7a4bcafba8cd31e4b985b4ba37ace8ecbd0e4b999745ac60d7a5fb461d",
+    "tang/impl/console_neo_n56r1/impl/pnr/console_neo.vo": "248868c6aea016acf41e7c8ddc35352068214143229699e5b02fd25ecaf517d8",
+    "tang/impl/console_neo_n56r1/impl/pnr/console_neo.rpt.txt": "445155248f346424133d99838db3368f09f3318a9d68c8404362e8b078f1fc02",
+    "tang/impl/console_neo_n56r1/sources.json": "6a2c260b349125e284929310d572d0bf0ce532126671b2d070cdec7dce4de414",
+    "tang/impl/console_neo_n56r1/source/tang/boards/neo/neo.cst": "1550edcee84be747e17a8bb43c97f52fbdb0531afee39374d02f12bd8d97e047"
+  },
+  "limitation": "Absence from the complete global resource table and unchanged routed primitive connectivity; no independent bitstream routing decoder."
+}

@@ -1,0 +1,196 @@
+{
+  "250e4d2b-4c8a-497b-8bec-9cade6beafdf": {
+    "prompt": [
+      70,
+      "250e4d2b-4c8a-497b-8bec-9cade6beafdf",
+      {
+        "unet": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "flux-2-klein-4b-fp8.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "clip": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_3_4b.safetensors",
+            "type": "flux2"
+          }
+        },
+        "vae": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "flux2-vae.safetensors"
+          }
+        },
+        "positive": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "clip",
+              0
+            ],
+            "text": "Seamless repeatable hand-painted videogame material. EXACTLY perpendicular flat full-frame macro albedo material scan, no perspective, no object silhouette. The entire square is one continuous surface, every edge and corner has the same density, scale and brightness. Painterly gouache brushwork with beautiful broad and medium shapes and sparse fine details. Unlit intrinsic colors, soft restrained contrast. No scenery, no landscape, no background, no border, no frame, no vignette, no cast shadows, no central highlight, no text. Repeating handmade terracotta roof tiles in staggered rows, rounded tile ends with softly worn edges. Rich dusty burnt orange, muted coral, reddish clay and a few faded rose tiles. Restrained gentle relief shadows between tiles, a few tiny pale lichen spots. Every tile about one eighth of image width; no house silhouette."
+          }
+        },
+        "latent": {
+          "class_type": "EmptyFlux2LatentImage",
+          "inputs": {
+            "width": 1024,
+            "height": 1024,
+            "batch_size": 1
+          }
+        },
+        "noise": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 20261024303
+          }
+        },
+        "guider": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": [
+              "unet",
+              0
+            ],
+            "conditioning": [
+              "positive",
+              0
+            ]
+          }
+        },
+        "sampler": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "sigmas": {
+          "class_type": "Flux2Scheduler",
+          "inputs": {
+            "steps": 4,
+            "width": 1024,
+            "height": 1024
+          }
+        },
+        "sample": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": [
+              "noise",
+              0
+            ],
+            "guider": [
+              "guider",
+              0
+            ],
+            "sampler": [
+              "sampler",
+              0
+            ],
+            "sigmas": [
+              "sigmas",
+              0
+            ],
+            "latent_image": [
+              "latent",
+              0
+            ]
+          }
+        },
+        "decode": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "sample",
+              0
+            ],
+            "vae": [
+              "vae",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "decode",
+              0
+            ],
+            "filename_prefix": "luma3d/material_roof_flux_r3"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792841226387
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "material_roof_flux_r3_00001_.png",
+            "subfolder": "luma3d",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 1024,
+              "height": 1024
+            },
+            "id": "0e1e876a-ce3b-4f4a-9494-0f0df5ac83b6"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "250e4d2b-4c8a-497b-8bec-9cade6beafdf",
+            "timestamp": 1792841226388
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "unet",
+              "clip",
+              "vae",
+              "latent",
+              "sampler",
+              "sigmas"
+            ],
+            "prompt_id": "250e4d2b-4c8a-497b-8bec-9cade6beafdf",
+            "timestamp": 1792841226389
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "250e4d2b-4c8a-497b-8bec-9cade6beafdf",
+            "timestamp": 1792841229125
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

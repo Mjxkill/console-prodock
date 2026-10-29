@@ -1,0 +1,516 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Compare le shooter NEBULA R17 réputé fluide au nouveau jeu. Vérifie la plausibilité des postes de coût, les synchronisations et les copies. Propose les corrections concrètes qui rapprochent le nouveau pipeline de NEBULA sans sacrifier les beaux graphismes. Distingue preuve, hypothèse et mesure carte indispensable.
+
+EVIDENCE PACKET:
+NEBULA R17 vs SC1 / ARCADE POLISH — exact-source comparison
+Historic NEBULA reference commit b2b1ba84904ca428b9971de23c9957c81b15dc72. Pro Dock G22r0 same FPGA. NEBULA runtime R17; current LUMA kernel G3D1-r1 extends geometry acceptance but retains same hardware. Hardware benchmark historical:600frames47.71FPS fullscreen/45.06 split;10000frames226.056s44.24FPS. Source TESTS/prodock_restore_20261021/README.md. These are NOT an A/B of the new shooter, no new board test or reloading NEBULA requested.
+
+NEBULA uploads textures/font/starfields once. Per frame: GPU COPY565 background, a few additive raster glows/rings and hardware clear HUD plates, flush SUBMIT, sprite/layer descriptor updates, three tilemap banks of512bytes each cleared/rebuilt, then one PRESENT. Capped cosmetic effects; critical enemy/bullet slots reserved. HUD is tile descriptors, not a native800x480 image copied per change. No malloc in frame rendering. Update uses real dt capped0.05s, no lookahead search. Already performant with more raster commands than the new shooter.
+
+SC1 shooter ALREADY uses sprite/layers and zero3D DRAW, no valley hidden behind it. Maindifference old SC1 nativeUI cached by page but full384000bytes copied when stamp changed. New candidate uploads background/ships once (malloc only first shooter entry), changes scroll/sprite/bosslayer descriptors eachframe, emits zero raster SUBMIT, and only copies changed aligned32-bit words in UI. Exact legal-win diagnostic800: UI SC1 9,216,000bytes→794,544bytes for366calls/121engine decisions. This includes both initialUIpages. Candidate's ships/effects have more sprites, max22inthistrace vs17SC1 (1280:30vs21), theoreticalbudgetcritical≤60. No observedhardwareFPS yet. Simulation/adviser and allcopies/PRESENT are instrumented peractivity.
+
+NEBULA tileHUD is a credible further option if dirty-copy CPU cost still dominates, but preserving proportional antialias typography would require a glyphatlas/tilecache API. Do not substitute tiny bitmaptext or assume morelayers faster. Evaluate measured bytes and CPU instead. NativeCUI redraw performs raster into cachedCPU RAM, shadowcompare and changedwords to uncachedGPU memory. 1024adviser stillsearches4ply with992bytecopies; included previouspacket. Renderingnewart alone does not fix advicecost.
+
+Questions: identify any repeated fullGPU writes in current candidate, repeated waits, allocation, expensive validation/adviser paths; propose bounded improvements with correctness tests. Do not compare historical44FPS to mixedSC1 10.81FPS as identicalworkloads. Distinguish tilemappublication/drawcommands/cache from outputscanouttraffic. No FPGA/kernelchanges.
+
+NEBULA exact full source SHA256=bbd441acb53967e1cac1180270c04370b2c2bfc684b15239ecdb37c2d8f3d969
+
+=== NEBULA R17 lines1..205 ===
+// SPDX-License-Identifier: GPL-2.0-or-later
+/* NEBULA / Rift Raiders: a native Linux game for the Pro Dock GPU.
+ * CPU: input, physics, AI, collisions, descriptor/map preparation.
+ * FPGA: RGB565 copies, additive raster effects, cached sprites, layers,
+ * tile HUD, clipping, x2 scanout and atomic vblank presentation.
+ */
+#define _POSIX_C_SOURCE 200809L
+#include <errno.h>
+#include <fcntl.h>
+#include <math.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
+#include "prodock-uapi.h"
+#include "nebula-assets.h"
+
+#define MAP_BYTES (14U*1024*1024)
+#define BASE 0x00800000U
+#define ENEMIES 12
+#define SHOTS 16
+#define HOSTILE 22
+#define EFFECTS 20
+#define PI 3.14159265358979323846f
+typedef struct { uint32_t offset,bytes,w,h,pitch,kind; } Resource;
+typedef struct { float x,y,vx,vy,age,fire,home;int live,hp,kind; } Enemy;
+typedef struct { float x,y,vx,vy,age;int live; } Shot;
+typedef struct { float x,y,vx,vy,age,life;int live,kind; } Effect;
+typedef struct {
+    float time,stage_time,spawn,fire,invincible,nova,shake,combo_time,end_time;
+    float x,y,vx,vy,tx,ty,bx,by,bfire,bentry;
+    int health,bombs,weapon,score,kills,combo,sector,boss_hp,boss_max;
+    int phase,paused,finished,won,demo,escape;
+    uint32_t rng;
+    unsigned spawned,defeated,shots_fired,damage_taken,novas;
+    Enemy enemies[ENEMIES];Shot shots[SHOTS],hostile[HOSTILE];Effect fx[EFFECTS];
+} Game;
+typedef struct {
+    int fd,display,failed,scale,host;
+    uint8_t *mem;uint32_t used,assets,stars[2][2],atlas[2],maps[2][3];
+    Resource art[NEBULA_RESOURCE_COUNT];
+    struct prodock_batch batch;
+    struct prodock_scene scene;
+    uint32_t capture_commands[512][8];unsigned capture_count;
+    unsigned sprites,max_sprites,max_layers,fx_dropped,frames,commands;
+    struct prodock_display_info initial,last;
+} Video;
+static volatile sig_atomic_t stopping;
+static void stop(int sig) { (void)sig;stopping=1; }
+static double now(void) { struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return t.tv_sec+t.tv_nsec/1e9; }
+static float clampf(float x,float lo,float hi) { return x<lo?lo:x>hi?hi:x; }
+static uint32_t xy(int x,int y) { return ((uint32_t)(uint16_t)x<<16)|(uint16_t)y; }
+static uint32_t yx(int x,int y) { return ((uint32_t)(uint16_t)y<<16)|(uint16_t)x; }
+static unsigned random_u(Game *g) { uint32_t x=g->rng;x^=x<<13;x^=x>>17;x^=x<<5;return g->rng=x; }
+static float random_f(Game *g) { return (random_u(g)&65535)/65535.f; }
+static int checked(Video *v,unsigned long op,void *p)
+{
+    if(v->host)return 0;
+    if(ioctl(op==PRODOCK_DISPLAY_INFO || op==PRODOCK_LAYOUT?v->display:v->fd,op,p)) {
+        perror("NEBULA GPU");v->failed=1;return -1;
+    }
+    return 0;
+}
+static uint32_t allocate(Video *v,unsigned bytes)
+{
+    unsigned offset=(v->used+31)&~31U;
+    if(offset>MAP_BYTES || bytes>MAP_BYTES-offset) { fprintf(stderr,"NEBULA memory budget\n");v->failed=1;return BASE; }
+    v->used=offset+bytes;return BASE+offset;
+}
+static void *memory(Video *v,uint32_t addr) { return v->mem+(addr-BASE); }
+static void flush(Video *v)
+{
+    if(!v->batch.count || v->failed)return;
+    checked(v,PRODOCK_SUBMIT,&v->batch);v->commands+=v->batch.count;
+    v->batch=(struct prodock_batch){0};
+}
+static void emit(Video *v,uint32_t a,uint32_t b,uint32_t c,uint32_t d,uint32_t e,uint32_t f,uint32_t g,uint32_t h)
+{
+    uint32_t words[8]={a,b,c,d,e,f,g,h};
+    if(v->batch.count==PRODOCK_BATCH_MAX)flush(v);
+    if(v->failed)return;
+    memcpy(v->batch.commands[v->batch.count++],words,sizeof(words));
+    if(v->host) {
+        if(v->capture_count>=512) { v->failed=1;return; }
+        memcpy(v->capture_commands[v->capture_count++],words,sizeof(words));
+    }
+}
+static uint32_t crc32(const uint8_t *p,size_t n)
+{
+    uint32_t c=~0U;
+    while(n--) { c^=*p++;for(unsigned k=0;k<8;++k)c=(c>>1)^(0xedb88320U&-(c&1U)); }
+    return ~c;
+}
+static int assets(Video *v,const char *path)
+{
+    FILE *f=fopen(path,"rb");if(!f) { perror(path);return -1; }
+    uint8_t *data=malloc(NEBULA_ASSET_BYTES);
+    if(!data) { fclose(f);return -1; }
+    size_t n=fread(data,1,NEBULA_ASSET_BYTES,f);int extra=fgetc(f);fclose(f);
+    uint32_t header[6]={0};if(n>=sizeof(header))memcpy(header,data,sizeof(header));
+    if(n!=NEBULA_ASSET_BYTES || extra!=EOF || header[0]!=0x3142454e || header[1]!=1 ||
+       header[2]!=n || header[3]!=NEBULA_ASSET_CRC || header[4]!=NEBULA_RESOURCE_COUNT || header[5] ||
+       crc32(data+64,n-64)!=NEBULA_ASSET_CRC) { fprintf(stderr,"NEBULA asset CRC/header\n");free(data);return -1; }
+    v->assets=allocate(v,(unsigned)n);if(v->failed) { free(data);return -1; }
+    for(unsigned i=0;i<NEBULA_RESOURCE_COUNT;++i) {
+        memcpy(&v->art[i],data+1088+i*24,24);Resource *r=&v->art[i];
+        if(r->offset<4096 || (r->offset&31) || r->offset>n || r->bytes>n-r->offset) { free(data);return -1; }
+    }
+    memcpy(memory(v,v->assets),data,n);
+    struct prodock_palette pal;memcpy(pal.rgb,data+64,sizeof(pal.rgb));free(data);
+    if(checked(v,PRODOCK_PALETTE,&pal))return -1;
+    const uint8_t *font=memory(v,v->assets+v->art[NA_FONT].offset);
+    static const uint8_t inks[8]={227,225,228,229,231,233,235,224};
+    for(unsigned s=0;s<2;++s) {
+        unsigned scale=s+1,tile=8*scale;
+        v->atlas[s]=allocate(v,8192*tile*tile);
+        if(v->failed)return -1;
+        uint8_t *atlas=memory(v,v->atlas[s]);memset(atlas,0,8192*tile*tile);
+        for(unsigned ink=0;ink<8;++ink)for(unsigned ch=0;ch<128;++ch)
+            for(unsigned y=0;y<tile;++y)for(unsigned x=0;x<tile;++x)
+                atlas[(ink*128+ch)*tile*tile+y*tile+x]=
+                    font[ch*8+y/scale]&(128U>>(x/scale))?inks[ink]:221;
+        for(unsigned field=0;field<2;++field) {
+            unsigned pitch=(400*scale+31)&~31U,height=512*scale;
+            v->stars[field][s]=allocate(v,pitch*height*2);
+            if(v->failed)return -1;
+            uint8_t *pixels=memory(v,v->stars[field][s]);memset(pixels,0,pitch*height*2);
+            Game seed={.rng=0xc0ffeeU+field*23467};
+            for(unsigned i=0;i<75+field*35;++i) {
+                unsigned x=random_u(&seed)%398,y=random_u(&seed)%508;
+                unsigned length=field?2+random_u(&seed)%3:1;
+                for(unsigned yy=0;yy<length*scale;++yy)for(unsigned xx=0;xx<scale;++xx)
+                    pixels[(y*scale+yy)*pitch+x*scale+xx]=field?235:239;
+            }
+            memcpy(pixels+pitch*height,pixels,pitch*height);
+        }
+    }
+    for(unsigned b=0;b<2;++b)for(unsigned part=0;part<3;++part) {
+        v->maps[b][part]=allocate(v,64*4*2);if(v->failed)return -1;
+        memset(memory(v,v->maps[b][part]),0,64*4*2);
+    }
+    return 0;
+}
+static void image_layer(Video *v,unsigned layer,unsigned art,int x,int y)
+{
+    Resource r=v->art[art];uint32_t *p=v->scene.layers[layer];
+    p[0]=v->assets+r.offset;p[1]=yx(r.w,r.h);p[2]=yx(x,y);p[3]=yx(r.w,r.h);p[5]=r.pitch;p[6]=3;
+}
+static void sprite(Video *v,unsigned art,float x,float y,unsigned priority)
+{
+    Resource r=v->art[art];int xx=(int)lroundf(x*v->scale)-r.w/2,yy=(int)lroundf(y*v->scale)-r.h/2;
+    if(xx>400*v->scale || yy>240*v->scale || xx+(int)r.w<=0 || yy+(int)r.h<=0)return;
+    if(v->sprites>=64) { ++v->fx_dropped;return; }
+    uint32_t *p=v->scene.sprites[v->sprites++];
+    p[0]=v->assets+r.offset;p[1]=yx(xx,yy);p[2]=r.w|(r.h<<8)|(1U<<16)|(priority<<20);
+}
+static void label(uint16_t *map,int x,int y,unsigned ink,const char *text)
+{
+    for(;*text;++text,++x)if(x>=0 && x<50 && y>=0 && y<4)map[y*64+x]=(ink&7)*128+((unsigned char)*text&127);
+}
+static void tile_layer(Video *v,unsigned layer,uint32_t map,int y,unsigned rows)
+{
+    uint32_t *p=v->scene.layers[layer];p[0]=map;p[1]=v->atlas[v->scale-1];
+    p[2]=yx(0,y*v->scale);p[3]=yx(400*v->scale,rows*8*v->scale);
+    p[5]=6|(2<<4)|((v->scale-1)<<8);p[6]=7;
+}
+static void solid(Video *v,unsigned colour,int x,int y,unsigned w,unsigned h)
+{ emit(v,28U<<24,1,colour,0,xy(x,y),xy(w,h),0,0); }
+static void glow(Video *v,float x,float y,int radius,unsigned colour,unsigned alpha)
+{
+    if(radius<1)return;
+    int left=(int)lroundf(x)-radius,top=(int)lroundf(y)-radius,size=radius*2;
+    int32_t step=32*65536/size;
+    int64_t u=-(int64_t)left*step+step/2,vv=-(int64_t)top*step+step/2;
+    unsigned red=((colour>>11)&31)*256/31,green=((colour>>5)&63)*256/63,blue=(colour&31)*256/31;
+    emit(v,25U<<24,33,alpha,0,red|(green<<9)|(blue<<18),0,0,0);
+    emit(v,26U<<24,(uint32_t)u,(uint32_t)step,0,(uint32_t)((uint64_t)u>>32)&65535,0,0,0);
+    emit(v,(26U<<24)|1,(uint32_t)vv,0,(uint32_t)step,(uint32_t)((uint64_t)vv>>32)&65535,0,0,0);
+    emit(v,27U<<24,xy(left,top),xy(left+size,top),xy(left+size,top+size),0,0,0,0);
+    emit(v,27U<<24,xy(left,top),xy(left+size,top+size),xy(left,top+size),0,0,0,0);
+}
+static void ring(Video *v,float x,float y,float radius,unsigned alpha)
+{
+    emit(v,25U<<24,32,alpha,0x6fff,256|(256<<9)|(256<<18),0,0,0);
+    for(unsigned i=0;i<20;++i) {
+        float a=i*PI*.1f,b=(i+1)*PI*.1f;
+        uint32_t p=xy((int)lroundf(x+cosf(a)*radius),(int)lroundf(y+sinf(a)*radius));
+        uint32_t q=xy((int)lroundf(x+cosf(b)*radius),(int)lroundf(y+sinf(b)*radius));
+        uint32_t r=xy((int)lroundf(x+cosf(b)*(radius+2)),(int)lroundf(y+sinf(b)*(radius+2)));
+        uint32_t s=xy((int)lroundf(x+cosf(a)*(radius+2)),(int)lroundf(y+sinf(a)*(radius+2)));
+        emit(v,27U<<24,p,q,r,0,0,0,0);emit(v,27U<<24,p,r,s,0,0,0,0);
+    }
+}
+static void reset_game(Game *g,int demo,int sector,int boss)
+{
+    *g=(Game){.x=200,.y=197,.tx=200,.ty=197,.health=5,.bombs=3,.weapon=1,.combo=1,
+              .rng=0x31415926,.demo=demo,.sector=sector,.invincible=2,.bx=200,.by=-60};
+    if(boss) { g->phase=1;g->boss_hp=g->boss_max=100+sector*30;g->stage_time=40; }
+
+=== NEBULA R17 lines439..623 ===
+    for(unsigned field=0;field<2;++field) {
+        unsigned pitch=(400*s+31)&~31U,height=512*s;
+        unsigned scroll=(height-(unsigned)(g->time*(field?34:9)*s)%height)%height;
+        uint32_t *l=v->scene.layers[field];
+        l[0]=v->stars[field][s-1]+scroll*pitch;l[1]=yx(400*s,240*s);
+        l[3]=yx(400*s,240*s);l[5]=pitch;l[6]=3;
+    }
+    if(g->phase==1)image_layer(v,2,NA_BOSS_1+offset,(int)lroundf((g->bx-52)*s),(int)lroundf((g->by-46)*s));
+    if(!g->finished || g->won) {
+        int bank=(int)lroundf(clampf(g->vx/75,-2,2))+2;
+        if(g->invincible<=0 || ((int)(g->time*12)&1))
+            image_layer(v,4,NA_PLAYER_1_0+offset+bank,(int)lroundf((g->x-14)*s),(int)lroundf((g->y-16)*s));
+        if(g->invincible>0 || g->nova>0)
+            image_layer(v,5,NA_SHIELD_1_0+offset+((unsigned)(g->time*12)&3),(int)lroundf((g->x-20)*s),(int)lroundf((g->y-20)*s));
+    }
+    for(unsigned i=0;i<ENEMIES;++i)if(g->enemies[i].live)
+        sprite(v,NA_ENEMY_1_0+offset+g->enemies[i].kind,g->enemies[i].x,g->enemies[i].y,3);
+    for(unsigned i=0;i<SHOTS;++i)if(g->shots[i].live)sprite(v,NA_SHOT_1+offset,g->shots[i].x,g->shots[i].y,6);
+    for(unsigned i=0;i<HOSTILE;++i)if(g->hostile[i].live)sprite(v,NA_ENEMYSHOT_1+offset,g->hostile[i].x,g->hostile[i].y,6);
+    /* Gameplay objects always fit: 12 enemies + 16 shots + 22 hostile
+     * shots + at most 4 pickups. Only decorative effects may be culled. */
+    for(unsigned i=0;i<EFFECTS;++i)if(g->fx[i].live && g->fx[i].kind==2)
+        sprite(v,NA_PICKUP_1+offset,g->fx[i].x,g->fx[i].y,7);
+    for(unsigned i=0;i<EFFECTS;++i)if(g->fx[i].live && g->fx[i].kind!=2) {
+        const Effect *e=&g->fx[i];unsigned art=e->kind==0?NA_EXPLOSION_1_0+(unsigned)clampf(e->age/e->life*8,0,7):e->kind==1?NA_SPARK_1:NA_PICKUP_1;
+        sprite(v,art+offset,e->x,e->y,7);
+    }
+    uint16_t *top=memory(v,v->maps[page][0]),*bottom=memory(v,v->maps[page][1]),*banner=memory(v,v->maps[page][2]);
+    memset(top,0,512);memset(bottom,0,512);memset(banner,0,512);
+    char line[80];
+    snprintf(line,sizeof(line),"NEBULA  /  RIFT RAIDERS          %08d",g->score);label(top,1,0,0,line);
+    snprintf(line,sizeof(line),"HULL     NOVA%d  MK%d  SECTOR%02d  CHAIN x%d",g->bombs,g->weapon,g->sector+1,g->combo);label(top,1,1,1,line);
+    label(bottom,1,0,6,g->demo?"AUTOPILOT   /   REAL-TIME LINUX + FPGA GPU":"WASD/ARROWS SPACE:NOVA P:PAUSE F:VIEW Q:EXIT");
+    tile_layer(v,9,v->maps[page][0],0,2);tile_layer(v,10,v->maps[page][1],229,1);
+    if(g->time<2.8f) {
+        image_layer(v,8,s==2?NA_LOGO_2:NA_LOGO_1,122*s,81*s);
+        label(banner,13,0,1,"R I F T   R A I D E R S");
+        label(banner,11,2,0,g->demo?"AUTOPILOT / GPU SHOWCASE":"DEFEND THE RIFT / AUTO FIRE");
+        tile_layer(v,11,v->maps[page][2],122,3);
+    } else if(g->finished || g->paused || g->phase==2 || (g->phase==1 && g->bentry<2)) {
+        const char *title=g->paused?"FLIGHT PAUSED":g->finished?(g->won?"RIFT SECURED / VICTORY":"SIGNAL LOST"):g->phase==2?"SECTOR CLEARED":"WARNING / DREADNOUGHT";
+        label(banner,(50-(int)strlen(title))/2,0,g->won||g->phase==2?5:2,title);
+        if(g->finished)label(banner,12,2,0,g->demo?"NEXT FLIGHT IN A MOMENT":"R TO RETRY  /  Q TO EXIT");
+        else if(g->paused)label(banner,17,2,0,"P TO RESUME");
+        tile_layer(v,11,v->maps[page][2],101,3);
+    }
+    if(v->sprites>v->max_sprites)v->max_sprites=v->sprites;
+    unsigned layers=0;for(unsigned i=0;i<12;++i)layers+=!!(v->scene.layers[i][6]&1);
+    if(layers>v->max_layers)v->max_layers=layers;
+    checked(v,PRODOCK_PRESENT,&v->scene);++v->frames;
+}
+static int dump(Video *v,const Game *g,const char *base)
+{
+    char path[512];FILE *f;
+#define SAVE(suffix,data,size) do { snprintf(path,sizeof(path),"%s.%s",base,suffix);f=fopen(path,"wb"); \
+    if(!f){return -1;}size_t bytes=(size);if(fwrite(data,1,bytes,f)!=bytes){fclose(f);return -1;}if(fclose(f)){return -1;} } while(0)
+    SAVE("memory",v->mem,v->used);SAVE("scene",&v->scene,sizeof(v->scene));
+    SAVE("commands",v->capture_commands,v->capture_count*32);
+#undef SAVE
+    snprintf(path,sizeof(path),"%s.json",base);f=fopen(path,"w");if(!f)return -1;
+    fprintf(f,"{\"frames\":%u,\"commands\":%u,\"sprites\":%u,\"max_sprites\":%u,\"max_layers\":%u,\"score\":%d,\"sector\":%d,\"phase\":%d,\"health\":%d,\"boss_hp\":%d,\"won\":%d,\"time\":%.3f,\"memory_bytes\":%u,\"assets\":%u,\"scale\":%d}\n",
+            v->frames,v->commands,v->sprites,v->max_sprites,v->max_layers,g->score,g->sector,g->phase,g->health,g->boss_hp,g->won,g->time,v->used,v->assets,v->scale);
+    return fclose(f);
+}
+int main(int argc,char **argv)
+{
+    int demo=0,split=0,boss=0,sector=0,rc=1,changed=0;
+    unsigned limit=0,pose=0;const char *capture=NULL,*snapshot=NULL,*path="/usr/share/nebula/nebula.bin";
+    for(int i=1;i<argc;++i) {
+        if(!strcmp(argv[i],"--demo"))demo=1;
+        else if(!strcmp(argv[i],"--split"))split=1;
+        else if(!strcmp(argv[i],"--boss"))boss=1;
+        else if(!strcmp(argv[i],"--assets") && i+1<argc)path=argv[++i];
+        else if(!strcmp(argv[i],"--capture") && i+1<argc)capture=argv[++i];
+        else if(!strcmp(argv[i],"--snapshot") && i+1<argc)snapshot=argv[++i];
+        else if(!strcmp(argv[i],"--pose") && i+1<argc) {
+            char *end;unsigned long n=strtoul(argv[++i],&end,10);if(*end||!n||n>100000)return 2;pose=(unsigned)n;
+        }
+        else if(!strcmp(argv[i],"--frames") && i+1<argc) {
+            char *end;unsigned long n=strtoul(argv[++i],&end,10);if(*end||!n||n>1000000)return 2;limit=(unsigned)n;
+        } else { fprintf(stderr,"usage: nebula [--demo] [--split] [--boss] [--frames N] [--assets FILE]\n");return 2; }
+    }
+    if(snapshot && !pose) { fprintf(stderr,"--snapshot requires a fixed --pose\n");return 2; }
+    Video video={.fd=-1,.display=-1,.used=3*1024*1024,.scale=split?1:2};Video *v=&video;
+#ifdef NEBULA_HOST
+    v->host=1;demo=1;if(!limit)limit=600;
+#else
+    if(capture) { fprintf(stderr,"Capture is a host preview option\n");return 2; }
+#endif
+    struct termios saved={0},raw;
+    if(v->host)v->mem=calloc(1,MAP_BYTES);
+    else {
+        v->fd=open("/dev/prodock-gpu",O_RDWR|O_CLOEXEC);v->display=open("/dev/prodock-display",O_RDWR|O_CLOEXEC);
+        if(v->fd<0 || v->display<0) { perror("NEBULA open (stop another game first)");goto cleanup; }
+        struct prodock_info info;
+        if(checked(v,PRODOCK_INFO,&info) || (info.caps&0x1ff)!=0x1ff || info.faulted || info.errors)goto cleanup;
+        if(checked(v,PRODOCK_DISPLAY_INFO,&v->initial))goto cleanup;
+        v->mem=mmap(NULL,MAP_BYTES,PROT_READ|PROT_WRITE,MAP_SHARED,v->fd,0);
+        if(v->mem==MAP_FAILED) { v->mem=NULL;perror("NEBULA mmap");goto cleanup; }
+        if(!demo) {
+            if(tcgetattr(STDIN_FILENO,&saved)) { perror("NEBULA input");goto cleanup; }
+            raw=saved;raw.c_lflag&=~(ICANON|ECHO);raw.c_cc[VMIN]=0;raw.c_cc[VTIME]=0;
+            if(tcsetattr(STDIN_FILENO,TCSANOW,&raw))goto cleanup;
+            changed=1;
+        }
+    }
+    if(!v->mem)goto cleanup;
+    signal(SIGTERM,stop);signal(SIGINT,stop);signal(SIGHUP,stop);
+    printf("NEBULA loading native GPU assets...\n");fflush(stdout);
+    if(assets(v,path))goto cleanup;
+    struct prodock_layout layout={.mode=split?PRODOCK_SPLIT:PRODOCK_GAME};
+    if(checked(v,PRODOCK_LAYOUT,&layout))goto cleanup;
+    Game game;reset_game(&game,demo,sector,boss);
+    if(pose) {
+        game.demo=1;for(unsigned i=0;i<pose;++i)update(&game,1.f/55);
+        if(!limit)limit=3;
+    }
+    double start=now(),last=start,next_status=start;
+    printf("NEBULA_START mode=%s assets=%u memory=%u - WASD/arrows SPACE nova P pause Q exit\n",demo?"demo":"play",NEBULA_ASSET_BYTES,v->used);fflush(stdout);
+    while(!stopping && !v->failed && (!limit || v->frames<limit)) {
+        double current=now();float dt=v->host?1.f/55:(float)(current-last);last=current;
+        dt=clampf(dt,.001f,.05f);
+        if(!demo) {
+            struct pollfd p={STDIN_FILENO,POLLIN,0};
+            if(poll(&p,1,0)>0) {
+                if(p.revents&(POLLHUP|POLLERR|POLLNVAL))break;
+                if(p.revents&POLLIN) {
+                    unsigned char keys[64];ssize_t n=read(STDIN_FILENO,keys,sizeof(keys));
+                    if(n<0 && errno!=EINTR) { perror("NEBULA input");v->failed=1;break; }
+                    for(ssize_t i=0;i<n;++i) {
+                        if(keys[i]=='f'||keys[i]=='F') {
+                            layout.mode=v->scale==2?PRODOCK_SPLIT:PRODOCK_GAME;
+                            checked(v,PRODOCK_LAYOUT,&layout);v->scale=layout.mode==PRODOCK_GAME?2:1;
+                        } else key(&game,keys[i]);
+                    }
+                }
+            }
+        }
+        if(!v->host && current>=next_status) {
+            if(checked(v,PRODOCK_DISPLAY_INFO,&v->last))break;
+            if(v->last.errors || v->last.faulted || v->last.underflows!=v->initial.underflows ||
+               v->last.invalid_layers!=v->initial.invalid_layers || v->last.invalid_sprites!=v->initial.invalid_sprites) {
+                fprintf(stderr,"NEBULA display error: errors=%u uf=%u layers=%u sprites=%u fault=%u\n",
+                        v->last.errors,v->last.underflows,v->last.invalid_layers,v->last.invalid_sprites,v->last.faulted);
+                v->failed=1;break;
+            }
+            v->scale=v->last.mode==PRODOCK_GAME?2:1;next_status=current+.2;
+        }
+        if(!pose)update(&game,dt);
+        render(v,&game);
+    }
+    if(capture && dump(v,&game,capture)) { perror("NEBULA capture");v->failed=1; }
+    if(snapshot && !v->failed && v->frames) {
+        FILE *f=fopen(snapshot,"wb");
+        if(!f) { perror("NEBULA snapshot");v->failed=1; }
+        else {
+            size_t n=fwrite(&v->scene,1,sizeof(v->scene),f);int closed=fclose(f);
+            if(n!=sizeof(v->scene) || closed) { perror("NEBULA snapshot write");v->failed=1; }
+            else printf("NEBULA_SCENE_CRC32 crc=%08x bytes=%u\n",crc32((uint8_t *)&v->scene,sizeof(v->scene)),(unsigned)sizeof(v->scene));
+        }
+    }
+    double seconds=now()-start;
+    if(v->host)printf("NEBULA_MODEL frames=%u simulated_seconds=%.3f commands=%u max_sprites=%u max_layers=%u cosmetic_dropped=%u\n",
+            v->frames,game.time,v->commands,v->max_sprites,v->max_layers,v->fx_dropped);
+    else printf("NEBULA_RATE frames=%u seconds=%.3f fps=%.2f commands=%u max_sprites=%u max_layers=%u cosmetic_dropped=%u\n",
+            v->frames,seconds,v->frames/fmax(seconds,.001),v->commands,v->max_sprites,v->max_layers,v->fx_dropped);
+    if(pose && !v->host && !v->failed && v->frames) {
+        uint8_t *pixels=malloc(400*240*2);
+        if(!pixels)v->failed=1;
+        else {
+            const uint8_t *frame=memory(v,v->scene.base);
+            for(unsigned y=0;y<240;++y)memcpy(pixels+y*800,frame+y*1600,800);
+            printf("NEBULA_FRAME_CRC32 pose=%u crc=%08x pixels=96000\n",pose,crc32(pixels,400*240*2));free(pixels);
+        }
+    }
+    printf("NEBULA_RESULT score=%d kills=%d sector=%d boss_hp=%d health=%d victory=%d spawned=%u shots=%u damage=%u novas=%u status=%d\n",
+            game.score,game.kills,game.sector+1,game.boss_hp,game.health,game.won,game.spawned,game.shots_fired,game.damage_taken,game.novas,v->failed);
+    rc=v->failed?1:0;
+cleanup:
+    if(changed)tcsetattr(STDIN_FILENO,TCSANOW,&saved);
+    if(v->mem) { if(v->host)free(v->mem);else munmap(v->mem,MAP_BYTES); }
+    if(v->fd>=0)close(v->fd);
+    if(v->display>=0)close(v->display);
+    return rc;
+}
+
+=== CANDIDATE src/shooter_render.c FULL_FILE_SHA=568c114e92756c971372d9cd31fd99871f6ad070a55cc0690fabe2a7639897ea ===
+#include "luma3d_render.h"
+#include "luma3d_activities.h"
+#include "shooter_art.h"
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+
+/* Static illustrations28..31 MiB: scrolling fields;31..32 MiB: artwork.
+ * Boss image layer reserves sprite slots for shots. No raster SUBMIT here. */
+#define FIELD_BASE (28U<<20)
+#define ART_BASE (31U<<20)
+static unsigned align32(unsigned n){return (n+31)&~31u;}
+static void publish(uint8_t *dst,const uint8_t *src,unsigned bytes){
+ uint32_t *d=(uint32_t *)dst;const uint32_t *s=(const uint32_t *)src;
+ for(unsigned i=0;i<bytes/4;i++)d[i]=s[i];
+}
+static int upload(L3Render *r){
+ unsigned W=r->width*2,H=r->height*2,w=W-272,h=H-96,pitch=align32(w),bytes=pitch*h*2;
+ if(FIELD_BASE+2*bytes>ART_BASE||sizeof(sh_pixels)>L3_MAP_BYTES-ART_BASE)return 0;
+ uint8_t *pixels=calloc(1,bytes*2);if(!pixels)return 0;
+ for(unsigned y=0;y<h;y++)for(unsigned x=0;x<w;x++){
+  unsigned v=sh_pixels[(y*768/h)*512+x*512/w];
+  pixels[y*pitch+x]=pixels[(y+h)*pitch+x]=(uint8_t)v;
+ }
+ for(unsigned i=0;i<84;i++){
+  unsigned x=(i*71+17)%w,y=(i*43+29)%h,len=i%11==0?3:1;
+  for(unsigned j=0;j<len&&y+j<h;j++)pixels[bytes+(y+j)*pitch+x]=pixels[bytes+(y+j+h)*pitch+x]=(uint8_t)(i%3?228:230);
+ }
+ publish(r->memory+FIELD_BASE,pixels,2*bytes);free(pixels);
+ publish(r->memory+ART_BASE,sh_pixels,sizeof(sh_pixels));
+ for(unsigned i=0;i<112;i++)r->hud_palette.rgb[128+i]=sh_palette[i];
+ if(!r->host&&ioctl(r->fd,PRODOCK_PALETTE,&r->hud_palette)){r->failed=1;return 0;}
+ r->uploaded+=2*bytes+sizeof(sh_pixels);r->shooter_ready=1;return 1;
+}
+static unsigned tiles(const L3ShooterArt *a){return ((a->w+31)/32)*((a->h+31u)/32);}
+static int picture(L3Render *r,struct prodock_scene *s,unsigned art,int x,int y,int cosmetic){
+ const L3ShooterArt *a=sh_art+art;unsigned cols=(a->w+31)/32,n=tiles(a);
+ if(r->sprite_count+n>64){if(cosmetic){r->cosmetic_dropped+=n;return 1;}return 0;}
+ for(unsigned ty=0;ty<(a->h+31u)/32;ty++)for(unsigned tx=0;tx<cols;tx++){
+  unsigned sw=a->w-tx*32,sh=a->h-ty*32;if(sw>32)sw=32;if(sh>32)sh=32;
+  uint32_t *p=s->sprites[r->sprite_count++];p[0]=PRODOCK_GPU_BASE+ART_BASE+a->offset+(ty*cols+tx)*1024;
+  p[1]=(uint16_t)(x+(int)tx*32)|((uint32_t)(uint16_t)(y+(int)ty*32)<<16);p[2]=sw|(sh<<8)|(1u<<16)|(2u<<20);
+ }return 1;
+}
+static void image(struct prodock_scene *s,unsigned layer,unsigned art,int x,int y){
+ const L3ShooterArt *a=sh_art+art;uint32_t *l=s->layers[layer];
+ l[0]=PRODOCK_GPU_BASE+ART_BASE+a->offset;l[1]=a->w|((unsigned)a->h<<16);l[2]=(uint16_t)x|((uint32_t)(uint16_t)y<<16);l[3]=l[1];l[5]=a->pitch;l[6]=3;
+}
+static int position(int32_t q,unsigned size,unsigned logical){return (int)((int64_t)q*size/(logical*256));}
+int l3_shooter_render(L3Render *r,const L3Game *g,struct prodock_scene *s){
+ L3ShooterView v;if(!l3_shooter_view(&g->activities.arcade.shooter,&v))return 0;
+ unsigned profile=r->width==400?0:1,base=profile*SH_ART_PROFILE,W=r->width*2,H=r->height*2,w=W-272,h=H-96,pitch=align32(w),bytes=pitch*h*2;
+ if(!r->shooter_ready&&!upload(r))return 0;
+ if(v.elapsed_ms<r->shooter_previous.elapsed_ms){memset(r->shooter_bursts,0,sizeof(r->shooter_bursts));memset(&r->shooter_previous,0,sizeof(r->shooter_previous));}
+ for(unsigned f=0;f<2;f++){
+  unsigned scroll=(unsigned)(((uint64_t)v.elapsed_ms*(f?29:7)/1000)%h);uint32_t *l=s->layers[f];
+  l[0]=PRODOCK_GPU_BASE+FIELD_BASE+f*bytes+scroll*pitch;l[1]=w|(h<<16);l[2]=136u|(48u<<16);l[3]=l[1];l[5]=pitch;l[6]=3;
+ }
+ /* Defeated actor effects are cosmetic, dropped before any gameplay sprite. */
+ if(v.kills>r->shooter_previous.kills)for(unsigned i=0;i<r->shooter_previous.actor_count;i++){
+  const L3ShooterActor *a=r->shooter_previous.actors+i;if(a->kind<1||a->kind>4)continue;int found=0;
+  for(unsigned j=0;j<v.actor_count;j++)if(v.actors[j].id==a->id&&v.actors[j].kind==a->kind){found=1;break;}
+  if(!found)for(unsigned j=0;j<8;j++)if(!r->shooter_bursts[j].active){r->shooter_bursts[j].x256=a->x256;r->shooter_bursts[j].y256=a->y256;r->shooter_bursts[j].started=v.elapsed_ms;r->shooter_bursts[j].active=1;break;}
+ }
+ r->sprite_count=0;r->sprite_limit=64;const L3ShooterActor *player=NULL;
+ for(unsigned i=0;i<v.actor_count;i++){
+  const L3ShooterActor *a=v.actors+i;if(a->kind<1||a->kind>10)return 0;unsigned art=base+a->kind-1;const L3ShooterArt *im=sh_art+art;
+  int x=136+position(a->x256,w,160)-(int)im->w/2,y=48+position(a->y256,h,192)-(int)im->h/2;
+  if(a->kind==L3_SHOOTER_BOSS)image(s,2,art,x,y);else if(!picture(r,s,art,x,y,0))return 0;
+  if(a->kind==L3_SHOOTER_PLAYER)player=a;
+ }
+ if(player){
+  unsigned flame=base+18+(v.elapsed_ms/70)%3;const L3ShooterArt *im=sh_art+flame;
+  int x=136+position(player->x256,w,160),y=48+position(player->y256,h,192);
+  if(!picture(r,s,flame,x-im->w/2,y+sh_art[base+9].h/3,1))return 0;
+  if(v.shield_ticks){im=sh_art+base+21;if(!picture(r,s,base+21,x-im->w/2,y-im->h/2,1))return 0;}
+ }
+ for(unsigned i=0;i<8;i++)if(r->shooter_bursts[i].active){
+  unsigned age=v.elapsed_ms-r->shooter_bursts[i].started;if(age>=400){r->shooter_bursts[i].active=0;continue;}
+  unsigned art=base+10+age/50;const L3ShooterArt *im=sh_art+art;
+  if(!picture(r,s,art,136+position(r->shooter_bursts[i].x256,w,160)-im->w/2,48+position(r->shooter_bursts[i].y256,h,192)-im->h/2,1))return 0;
+ }
+ r->shooter_previous=v;s->layers_enabled=s->sprites_enabled=1;return 1;
+}
+
+=== CANDIDATE src/mini_ui.c FULL_FILE_SHA=665909e20dcee1408e4927ff01b38a334ef5e2b208f54920ab96c527bd0cfc8e ===
+int l3_mini_ui_prepare(L3Render *r,const L3Game *g,struct prodock_scene *scene){
+ if(!g->activities.arcade.active)return 0;L3ArcadeView all;if(!l3_arcade_view(&g->activities.arcade,&all))return 0;
+ unsigned k=all.kind;L3MiniView v;memset(&v,0,sizeof(v));
+ if(k<4)v=all.content.grid;
+ else if(k==L3_ARCADE_MAZE){const L3MiniView *m=&all.content.grid;v.status=m->status;v.progress=m->progress;v.target=m->target;v.lives=m->lives;}
+ else if(k==L3_ARCADE_SIMON){const L3SimonView *s=&all.content.simon;v.status=s->grid.status;v.moves=s->phase==L3_SIMON_INPUT?1:s->phase==L3_SIMON_ROUND_OK?2:0;v.cells[398].value=(s->sequence_length<<8)|s->input_index;}
+ else if(k==L3_ARCADE_SHOOTER){const L3ShooterView *s=&all.content.shooter;v.status=s->status;v.score=s->score;v.progress=s->wave;v.lives=s->lives;v.moves=s->kills;v.cells[399].value=(!!s->shield_ticks)|((!!s->double_ticks)<<1);v.cells[398].value=s->boss_hp;}
+ else{const L3PlatformView *p=&all.content.platform;v.status=p->status;v.progress=p->floor;v.lives=p->lives;v.moves=p->jumps;v.cells[399].value=p->checkpoint_floor;}
+ Canvas c={r,r->mini_pixels,(int)r->width*2,(int)r->height*2,r->height==360?3:2,r->height==360};unsigned page=r->frame&1,stamp=hash_view(&v,k,g->activities.arcade.won,g->showcase_status,g->showcase_stage);
+ if(r->mini_stamp[page]!=stamp){
+  if(k<4){memcpy(r->mini_pixels,c.w==800?puzzle_background_800:puzzle_background_1280,(size_t)c.w*c.h);header(&c,k,v.status,g->activities.arcade.won&(1u<<k));int sx=c.w-unit(&c,244);board(&c,&v,sx);sidebar(&c,g,&v,sx);footer(&c,g);}
+  else if(k==L3_ARCADE_SHOOTER)shooter_hud(&c,g,&all.content.shooter);else scene_hud(&c,g,&all);
+  upload(&c,page,stamp);
+ }
+ uint32_t *l=scene->layers[k==L3_ARCADE_SHOOTER?3:0];l[0]=PRODOCK_GPU_BASE+MINI_BASE+page*MINI_PAGE;l[1]=(unsigned)c.w|((unsigned)c.h<<16);l[2]=0;l[3]=l[1];l[4]=0;l[5]=(unsigned)c.w;l[6]=3;scene->layers_enabled=1;r->last_scene=*scene;return 1;
+}

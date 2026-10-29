@@ -1,0 +1,551 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Rédiger un état du jeu factuel prêt à intégrer après revue, une page maximum.
+
+EVIDENCE PACKET:
+Tâche rédaction: rédiger un état du jeu LUMA en français pour ARCHI. Distinguer livré logiciel/validation hôte/chargé carte/encore ouvert. Une page maximum, tableau 5 activités, animation/qualité, prochaines actions. Aucun FPS inventé, campagne longue non terminée. État actuel: GM1 sur Pro Dock, RX2 six tests matériels PASS; transfert de metricsR4 vers /tmp en cours, pas encore exécuté. Produire prose prête à relire, pas de nouveaux tests/outil.
+
+FILE ARCHI/MOTEUR_JEU_ETAT_20261027.md
+1: # Moteur de jeu commun Pro Dock / Neo — état du 27 octobre 2026
+2: 
+3: Le développement vise un **moteur de jeu commun aux deux cartes**. LUMA est
+4: son premier jeu et sa vitrine : exploration, personnages, activités et visite
+5: automatique exercent les mêmes règles et le même producteur de commandes.
+6: Ce document décrit les composants réellement présents et leurs couplages.
+7: Il ne crée ni une nouvelle bibliothèque moteur ni une nouvelle qualification
+8: matérielle. Les séparations proposées ci-dessous restent à réaliser.
+9: 
+10: La règle de propriété reste celle de [COMPATIBILITE_CARTES.md](COMPATIBILITE_CARTES.md)
+11: et de [ownership.json](../tang/boards/ownership.json) : les sources communes
+12: restent uniques, les profils et substitutions de carte sont explicites.
+13: Le nom `prodock-*` d'une interface Linux ne signifie pas « Pro Dock seulement ».
+14: Les copies de sources dans les builds servent à reproduire une expérience ;
+15: elles ne constituent pas deux moteurs de production indépendants.
+16: 
+17: ## Références examinées et état de qualification
+18: 
+19: L'inventaire se fonde sur le
+20: [snapshot GM1](../games/luma3d/build/maze_events_20261027_r4/source/games/luma3d/)
+21: effectivement testé sur Pro Dock. Dans les tableaux suivants, `src/`, `include/`,
+22: `world/` et `minigames/` désignent les fichiers de ce snapshot, sauf indication
+23: contraire. Le répertoire de développement `games/luma3d/` et les candidats
+24: isolés ne doivent pas être confondus avec le binaire affiché.
+25: 
+26: | Élément | Identité ou portée |
+27: |---|---|
+28: | GM1, manifeste de sources | `49621170372f7c0ed2d4a6f83552247e6620cebc693442c21acb3020617820ee` |
+29: | GM1, ELF du jeu | `df529a3463d6f3138895eeefb6ac70d149d7a714f51be74fb79a73079054e29b` |
+30: | Dernière ancre Pro Dock connue | `/tmp/luma3d-gm1 --showcase`, PID 3158, startticks 27508908, après le retour vérifié de MC1 ; boucle autonome avec stdin `/dev/null` |
+31: | FPGA / Linux Pro Dock | G22r0 conservé ; noyau candidat `6.12.112-prodock-luma3d-g3d1-r1`, distinct de la référence Linux NEBULA R17 |
+32: | MC1 | Essai logiciel terminé sur Pro Dock : fonctionnel PASS, performance refusée ; GM1 restauré, candidat non promu |
+33: | Neo | Profil 1280×720 testé localement ; moteur/jeu GM1 et MC1 **non validés sur le matériel Neo** |
+34: 
+35: Le [rapport GM1](../games/luma3d/tests/hardware/gpu_motion_20261027_gm1_result/README.md)
+36: conserve le tour réel, les compteurs, les oracles et leurs limites. Il ne prouve
+37: pas 30 ou 60 FPS dans tous les modes : les débits du tour incluent notamment
+38: 11,83 FPS dans la maison, 21,61 dans la fusion 1024 et 43,40 dans le shooter.
+39: Les entrées, les images lentes et les percentiles doivent être examinés
+40: séparément. Un succès de parcours ne constitue pas une qualification de fluidité.
+41: 
+42: ## Chaîne de fonctionnement actuelle
+43: 
+44: ```text
+45: Entrées du terminal / contrôleur de visite
+46:                  ↓ L3Input
+47: Simulation du monde ou moteur d'activité → état sauvegardable
+48:                  ↓ vues + traces d'événements après les pas réels
+49: Présentation : interpolation, files de mouvement, lumière et HUD
+50:                  ↓
+51: Rendu 3D G3D1 / quads V1 / couches et sprites
+52:                  ↓ commandes + ressources + scène
+53: Linux : validation ABI, SUBMIT synchrone, PRESENT
+54:                  ↓
+55: GPU et sortie propres au profil matériel
+56: ```
+57: 
+58: La simulation et la présentation sont distinctes. La boucle Linux emploie
+59: un accumulateur à 60 Hz et garde les fronts d'entrée jusqu'au pas qui les
+60: consomme. Le temps de présentation comprend la fraction restante. Une longue
+61: pause murale est bornée à 0,25 s dans `main.c` : le temps simulé n'est donc pas
+62: nécessairement égal au temps mural. Les benchmarks à pose fixe et les fenêtres
+63: à un pas par image sont explicitement des diagnostics différents du jeu réel.
+64: 
+65: ## Inventaire : réutilisable et encore lié à LUMA
+66: 
+67: | Domaine et fichiers | Déjà présent et réutilisable | Couplage ou limite actuelle |
+68: |---|---|---|
+69: | Commandes GPU : `fw_console/gpu_v1.{c,h}`, `gpu_geometry.{c,h}` ; ABI `linux/drivers/prodock-uapi.h` et validation du noyau candidat | Construction des commandes de cible, copie, matériau, texture, quads, caméra, matrices, lumière et maillages ; interfaces sans règle de mission | Interface d'émission sans pointeur utilisateur ; `render.c` utilise un producteur global `active`. L'ABI, les bornes et les capacités doivent être conservées par profil |
+70: | Rendu : `src/render.c`, `include/luma3d_render.h` | Batches de 64 commandes, validation avant émission, cache exact d'état, double buffering, culling par volumes, LOD, compteurs, arrêt avant PRESENT après erreur | `L3Render` contient directement héros, PNJ, eau, oiseaux, activités et HUD. La boucle reconnaît des identifiants d'objets et des phases de scénario LUMA |
+71: | Ressources : `world/generated.h`, `world/data.c`, headers d'art ; générateurs des candidats | Tables de maillages, sommets/faces, matériaux, textures, instances et colliders ; alignement et limites contrôlés ; publications statiques au chargement | Ressources compilées dans l'ELF ; pas de chargeur générique de paquets ni de streaming de régions. Noms, palettes et atlas sont ceux du jeu |
+72: | Monde et surface : `src/world.c`, `surface.c`, `include/luma3d_surface.h`, `surface_data.h` | Requêtes de hauteur et d'obstacle ; surface canonique extraite des triangles réellement rendus ; index spatial conservateur ; surfaces de pont | `world.c` connaît la séparation vallée/Terrasses, des coordonnées et l'avant-cour de l'atelier. Les listes de collisions restent parcourues directement |
+73: | Déplacement/caméra : `src/game.c`, `include/luma3d_game.h` | Vecteurs, position/vitesse, gravité, saut, tampon de saut, tolérance de départ, déplacement relatif à la caméra, limitation des pentes, caméra amortie et collision caméra ; marche automatique par la même physique | `L3Game` embarque `L3Story` et les activités. `game.c` appelle les règles de l'atelier et les sites des PNJ ; les cadrages de dialogue sont spécifiques |
+74: | Animation : `render.c`, `presentation.c`, `maze_motion.c`, `maze_events.c`, `puzzle_motion.c`, `simon_light.c` | Temps de présentation distinct, suivi avant/après des pas, interpolation sans extrapoler à travers les virages, invalidation d'époque/restart ; transforms calculées en temps réel | Marche à six pièces, arbre/moulin/eau/oiseaux codés pour les assets LUMA ; pas de système générique de squelette, de clips ou de mélange d'animations |
+75: | Entrées : `L3Input`, `src/main.c` | Axes, boutons maintenus et fronts séparés ; logique indépendante de la fréquence de dessin ; reprise manuelle de la visite | Adaptateur concret TTY dans main, maintien des touches approximé par délai ; pas de backend manette validé pour ce jeu. `--host` est une capture de commandes, pas une fenêtre PC interactive complète |
+76: | Moteurs d'activités : `minigames/l3_minigames.{c,h}`, `l3_simon.*`, `l3_shooter.*`, `l3_platform.*` | C déterministe, états bornés, init/step/view, entrées normales, statuts, codecs LE transactionnels ; indépendants du GPU et du monde | Huit règles finies et des cartes/paramètres intégrés, pas un langage universel de mini-jeux. Titres et aides français font encore partie des vues |
+77: | Adaptateur d'activités : `src/arcade_core.c`, `activities.c` | Entrée/reprise/restart/BACK, relâchement des entrées, récompense gagnée une seule fois, validation et regroupement des codecs | `arcade_core` énumère huit moteurs. `activities.c` fixe noms, coordonnées, conditions de région et récompenses spatiales de LUMA |
+78: | Interface : `src/hud.c`, `mini_ui.c`, `shooter_render.c`, `puzzle_gpu.c`, `puzzle_presentation.c`, `simon_native_gpu.c`, `simon_presentation.c` | Texte raster, palettes, ressources immuables, caches de canevas et de pages, publications de rectangles modifiés, quads avec alpha, sprites, composition de couches | Layouts et ressources propres aux activités ; pas de bibliothèque de widgets indépendante. Le header de rendu rassemble encore tous ces états |
+79: | Sauvegarde : `src/progress.c`, `include/luma3d_progress.h` | Schéma explicite, IDs stables, CRC, contrôle sémantique, rejet transactionnel, écriture temporaire/fsync/rename ; chemins choisis explicitement | Champs de scénario, routes et régions encodés pour LUMA. Réutiliser le mécanisme exige un schéma de contenu, pas renommer une sauvegarde existante |
+80: | Scénario/visite : `story.c`, `workshop.c`, `amber.c`, `showcase.c` | La visite utilise les mêmes entrées, collisions et moteurs que le manuel ; elle attend les présentations nécessaires et peut être annulée | Dialogues, énigmes, sites, parcours et séquence de démonstration entièrement LUMA. Ce sont du contenu et un pilote de vitrine, pas le noyau du moteur |
+81: 
+82: ### Contrats à préserver
+83: 
+84: `L3World` expose des callbacks `height(context,x,z)` et
+85: `blocked(context,x,y,z,radius,height)`, un domaine, une arrivée, une route et
+86: des objectifs. Ce contrat permet de remplacer la source du terrain sans changer
+87: les mathématiques du déplacement. L'implémentation actuelle du monde reste
+88: cependant liée aux tables et règles de LUMA.
+89: 
+90: La collision utilise la surface canonique. Dans les 3,05 m autour du joueur,
+91: le rendu sélectionne les mêmes triangles ; les LOD lointains restent des
+92: approximations visuelles, jamais une surface de déplacement. Le découpage des
+93: régions exclut de la soumission les instances de l'autre région, puis le frustum
+94: élimine les objets invisibles. Il ne libère pas leurs ressources déjà chargées.
+95: 
+96: Les moteurs d'activités n'appellent pas le renderer. `activity_observer.c`
+97: transmet vues et traces vers la présentation, sans ajouter les files d'animation
+98: aux codecs. Son binding est encore global et filtré par l'adresse de `L3Game` :
+99: une seule partie observée à la fois, pas un bus d'événements multi-mondes.
+100: L'adaptateur bloque l'entrée E résiduelle et conserve les récompenses au restart.
+101: Pendant l'activité, la pose et la mission du monde sont suspendues ; le retour
+102: normal les conserve. Une reprise de sauvegarde effectue séparément les contrôles
+103: de position sûre et peut remettre la vitesse à zéro.
+104: 
+105: ## Rendu réellement utilisé
+106: 
+107: | Mode | Chemin actuel |
+108: |---|---|
+109: | Exploration | Géométrie G3D1, perspective, textures, Z16, éclairage/brume, ciel Gouraud mis en cache puis COPY, CLEAR Z, UI indexée |
+110: | Maison et tour | Maillages G3D1 ; acteurs/obstacles dynamiques sur deux banques ; HUD séparé |
+111: | Blocs et fusion **1024** | Fenêtre RGB565 permanente, fond par COPY, quads V1 et ARGB4444 pour ombres/transparence ; positions de présentation interpolées ; chrome indexé hors plateau |
+112: | Simon | Instrument 2D natif, fond immuable et quads de lumière/appui ; caches par page, texte séparé |
+113: | Shooter | Fond/atlas publiés au chargement, couches et sprites bornés, projectiles et effets ; aucune vallée 3D dessinée derrière l'activité |
+114: | Circuit et formes | Canevas indexé avec caches et publications limitées aux changements ; logique indépendante du rendu |
+115: 
+116: KEY_ZERO des couches indexées est une découpe binaire ; ce n'est pas un mélange
+117: alpha. Les quads ARGB4444 utilisent le raster matériel lorsqu'une transparence
+118: partielle est nécessaire. Remplir davantage de couches n'accélère pas un rendu
+119: 3D. Le nombre utilisé dépend de la scène, des limites du pilote et du budget.
+120: Les 16 couches matérielles ne sont pas toutes disponibles à l'application :
+121: le terminal réserve notamment les couches 12–15 dans ce noyau.
+122: 
+123: Le cache de commandes conserve matrices, matériau, texture et lumière quand
+124: les octets sont identiques. TARGET invalide ce cache ; CAMERA reste envoyé
+125: après TARGET. SUBMIT attend la fin du lot ; la durée de cet ioctl contient
+126: publication/cache, alimentation et attente, et ne doit pas être appelée en
+127: bloc « coût du raster ». La capture hôte utilise le même producteur puis un
+128: modèle indépendant des commandes ; elle ne précalcule pas une vidéo du jeu.
+129: 
+130: ## Profils et mémoire : commun ne signifie pas identique
+131: 
+132: | Contrat | Profil 800×480 | Profil 1280×720 |
+133: |---|---|---|
+134: | Monde 3D | 400×240 puis affichage agrandi ×2 | 640×360 puis affichage agrandi ×2 |
+135: | UI / plateaux natifs | Coordonnées 800×480 | Coordonnées 1280×720 |
+136: | Taille d'une page réservée | 1 MiB | 2 MiB |
+137: | Pitch RGB565 natif | 1600 octets | 2560 octets |
+138: | Sélection | `PRODOCK_INFO` sur carte | `PRODOCK_INFO` sur carte ; `--720p` pour les tests hôte |
+139: 
+140: Les cibles V1 sont limitées à 1024×512. Les plateaux natifs 720p utilisent une
+141: fenêtre locale dans une page de pitch 2560, pas une cible V1 1280×720 illégale.
+142: Le producteur, les règles et les codecs sont communs ; tailles, dispositions,
+143: sorties, intégration FPGA et pilotes d'entrée sont des contrats de profil.
+144: 
+145: Un futur validateur de profil devra réserver une page pour la hauteur native
+146: effectivement écrite : `page_bytes >= pitch * screen_h` dans ces deux profils,
+147: avec calcul sans débordement. La condition limitée à `pitch * render_h` ne
+148: protège pas les fonds Simon et les pages natives. La validité d'une page mémoire
+149: ne dispense pas de contrôler séparément les dimensions de chaque cible V1.
+150: 
+151: La fenêtre du jeu est de 32 MiB à partir de l'adresse physique `0x00800000`.
+152: Les affectations suivantes sont des **réservations de ce runtime**, pas un
+153: allocateur universel déjà extrait :
+154: 
+155: | Décalage relatif | Usage actuel |
+156: |---|---|
+157: | 0 et `page_bytes` | Deux pages couleur ; profondeur à `2 * page_bytes` |
+158: | 6 MiB | Cache du ciel |
+159: | 8 à moins de 14 MiB | Géométrie/textures du monde, PNJ et petites banques d'animation |
+160: | 14 à moins de 15 MiB | Ressources puzzles/Simon, mutuellement exclusives |
+161: | 15–17 MiB | Framebuffer console du noyau : **réservé, pas disponible au jeu** |
+162: | 18 / 19 MiB | Atlas d'activité / héros |
+163: | 20–24 MiB | Pages HUD et interface d'activités |
+164: | 24–28 MiB | Géométrie statique d'activité puis banques dynamiques 26/27 |
+165: | 28–32 MiB | Ressources shooter |
+166: 
+167: La réservation 14–15 MiB correspond à l'absolu `[0x01600000,0x01700000)`.
+168: Son absence de chevauchement avec la console a été vérifiée contre les sources
+169: du noyau **réellement compilé**, dans
+170: [la provenance mémoire](../games/luma3d/candidates/arcade_motion_r1/provenance/root_memory_review_01.json).
+171: L'ancien projet 14–18 MiB a été corrigé avant qualification. Une adresse libre
+172: dans une capture hôte n'autorise pas à s'en servir sur une carte.
+173: 
+174: ## MC1 : optimisation commune mesurée et non retenue
+175: 
+176: MC1 part de GM1 ; il ne change ni contenus, ni règles, ni commandes GPU.
+177: Le [candidat de cache](../games/luma3d/candidates/maze_publish_cache_r1/README.md)
+178: ajoute `src/mesh_cache.c` / `include/l3_mesh_cache.h` et un raccord de publication
+179: dans `maze_render.c`. Deux ombres CPU comparent les blocs de 32 octets déjà
+180: publiés dans les banques 26/27 MiB. Les blocs identiques ne sont pas réécrits.
+181: La mémoire GPU n'est pas lue pour comparer. Le cache est privé à l'ouverture
+182: du renderer et invalidé lors d'un changement de mapping ou d'activité.
+183: 
+184: Les deux profils ont passé localement 80 images sélectionnées, avec commandes,
+185: codecs et 32 MiB exactement identiques à GM1. Les 16 fixtures RV32/QEMU et
+186: quatre fenêtres de simulation concordent également. Ce sont des preuves
+187: logicielles ; elles ne mesurent ni la fluidité Pro Dock de MC1 ni le GPU Neo.
+188: 
+189: Le [plan MC1 R3](../games/luma3d/tests/hardware/mesh_cache_20261027_mc1_prepared_r3/PLAN_MC1.md)
+190: a exécuté maison puis exploration A/B/B/A, avec GM1 comme témoin et comme repli,
+191: mesures séparées entrée/repos/mouvement, copies, cache/feed/wait/PRESENT et pics.
+192: Le repli GM1 est prévu aussi en succès. Le refus de revue R2 est conservé ;
+193: R3 ajoute un nettoyage protégé contre les signaux répétés et contrôle aussi les
+194: régressions d'entrée/repos ainsi que la dérive des témoins. La revue indépendante
+195: R3 et les huit oracles matériels passent ; les huit fenêtres de mesure sont
+196: conservées dans le [rapport MC1](../games/luma3d/tests/hardware/mesh_cache_20261027_mc1_result/README.md).
+197: 
+198: Le cache n'est **pas retenu**. Dans la maison, les deux paires donnent
+199: 12,47→11,70 et 12,14→11,22 FPS : les écritures diminuent de 66,49 %, mais le
+200: temps de publication avec comparaison augmente. L'entrée ralentit de 14,10 %
+201: et 10,79 %, au-delà de la garde fixée. Le témoin au repos dérive également de
+202: 3,83 %, au-delà de la garde de 3 %. En exploration, où ce cache n'est pas
+203: sollicité, le débit reste entre 9,65 et 9,77 FPS. Ces fenêtres déterministes
+204: ne constituent pas un nouveau tour réel de campagne.
+205: 
+206: GM1 exact est restauré, sa progression et son identité vérifiées, la sauvegarde
+207: V4 inchangée et le verrou/CDC libérés. Aucun FPGA, noyau, fichier SD ou flash
+208: n'a été modifié. Le code commun envisagé doit donc encore être distingué du
+209: runtime effectivement conservé : une optimisation correcte en pixels peut
+210: rester plus lente et être écartée.
+211: 
+212: ## Séparations utiles suivantes, sans refonte engagée
+213: 
+214: 1. **Contrat de profil et plan mémoire** : regrouper les tailles, réservations,
+215:    capacités et limites aujourd'hui dispersées ; faire vérifier chaque plage
+216:    contre le profil et le noyau retenus. Conserver le producteur commun.
+217: 2. **Contexte de rendu indépendant** : sortir progressivement de `L3Render`
+218:    les états héros/PNJ/activités et lui fournir des vues de scène et des handles
+219:    de ressources. Remplacer à terme les bindings globaux par des contextes
+220:    explicites, sans changer les octets de commande pendant cette séparation.
+221: 3. **Scène et contenu déclaratifs** : remplacer les comparaisons de noms et
+222:    coordonnées dans le renderer/monde par propriétés d'instance, composants
+223:    d'animation et actions de scénario. Garder les identifiants sauvegardés.
+224: 4. **Entrées et horloges** : isoler l'adaptateur TTY de la simulation ; ajouter
+225:    ensuite un adaptateur manette à qualifier par carte. Conserver fronts,
+226:    maintien, annulation de visite et sémantique des pauses.
+227: 5. **Bibliothèque d'activités et présentation** : garder `init/step/view/codec`
+228:    sans GPU, séparer les règles des thèmes et dispositions graphiques ; fournir
+229:    des événements de présentation explicites et bornés plutôt que relire une
+230:    logique de jeu depuis le renderer.
+231: 6. **Persistance du moteur et schéma du jeu** : réutiliser contrôle transactionnel
+232:    et écriture atomique, mais maintenir des migrations déclarées pour les
+233:    scénarios LUMA. Ne pas transformer une extraction de code en changement
+234:    silencieux de format ou de sens des anciens IDs.
+235: 
+236: Chaque extraction doit conserver ses témoins déterministes, les deux profils,
+237: les limites mémoire et les captures pertinentes avant une mesure matérielle.
+238: Ces tâches ne sont pas incluses dans MC1. Le contenu actuel ne constitue pas
+239: encore une campagne de plusieurs heures ; la visite autonome couvre les
+240: systèmes déjà implémentés. Véhicules, son matériel et jeux de cartes demandés
+241: ne doivent pas être annoncés comme des capacités terminées de ce moteur.
+242: 
+243: ## Complément : Festival R9 et activités de plateau
+244: 
+245: Un candidat logiciel séparé ajoute un jardin 3D et quatre moteurs de règles :
+246: Othello, solitaire Klondike, Chroma (cartes de couleurs) et pendu français.
+247: Le jardin contient quatre stands accessibles par plusieurs allées, une
+248: fontaine, des arbres, des toitures et un héros articulé. Le panorama texturé
+249: montre montagnes, forêt et lunes. Il s'agit d'une disposition avec deux
+250: ambiances, pas de deux nouvelles cartes. Les coordonnées et la caméra sont
+251: calculées pendant l'exécution, via le producteur G3D1 existant.
+252: 
+253: Les plateaux utilisent des quads ARGB4444 pour ombres, transparence et
+254: glissements. Les zones modifiées sont restaurées par copie GPU du fond mis
+255: en cache ; les pages et le texte ont des invalidations distinctes. La nouvelle
+256: progression se sauvegarde séparément et ne remplace pas la campagne existante.
+257: Les règles, le rendu et la persistance restent des composants distincts.
+258: 
+259: Identité figée : `games/luma3d/build/festival_20261027_r9/`, manifeste
+260: `77b831d700a42ebdd69c8c0417cabbf49d48263291ebfea507f976c63f03def9`, ELF RV32
+261: `6cdac82bb1b517c9d61680bf6542baec4b5fc586b2b202e8c3cf463615530f50`.
+262: Les 208 images temporelles des deux profils concordent avec le modèle de
+263: restauration complète ; les tests de logique, entrées, sauvegarde et la
+264: campagne locale des deux cartes passent. Ce sont des résultats hors carte.
+265: 
+266: **R9 n'a pas encore tourné sur Pro Dock.** Le premier essai a échoué pendant
+267: son transfert USB, avant l'arrêt de GM1. Le terminal a été récupéré et le même
+268: GM1 PID3158/start27508908 vérifié actif, sans erreur GPU et avec la sauvegarde
+269: inchangée. Le
+270: [rapport d'essai](../games/luma3d/tests/hardware/festival_20261027_r9_board_r1/README.md)
+271: conserve cet échec. Aucun FPS matériel R9 n'est déduit des captures hôte.
+272: 
+273: Le tour automatique de 450 images ne couvre pas les quatre tables aux cadences
+274: simulées de 10, 30 et 60 FPS : il atteint seulement le jardin et Othello. Un
+275: [candidat de mesure séparé](../games/luma3d/candidates/festival_animation_probe_20261027_r1/README.md)
+276: effectue quatre actions par jeu, attend leurs transitions puis deux images
+277: stabilisées. Il distingue les intervalles réellement animés des périodes au
+278: repos. Ses 24 fenêtres comparées à R9 passent hors carte ; sa qualification
+279: matérielle reste à réaliser.
+280: 
+281: Les prochaines retouches esthétiques et corrections de transport sont isolées
+282: de R9. Ce complément ne change ni le FPGA G22r0 ni le noyau retenu et ne qualifie
+283: pas le jeu sur la Neo. La campagne de plusieurs heures, les véhicules et le
+284: son restent des travaux ouverts.
+285: 
+286: ### 28 octobre : candidat visuel intégré et transfert encore bloqué
+287: 
+288: Le candidat `festival_integrated_20261028_r1` rassemble les retouches du jardin,
+289: des panneaux et des halos, les lettres animées du pendu et les mesures séparées
+290: d'actions animées. Les tests locaux, comparaisons de pixels et les onze groupes
+291: des deux profils passent ; il n'a pas été essayé sur carte.
+292: 
+293: Le tmpfs de la Pro Dock était plein. Quatre anciens exécutables temporaires,
+294: conservés et identifiés localement, ont été retirés après vérification ; 35,6 Mio
+295: ont été libérés et GM1/sauvegarde recontrôlés. Le nouvel essai R6 de transfert de
+296: R9 échoue toutefois après 116 paquets acquittés, sans réponse au paquet suivant.
+297: Aucun arrêt de GM1 ni lancement de R9 n'a eu lieu. L'écoute passive supplémentaire
+298: reste silencieuse : l'état du receiver est inconnu, sa récupération reste à faire.
+299: Le dernier état GM1 vérifié est celui d'avant cet essai, pas une revalidation
+300: après échec. Voir le
+301: [rapport R6](../games/luma3d/tests/hardware/festival_20261028_r9_board_r6/README.md).
+302: 
+303: La récupération R6 est ensuite confirmée : sortie du receiver code1, terminal
+304: utilisable, même GM1/sauvegarde, +68 présentations sans erreur GPU. Le contrôle
+305: final est `festival_20261028_r6_health_resume_r3/result.json`. Les échecs
+306: intermédiaires d’outils absents du rootfs sont conservés. Le delta incomplet
+307: reste inutilisable ; aucun nouveau jeu n’a été lancé. Les ajouts visuels R2
+308: et le cinquième stand Memory restent des candidats logiciels hors carte.
+309: 
+310: ### 28 octobre : RX2 validé sur Pro Dock, mesures du jeu préparées
+311: 
+312: Le nouveau récepteur temporaire RX2 a passé six sessions sur la Pro Dock :
+313: 0, 513 et 16 384 octets, rejet/reprise d'un paquet volontairement corrompu,
+314: arrêt après 512 octets puis reprise jusqu'à 1 024 octets. L'exécutable du
+315: récepteur a été relu intégralement et identifié par SHA avant exécution ;
+316: les données finales de chaque essai ont également été relues et comparées.
+317: Le résultat est
+318: `games/luma3d/tests/hardware/rx2_20261028_board_r3/result.json`, SHA
+319: `e9a7712588e2ebcdfff3d04a15c1cc43526bf8fb3aa776d0a4f878df437156cb`.
+320: 
+321: Le même GM1 PID3158/start27508908 est resté actif : +2 390 présentations,
+322: aucune erreur GPU et sauvegarde inchangée. Aucun FPGA, noyau ou contenu SD
+323: n'a été modifié. Les tests ne qualifient pas encore le transfert d'un jeu
+324: complet ; le récepteur historique n'a pas été remplacé.
+325: 
+326: Le candidat `festival_memory_metrics_20261028_r4` inclut le jardin enrichi,
+327: les quatre tables et le cinquième stand Memory, avec instrumentation séparant
+328: entrée, chargement des ressources, animations et repos. Les copies CPU de
+329: Festival/Memory étaient absentes des anciens compteurs : elles sont désormais
+330: comptées explicitement. Les 5 844 productions comparées restent identiques
+331: au candidat visuel de référence. Ces preuves hors carte ne donnent aucun FPS
+332: matériel. Ce nouveau jeu n'a pas encore été lancé sur Pro Dock.
+
+FILE games/luma3d/candidates/festival_memory_metrics_20261028_r1/README.md
+1: # Mesures Festival / Memory — candidat logiciel séparé
+2: 
+3: Base figée : `games/luma3d/build/festival_memory_hook_20261028_r2`, manifeste
+4: `afc2dd53becc84645df66c7b1bd460c251ec778aa7ff42f0beffe317539e3526`.
+5: Le build final est désigné par `DELIVERY.json`. Le hook original, GM1, le
+6: combiné root, les règles, les ressources graphiques et les projets FPGA ne
+7: sont pas modifiés. Aucun accès carte, transfert, JTAG ou écriture SD.
+8: 
+9: ## Ce qui est mesuré
+10: 
+11: `--festival-metrics` active le comptage des véritables appels `publish()`
+12: Festival/Memory, de leurs octets et de leur temps monotone. Les anciens
+13: compteurs `mini_bytes` ne les comptaient pas. Les copies d'atlas sont
+14: identifiées par leurs plages propres : 17..17,75 Mio pour Festival,
+15: 17..18 Mio pour Memory. Les autres publications (fond, pages, UI, maillages)
+16: restent comptées dans le total, sans être prises pour des atlas.
+17: 
+18: `LUMA3D_GRAPHICS_READY` indique maintenant `base_art_loaded=1` et
+19: `scene_resources_pending=1` lorsque Festival reste à initialiser. Il ne
+20: prétend plus avoir déjà chargé les atlas de cette scène. Les marqueurs
+21: `LUMA3D_SCENE_ASSETS` donnent le mode, l'image, la génération, le temps de
+22: préparation des ressources, leurs octets publiés et la sous-partie atlas.
+23: Ils sont enregistrés en mémoire puis imprimés **après la fenêtre**, pour
+24: éviter une écriture UART bloquante pendant son entrée. La capacité de
+25: 16 marqueurs suffit aux fenêtres fraîches proposées ; un dépassement est
+26: une erreur explicite, pas une mesure silencieusement tronquée.
+27: 
+28: Les images présentées sont réparties sans recouvrement entre :
+29: 
+30: - `entry` : ressources ou page de fond pas encore publiées avant cette image ;
+31: - `deal`, `reveal`, `hide`, `pair` : distribution, retournement, erreur et collecte Memory ;
+32: - `wait` : Memory hors transition ;
+33: - `table_active`, `table_wait` : les quatre autres jeux ;
+34: - `garden` : jardin dont les ressources sont déjà publiées.
+35: 
+36: L'entrée a priorité sur une animation déjà commencée : les deux premières
+37: pages Memory ne polluent donc pas le temps de la distribution avec leurs
+38: initialisations. La victoire accompagne une collecte ; elle ne masque pas
+39: la phase `pair`.
+40: 
+41: Chaque catégorie conserve ses images, commandes, lots, octets CPU, temps
+42: de publication, simulation, préparation, soumission et présentation, ainsi
+43: que le plus long intervalle entre deux fins de présentation. Le dénominateur
+44: est ce **temps monotone réel**, jamais le pas de simulation de 1/60 s.
+45: `cpu_publish_seconds` est une sous-partie de la préparation, et celle-ci une
+46: sous-partie de l'intervalle total : ne pas additionner ces grandeurs comme
+47: si elles étaient disjointes. La soumission peut comprendre des attentes
+48: du GPU ; ce n'est pas un temps CPU pur.
+49: 
+50: Sur hôte, les nouvelles catégories émettent `rate_valid=0 rate=0`.
+51: `read_metrics.py` supprime également toutes les durées/rates hôte de son
+52: résultat structuré. Les vieux marqueurs globaux du programme peuvent encore
+53: afficher le débit CPU du producteur hôte : il n'est jamais un FPS matériel.
+54: 
+55: ## Fenêtre Memory bornée
+56: 
+57: La fenêtre recommandée est :
+58: 
+59: ```sh
+60: <binaire candidat> --festival-memory --memory-sample-actions 24
+61: ```
+62: 
+63: Elle part d'une partie fraîche, utilise uniquement les actions légales du
+64: conseiller existant et finit les 24 transitions avant de publier deux images
+65: finales sur **les deux pages**. Une victoire peut terminer plus tôt une
+66: limite supérieure. La simulation se fige alors après la dernière action,
+67: sans passer au jardin ni déclencher la manche suivante. Ce comportement
+68: diagnostique est inactif quand `memory_sample_limit=0` et n'est pas sauvegardé.
+69: 
+70: La CLI accepte 1..128 actions, refuse manuel, autre table, sauvegarde,
+71: fast-forward, capture et benchmark ambigus. Elle est bornée par 60 s réelles
+72: et 3 600 images par défaut. `--frames N` peut l'écourter : une fenêtre qui
+73: n'a pas fini retourne alors un échec. Les touches sont ignorées pendant
+74: l'échantillon ; les signaux conservent l'arrêt normal du programme.
+75: 
+76: Les compteurs exigent une transition **et un état terminé présentés** pour
+77: chaque action, sans action sautée entre images. Une paire de drapeaux
+78: `page_valid` ne suffit pas : les deux dernières pages doivent effectivement
+79: avoir été présentées après l'action finale. Une limite de 1 action ne couvre
+80: qu'un premier flip ; les 24 actions de la graine actuelle couvrent aussi
+81: erreurs, paires et victoire, ce qui est vérifié explicitement.
+82: 
+83: Les quatre autres tables conservent leur option existante
+84: `--festival-game 0..3 --festival-sample-actions 4`. Elle active aussi les
+85: nouveaux compteurs de publications. Pour le jardin :
+86: `--festival --manual --festival-metrics --frames 120` mesure l'atmosphère,
+87: sans prétendre mesurer une marche du héros.
+88: 
+89: ## Preuves locales
+90: 
+91: Le constructeur copie et vérifie tous les fichiers de la base dans un
+92: nouveau dossier `--candidate`. Il modifie cinq fichiers logiciels pour
+93: ajouter les champs de diagnostic, les compteurs et le raccord CLI, et ajoute
+94: deux fichiers de métriques. Les fonctions de géométrie, de rendu et les
+95: règles ne sont pas réécrites. Les écritures de `publish()` restent identiques.
+96: 
+97: Les comparaisons utilisent le vrai `l3_render_frame`, les commandes filtrées
+98: réellement émises et les publications CPU dans leur ordre exact. Deux
+99: producteurs (base et candidat) sont exécutés sur les mêmes instants :
+100: 
+101: - 16 fenêtres et **5 844 images**, sur les deux résolutions ;
+102: - Memory à 10, 30 et 60 présentations **simulées** par seconde ;
+103: - quatre tables, jardin en mouvement et changement d'ambiance ;
+104: - état initial complet de la VRAM, toutes les écritures CPU et commandes,
+105:   paramètres de composition, poses et codecs de règles identiques octet
+106:   pour octet.
+107: 
+108: Cette égalité des entrées du même GPU établit l'équivalence du rendu dans
+109: ces fenêtres. Ce n'est pas un nouveau test FPGA ni une mesure de débit.
+110: Les flux égaux sont conservés compressés, avec leurs SHA. Les états arrêtés
+111: sur deux pages sont également contrôlés. Aucun gain FPS n'est annoncé.
+112: 
+113: Le banc de compteurs passe **37 contre-tests ASan/UBSan** : temps invalides,
+114: action sautée, transition/fin non présentée, même page finale répétée,
+115: classification de victoire, copies d'atlas et débordement de marqueurs.
+116: LSan est désactivé parce qu'il échoue sous ptrace dans cet environnement :
+117: aucune preuve d'absence de fuite n'est revendiquée. La première tentative
+118: avec LSan est conservée comme échec d'environnement.
+119: 
+120: Les 12 refus CLI et le parseur sont testés séparément. Ce dernier couvre
+121: 22 fenêtres hôte et 18 contre-exemples, dont origine hôte prise pour une
+122: carte, absence d'une page ou d'une phase, compteur d'octets incorrect,
+123: NaN, durée incohérente et mauvais dénominateur. Une fixture numérique
+124: « hardware » synthétique ne teste que le format ; elle n'est pas conservée
+125: comme un résultat de carte. Le parseur ne remplace pas la garde d'identité
+126: et de restauration du contrôleur root.
+127: 
+128: ## Volumes observés, pas débits matériels
+129: 
+130: Pour les 24 actions Memory en 800×480, le producteur publie **22 552 576
+131: octets CPU** : 4 120 576 pour l'entrée et les deux pages, puis 18 432 000
+132: pour les mises à jour d'interface pendant les actions. L'atlas Memory
+133: représente 1 048 576 octets dans la partie entrée. Les phases de distribution
+134: et d'attente, après publication des deux pages, n'émettent plus de copie CPU.
+135: 
+136: Ce relevé est reproductible à trois cadences simulées et révèle un coût
+137: auparavant absent des compteurs. Il ne constitue ni une bande passante DDR
+138: mesurée ni un gain de performances. Le renderer et ces copies restent
+139: inchangés dans ce lot ; une réduction future de l'UI devra être évaluée
+140: séparément, avec son oracle de transparence et ses deux pages.
+141: 
+142: « Ressources déjà publiées » ne signifie pas cache physique CPU/DDR/FPGA
+143: froid ou chaud : aucun vidage de ces caches n'est supposé. Les appels au
+144: chronomètre ajoutent une légère charge de diagnostic. Les journaux habituels
+145: du programme sont inclus dans les intervalles réels entre présentations.
+146: 
+147: Les résultats et empreintes finales sont liés dans `DELIVERY.json`.
+148: L'essai Pro Dock reste sous le contrôle de root, après revue du binaire,
+149: du transfert et de la restauration. Aucun contrôleur matériel n'est créé
+150: ou lancé par ce lot.
+151: 
+152: Exemple de lecture hors carte d’un journal enregistré :
+153: 
+154: ```sh
+155: python3 games/luma3d/candidates/festival_memory_metrics_20261028_r1/read_metrics.py \
+156:   --log <journal> --origin host --mode 5 --memory-actions 24 --out <nouveau-resultat.json>
+157: ```
+158: 
+159: Pour les quatre tables animées, utiliser `--mode 0..3 --table-actions 4`.
+160: Une entrée manuelle n’a pas de limite d’actions à déclarer et ne produit pas
+161: de taux animé. `--origin hardware` ne doit être utilisé par root qu’après
+162: vérification indépendante de la provenance de l’acquisition.
+
+FILE games/luma3d/candidates/festival_memory_hook_20261028_r1/DELIVERY.json
+1: {
+2:   "status": "isolated_hook_ready_for_root_integration",
+3:   "hardware_tested": false,
+4:   "build": "games/luma3d/build/festival_memory_hook_20261028_r2",
+5:   "manifest_sha256": "afc2dd53becc84645df66c7b1bd460c251ec778aa7ff42f0beffe317539e3526",
+6:   "base_manifest_sha256": "9e5fc308e547a8cdd9fd702c1db08ebba3748e2607062a0424e80cb7de599685",
+7:   "riscv": {
+8:     "bytes": 16636048,
+9:     "sha256": "eea37158d2dab93fb3b211cba85539b4b87436ca47fb1de9382e947a52f7047a",
+10:     "crc32": "7b50702d"
+11:   },
+12:   "files": {
+13:     "patch.py": "89abe4d067bb36e91f597f54034dbc78fe8aad5476ff7779e33b7a7c7a753732",
+14:     "build.py": "0ec858f8c027f82d8c38401d832a9737b40e5bc90ce9122f6cebf4cd7d60ad7f",
+15:     "memory_progress.c": "b9a8ffe2937da98faa709d2d93ba3ab015373eca70427425d47a6c57bbd717cd",
+16:     "memory_progress.h": "feafc94b72742a6c4ad692e84f068f38a0bd13ce895fa0cfacf6c505693475b0",
+17:     "README.md": "bd19c43d62d13123d0e7e69215468124963404dfa0a4edbae09b3b2c90712654",
+18:     "REVIEW.md": "3b6fae5e05ffdb0ffd61edf3def5e2258921da0cb401f5f4a76c3049781b0734"
+19:   },
+20:   "proofs": {
+21:     "tests_r2b/result.json": "58e20e4c05028c54d41ef5cdf4b7782bad9ee9b8bb6174361d0e36796430f626",
+22:     "legacy_logic_r2/result.json": "caedf95b178eb122c5dbde2a05339dc2bfe9a5049999e68d293fd9f8e7695039",
+23:     "four_r2/result.json": "f093331202c0ad98a06b8988861fc203f7cc3254a0e27380ed0f999622f622e1",
+24:     "images_r2/result.json": "2d4a4a4369f7dbb097df5c7d364b77ba290ee30137a81d926cfaf14c0378105a"
+25:   },
+26:   "mesh_count": 25,
+27:   "mesh_capacity": 28,
+28:   "geometry_bytes": 163072,
+29:   "geometry_end": 18775296,
+30:   "geometry_limit": 18874368,
+31:   "four_table_productions_identical": 32,
+32:   "legacy_assertions": 1845,
+33:   "memory_tour_visits": 16,
+34:   "memory_wins": [
+35:     1,
+36:     1,
+37:     14
+38:   ],
+39:   "remaining": [
+40:     "Root integration into final combined source/build",
+41:     "Full shared board regression campaign after integration",
+42:     "Hardware measurements and validation on both boards"
+43:   ]
+44: }

@@ -1,0 +1,1466 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-tester le delta contacts après deux défauts corrigés : ordre des collectes/contacts/respawns et segments à même échéance, file bornée, reprise. Fonctions complètes et vrais témoins moteur joints. Proposer uniquement défaut démontré et test C minimal ; aucune règle ou matériel à changer.
+
+EVIDENCE PACKET:
+Revue ciblée du delta contacts après correction C1/C2. Aucun appareil ni modification. Chercher contre-exemples atteignables avec vrai moteur, surtout plusieurs contacts à même échéance, événements collectes puis respawn, file bornée. Ne pas redemander des fichiers présents. Les tests sont faits localement ; vous proposez des témoins précis. Aucun changement règles/save.
+
+FILE games/luma3d/candidates/maze_events_r1/src/maze_motion.c
+#include "l3_maze_motion.h"
+#include <math.h>
+#include <string.h>
+#include <stdlib.h>
+static void settle(L3MazeTrack *t,unsigned x,unsigned y){
+ memset(t,0,sizeof *t);t->settled_x=t->logical_x=(uint16_t)x;t->settled_y=t->logical_y=(uint16_t)y;
+}
+static void retire(L3MazeTrack *t,double time){
+ while(t->count){const L3MazeSegment *s=t->segments+t->head;if(time<s->end)break;
+  t->settled_x=s->x1;t->settled_y=s->y1;t->head=(t->head+1)%L3_MAZE_SEGMENTS;t->count--;
+ }
+}
+static int open_cell(const L3MiniView *v,unsigned x,unsigned y){
+ if(x%256!=128||y%256!=128)return 0;x/=256;y/=256;
+ return x<v->width&&y<v->height&&v->cells[y*20+x].kind!=L3_MINI_CELL_WALL;
+}
+void l3_maze_motion_reset(L3MazeMotion *m){if(m)memset(m,0,sizeof *m);}
+int l3_maze_motion_observe_trace(L3MazeMotion *m,const L3MiniView *v,const L3MiniActors *a,double time,uint32_t epoch,unsigned warp){
+ if(warp>7||!m||!v||!a||!isfinite(time)||time<0||v->kind!=L3_MINI_MAZE||v->width>20||v->height>20||a->count!=3)return 0;
+ for(unsigned i=0;i<3;i++)if(!open_cell(v,a->actors[i].x256,a->actors[i].y256))return 0;
+ if(m->valid&&m->epoch==epoch&&time<m->time)return 0;
+ int reset=!m->valid||m->epoch!=epoch||a->respawn_ticks>m->latest.respawn_ticks;
+ if(reset){for(unsigned i=0;i<3;i++)settle(m->actor+i,a->actors[i].x256,a->actors[i].y256);m->resets++;}
+ else for(unsigned i=0;i<3;i++){
+  L3MazeTrack *t=m->actor+i;const L3MiniActor *p=a->actors+i;retire(t,time);
+  if(warp&(1u<<i)){settle(t,p->x256,p->y256);m->teleports++;continue;}
+  int dx=(int)p->x256-t->logical_x,dy=(int)p->y256-t->logical_y;
+  if(!dx&&!dy)continue;
+  if(abs(dx)+abs(dy)!=256||!open_cell(v,t->logical_x,t->logical_y)){
+   settle(t,p->x256,p->y256);m->teleports++;continue;
+  }
+  if(t->count==L3_MAZE_SEGMENTS){settle(t,p->x256,p->y256);m->overflows++;continue;}
+  unsigned tail=(t->head+t->count)%L3_MAZE_SEGMENTS;double start=time;
+  if(t->count){double end=t->segments[(tail+L3_MAZE_SEGMENTS-1)%L3_MAZE_SEGMENTS].end;if(end>start)start=end;}
+  t->segments[tail]=(L3MazeSegment){start,start+(i?14.:6.)/60.,t->logical_x,t->logical_y,p->x256,p->y256};
+  t->logical_x=p->x256;t->logical_y=p->y256;t->count++;m->moves++;
+ }
+ m->latest=*a;m->time=time;m->epoch=epoch;m->valid=1;return 1;
+}
+int l3_maze_motion_sample(const L3MazeMotion *m,double time,L3MiniActors *out){
+ if(!m||!out||!m->valid||!isfinite(time)||time<m->time)return 0;
+ L3MiniActors a=m->latest;
+ for(unsigned i=0;i<3;i++){
+  const L3MazeTrack *t=m->actor+i;double x=t->settled_x,y=t->settled_y;
+  for(unsigned j=0;j<t->count;j++){
+   const L3MazeSegment *s=t->segments+(t->head+j)%L3_MAZE_SEGMENTS;
+   if(time>=s->end){x=s->x1;y=s->y1;continue;}
+   double p=time<=s->start?0:(time-s->start)/(s->end-s->start);
+   x=s->x0+(s->x1-s->x0)*p;y=s->y0+(s->y1-s->y0)*p;break;
+  }
+  a.actors[i].x256=(uint16_t)lround(x);a.actors[i].y256=(uint16_t)lround(y);
+ }
+ *out=a;return 1;
+}
+
+int l3_maze_motion_observe(L3MazeMotion *m,const L3MiniView *v,const L3MiniActors *a,double time,uint32_t epoch){
+ return l3_maze_motion_observe_trace(m,v,a,time,epoch,0);
+}
+
+static void track_position(const L3MazeTrack *t,double time,unsigned *x,unsigned *y){
+ double px=t->settled_x,py=t->settled_y;
+ for(unsigned n=0;n<t->count;n++){
+  const L3MazeSegment *s=&t->segments[(t->head+n)%L3_MAZE_SEGMENTS];
+  if(time>=s->end){px=s->x1;py=s->y1;continue;}
+  double k=time<=s->start?0:(time-s->start)/(s->end-s->start);
+  px=s->x0+(s->x1-s->x0)*k;py=s->y0+(s->y1-s->y0)*k;break;
+ }
+ *x=(unsigned)lround(px);*y=(unsigned)lround(py);
+}
+static int observed_move(L3MazeMotion *m,const L3MiniView *v,unsigned i,unsigned x,unsigned y,double now){
+ L3MazeTrack *t=&m->actor[i];retire(t,now);
+ if(t->logical_x==x&&t->logical_y==y)return 1;
+ if(abs((int)x-t->logical_x)+abs((int)y-t->logical_y)!=256||!open_cell(v,x,y)||t->count==L3_MAZE_SEGMENTS)return 0;
+ unsigned tail=(t->head+t->count)%L3_MAZE_SEGMENTS;double start=now;
+ if(t->count&&t->segments[(tail+L3_MAZE_SEGMENTS-1)%L3_MAZE_SEGMENTS].end>start)start=t->segments[(tail+L3_MAZE_SEGMENTS-1)%L3_MAZE_SEGMENTS].end;
+ t->segments[tail]=(L3MazeSegment){start,start+(i?14.:6.)/60.,t->logical_x,t->logical_y,(uint16_t)x,(uint16_t)y};
+ t->logical_x=(uint16_t)x;t->logical_y=(uint16_t)y;t->count++;m->moves++;return 1;
+}
+/* Re-time only the already observed orthogonal path. The hero's segments
+ * are never changed to wait for a ghost. If he is already at the contact,
+ * the contact itself may vanish immediately; no ordinary move is invented. */
+static int contact_arrival(L3MazeTrack *t,double now,double due){
+ unsigned x,y;track_position(t,now,&x,&y);
+ if(due<=now){settle(t,t->logical_x,t->logical_y);return 1;}
+ /* Preserve earlier contacts/warps if this path already reaches the new
+  * contact in time. Re-timing it would move the earlier encounter. */
+ if(t->count&&t->segments[(t->head+t->count-1)%L3_MAZE_SEGMENTS].end<=due)return 1;
+ unsigned xs[L3_MAZE_SEGMENTS+1],ys[L3_MAZE_SEGMENTS+1],count=0,total=0,px=x,py=y;
+ for(unsigned n=0;n<t->count;n++){
+  const L3MazeSegment *s=&t->segments[(t->head+n)%L3_MAZE_SEGMENTS];if(s->end<=now)continue;
+  if(s->end==s->start)return 0; /* A prior pending respawn is a discontinuity. */
+  unsigned dx=(unsigned)abs((int)s->x1-(int)px),dy=(unsigned)abs((int)s->y1-(int)py);
+  if(dx&&dy)return 0;if(!dx&&!dy)continue;
+  xs[count]=s->x1;ys[count++]=s->y1;total+=dx+dy;px=s->x1;py=s->y1;
+ }
+ if(px!=t->logical_x||py!=t->logical_y)return 0;
+ L3MazeTrack next={0};next.settled_x=(uint16_t)x;next.settled_y=(uint16_t)y;next.logical_x=t->logical_x;next.logical_y=t->logical_y;
+ if(!count){next.segments[0]=(L3MazeSegment){now,due,(uint16_t)x,(uint16_t)y,(uint16_t)x,(uint16_t)y};next.count=1;}
+ else {unsigned distance=0;double start=now;px=x;py=y;
+  for(unsigned n=0;n<count;n++){
+   distance+=(unsigned)(abs((int)xs[n]-(int)px)+abs((int)ys[n]-(int)py));double end=n+1==count?due:now+(due-now)*distance/total;
+   next.segments[n]=(L3MazeSegment){start,end,(uint16_t)px,(uint16_t)py,(uint16_t)xs[n],(uint16_t)ys[n]};start=end;px=xs[n];py=ys[n];
+  }next.count=count;
+ }
+ *t=next;return 1;
+}
+static int contact_warp(L3MazeTrack *t,unsigned x,unsigned y,double now,double due){
+ retire(t,now);unsigned px,py;track_position(t,due,&px,&py);L3MazeTrack next=*t;next.head=0;next.count=0;
+ for(unsigned n=0;n<t->count;n++){
+  L3MazeSegment s=t->segments[(t->head+n)%L3_MAZE_SEGMENTS];if(s.start>due||(s.start==due&&s.end>due))break;
+  int clipped=s.end>due;
+  if(s.end>due){s.end=due;s.x1=(uint16_t)px;s.y1=(uint16_t)py;}
+  if(next.count==L3_MAZE_SEGMENTS)return 0;
+  next.segments[next.count++]=s;if(clipped)break;
+ }
+ if(next.count==0){next.settled_x=(uint16_t)px;next.settled_y=(uint16_t)py;}
+ if(px!=x||py!=y){
+  if(next.count==L3_MAZE_SEGMENTS)return 0;
+  next.segments[next.count++]=(L3MazeSegment){due,due,(uint16_t)px,(uint16_t)py,(uint16_t)x,(uint16_t)y};
+ }
+ next.logical_x=(uint16_t)x;next.logical_y=(uint16_t)y;*t=next;return 1;
+}
+int l3_maze_motion_observe_events(L3MazeMotion *m,const L3MiniView *v,const L3MiniActors *a,double now,uint32_t epoch,const L3MiniTrace *trace){
+ if(!trace)return l3_maze_motion_observe_trace(m,v,a,now,epoch,0);
+ if(!m||!v||trace->event_count>L3_MAZE_TRACE_EVENTS||trace->event_overflow)return 0;
+ unsigned contacts=0;
+ for(unsigned n=0;n<trace->event_count;n++){
+  const L3MazeEvent *e=&trace->events[n];if(e->kind<L3_MAZE_COLLECT||e->kind>L3_MAZE_CONTACT_LOST)return 0;
+  if(!open_cell(v,e->x*256u+128,e->y*256u+128))return 0;
+  for(unsigned i=0;i<3;i++)if(!open_cell(v,e->actor_x[i]*256u+128,e->actor_y[i]*256u+128))return 0;
+  if(e->kind==L3_MAZE_COLLECT)continue;contacts++;
+  for(unsigned i=0;i<3;i++)if(!open_cell(v,e->respawn_x[i]*256u+128,e->respawn_y[i]*256u+128))return 0;
+ }
+ if(!contacts)return l3_maze_motion_observe_trace(m,v,a,now,epoch,trace->maze_warp_mask);
+ L3MazeMotion original=*m,fallback=*m;
+ if(!l3_maze_motion_observe_trace(&fallback,v,a,now,epoch,trace->maze_warp_mask))return 0;
+ if(!original.valid||original.epoch!=epoch)goto fallback;
+ L3MazeMotion work=original;
+ for(unsigned n=0;n<trace->event_count;n++){
+  const L3MazeEvent *e=&trace->events[n];
+  for(unsigned i=0;i<3;i++)if(!observed_move(&work,v,i,e->actor_x[i]*256u+128,e->actor_y[i]*256u+128,now))goto fallback;
+  if(e->kind==L3_MAZE_COLLECT)continue;
+  double due=now;L3MazeTrack *hero=&work.actor[0];
+  if(hero->count)due=fmax(due,hero->segments[(hero->head+hero->count-1)%L3_MAZE_SEGMENTS].end);
+  unsigned collided=e->kind==L3_MAZE_CONTACT_POWER?e->actor_mask:e->detail;
+  if((collided!=2&&collided!=4)||(e->kind!=L3_MAZE_CONTACT_POWER&&e->actor_mask!=7))return 0;
+  for(unsigned i=1;i<3;i++)if(collided&(1u<<i))if(!contact_arrival(&work.actor[i],now,due))goto fallback;
+  if(e->kind!=L3_MAZE_CONTACT_LOST)for(unsigned i=0;i<3;i++)if(e->actor_mask&(1u<<i)){
+   if(!contact_warp(&work.actor[i],e->respawn_x[i]*256u+128,e->respawn_y[i]*256u+128,now,due))goto fallback;work.teleports++;
+  }
+  work.contacts++;
+ }
+ for(unsigned i=0;i<3;i++)if(!observed_move(&work,v,i,a->actors[i].x256,a->actors[i].y256,now))goto fallback;
+ work.latest=*a;work.time=now;work.epoch=epoch;work.valid=1;*m=work;return 1;
+fallback:
+ fallback.contacts+=contacts;fallback.contact_fallbacks++;*m=fallback;return 1;
+}
+
+
+FILE games/luma3d/candidates/maze_events_r1/src/maze_events.c
+#include "l3_maze_events.h"
+#include <math.h>
+#include <string.h>
+void l3_maze_events_reset(L3MazeEvents *e){if(e)memset(e,0,sizeof *e);}
+int l3_maze_events_observe(L3MazeEvents *e,const L3MazeMotion *m,const uint8_t floor[400],const L3MiniTrace *trace,double now,uint32_t epoch){
+ if(!e||!m||!floor||!isfinite(now)||now<0||!m->valid)return 0;
+ if(e->valid&&e->epoch==epoch&&now<e->time)return 0;
+ if(trace&&(trace->event_count>L3_MAZE_TRACE_EVENTS||trace->event_overflow))return 0;
+ for(unsigned q=0;q<400;q++)if(floor[q]!=L3_MINI_CELL_EMPTY&&floor[q]!=L3_MINI_CELL_WALL&&floor[q]!=L3_MINI_CELL_PELLET&&floor[q]!=L3_MINI_CELL_POWER)return 0;
+ if(trace)for(unsigned i=0;i<trace->event_count;i++){
+  const L3MazeEvent *v=trace->events+i;
+  if(v->x>=20||v->y>=20||v->kind<L3_MAZE_COLLECT||v->kind>L3_MAZE_CONTACT_LOST)return 0;
+  if(v->kind==L3_MAZE_COLLECT&&(v->detail<2||v->detail>3||floor[v->y*20+v->x]!=L3_MINI_CELL_EMPTY))return 0;
+ }
+ if(!e->valid||e->epoch!=epoch){l3_maze_events_reset(e);e->valid=1;e->epoch=epoch;}
+ memcpy(e->floor,floor,sizeof e->floor);e->time=now;
+ for(unsigned q=0;q<400;q++)if(e->until[q]<=now)e->pending[q]=0;
+ if(trace)for(unsigned i=0;i<trace->event_count;i++){
+  const L3MazeEvent *v=trace->events+i;
+  if(v->kind!=L3_MAZE_COLLECT&&v->kind!=L3_MAZE_CONTACT_DEATH&&v->kind!=L3_MAZE_CONTACT_LOST)continue;
+  unsigned q=v->y*20+v->x;double arrival=now;const L3MazeTrack *t=&m->actor[0];
+  for(unsigned n=0;n<t->count;n++){
+   const L3MazeSegment *s=&t->segments[(t->head+n)%L3_MAZE_SEGMENTS];
+   if(s->x1==v->x*256u+128&&s->y1==v->y*256u+128&&s->end>arrival)arrival=s->end;
+  }
+  if(v->kind!=L3_MAZE_COLLECT){
+   if(arrival>now)for(unsigned n=0;n<3;n++)if(e->life_until[n]<=now){e->life_until[n]=arrival;break;}
+   continue;
+  }
+  e->collections++;
+  if(arrival>now){e->pending[q]=(uint8_t)(v->detail==3?L3_MINI_CELL_POWER:L3_MINI_CELL_PELLET);e->until[q]=arrival;e->deferred++;}
+  else e->fallbacks++; /* A reset/multi-move discontinuity has no traversed segment. */
+ }
+ return 1;
+}
+int l3_maze_events_sample(const L3MazeEvents *e,double now,uint8_t floor[400]){
+ if(!e||!e->valid||!floor||!isfinite(now)||now<e->time)return 0;
+ memcpy(floor,e->floor,sizeof e->floor);
+ for(unsigned q=0;q<400;q++)if(e->pending[q]&&now<e->until[q])floor[q]=e->pending[q];
+ return 1;
+}
+int l3_maze_events_pending(const L3MazeEvents *e,double now,unsigned *count){
+ if(!e||!e->valid||!count||!isfinite(now)||now<e->time)return 0;
+ unsigned n=0;for(unsigned q=0;q<400;q++)n+=e->pending[q]&&now<e->until[q];
+ *count=n;return 1;
+}
+int l3_maze_events_pending_lives(const L3MazeEvents *e,double now,unsigned *count){
+ if(!e||!e->valid||!count||!isfinite(now)||now<e->time)return 0;
+ unsigned n=0;for(unsigned i=0;i<3;i++)n+=now<e->life_until[i];*count=n;return 1;
+}
+
+
+FILE games/luma3d/candidates/maze_events_r1/src/presentation.c
+#include "luma3d_render.h"
+#include "luma3d_activity_observer.h"
+#include "l3_puzzle_presentation.h"
+#include "l3_simon_presentation.h"
+static int puzzle_view(const L3ArcadeView *v){return v&&(v->kind==L3_MINI_BLOCKS||v->kind==L3_MINI_MERGE1024);}
+static void observed(void *context,const L3ArcadeView *before,const L3ArcadeView *after,uint32_t pressed,uint32_t held,const L3MiniTrace *trace,double time,uint32_t epoch){
+ L3Render *r=context;(void)held;unsigned warp=trace?trace->maze_warp_mask:0;
+ if(pressed&L3_ARCADE_RESTART){
+  l3_maze_motion_reset(&r->maze_motion);l3_maze_events_reset(&r->maze_events);
+  l3_puzzle_presentation_reset(r);l3_simon_presentation_reset(r);
+  before=NULL;
+ }
+ if(after&&after->kind==L3_MINI_MAZE){
+  L3MiniActors actors;
+  if(!l3_mini_actors(&r->presentation_game->activities.arcade.base[L3_MINI_MAZE],&actors)||
+     !l3_maze_motion_observe_events(&r->maze_motion,&after->content.grid,&actors,time,epoch,trace))r->failed=1;
+  uint8_t floor[400];
+  if(!r->failed&&(!l3_mini_maze_floor(&r->presentation_game->activities.arcade.base[L3_MINI_MAZE],floor)||!l3_maze_events_observe(&r->maze_events,&r->maze_motion,floor,trace,time,epoch)))r->failed=1;
+ }else if(before&&before->kind==L3_MINI_MAZE){l3_maze_motion_reset(&r->maze_motion);l3_maze_events_reset(&r->maze_events);}
+ if(puzzle_view(before)||puzzle_view(after))l3_puzzle_presentation_observe(r,before,after,pressed,held,warp,time,epoch);
+ if((before&&before->kind==L3_ARCADE_SIMON)||(after&&after->kind==L3_ARCADE_SIMON))l3_simon_presentation_observe(r,before,after,pressed,held,warp,time,epoch);
+}
+void l3_presentation_bind(L3Render *r,const L3Game *g){
+ l3_puzzle_presentation_reset(r);l3_simon_presentation_reset(r);l3_maze_motion_reset(&r->maze_motion);l3_maze_events_reset(&r->maze_events);
+ r->presentation_game=g;l3_activity_observer_bind(g,255,observed,r);
+}
+int l3_presentation_clock(L3Render *r,double seconds,uint32_t epoch){
+ if(!l3_activity_observer_clock(seconds,epoch)){r->failed=1;return 0;}
+ r->presentation_seconds=seconds;r->presentation_epoch=epoch;return 1;
+}
+/* activity_enter may be followed by a render before the first engine step.
+ * Establish its real view/epoch before baking, without discarding a queue
+ * already observed during this frame's simulation steps. */
+int l3_presentation_prepare(L3Render *r,const L3Game *g){
+ unsigned active=g->activities.arcade.active;
+ int puzzle=active==L3_MINI_BLOCKS+1||active==L3_MINI_MERGE1024+1;
+ int simon=active==L3_ARCADE_SIMON+1;
+ if((puzzle&&!r->puzzle_presentation)||(simon&&!r->simon_presentation))return 0;
+ if(puzzle&&r->puzzle_presentation->motion.valid&&r->puzzle_presentation->motion.latest.kind==active-1&&r->puzzle_presentation->observed_epoch==r->presentation_epoch)return 1;
+ if(simon&&r->simon_presentation&&r->simon_presentation->light.valid&&r->simon_presentation->epoch==r->presentation_epoch)return 1;
+ if(!puzzle&&!simon)return 1;
+ L3ArcadeView view;if(!l3_arcade_view(&g->activities.arcade,&view))return 0;
+ if(puzzle)l3_puzzle_presentation_observe(r,NULL,&view,0,0,0,r->presentation_seconds,r->presentation_epoch);
+ else l3_simon_presentation_observe(r,NULL,&view,0,0,0,r->presentation_seconds,r->presentation_epoch);
+ return puzzle?r->puzzle_presentation->motion.valid:r->simon_presentation->light.valid;
+}
+void l3_presentation_unbind(L3Render *r){l3_activity_observer_bind(NULL,0,NULL,NULL);r->presentation_game=NULL;}
+
+
+FILE games/luma3d/candidates/maze_events_r1/include/l3_maze_motion.h
+#ifndef L3_MAZE_MOTION_H
+#define L3_MAZE_MOTION_H
+#include "l3_mini_actors.h"
+#include "l3_mini_trace.h"
+#define L3_MAZE_SEGMENTS 8
+/* Presentation only. Each segment is an observed legal axis-aligned move;
+ * it is never used by collision, AI, rewards or save serialization. */
+typedef struct {double start,end;uint16_t x0,y0,x1,y1;} L3MazeSegment;
+typedef struct {L3MazeSegment segments[L3_MAZE_SEGMENTS];unsigned head,count;
+ uint16_t settled_x,settled_y,logical_x,logical_y;} L3MazeTrack;
+typedef struct {L3MazeTrack actor[3];L3MiniActors latest;double time;
+ unsigned valid;uint32_t epoch;unsigned moves,teleports,overflows,resets,contacts,contact_fallbacks;} L3MazeMotion;
+int l3_maze_motion_observe_events(L3MazeMotion *,const L3MiniView *,const L3MiniActors *,double,uint32_t,const L3MiniTrace *);
+void l3_maze_motion_reset(L3MazeMotion *);
+/* Non-monotone time without a new epoch is rejected transactionally. Respawn,
+ * load and nonadjacent jumps reset the affected presentation, never lerp walls. */
+int l3_maze_motion_observe(L3MazeMotion *,const L3MiniView *,const L3MiniActors *,double seconds,uint32_t epoch);
+int l3_maze_motion_observe_trace(L3MazeMotion *,const L3MiniView *,const L3MiniActors *,double seconds,uint32_t epoch,unsigned warp_mask);
+int l3_maze_motion_sample(const L3MazeMotion *,double seconds,L3MiniActors *);
+#endif
+
+
+FILE games/luma3d/candidates/maze_events_r1/include/l3_maze_events.h
+#ifndef L3_MAZE_EVENTS_H
+#define L3_MAZE_EVENTS_H
+#include "l3_maze_motion.h"
+#include "l3_mini_trace.h"
+/* Presentation only. Logical floor/rewards remain immediate and untouched. */
+typedef struct {
+ uint8_t floor[400],pending[400];double until[400],time;
+ double life_until[3];
+ uint32_t epoch;unsigned valid,collections,deferred,fallbacks;
+} L3MazeEvents;
+void l3_maze_events_reset(L3MazeEvents *);
+int l3_maze_events_observe(L3MazeEvents *,const L3MazeMotion *,const uint8_t floor[400],const L3MiniTrace *,double,uint32_t);
+int l3_maze_events_sample(const L3MazeEvents *,double,uint8_t floor[400]);
+int l3_maze_events_pending(const L3MazeEvents *,double,unsigned *count);
+int l3_maze_events_pending_lives(const L3MazeEvents *,double,unsigned *count);
+#endif
+
+
+FILE games/luma3d/candidates/maze_events_r1/include/l3_mini_trace.h
+#ifndef L3_MINI_TRACE_H
+#define L3_MINI_TRACE_H
+#include "l3_minigames.h"
+/* Transient presentation telemetry. Never serialized or used for decisions.
+ * Bits 0/1/2 identify player/ghost0/ghost1 resets performed by the real engine.
+ * A trace may include multiple contacts in one accepted step. */
+enum { L3_MAZE_COLLECT=1, L3_MAZE_CONTACT_POWER, L3_MAZE_CONTACT_DEATH,
+       L3_MAZE_CONTACT_LOST };
+#define L3_MAZE_TRACE_EVENTS 32u
+typedef struct {
+    uint8_t kind,actor_mask,x,y; /* Logical cell before any respawn. */
+    uint8_t tick,detail; /* Tick within this call; collect detail=board value2/3. */
+    uint8_t actor_x[3],actor_y[3],respawn_x[3],respawn_y[3];
+} L3MazeEvent;
+typedef struct {
+    uint32_t maze_warp_mask;
+    unsigned event_count,event_overflow,tick,ticks;
+    L3MazeEvent events[L3_MAZE_TRACE_EVENTS];
+} L3MiniTrace;
+uint32_t l3_mini_step_trace(L3MiniState *,uint32_t pressed,uint32_t held,
+                            uint32_t dt_ms,L3MiniTrace *);
+#endif
+
+
+FILE games/luma3d/candidates/maze_events_r1/minigames/l3_minigames.c
+#include "l3_mini_trace.h"
+#include "l3_minigames.h"
+#include "l3_mini_actors.h"
+
+#include <limits.h>
+#include <string.h>
+
+/* Private, serialized indices. Bump VERSION if their meaning changes. */
+enum { V, K, ST, SEED, RNG, TICKS, MOVES, SCORE, GOAL, W, H, PHASE };
+enum { CX, CY, ROT, PIECE, TIMER, COUNT, LIVES, POWER, DIR, NEXTDIR,
+       EX0, EY0, EX1, EY1, ETIMER, AUXCOUNT };
+enum { NORTH = 1, EAST = 2, SOUTH = 4, WEST = 8 };
+static const int dx[4] = {0, 1, 0, -1};
+static const int dy[4] = {-1, 0, 1, 0};
+static const uint32_t keys[4] = {
+    L3_MINI_UP, L3_MINI_RIGHT, L3_MINI_DOWN, L3_MINI_LEFT
+};
+static const char *const titles[5] = {
+    "Circuit des lucioles", "Blocs de la carriere", "Atelier des formes",
+    "Cristal 1024", "Maison des lueurs"
+};
+static const char *const helps[5] = {
+    "Fleches: choisir. Action/rotation: tourner. Retour: sortir.",
+    "G/D: glisser. Haut/rotation: tourner. Bas: descendre. Action: chute.",
+    "Fleches: deplacer. Rotation: tourner. Action: assembler. Retour: sortir.",
+    "Fleches: glisser et fusionner les nombres egaux. Retour: sortir.",
+    "Fleches: avancer. Lanternes: eloigner les fantomes. Retour: sortir."
+};
+static const char *const objectives[5] = {
+    "Relier la source a gauche a la sortie a droite, en 120 rotations.",
+    "Effacer 4 lignes. La pile ne doit pas atteindre le sommet.",
+    "Assembler les 4 formes sur leurs empreintes; 8 essais incorrects permis.",
+    "Former une tuile 1024. Une tuile ne fusionne qu'une fois par coup.",
+    "Retrouver toutes les lumieres et lanternes de la maison avec 3 vies."
+};
+
+typedef char l3_mini_state_fits[(sizeof(L3MiniState) <= 4096) ? 1 : -1];
+
+static unsigned at(unsigned x, unsigned y) { return y * 20u + x; }
+static uint32_t add_sat(uint32_t a, uint32_t b)
+{ return UINT32_MAX - a < b ? UINT32_MAX : a + b; }
+static uint32_t random32(L3MiniState *s)
+{
+    uint32_t x = s->meta[RNG];
+    x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+    s->meta[RNG] = x;
+    return x;
+}
+static uint8_t turn(uint8_t m)
+{ return (uint8_t)(((m << 1) | (m >> 3)) & 15u); }
+static int direction(uint32_t buttons)
+{
+    unsigned i;
+    for (i = 0; i < 4; ++i) if (buttons & keys[i]) return (int)i;
+    return -1;
+}
+static void finish(L3MiniState *s, unsigned status)
+{ s->meta[ST] = status; s->meta[PHASE] = 0; }
+
+/* A random monotone route is built first; its pipes are then rotated.
+ * aux's bit4 marks the constructed witness path; low4 are its solved pipes. */
+static void circuit_generate(L3MiniState *s)
+{
+    unsigned x = 0, y = 0, i;
+    for (y = 0; y < 6; ++y) for (x = 0; x < 6; ++x) {
+        static const uint8_t masks[3] = {3, 5, 7};
+        s->aux[at(x,y)] = masks[random32(s) % 3u];
+    }
+    x = 0; y = 0; s->aux[0] = WEST | 16u;
+    while (x != 5 || y != 5) {
+        int right = y == 5 || (x != 5 && (random32(s) & 1u));
+        unsigned old = at(x,y);
+        if (right) { s->aux[old] |= EAST; ++x; s->aux[at(x,y)] = WEST | 16u; }
+        else { s->aux[old] |= SOUTH; ++y; s->aux[at(x,y)] = NORTH | 16u; }
+    }
+    s->aux[at(5,5)] |= EAST;
+    for (y = 0; y < 6; ++y) for (x = 0; x < 6; ++x) {
+        uint8_t m = s->aux[at(x,y)] & 15u;
+        unsigned turns = random32(s) % 4u;
+        for (i = 0; i < turns; ++i) m = turn(m);
+        s->board[at(x,y)] = m;
+    }
+    while (s->board[0] & WEST) s->board[0] = turn(s->board[0]);
+}
+
+static unsigned circuit_reachable(const L3MiniState *s, uint8_t *seen)
+{
+    unsigned queue[36], head = 0, tail = 0, count = 0;
+    memset(seen, 0, 400);
+    if (!(s->board[0] & WEST)) return 0;
+    queue[tail++] = 0; seen[0] = 1;
+    while (head < tail) {
+        unsigned p = queue[head++], d, x = p % 20u, y = p / 20u;
+        ++count;
+        for (d = 0; d < 4; ++d) {
+            int xx = (int)x + dx[d], yy = (int)y + dy[d];
+            unsigned q;
+            if (xx < 0 || xx >= 6 || yy < 0 || yy >= 6) continue;
+            q = at((unsigned)xx, (unsigned)yy);
+            if (!seen[q] && (s->board[p] & (1u << d)) &&
+                (s->board[q] & (1u << ((d + 2u) % 4u)))) {
+                seen[q] = 1; queue[tail++] = q;
+            }
+        }
+    }
+    return count;
+}
+static int circuit_won(const L3MiniState *s)
+{
+    uint8_t seen[400];
+    circuit_reachable(s, seen);
+    return seen[at(5,5)] && (s->board[at(5,5)] & EAST);
+}
+
+/* Seven tetrominoes; rotations are normalized to their bounding box. */
+static const uint8_t shapes[7][8] = {
+    {0,0, 1,0, 0,1, 1,1}, /* O */
+    {0,0, 1,0, 2,0, 3,0}, /* I */
+    {0,0, 1,0, 2,0, 1,1}, /* T */
+    {0,0, 0,1, 0,2, 1,2}, /* L */
+    {1,0, 1,1, 0,2, 1,2}, /* J */
+    {1,0, 2,0, 0,1, 1,1}, /* S */
+    {0,0, 1,0, 1,1, 2,1}  /* Z */
+};
+static void offsets(unsigned piece, unsigned rotation, int *xs, int *ys)
+{
+    unsigned i, j;
+    int minx = 9, miny = 9;
+    for (i = 0; i < 4; ++i) {
+        int x = shapes[piece][2u*i], y = shapes[piece][2u*i+1u];
+        for (j = 0; j < rotation; ++j) { int t = x; x = -y; y = t; }
+        xs[i] = x; ys[i] = y;
+        if (x < minx) minx = x;
+        if (y < miny) miny = y;
+    }
+    for (i = 0; i < 4; ++i) { xs[i] -= minx; ys[i] -= miny; }
+}
+static int piece_fits(const L3MiniState *s, unsigned piece, unsigned rot,
+                      int x, int y, int collide)
+{
+    int xs[4], ys[4]; unsigned i;
+    offsets(piece, rot, xs, ys);
+    for (i = 0; i < 4; ++i) {
+        int xx = x + xs[i], yy = y + ys[i];
+        if (xx < 0 || yy < 0 || xx >= (int)s->meta[W] || yy >= (int)s->meta[H]) return 0;
+        if (collide && s->board[at((unsigned)xx,(unsigned)yy)]) return 0;
+    }
+    return 1;
+}
+static int current_fits(const L3MiniState *s, int x, int y, unsigned rot)
+{ return piece_fits(s, s->data[PIECE], rot, x, y, s->meta[K] == L3_MINI_BLOCKS); }
+static unsigned remove_lines(L3MiniState *s)
+{
+    int y, dst = 13; unsigned x, n = 0;
+    for (y = 13; y >= 0; --y) {
+        int full = 1;
+        for (x = 0; x < 8; ++x) if (!s->board[at(x,(unsigned)y)]) full = 0;
+        if (full) { ++n; continue; }
+        for (x = 0; x < 8; ++x) s->board[at(x,(unsigned)dst)] = s->board[at(x,(unsigned)y)];
+        --dst;
+    }
+    while (dst >= 0) {
+        for (x = 0; x < 8; ++x) s->board[at(x,(unsigned)dst)] = 0;
+        --dst;
+    }
+    return n;
+}
+static void blocks_spawn(L3MiniState *s)
+{
+    /* The first two square pieces teach the two-column well. */
+    s->data[PIECE] = s->data[AUXCOUNT] < 2 ? 0 : random32(s) % 7u;
+    s->data[AUXCOUNT] = add_sat(s->data[AUXCOUNT], 1);
+    s->data[CX] = 3; s->data[CY] = 0; s->data[ROT] = 0; s->data[TIMER] = 0;
+    if (!current_fits(s, 3, 0, 0)) finish(s, L3_MINI_LOST);
+}
+static void blocks_lock(L3MiniState *s)
+{
+    int xs[4], ys[4]; unsigned i, n;
+    offsets(s->data[PIECE], s->data[ROT], xs, ys);
+    for (i = 0; i < 4; ++i)
+        s->board[at(s->data[CX]+(unsigned)xs[i],s->data[CY]+(unsigned)ys[i])] = (uint8_t)(s->data[PIECE]+1u);
+    n = remove_lines(s);
+    s->data[COUNT] += n;
+    s->meta[SCORE] = add_sat(s->meta[SCORE], 100u*n*n);
+    s->meta[MOVES] = add_sat(s->meta[MOVES], 1);
+    if (s->data[COUNT] >= 4) { finish(s,L3_MINI_WON); return; }
+    blocks_spawn(s);
+}
+static void blocks_down(L3MiniState *s)
+{
+    if (current_fits(s,(int)s->data[CX],(int)s->data[CY]+1,s->data[ROT])) ++s->data[CY];
+    else blocks_lock(s);
+}
+static void try_move(L3MiniState *s, int dir)
+{
+    int x = (int)s->data[CX] + dx[dir], y = (int)s->data[CY] + dy[dir];
+    if (current_fits(s,x,y,s->data[ROT])) { s->data[CX] = (unsigned)x; s->data[CY] = (unsigned)y; }
+}
+static void try_rotate(L3MiniState *s)
+{
+    unsigned rot = (s->data[ROT]+1u)%4u;
+    int kick;
+    for (kick = 0; kick >= -2; --kick) {
+        int x = (int)s->data[CX]+kick;
+        if (current_fits(s,x,(int)s->data[CY],rot)) {
+            s->data[CX] = (unsigned)x; s->data[ROT] = rot; break;
+        }
+    }
+}
+
+static const unsigned assembly_types[4] = {3, 2, 5, 0};
+static void assembly_generate(L3MiniState *s)
+{
+    unsigned p,i;
+    for (p=0;p<4;++p) {
+        int xs[4],ys[4]; unsigned r=random32(s)%4u;
+        unsigned x=4u*(p%2u), y=4u*(p/2u);
+        offsets(assembly_types[p],r,xs,ys);
+        for (i=0;i<4;++i) s->aux[at(x+(unsigned)xs[i],y+(unsigned)ys[i])] = (uint8_t)(p+1u);
+    }
+}
+static void assembly_spawn(L3MiniState *s)
+{
+    s->data[PIECE]=assembly_types[s->data[COUNT]];
+    s->data[CX]=2; s->data[CY]=2; s->data[ROT]=random32(s)%4u;
+}
+static int assembly_match(const L3MiniState *s,int x,int y,unsigned r)
+{
+    int xs[4],ys[4];unsigned i;
+    if (!piece_fits(s,s->data[PIECE],r,x,y,0)) return 0;
+    offsets(s->data[PIECE],r,xs,ys);
+    for (i=0;i<4;++i) {
+        unsigned q=at((unsigned)(x+xs[i]),(unsigned)(y+ys[i]));
+        if (s->aux[q]!=s->data[COUNT]+1u || s->board[q]) return 0;
+    }
+    return 1;
+}
+static void assembly_lock(L3MiniState *s)
+{
+    unsigned i;
+    s->meta[MOVES]=add_sat(s->meta[MOVES],1);
+    if (!assembly_match(s,(int)s->data[CX],(int)s->data[CY],s->data[ROT])) {
+        if (--s->data[LIVES]==0) finish(s,L3_MINI_LOST);
+        return;
+    }
+    for (i=0;i<400;++i) if (s->aux[i]==s->data[COUNT]+1u) s->board[i]=s->aux[i];
+    ++s->data[COUNT]; s->meta[SCORE]=s->data[COUNT]*100u;
+    if (s->data[COUNT]==4) finish(s,L3_MINI_WON);
+    else assembly_spawn(s);
+}
+
+static void merge_spawn(L3MiniState *s)
+{
+    unsigned freecells[16],n=0,x,y,q; uint8_t v;
+    for (y=0;y<4;++y) for (x=0;x<4;++x) if (!s->board[at(x,y)]) freecells[n++]=at(x,y);
+    if (!n) return;
+    q=freecells[random32(s)%n]; v=(uint8_t)((random32(s)%10u)==0 ? 2 : 1);
+    s->board[q]=v; ++s->data[0]; if (v==2) ++s->data[1];
+}
+static unsigned merge_index(unsigned dir,unsigned line,unsigned pos)
+{
+    if (dir==0) return at(line,pos);
+    if (dir==1) return at(3u-pos,line);
+    if (dir==2) return at(line,3u-pos);
+    return at(pos,line);
+}
+static int merge_slide(L3MiniState *s,unsigned dir)
+{
+    unsigned line,pos;int changed=0;
+    for (line=0;line<4;++line) {
+        uint8_t packed[4]={0},out[4]={0}; unsigned n=0,k=0,i=0;
+        for (pos=0;pos<4;++pos) {
+            uint8_t v=s->board[merge_index(dir,line,pos)];
+            if (v) packed[n++]=v;
+        }
+        while (i<n) {
+            uint8_t v=packed[i++];
+            if (i<n && packed[i]==v) {
+                ++i; ++v; s->meta[SCORE]=add_sat(s->meta[SCORE],1u<<v);
+            }
+            out[k++]=v;
+        }
+        for (pos=0;pos<4;++pos) {
+            unsigned q=merge_index(dir,line,pos);
+            if (s->board[q]!=out[pos]) changed=1;
+            s->board[q]=out[pos];
+        }
+    }
+    return changed;
+}
+static int merge_has_move(const L3MiniState *s)
+{
+    unsigned x,y;
+    for (y=0;y<4;++y) for (x=0;x<4;++x) {
+        unsigned q=at(x,y),v=s->board[q];
+        if (!v || (x<3 && s->board[q+1]==v) || (y<3 && s->board[q+20]==v)) return 1;
+    }
+    return 0;
+}
+static void merge_move(L3MiniState *s,unsigned dir)
+{
+    unsigned i;
+    if (!merge_slide(s,dir)) return;
+    ++s->meta[MOVES]; merge_spawn(s);
+    for (i=0;i<400;++i) if (s->board[i]==10) { finish(s,L3_MINI_WON); return; }
+    if (!merge_has_move(s)) finish(s,L3_MINI_LOST);
+}
+
+/* Original compact haunted-house layout, no imported maze or artwork. */
+static const char *const maze[11]={
+    "#############", "#o....#....o#", "#.##..#..##.#",
+    "#...........#", "#.#.#####.#.#", "#.#.......#.#",
+    "#.#.#####.#.#", "#...........#", "#.##..#..##.#",
+    "#o....#....o#", "#############"
+};
+static int maze_open(const L3MiniState *s,int x,int y)
+{ return x>=0 && y>=0 && x<13 && y<11 && s->board[at((unsigned)x,(unsigned)y)]!=1; }
+static void maze_reset_actors(L3MiniState *s)
+{
+    s->data[CX]=1;s->data[CY]=1;s->data[DIR]=4;s->data[NEXTDIR]=4;
+    s->data[EX0]=6;s->data[EY0]=5;s->data[EX1]=11;s->data[EY1]=9;
+    s->data[TIMER]=0;s->data[ETIMER]=0;s->data[AUXCOUNT]=120;
+}
+static void maze_event(L3MiniTrace *trace,const L3MiniState *s,unsigned kind,unsigned actors,unsigned detail)
+{
+    if(!trace)return;
+    if(trace->event_count>=L3_MAZE_TRACE_EVENTS){trace->event_overflow++;return;}
+    L3MazeEvent *e=&trace->events[trace->event_count++];memset(e,0,sizeof *e);
+    e->kind=(uint8_t)kind;e->actor_mask=(uint8_t)actors;e->x=(uint8_t)s->data[CX];e->y=(uint8_t)s->data[CY];e->tick=(uint8_t)trace->tick;e->detail=(uint8_t)detail;
+    const unsigned x[]={CX,EX0,EX1},y[]={CY,EY0,EY1};
+    for(unsigned i=0;i<3;i++){e->actor_x[i]=e->respawn_x[i]=(uint8_t)s->data[x[i]];e->actor_y[i]=e->respawn_y[i]=(uint8_t)s->data[y[i]];}
+}
+static void maze_event_respawn(L3MiniTrace *trace,const L3MiniState *s)
+{
+    if(!trace||!trace->event_count||trace->event_overflow)return;
+    L3MazeEvent *e=&trace->events[trace->event_count-1];const unsigned x[]={CX,EX0,EX1},y[]={CY,EY0,EY1};
+    for(unsigned i=0;i<3;i++){e->respawn_x[i]=(uint8_t)s->data[x[i]];e->respawn_y[i]=(uint8_t)s->data[y[i]];}
+}
+static void maze_eat(L3MiniState *s,L3MiniTrace *trace)
+{
+    unsigned q=at(s->data[CX],s->data[CY]),v=s->board[q];
+    if (v==2 || v==3) {
+        maze_event(trace,s,L3_MAZE_COLLECT,1,v);
+        s->board[q]=0; ++s->data[COUNT];
+        s->meta[SCORE]=add_sat(s->meta[SCORE],v==3?50u:10u);
+        if (v==3) s->data[POWER]=300;
+        if (s->data[COUNT]==s->meta[GOAL]) finish(s,L3_MINI_WON);
+    }
+}
+static void maze_contact(L3MiniState *s,L3MiniTrace *trace)
+{
+    unsigned e;
+    if (s->meta[ST]!=L3_MINI_RUNNING) return;
+    for (e=0;e<2;++e) if (s->data[CX]==s->data[EX0+2u*e] && s->data[CY]==s->data[EY0+2u*e]) {
+        if (s->data[POWER]) {
+            maze_event(trace,s,L3_MAZE_CONTACT_POWER,2u<<e,0);
+            if(trace)trace->maze_warp_mask|=2u<<e;
+            s->data[EX0+2u*e]= e ? 11 : 6;
+            s->data[EY0+2u*e]= e ? 9 : 5;
+            maze_event_respawn(trace,s);
+            /* Respawn cannot repeatedly award points if an actor waits there. */
+        } else if (!s->data[AUXCOUNT]) {
+            if (--s->data[LIVES]==0) { maze_event(trace,s,L3_MAZE_CONTACT_LOST,7,2u<<e);finish(s,L3_MINI_LOST);return; }
+            maze_event(trace,s,L3_MAZE_CONTACT_DEATH,7,2u<<e);
+            if(trace)trace->maze_warp_mask|=7u;
+            maze_reset_actors(s);maze_event_respawn(trace,s);return;
+        }
+    }
+}
+static void maze_distances(const L3MiniState *s,unsigned start,uint16_t *dist)
+{
+    unsigned queue[143],head=0,tail=0,i;
+    for(i=0;i<400;++i)dist[i]=UINT16_MAX;
+    dist[start]=0;queue[tail++]=start;
+    while(head<tail) {
+        unsigned q=queue[head++],d;
+        for(d=0;d<4;++d) {
+            int x=(int)(q%20u)+dx[d],y=(int)(q/20u)+dy[d]; unsigned z;
+            if(!maze_open(s,x,y))continue;
+            z=at((unsigned)x,(unsigned)y);
+            if(dist[z]!=UINT16_MAX)continue;
+            dist[z]=(uint16_t)(dist[q]+1u);queue[tail++]=z;
+        }
+    }
+}
+static void maze_enemies(L3MiniState *s,L3MiniTrace *trace)
+{
+    uint16_t dist[400];unsigned e;
+    maze_distances(s,at(s->data[CX],s->data[CY]),dist);
+    for(e=0;e<2;++e) {
+        unsigned d,best=4,ex=s->data[EX0+2u*e],ey=s->data[EY0+2u*e];
+        int value=s->data[POWER]?-1:INT_MAX;
+        for(d=0;d<4;++d) {
+            unsigned dd=(d+e)%4u;int x=(int)ex+dx[dd],y=(int)ey+dy[dd],v;
+            if(!maze_open(s,x,y))continue;
+            v=dist[at((unsigned)x,(unsigned)y)];
+            if((s->data[POWER] && v>value) || (!s->data[POWER] && v<value)) {best=dd;value=v;}
+        }
+        if(best<4){s->data[EX0+2u*e]=(unsigned)((int)ex+dx[best]);s->data[EY0+2u*e]=(unsigned)((int)ey+dy[best]);}
+    }
+    maze_contact(s,trace);
+}
+static void maze_tick(L3MiniState *s,L3MiniTrace *trace)
+{
+    if(s->data[POWER])--s->data[POWER];
+    if(s->data[AUXCOUNT])--s->data[AUXCOUNT];
+    if(++s->data[TIMER]==6) {
+        unsigned d=s->data[NEXTDIR];s->data[TIMER]=0;
+        if(d<4 && maze_open(s,(int)s->data[CX]+dx[d],(int)s->data[CY]+dy[d]))s->data[DIR]=d;
+        d=s->data[DIR];
+        if(d<4 && maze_open(s,(int)s->data[CX]+dx[d],(int)s->data[CY]+dy[d])) {
+            s->data[CX]=(unsigned)((int)s->data[CX]+dx[d]);s->data[CY]=(unsigned)((int)s->data[CY]+dy[d]);
+            s->meta[MOVES]=add_sat(s->meta[MOVES],1);
+            maze_eat(s,trace);maze_contact(s,trace);
+        }
+    }
+    if(s->meta[ST]==L3_MINI_RUNNING && ++s->data[ETIMER]==14) {s->data[ETIMER]=0;maze_enemies(s,trace);}
+}
+
+int l3_mini_init(L3MiniState *state,L3MiniKind kind,uint32_t seed)
+{
+    L3MiniState s;unsigned x,y;
+    if(!state || (unsigned)kind>=L3_MINI_KIND_COUNT)return 0;
+    memset(&s,0,sizeof(s));
+    s.meta[V]=L3_MINI_VERSION;s.meta[K]=(unsigned)kind;s.meta[SEED]=seed;
+    s.meta[RNG]=seed^0x9e3779b9u;if(!s.meta[RNG])s.meta[RNG]=0xa341316cu;
+    switch(kind) {
+    case L3_MINI_CIRCUIT:
+        s.meta[W]=6;s.meta[H]=6;s.meta[GOAL]=1;s.data[LIVES]=120;
+        circuit_generate(&s);break;
+    case L3_MINI_BLOCKS:
+        s.meta[W]=8;s.meta[H]=14;s.meta[GOAL]=4;s.data[NEXTDIR]=random32(&s)%7u;
+        for(y=10;y<14;++y)for(x=0;x<8;++x)
+            if(x!=s.data[NEXTDIR] && x!=s.data[NEXTDIR]+1u)s.board[at(x,y)]=8;
+        blocks_spawn(&s);break;
+    case L3_MINI_SHAPES:
+        s.meta[W]=8;s.meta[H]=8;s.meta[GOAL]=4;s.data[LIVES]=8;
+        assembly_generate(&s);assembly_spawn(&s);break;
+    case L3_MINI_MERGE1024:
+        s.meta[W]=4;s.meta[H]=4;s.meta[GOAL]=1024;
+        merge_spawn(&s);merge_spawn(&s);break;
+    case L3_MINI_MAZE:
+        s.meta[W]=13;s.meta[H]=11;s.data[LIVES]=3;
+        for(y=0;y<11;++y)for(x=0;x<13;++x) {
+            unsigned v=maze[y][x]=='#'?1u:(maze[y][x]=='o'?3u:2u);
+            s.board[at(x,y)]=(uint8_t)v;if(v>=2)++s.meta[GOAL];
+        }
+        maze_reset_actors(&s);maze_eat(&s,NULL);break;
+    default:return 0;
+    }
+    *state=s;return 1;
+}
+
+static void input(L3MiniState *s,uint32_t pressed,uint32_t held)
+{
+    int d=direction(pressed);unsigned kind=s->meta[K];
+    if(kind==L3_MINI_CIRCUIT) {
+        if(d>=0) {
+            int x=(int)s->data[CX]+dx[d],y=(int)s->data[CY]+dy[d];
+            if(x>=0 && y>=0 && x<6 && y<6){s->data[CX]=(unsigned)x;s->data[CY]=(unsigned)y;}
+        }
+        if(pressed&(L3_MINI_ACT|L3_MINI_ROTATE)) {
+            unsigned q=at(s->data[CX],s->data[CY]);s->board[q]=turn(s->board[q]);
+            ++s->meta[MOVES];--s->data[LIVES];
+            if(circuit_won(s)){s->meta[SCORE]=s->data[LIVES]+1u;finish(s,L3_MINI_WON);}
+            else if(!s->data[LIVES])finish(s,L3_MINI_LOST);
+        }
+    } else if(kind==L3_MINI_BLOCKS) {
+        if(d==1 || d==3)try_move(s,d);
+        if((pressed&L3_MINI_ROTATE) || d==0)try_rotate(s);
+        if(pressed&L3_MINI_ACT) {
+            while(current_fits(s,(int)s->data[CX],(int)s->data[CY]+1,s->data[ROT]))++s->data[CY];
+            blocks_lock(s);
+        } else if(d==2)blocks_down(s);
+    } else if(kind==L3_MINI_SHAPES) {
+        if(d>=0)try_move(s,d);
+        if(pressed&L3_MINI_ROTATE)try_rotate(s);
+        if(pressed&L3_MINI_ACT)assembly_lock(s);
+    } else if(kind==L3_MINI_MERGE1024) {
+        if(d>=0)merge_move(s,(unsigned)d);
+    } else {
+        if(d<0)d=direction(held);
+        if(d>=0)s->data[NEXTDIR]=(unsigned)d;
+    }
+}
+
+uint32_t l3_mini_step_trace(L3MiniState *s,uint32_t pressed,uint32_t held,uint32_t dt_ms,L3MiniTrace *trace)
+{
+    if(trace)memset(trace,0,sizeof *trace);
+    uint32_t oldstatus,phase,n,i;
+    if(!l3_mini_validate(s) || ((pressed|held)&~L3_MINI_INPUT_MASK))return L3_MINI_EVENT_INVALID;
+    if(pressed&L3_MINI_BACK)return L3_MINI_EVENT_EXIT;
+    if(s->meta[ST]!=L3_MINI_RUNNING)return 0;
+    oldstatus=s->meta[ST];
+    input(s,pressed,held);
+    if(dt_ms>L3_MINI_MAX_DT_MS)dt_ms=L3_MINI_MAX_DT_MS;
+    phase=s->meta[PHASE]+60u*dt_ms;n=phase/1000u;
+    if(trace)trace->ticks=n;
+    if(s->meta[ST]==L3_MINI_RUNNING)s->meta[PHASE]=phase%1000u;
+    for(i=0;i<n && s->meta[ST]==L3_MINI_RUNNING;++i) {
+        if(trace)trace->tick=i;
+        s->meta[TICKS]=add_sat(s->meta[TICKS],1);
+        if(s->meta[K]==L3_MINI_BLOCKS) {
+            unsigned period=(held&L3_MINI_DOWN)?3u:30u;
+            if(++s->data[TIMER]>=period){s->data[TIMER]=0;blocks_down(s);}
+        } else if(s->meta[K]==L3_MINI_MAZE)maze_tick(s,trace);
+    }
+    if(s->meta[ST]!=oldstatus)return L3_MINI_EVENT_CHANGED|(s->meta[ST]==L3_MINI_WON?L3_MINI_EVENT_WON:L3_MINI_EVENT_LOST);
+    return (pressed || held || dt_ms)?L3_MINI_EVENT_CHANGED:0;
+}
+
+uint32_t l3_mini_step(L3MiniState *s,uint32_t pressed,uint32_t held,uint32_t dt_ms)
+{ return l3_mini_step_trace(s,pressed,held,dt_ms,NULL); }
+
+/* Validation checks canonical padding, dimensions, ranges and game invariants.
+ * Saved data is not trusted merely because its checksum matches. */
+int l3_mini_validate(const L3MiniState *s)
+{
+    unsigned i,x,y,kind,status;L3MiniState initial;
+    if(!s || s->meta[V]!=L3_MINI_VERSION || s->meta[K]>=5 || s->meta[ST]>L3_MINI_LOST || !s->meta[RNG] || s->meta[PHASE]>=1000 || s->meta[PHASE]%20u)return 0;
+    kind=s->meta[K];status=s->meta[ST];
+    for(i=12;i<16;++i)if(s->meta[i])return 0;
+    if(status!=L3_MINI_RUNNING && s->meta[PHASE])return 0;
+    l3_mini_init(&initial,(L3MiniKind)kind,s->meta[SEED]);
+    if(s->meta[W]!=initial.meta[W] || s->meta[H]!=initial.meta[H] || s->meta[GOAL]!=initial.meta[GOAL])return 0;
+    for(y=0;y<20;++y)for(x=0;x<20;++x) {
+        i=at(x,y);
+        if((x>=s->meta[W] || y>=s->meta[H]) && (s->board[i] || s->aux[i]))return 0;
+    }
+    if(kind!=L3_MINI_CIRCUIT && kind!=L3_MINI_SHAPES)for(i=0;i<400;++i)if(s->aux[i])return 0;
+    if(kind==L3_MINI_CIRCUIT) {
+        int won;
+        if(s->data[CX]>=6 || s->data[CY]>=6 || s->data[LIVES]>120 || s->meta[MOVES]+s->data[LIVES]!=120)return 0;
+        if(memcmp(s->aux,initial.aux,400)!=0 || s->meta[RNG]!=initial.meta[RNG])return 0;
+        for(i=0;i<32;++i)if(i!=CX && i!=CY && i!=LIVES && s->data[i])return 0;
+        for(y=0;y<6;++y)for(x=0;x<6;++x) {
+            uint8_t v=s->aux[at(x,y)]&15u;unsigned r;int same=0;
+            for(r=0;r<4;++r){if(v==s->board[at(x,y)])same=1;v=turn(v);}if(!same)return 0;
+        }
+        won=circuit_won(s);
+        if((status==L3_MINI_WON)!=won || (status==L3_MINI_LOST)!=(s->data[LIVES]==0 && !won))return 0;
+        if(s->meta[SCORE]!=(won?s->data[LIVES]+1u:0u))return 0;
+    } else if(kind==L3_MINI_BLOCKS) {
+        unsigned occupied=0;
+        if(s->data[PIECE]>=7 || s->data[ROT]>=4 || s->data[CX]>=8 || s->data[CY]>=14 || s->data[TIMER]>=30 || s->data[COUNT]>7 || s->data[NEXTDIR]>=7 || !s->data[AUXCOUNT])return 0;
+        for(i=0;i<400;++i){if(s->board[i]>8)return 0;occupied+=s->board[i]!=0;}
+        for(i=0;i<32;++i)if(i!=CX && i!=CY && i!=ROT && i!=PIECE && i!=TIMER && i!=COUNT && i!=NEXTDIR && i!=AUXCOUNT && s->data[i])return 0;
+        if(s->meta[SCORE]%100u || (status==L3_MINI_WON)!=(s->data[COUNT]>=4))return 0;
+        if(s->data[NEXTDIR]!=initial.data[NEXTDIR] || s->meta[MOVES]>28 ||
+           occupied+8u*s->data[COUNT]!=24u+4u*s->meta[MOVES] ||
+           s->data[AUXCOUNT]!=s->meta[MOVES]+(status==L3_MINI_WON?0u:1u) ||
+           s->meta[SCORE]<100u*s->data[COUNT] || s->meta[SCORE]>400u*s->data[COUNT])return 0;
+        if(status==L3_MINI_RUNNING && !current_fits(s,(int)s->data[CX],(int)s->data[CY],s->data[ROT]))return 0;
+        if(status==L3_MINI_LOST && (s->data[CX]!=3 || s->data[CY]!=0 || s->data[ROT]!=0 || current_fits(s,3,0,0)))return 0;
+        for(y=0;y<14;++y){unsigned full=0;for(x=0;x<8;++x)full+=s->board[at(x,y)]!=0;if(full==8)return 0;}
+    } else if(kind==L3_MINI_SHAPES) {
+        unsigned active;
+        if(s->data[COUNT]>4 || s->data[LIVES]>8 || s->data[ROT]>=4 || s->data[CX]>=8 || s->data[CY]>=8)return 0;
+        active=s->data[COUNT]<4?s->data[COUNT]:3;
+        if(s->data[PIECE]!=assembly_types[active] || !current_fits(s,(int)s->data[CX],(int)s->data[CY],s->data[ROT]))return 0;
+        if(memcmp(s->aux,initial.aux,400)!=0 || s->meta[SCORE]!=s->data[COUNT]*100u || s->meta[MOVES]!=s->data[COUNT]+8u-s->data[LIVES])return 0;
+        for(i=0;i<400;++i)if(s->board[i]!=(s->aux[i] && s->aux[i]<=s->data[COUNT]?s->aux[i]:0))return 0;
+        for(i=0;i<32;++i)if(i!=CX && i!=CY && i!=ROT && i!=PIECE && i!=COUNT && i!=LIVES && s->data[i])return 0;
+        if((status==L3_MINI_WON)!=(s->data[COUNT]==4) || (status==L3_MINI_LOST)!=(s->data[LIVES]==0))return 0;
+    } else if(kind==L3_MINI_MERGE1024) {
+        uint32_t sum=0;int won=0;
+        for(i=0;i<400;++i){unsigned v=s->board[i];if(v>10)return 0;if(v)sum+=1u<<v;if(v==10)won=1;}
+        if(s->data[0]!=s->meta[MOVES]+2u || s->data[1]>s->data[0] || (uint64_t)sum!=2ull*s->data[0]+2ull*s->data[1] || s->meta[SCORE]%4u)return 0;
+        for(i=2;i<32;++i)if(s->data[i])return 0;
+        if((status==L3_MINI_WON)!=won || (status==L3_MINI_LOST)!=(!won && !merge_has_move(s)))return 0;
+    } else {
+        unsigned remaining=0,power_eaten=0,pellet_eaten=0;
+        if(s->data[CX]>=13 || s->data[CY]>=11 || s->data[DIR]>4 || s->data[NEXTDIR]>4 || s->data[TIMER]>=6 || s->data[ETIMER]>=14 || s->data[LIVES]>3 || s->data[POWER]>300 || s->data[AUXCOUNT]>120)return 0;
+        if(!maze_open(s,(int)s->data[CX],(int)s->data[CY]))return 0;
+        for(i=EX0;i<=EX1;i+=2)if(s->data[i]>=13 || s->data[i+1]>=11 || !maze_open(s,(int)s->data[i],(int)s->data[i+1]))return 0;
+        for(y=0;y<11;++y)for(x=0;x<13;++x) {
+            unsigned q=at(x,y),v=s->board[q];char c=maze[y][x];
+            if(c=='#'){if(v!=1)return 0;}
+            else {if(v!=0 && v!=(c=='o'?3u:2u))return 0;if(v)++remaining;else if(c=='o')++power_eaten;else ++pellet_eaten;}
+        }
+        if(remaining+s->data[COUNT]!=s->meta[GOAL] || s->meta[SCORE]!=50u*power_eaten+10u*pellet_eaten)return 0;
+        for(i=16;i<32;++i)if(s->data[i])return 0;
+        if(s->data[ROT] || s->data[PIECE] || s->meta[RNG]!=initial.meta[RNG])return 0;
+        if((status==L3_MINI_WON)!=(remaining==0) || (status==L3_MINI_LOST)!=(s->data[LIVES]==0))return 0;
+    }
+    return 1;
+}
+
+int l3_mini_view(const L3MiniState *s,L3MiniView *v)
+{
+    unsigned x,y,kind;uint8_t seen[400];uint64_t elapsed;
+    if(!v || !l3_mini_validate(s))return 0;
+    memset(v,0,sizeof(*v));kind=s->meta[K];
+    v->kind=kind;v->status=s->meta[ST];v->width=(uint16_t)s->meta[W];v->height=(uint16_t)s->meta[H];
+    v->score=s->meta[SCORE];v->target=s->meta[GOAL];v->moves=s->meta[MOVES];
+    elapsed=((uint64_t)s->meta[TICKS]*1000u+s->meta[PHASE])/60u;
+    v->elapsed_ms=elapsed>UINT32_MAX?UINT32_MAX:(uint32_t)elapsed;
+    v->title=titles[kind];v->help=helps[kind];v->objective=objectives[kind];
+    v->cursor_x=-1;v->cursor_y=-1;
+    if(kind==L3_MINI_CIRCUIT){circuit_reachable(s,seen);v->progress=s->meta[ST]==L3_MINI_WON;v->lives=(uint16_t)s->data[LIVES];}
+    else if(kind==L3_MINI_BLOCKS || kind==L3_MINI_SHAPES || kind==L3_MINI_MAZE){v->progress=(uint16_t)s->data[COUNT];v->lives=(uint16_t)s->data[LIVES];}
+    for(y=0;y<s->meta[H];++y)for(x=0;x<s->meta[W];++x) {
+        unsigned q=at(x,y),b=s->board[q];L3MiniCell *c=&v->cells[q];c->color=1;
+        if(kind==L3_MINI_CIRCUIT) {
+            c->kind=L3_MINI_CELL_WIRE;c->value=(uint16_t)b;c->color=seen[q]?10:6;c->glyph='+';
+            if(seen[q])c->flags|=L3_MINI_FLAG_CONNECTED;
+            if(q==0)c->kind=L3_MINI_CELL_START;
+            if(x==5 && y==5)c->kind=L3_MINI_CELL_FINISH;
+        } else if(kind==L3_MINI_BLOCKS) {
+            if(b){c->kind=L3_MINI_CELL_BLOCK;c->color=(uint8_t)(b==8?8:b+2u);c->glyph='#';}
+        } else if(kind==L3_MINI_SHAPES) {
+            if(s->aux[q]){c->kind=b?L3_MINI_CELL_BLOCK:L3_MINI_CELL_TARGET;c->color=(uint8_t)(s->aux[q]+9u);c->value=s->aux[q];c->glyph=b?'#':'.';}
+        } else if(kind==L3_MINI_MERGE1024) {
+            if(b){c->kind=L3_MINI_CELL_NUMBER;c->value=(uint16_t)(1u<<b);c->color=(uint8_t)(b+2u);c->glyph=(uint8_t)(b<10?'0'+b:'A');if(c->value>v->progress)v->progress=c->value;}
+        } else {
+            if(b==1){c->kind=L3_MINI_CELL_WALL;c->color=4;c->glyph='#';}
+            if(b==2){c->kind=L3_MINI_CELL_PELLET;c->color=14;c->glyph='.';}
+            if(b==3){c->kind=L3_MINI_CELL_POWER;c->color=11;c->glyph='O';}
+        }
+    }
+    if(kind==L3_MINI_CIRCUIT) {
+        v->cursor_x=(int16_t)s->data[CX];v->cursor_y=(int16_t)s->data[CY];
+        v->cells[at(s->data[CX],s->data[CY])].flags|=L3_MINI_FLAG_CURSOR;
+    } else if((kind==L3_MINI_BLOCKS || kind==L3_MINI_SHAPES) && s->meta[ST]==L3_MINI_RUNNING) {
+        int xs[4],ys[4];unsigned i;
+        offsets(s->data[PIECE],s->data[ROT],xs,ys);
+        for(i=0;i<4;++i){L3MiniCell *c=&v->cells[at(s->data[CX]+(unsigned)xs[i],s->data[CY]+(unsigned)ys[i])];
+            c->kind=L3_MINI_CELL_BLOCK;c->color=(uint8_t)(kind==L3_MINI_SHAPES?s->data[COUNT]+10u:s->data[PIECE]+3u);c->flags|=L3_MINI_FLAG_ACTIVE;c->glyph='@';}
+        v->cursor_x=(int16_t)s->data[CX];v->cursor_y=(int16_t)s->data[CY];
+    } else if(kind==L3_MINI_MAZE) {
+        unsigned i;
+        for(i=0;i<2;++i){L3MiniCell *c=&v->cells[at(s->data[EX0+2u*i],s->data[EY0+2u*i])];c->kind=L3_MINI_CELL_ENEMY;c->color=s->data[POWER]?6:(uint8_t)(12u+i);c->glyph='X';}
+        {L3MiniCell *c=&v->cells[at(s->data[CX],s->data[CY])];c->kind=L3_MINI_CELL_PLAYER;c->color=14;c->glyph='@';if(s->data[POWER])c->flags|=L3_MINI_FLAG_ACTIVE;}
+    }
+    return 1;
+}
+
+static void put32(uint8_t *p,uint32_t v)
+{ p[0]=(uint8_t)v;p[1]=(uint8_t)(v>>8);p[2]=(uint8_t)(v>>16);p[3]=(uint8_t)(v>>24); }
+static uint32_t get32(const uint8_t *p)
+{ return (uint32_t)p[0]|((uint32_t)p[1]<<8)|((uint32_t)p[2]<<16)|((uint32_t)p[3]<<24); }
+static uint32_t checksum(const uint8_t *p)
+{
+    uint32_t h=2166136261u;unsigned i;
+    for(i=0;i<L3_MINI_SAVE_BYTES;++i)if(i<12 || i>=16){h^=p[i];h*=16777619u;}
+    return h;
+}
+size_t l3_mini_encode(const L3MiniState *s,void *output,size_t capacity)
+{
+    uint8_t bytes[L3_MINI_SAVE_BYTES];unsigned i;
+    if(!l3_mini_validate(s))return 0;
+    if(!output)return L3_MINI_SAVE_BYTES;
+    if(capacity<L3_MINI_SAVE_BYTES)return 0;
+    memcpy(bytes,"L3MG",4);put32(bytes+4,L3_MINI_VERSION);put32(bytes+8,992u);put32(bytes+12,0);
+    for(i=0;i<16;++i)put32(bytes+16u+4u*i,s->meta[i]);
+    for(i=0;i<32;++i)put32(bytes+80u+4u*i,s->data[i]);
+    memcpy(bytes+208,s->board,400);memcpy(bytes+608,s->aux,400);
+    put32(bytes+12,checksum(bytes));memcpy(output,bytes,sizeof(bytes));return sizeof(bytes);
+}
+int l3_mini_decode(L3MiniState *s,const void *input_bytes,size_t size)
+{
+    const uint8_t *p=(const uint8_t *)input_bytes;L3MiniState tmp;unsigned i;
+    if(!s || !p || size!=L3_MINI_SAVE_BYTES || memcmp(p,"L3MG",4)!=0 || get32(p+4)!=L3_MINI_VERSION || get32(p+8)!=992u || get32(p+12)!=checksum(p))return 0;
+    memset(&tmp,0,sizeof(tmp));
+    for(i=0;i<16;++i)tmp.meta[i]=get32(p+16u+4u*i);
+    for(i=0;i<32;++i)tmp.data[i]=get32(p+80u+4u*i);
+    memcpy(tmp.board,p+208,400);memcpy(tmp.aux,p+608,400);
+    if(!l3_mini_validate(&tmp))return 0;
+    *s=tmp;return 1;
+}
+
+/* Adviser only: inspect a legal position and choose a normal next command. */
+static int merge_quality(const L3MiniState *s)
+{
+    unsigned x,y;int empty=0,smooth=0,mono=0,max=0,corner=0;
+    for(y=0;y<4;++y)for(x=0;x<4;++x) {
+        int v=s->board[at(x,y)],a,b;
+        if(!v)++empty;
+        if(v>max)max=v;
+        if(x==0 || x==3)if((y==0 || y==3) && v>corner)corner=v;
+        if(x<3){a=s->board[at(x+1,y)];if(v && a){b=v-a;smooth-=b<0?-b:b;}}
+        if(y<3){a=s->board[at(x,y+1)];if(v && a){b=v-a;smooth-=b<0?-b:b;}}
+    }
+    for(y=0;y<4;++y) {
+        int plus=0,minus=0;
+        for(x=0;x<3;++x){int d=(int)s->board[at(x,y)]-(int)s->board[at(x+1,y)];if(d>0)plus+=d;else minus-=d;}
+        mono-=plus<minus?plus:minus;
+    }
+    for(x=0;x<4;++x) {
+        int plus=0,minus=0;
+        for(y=0;y<3;++y){int d=(int)s->board[at(x,y)]-(int)s->board[at(x,y+1)];if(d>0)plus+=d;else minus-=d;}
+        mono-=plus<minus?plus:minus;
+    }
+    if(s->meta[ST]==L3_MINI_WON)return 10000000;
+    if(s->meta[ST]==L3_MINI_LOST)return -10000000;
+    return 1200*empty+220*mono+35*smooth+700*max+600*corner;
+}
+static int merge_search(const L3MiniState *s,unsigned depth)
+{
+    unsigned d;int best=INT_MIN;
+    if(!depth || s->meta[ST]!=L3_MINI_RUNNING)return merge_quality(s);
+    for(d=0;d<4;++d) {
+        L3MiniState t=*s;int value;
+        merge_move(&t,d);if(t.meta[MOVES]==s->meta[MOVES])continue;
+        value=merge_search(&t,depth-1u);if(value>best)best=value;
+    }
+    return best==INT_MIN?merge_quality(s):best;
+}
+int l3_mini_demo_input(const L3MiniState *s,uint32_t *pressed,uint32_t *held,uint32_t *dt_ms)
+{
+    unsigned kind;uint32_t key=0,dt=0;
+    if(!pressed || !held || !dt_ms || !l3_mini_validate(s) || s->meta[ST]!=L3_MINI_RUNNING)return 0;
+    kind=s->meta[K];
+    if(kind==L3_MINI_CIRCUIT) {
+        unsigned x,y,tx=0,ty=0;int found=0;
+        for(y=0;y<6 && !found;++y)for(x=0;x<6;++x) {
+            unsigned q=at(x,y);
+            if((s->aux[q]&16u) && s->board[q]!=(s->aux[q]&15u)){tx=x;ty=y;found=1;break;}
+        }
+        if(!found)return 0;
+        if(s->data[CX]<tx)key=L3_MINI_RIGHT;else if(s->data[CX]>tx)key=L3_MINI_LEFT;
+        else if(s->data[CY]<ty)key=L3_MINI_DOWN;else if(s->data[CY]>ty)key=L3_MINI_UP;
+        else key=L3_MINI_ROTATE;
+    } else if(kind==L3_MINI_BLOCKS) {
+        int best=INT_MIN,bx=-1;unsigned br=0,r;int x;
+        for(r=0;r<4;++r)for(x=0;x<8;++x) {
+            L3MiniState t=*s;int y=(int)s->data[CY],height=0,holes=0,bump=0,prev=0,value;unsigned xx,n;
+            if(!piece_fits(s,s->data[PIECE],r,x,y,1))continue;
+            while(piece_fits(s,s->data[PIECE],r,x,y+1,1))++y;
+            t.data[CX]=(unsigned)x;t.data[CY]=(unsigned)y;t.data[ROT]=r;
+            n=t.data[COUNT];blocks_lock(&t);n=t.data[COUNT]-n;
+            for(xx=0;xx<8;++xx){int yy,h=0,seen=0;for(yy=0;yy<14;++yy){if(t.board[at(xx,(unsigned)yy)]){if(!seen)h=14-yy;seen=1;}else if(seen)++holes;}height+=h;if(xx){int diff=h-prev;bump+=diff<0?-diff:diff;}prev=h;}
+            value=(int)n*1000-holes*400-height*10-bump*20;
+            if(t.meta[ST]==L3_MINI_WON)value+=100000;
+            if(t.meta[ST]==L3_MINI_LOST)value-=100000;
+            if(value>best){best=value;bx=x;br=r;}
+        }
+        if(bx<0)key=L3_MINI_ACT;
+        else if(s->data[ROT]!=br)key=L3_MINI_ROTATE;
+        else if(s->data[CX]<(unsigned)bx)key=L3_MINI_RIGHT;
+        else if(s->data[CX]>(unsigned)bx)key=L3_MINI_LEFT;
+        else key=L3_MINI_ACT;
+    } else if(kind==L3_MINI_SHAPES) {
+        unsigned x,y,r,tx=0,ty=0,tr=0;int found=0;
+        for(r=0;r<4 && !found;++r)for(y=0;y<8 && !found;++y)for(x=0;x<8;++x)
+            if(assembly_match(s,(int)x,(int)y,r)){tx=x;ty=y;tr=r;found=1;break;}
+        if(!found)return 0;
+        /* Move to the interior before rotating, so edge bounds cannot jam it. */
+        if(s->data[ROT]!=tr){if(s->data[CX]>4)key=L3_MINI_LEFT;else if(s->data[CY]>4)key=L3_MINI_UP;else key=L3_MINI_ROTATE;}
+        else if(s->data[CX]<tx)key=L3_MINI_RIGHT;else if(s->data[CX]>tx)key=L3_MINI_LEFT;
+        else if(s->data[CY]<ty)key=L3_MINI_DOWN;else if(s->data[CY]>ty)key=L3_MINI_UP;
+        else key=L3_MINI_ACT;
+    } else if(kind==L3_MINI_MERGE1024) {
+        unsigned d;int best=INT_MIN;
+        for(d=0;d<4;++d){L3MiniState t=*s;int value;merge_move(&t,d);if(t.meta[MOVES]==s->meta[MOVES])continue;
+            value=merge_search(&t,3);if(value>best){best=value;key=keys[d];}}
+        if(!key)return 0;
+    } else {
+        unsigned q=at(s->data[CX],s->data[CY]),d,target=0,i;uint16_t dist[400],back[400];int best=INT_MAX;
+        maze_distances(s,q,dist);
+        for(i=0;i<400;++i)if(s->board[i]>=2 && dist[i]!=UINT16_MAX){int cost=dist[i];
+            if(s->data[POWER]<60 && s->board[i]==3)cost-=4;
+            if(cost<best){best=cost;target=i;}}
+        if(best==INT_MAX)return 0;
+        maze_distances(s,target,back);best=INT_MAX;
+        for(d=0;d<4;++d){int x=(int)s->data[CX]+dx[d],y=(int)s->data[CY]+dy[d],cost;unsigned z;
+            if(!maze_open(s,x,y))continue;
+            z=at((unsigned)x,(unsigned)y);cost=back[z];
+            if(!s->data[POWER] && !s->data[AUXCOUNT]){unsigned e;for(e=0;e<2;++e){int a=x-(int)s->data[EX0+2u*e],b=y-(int)s->data[EY0+2u*e];if(a<0)a=-a;if(b<0)b=-b;if(a+b<=1)cost+=100;}}
+            if(cost<best){best=cost;key=keys[d];}}
+        dt=100;
+    }
+    *pressed=key;*held=0;*dt_ms=dt;return 1;
+}
+
+int l3_mini_actors(const L3MiniState *s,L3MiniActors *out)
+{
+    L3MiniActors a;uint16_t dist[400];unsigned i;
+    if(!out || !l3_mini_validate(s) || s->meta[K]!=L3_MINI_MAZE)return 0;
+    memset(&a,0,sizeof(a));a.count=3;
+    a.power_ticks=(uint16_t)s->data[POWER];a.respawn_ticks=(uint16_t)s->data[AUXCOUNT];
+    a.progress=(uint16_t)s->data[COUNT];a.target=(uint16_t)s->meta[GOAL];
+    a.player_tick=(uint8_t)s->data[TIMER];a.enemy_tick=(uint8_t)s->data[ETIMER];
+    a.next_direction=(uint8_t)s->data[NEXTDIR];
+    maze_distances(s,at(s->data[CX],s->data[CY]),dist);
+    for(i=0;i<3;++i){L3MiniActor *actor=&a.actors[i];unsigned x,y;
+        if(i==0){x=s->data[CX];y=s->data[CY];actor->direction=(uint8_t)s->data[DIR];
+            actor->kind=L3_MINI_CELL_PLAYER;actor->color=14;
+            if(s->data[POWER])actor->flags|=L3_MINI_ACTOR_POWERED;
+            if(s->data[AUXCOUNT])actor->flags|=L3_MINI_ACTOR_PROTECTED;
+        }else{unsigned e=i-1u,d,best=4;int value=s->data[POWER]?-1:INT_MAX;
+            x=s->data[EX0+2u*e];y=s->data[EY0+2u*e];
+            for(d=0;d<4;++d){unsigned dd=(d+e)%4u;int xx=(int)x+dx[dd],yy=(int)y+dy[dd],v;
+                if(!maze_open(s,xx,yy))continue;
+                v=dist[at((unsigned)xx,(unsigned)yy)];
+                if((s->data[POWER] && v>value) || (!s->data[POWER] && v<value)){best=dd;value=v;}}
+            actor->direction=(uint8_t)best;actor->kind=L3_MINI_CELL_ENEMY;
+            actor->color=s->data[POWER]?6:(uint8_t)(12u+e);
+            if(s->data[POWER])actor->flags=L3_MINI_ACTOR_FRIGHTENED;
+        }
+        actor->x256=(uint16_t)(x*256u+128u);actor->y256=(uint16_t)(y*256u+128u);
+    }
+    *out=a;return 1;
+}
+
+int l3_mini_maze_floor(const L3MiniState *s,uint8_t cells[400])
+{
+    if(!cells || !l3_mini_validate(s) || s->meta[K]!=L3_MINI_MAZE)return 0;
+    uint8_t result[400]={0};
+    for(unsigned y=0;y<s->meta[H];y++)for(unsigned x=0;x<s->meta[W];x++){
+        unsigned q=at(x,y),v=s->board[q];
+        result[q]=(uint8_t)(v==1?L3_MINI_CELL_WALL:v==2?L3_MINI_CELL_PELLET:v==3?L3_MINI_CELL_POWER:L3_MINI_CELL_EMPTY);
+    }
+    memcpy(cells,result,sizeof result);return 1;
+}
+
+
+FILE games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/minigames/l3_minigames.h
+#ifndef L3_MINIGAMES_H
+#define L3_MINIGAMES_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define L3_MINI_VERSION 1u
+#define L3_MINI_STRIDE 20u
+#define L3_MINI_CELLS 400u
+#define L3_MINI_SAVE_BYTES 1008u
+#define L3_MINI_MAX_DT_MS 250u
+
+typedef enum L3MiniKind {
+    L3_MINI_CIRCUIT, L3_MINI_BLOCKS, L3_MINI_SHAPES,
+    L3_MINI_MERGE1024, L3_MINI_MAZE, L3_MINI_KIND_COUNT
+} L3MiniKind;
+
+typedef enum L3MiniStatus {
+    L3_MINI_RUNNING, L3_MINI_WON, L3_MINI_LOST,
+    L3_MINI_PLAYING = L3_MINI_RUNNING
+} L3MiniStatus;
+
+enum {
+    L3_MINI_UP = 1u, L3_MINI_DOWN = 2u,
+    L3_MINI_LEFT = 4u, L3_MINI_RIGHT = 8u,
+    L3_MINI_ACT = 16u, L3_MINI_ROTATE = 32u, L3_MINI_BACK = 64u,
+    L3_MINI_INPUT_MASK = 127u
+};
+enum {
+    L3_MINI_EVENT_CHANGED = 1u, L3_MINI_EVENT_WON = 2u,
+    L3_MINI_EVENT_LOST = 4u, L3_MINI_EVENT_EXIT = 8u,
+    L3_MINI_EVENT_INVALID = 16u
+};
+typedef enum L3MiniCellKind {
+    L3_MINI_CELL_EMPTY, L3_MINI_CELL_WALL, L3_MINI_CELL_WIRE,
+    L3_MINI_CELL_BLOCK, L3_MINI_CELL_TARGET, L3_MINI_CELL_NUMBER,
+    L3_MINI_CELL_PLAYER, L3_MINI_CELL_ENEMY, L3_MINI_CELL_PELLET,
+    L3_MINI_CELL_POWER, L3_MINI_CELL_START, L3_MINI_CELL_FINISH
+} L3MiniCellKind;
+enum {
+    L3_MINI_FLAG_CURSOR = 1u, L3_MINI_FLAG_ACTIVE = 2u,
+    L3_MINI_FLAG_CONNECTED = 4u, L3_MINI_FLAG_GHOST = 8u
+};
+
+/* Opaque to callers: use view/encode/decode, never write these members.
+ * Integer storage is naturally aligned, has no pointers or compiler unions.
+ * sizeof is 992 on supported C ABIs, always <=4096. Not a wire format. */
+typedef struct L3MiniState {
+    uint32_t meta[16];
+    uint32_t data[32];
+    uint8_t board[L3_MINI_CELLS];
+    uint8_t aux[L3_MINI_CELLS];
+} L3MiniState;
+
+typedef struct L3MiniCell {
+    uint16_t value; /* wire N/E/S/W bits 1/2/4/8; number actual 2..1024 */
+    uint8_t kind, color, flags, glyph; /* color is a logical index 0..15 */
+} L3MiniCell;
+
+typedef struct L3MiniView {
+    L3MiniCell cells[L3_MINI_CELLS]; /* index y*L3_MINI_STRIDE+x */
+    uint32_t kind, status, score, target, moves, elapsed_ms;
+    uint16_t width, height;
+    int16_t cursor_x, cursor_y; /* -1 if no cursor */
+    uint16_t lives, progress;
+    const char *title, *help, *objective; /* static French strings */
+} L3MiniView;
+
+/* Invalid arguments return 0 and leave destination intact. seed=0 is valid. */
+int l3_mini_init(L3MiniState *state, L3MiniKind kind, uint32_t seed);
+/* dt_ms is clamped to250. Internally fixed60Hz with saved fractional phase.
+ * Fronts execute once immediately, even at dt=0. held never synthesizes fronts.
+ * BACK has priority and returns EXIT with byte-identical state, no time spent.
+ * Finished states stay frozen. Restart via init(kind,seed); resume by retaining
+ * state. Integration must release/latch buttons before entering/restarting. */
+uint32_t l3_mini_step(L3MiniState *state, uint32_t pressed,
+                      uint32_t held, uint32_t dt_ms);
+int l3_mini_view(const L3MiniState *state, L3MiniView *view);
+int l3_mini_validate(const L3MiniState *state);
+/* Fixed portable LE format, checksum and strict semantic validation.
+ * Decode is transactional: dst unchanged on every failure, exact length only.
+ * Encode returns byte count or0; NULL output returns required size if valid. */
+size_t l3_mini_encode(const L3MiniState *state, void *output, size_t capacity);
+int l3_mini_decode(L3MiniState *state, const void *input, size_t size);
+/* Deterministic demo adviser; returns ordinary inputs, never changes state.
+ * Calling step with these inputs obeys precisely the human game's rules.
+ * Does not guarantee victory for arbitrary already-damaged positions. */
+int l3_mini_demo_input(const L3MiniState *state, uint32_t *pressed,
+                       uint32_t *held, uint32_t *dt_ms);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+
+
+FILE games/luma3d/candidates/maze_events_r1/minigames/l3_mini_actors.h
+#ifndef L3_MINI_ACTORS_H
+#define L3_MINI_ACTORS_H
+#include "l3_minigames.h"
+
+/* Additive read-only MAZE adapter. Does not alter the v1 state/save format. */
+enum { L3_MINI_ACTOR_POWERED=1u, L3_MINI_ACTOR_PROTECTED=2u,
+       L3_MINI_ACTOR_FRIGHTENED=4u };
+typedef struct L3MiniActor {
+    uint16_t x256,y256; /* Cell centers in units1/256; x=cell_x*256+128. */
+    uint8_t direction; /* N/E/S/W=0/1/2/3;4=none. Enemies: next planned turn. */
+    uint8_t kind,color,flags;
+} L3MiniActor;
+typedef struct L3MiniActors {
+    L3MiniActor actors[3]; /* player, ghost0, ghost1 */
+    uint16_t power_ticks,respawn_ticks,progress,target;
+    uint8_t count,player_tick,enemy_tick,next_direction;
+    /* Player advances every6 ticks, enemies every14; phases above count up.
+     * Render interpolation is cosmetic and must never feed the engine state. */
+} L3MiniActors;
+int l3_mini_actors(const L3MiniState *state,L3MiniActors *actors);
+/* Complete floor under actors, CELL_EMPTY/WALL/PELLET/POWER, row stride20.
+ * Read-only and transactional; no dependency on the serialized private layout. */
+int l3_mini_maze_floor(const L3MiniState *state,uint8_t cells[400]);
+#endif
+
+
+FILE games/luma3d/candidates/maze_events_r1/tests/test_contacts.c
+#include "l3_maze_events.h"
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+static unsigned checks;
+#define CHECK(x) do{assert(x);checks++;}while(0)
+static void floor_check(const L3MiniView *v,const L3MiniActors *a){
+ for(unsigned i=0;i<3;i++){unsigned x=a->actors[i].x256/256,y=a->actors[i].y256/256;CHECK(x<v->width&&y<v->height&&v->cells[y*20+x].kind!=L3_MINI_CELL_WALL);}
+}
+int main(void){
+ for(unsigned power=0;power<2;power++)for(unsigned enemy_tick=0;enemy_tick<14;enemy_tick++)for(unsigned both=0;both<2;both++){
+  L3MiniState s;CHECK(l3_mini_init(&s,L3_MINI_MAZE,42));
+  s.data[0]=4;s.data[1]=5;s.data[8]=s.data[9]=1;s.data[4]=5;s.data[7]=power?100:0;
+  s.data[10]=5;s.data[11]=5;s.data[14]=enemy_tick;s.data[15]=0;if(both){s.data[12]=5;s.data[13]=5;}
+  CHECK(l3_mini_validate(&s));L3MiniView v;L3MiniActors a,shown;L3MazeMotion motion={0};L3MazeEvents events={0};uint8_t floor[400];
+  CHECK(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a)&&l3_mini_maze_floor(&s,floor));
+  CHECK(l3_maze_motion_observe(&motion,&v,&a,0,1));CHECK(l3_maze_events_observe(&events,&motion,floor,0,0,1));
+  L3MiniTrace trace;l3_mini_step_trace(&s,0,0,17,&trace);L3MiniState unchanged=s;
+  CHECK(trace.maze_warp_mask);CHECK(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a)&&l3_mini_maze_floor(&s,floor));
+  CHECK(l3_maze_motion_observe_events(&motion,&v,&a,.017,1,&trace));CHECK(!motion.contact_fallbacks);
+  CHECK(l3_maze_events_observe(&events,&motion,floor,&trace,.017,1));
+  double due=.017+.1;CHECK(l3_maze_motion_sample(&motion,nextafter(due,.017),&shown));
+  CHECK(shown.actors[0].x256==5*256+128&&shown.actors[0].y256==5*256+128);
+  CHECK(shown.actors[1].x256==5*256+128&&shown.actors[1].y256==5*256+128);
+  CHECK(l3_maze_motion_sample(&motion,due,&shown));
+  CHECK(shown.actors[1].x256==6*256+128&&shown.actors[1].y256==5*256+128);
+  if(!power)CHECK(shown.actors[0].x256==1*256+128&&shown.actors[0].y256==1*256+128);
+  else CHECK(shown.actors[0].x256==5*256+128);
+  if(power&&both)CHECK(shown.actors[2].x256==11*256+128&&shown.actors[2].y256==9*256+128);
+  unsigned lives;CHECK(l3_maze_events_pending_lives(&events,nextafter(due,.017),&lives)&&lives==!power);CHECK(l3_maze_events_pending_lives(&events,due,&lives)&&!lives);
+  for(unsigned n=0;n<=600;n++){CHECK(l3_maze_motion_sample(&motion,.017+n*.001,&shown));floor_check(&v,&shown);}
+  CHECK(!memcmp(&s,&unchanged,sizeof s));
+  /* Reset/load must discard pending contacts and warp queues. */
+  l3_maze_motion_reset(&motion);l3_maze_events_reset(&events);CHECK(!l3_maze_motion_sample(&motion,.1,&shown));
+  CHECK(l3_maze_motion_observe(&motion,&v,&a,0,2));CHECK(l3_maze_motion_sample(&motion,0,&shown));CHECK(!memcmp(&a,&shown,sizeof a));
+ }
+ /* Last life: no respawn is emitted by the engine. Both visible actors
+  * reach the contact before the final-heart/status presentation changes. */
+ {
+  L3MiniState s;CHECK(l3_mini_init(&s,L3_MINI_MAZE,42));s.data[0]=4;s.data[1]=5;s.data[8]=s.data[9]=1;s.data[4]=5;s.data[7]=0;s.data[6]=1;s.data[10]=5;s.data[11]=5;s.data[15]=0;
+  CHECK(l3_mini_validate(&s));L3MiniView v;L3MiniActors a,shown;L3MazeMotion m={0};L3MazeEvents e={0};uint8_t floor[400];
+  CHECK(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a)&&l3_mini_maze_floor(&s,floor));CHECK(l3_maze_motion_observe(&m,&v,&a,0,1));CHECK(l3_maze_events_observe(&e,&m,floor,0,0,1));
+  L3MiniTrace trace;l3_mini_step_trace(&s,0,0,17,&trace);CHECK(!trace.maze_warp_mask);CHECK(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a)&&l3_mini_maze_floor(&s,floor));CHECK(v.status==L3_MINI_LOST&&v.lives==0);
+  CHECK(l3_maze_motion_observe_events(&m,&v,&a,.017,1,&trace)&&!m.contact_fallbacks);CHECK(l3_maze_events_observe(&e,&m,floor,&trace,.017,1));
+  CHECK(l3_maze_motion_sample(&m,.117,&shown));CHECK(shown.actors[0].x256==5*256+128&&shown.actors[1].x256==5*256+128);unsigned pending;
+  CHECK(l3_maze_events_pending_lives(&e,.10,&pending)&&pending==1);CHECK(l3_maze_events_pending_lives(&e,.12,&pending)&&!pending);
+ }
+ unsigned legal_contacts=0,legal_fallbacks=0,adverse_snaps=0;
+ for(unsigned rate=0;rate<5;rate++)for(unsigned seed=0;seed<8;seed++){
+  const unsigned cadence[]={0,1,16,17,250};L3MiniState s;CHECK(l3_mini_init(&s,L3_MINI_MAZE,seed));L3MiniView v;L3MiniActors a,shown,before;
+  CHECK(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a));L3MazeMotion m={0};CHECK(l3_maze_motion_observe(&m,&v,&a,0,1));double now=0;
+  for(unsigned step=0;step<(rate?30000:200);step++){
+   uint32_t p,h,dt;if(!l3_mini_demo_input(&s,&p,&h,&dt))break;L3MiniTrace trace;l3_mini_step_trace(&s,p,h,cadence[rate],&trace);now+=cadence[rate]*.001;
+   CHECK(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a));CHECK(l3_maze_motion_sample(&m,now,&before));L3MiniState saved=s;unsigned old_fallbacks=m.contact_fallbacks;
+   unsigned old_teleports=m.teleports;
+   CHECK(l3_maze_motion_observe_events(&m,&v,&a,now,1,&trace));CHECK(l3_maze_motion_sample(&m,now,&shown));
+   if(!(trace.maze_warp_mask&1)&&m.contact_fallbacks==old_fallbacks){
+    if(before.actors[0].x256!=shown.actors[0].x256||before.actors[0].y256!=shown.actors[0].y256){
+     /* Existing explicit fallback:250ms can hide two or three grid moves.
+      * Preserve its counted snap; never invent a diagonal between states. */
+     CHECK(cadence[rate]==250&&m.teleports>old_teleports);adverse_snaps++;
+    }else CHECK(1);
+   }
+   for(unsigned sample=0;sample<=5;sample++){CHECK(l3_maze_motion_sample(&m,now+sample*.05,&shown));floor_check(&v,&shown);}
+   CHECK(!memcmp(&s,&saved,sizeof s));
+   if(v.status!=L3_MINI_RUNNING)break;
+  }
+  if(cadence[rate]==16||cadence[rate]==17)CHECK(!m.contact_fallbacks);
+  legal_contacts+=m.contacts;legal_fallbacks+=m.contact_fallbacks;
+  L3MazeMotion saved=m;L3MiniTrace bad={0};bad.event_count=L3_MAZE_TRACE_EVENTS+1;CHECK(!l3_maze_motion_observe_events(&m,&v,&a,now,1,&bad)&&!memcmp(&m,&saved,sizeof m));
+  bad=(L3MiniTrace){0};bad.event_count=1;bad.events[0].kind=L3_MAZE_CONTACT_POWER;bad.events[0].actor_mask=2;CHECK(!l3_maze_motion_observe_events(&m,&v,&a,now,1,&bad)&&!memcmp(&m,&saved,sizeof m));
+ }
+ printf("LEGAL_CONTACTS contacts=%u adverse_fallbacks=%u adverse_regular_snaps=%u normal16_17ms_fallbacks=0\n",legal_contacts,legal_fallbacks,adverse_snaps);
+ printf("CONTACTS_PASS checks=%u powered_death_two_ghosts=1 before_at_after_arrival=1 all_enemy_phases=1 no_wall_sampling=1 reset_clean=1 engine_unchanged=1\n",checks);return 0;
+}
+
+
+FILE games/luma3d/candidates/maze_events_r1/tests/test_multicontact.c
+#include "l3_maze_events.h"
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+int main(int argc,char **argv){
+ unsigned power=argc>1?(unsigned)atoi(argv[1]):0;assert(power<2);
+ L3MiniState s;assert(l3_mini_init(&s,L3_MINI_MAZE,42));
+ /* Validated state, then real 117ms engine step: two ordinary right moves.
+  * No trace is fabricated and no win/state is changed after stepping. */
+ s.data[0]=power?4:3;s.data[1]=5;s.data[8]=s.data[9]=1;s.data[4]=5;
+ s.data[7]=power?100:0;s.data[10]=5;s.data[11]=5;s.data[14]=0;s.data[15]=0;
+ assert(l3_mini_validate(&s));L3MiniView v;L3MiniActors a,shown;L3MazeMotion m={0};
+ assert(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a));assert(l3_maze_motion_observe(&m,&v,&a,0,1));
+ L3MiniTrace trace;l3_mini_step_trace(&s,0,0,117,&trace);L3MiniState saved=s;
+ unsigned contacts=0,collects=0;for(unsigned i=0;i<trace.event_count;i++){contacts+=trace.events[i].kind!=L3_MAZE_COLLECT;collects+=trace.events[i].kind==L3_MAZE_COLLECT;}
+ assert(contacts==(power?2u:1u));assert(collects>=1);
+ assert(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a));assert(l3_maze_motion_observe_events(&m,&v,&a,.117,1,&trace));
+ printf("MULTICONTACT power=%u events=%u collects=%u contacts=%u fallbacks=%llu\n",power,trace.event_count,collects,contacts,(unsigned long long)m.contact_fallbacks);fflush(stdout);
+ assert(!m.contact_fallbacks);assert(m.contacts==contacts);
+ assert(l3_maze_motion_sample(&m,.167,&shown));
+ if(!power){assert(shown.actors[0].x256>3*256+128&&shown.actors[0].x256<4*256+128);assert(shown.actors[0].y256==5*256+128);}
+ else {assert(shown.actors[1].x256==5*256+128);assert(shown.actors[1].y256==5*256+128);}
+ for(unsigned j=0;j<600;j++){
+  assert(l3_maze_motion_sample(&m,.117+j*.001,&shown));
+  for(unsigned i=0;i<3;i++)assert(v.cells[(shown.actors[i].y256/256)*20+shown.actors[i].x256/256].kind!=L3_MINI_CELL_WALL);
+ }
+ assert(!memcmp(&s,&saved,sizeof s));return 0;
+}
+
+
+FILE games/luma3d/candidates/maze_events_r1/tests/contacts_r5/result.json
+{
+  "passed": true,
+  "hardware": false,
+  "records": [
+    {
+      "name": "strict",
+      "command": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-misleading-indentation",
+        "-I/home/michael/console/games/luma3d/candidates/maze_events_r1/include",
+        "-I/home/michael/console/games/luma3d/candidates/maze_events_r1/minigames",
+        "-I/home/michael/console/games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/include",
+        "-I/home/michael/console/games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/minigames",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/tests/test_contacts.c",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/src/maze_events.c",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/src/maze_motion.c",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/minigames/l3_minigames.c",
+        "-lm",
+        "-o",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/tests/contacts_r5/strict/test"
+      ],
+      "output": "LEGAL_CONTACTS contacts=48 adverse_fallbacks=24 adverse_regular_snaps=552 normal16_17ms_fallbacks=0\nCONTACTS_PASS checks=2543572 powered_death_two_ghosts=1 before_at_after_arrival=1 all_enemy_phases=1 no_wall_sampling=1 reset_clean=1 engine_unchanged=1\n",
+      "passed": true
+    },
+    {
+      "name": "asan",
+      "command": [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-misleading-indentation",
+        "-fsanitize=address,undefined,float-cast-overflow",
+        "-fno-omit-frame-pointer",
+        "-I/home/michael/console/games/luma3d/candidates/maze_events_r1/include",
+        "-I/home/michael/console/games/luma3d/candidates/maze_events_r1/minigames",
+        "-I/home/michael/console/games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/include",
+        "-I/home/michael/console/games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/minigames",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/tests/test_contacts.c",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/src/maze_events.c",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/src/maze_motion.c",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/minigames/l3_minigames.c",
+        "-lm",
+        "-o",
+        "/home/michael/console/games/luma3d/candidates/maze_events_r1/tests/contacts_r5/asan/test"
+      ],
+      "output": "LEGAL_CONTACTS contacts=48 adverse_fallbacks=24 adverse_regular_snaps=552 normal16_17ms_fallbacks=0\nCONTACTS_PASS checks=2543572 powered_death_two_ghosts=1 before_at_after_arrival=1 all_enemy_phases=1 no_wall_sampling=1 reset_clean=1 engine_unchanged=1\n",
+      "passed": true
+    }
+  ],
+  "sources": {
+    "games/luma3d/candidates/maze_events_r1/tests/test_contacts.c": "6038f8b0613a9eb2169dfa5c672da5c6ddbee761249fb3ead65f58ed082f7124",
+    "games/luma3d/candidates/maze_events_r1/src/maze_events.c": "d3d40c03c4de0b0ae9522d791963cf218104661ddfefc6ca1b6539537b0fcd23",
+    "games/luma3d/candidates/maze_events_r1/src/maze_motion.c": "c0cc5cd8a2b0b09b6c0134290a41a2eadab015cddc3ce25ec5ae3ef558a44f64",
+    "games/luma3d/candidates/maze_events_r1/minigames/l3_minigames.c": "cc35d92882da460069a62f8c7df208648de6bc07c2c6c657b2d1cbda13c3247f",
+    "games/luma3d/candidates/maze_events_r1/include/l3_maze_motion.h": "7a2cb4d8293abc3aa8cf0e1dd08e022f60007cfd9cf2ae32fb12e5926823d0bb",
+    "games/luma3d/candidates/maze_events_r1/include/l3_maze_events.h": "8862c1754a2dcc24e97cc34b8a9a7ab4d1395548fe945ac59b28eed25cc10cf6",
+    "games/luma3d/candidates/maze_events_r1/include/l3_mini_trace.h": "01ede41567b15e21b1d95aadbd70743470699ad9134c0458caa7a8ba0fd93fd5",
+    "games/luma3d/candidates/maze_events_r1/tests/validate_contacts.py": "2ba8933e8d55aebd86cefcf5bc10df43c151ad1dc96cb706eeab7a25fafdfa58"
+  },
+  "scope": "Validated legal contact fixtures, grid paths retained, visual reset at hero arrival, lives aligned, no gameplay mutation. No hardware timing."
+}

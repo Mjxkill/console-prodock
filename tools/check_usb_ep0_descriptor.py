@@ -8,11 +8,11 @@ import re
 import subprocess
 import tempfile
 import time
+from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STAGE = ROOT/'tang/impl/gpu_usb_controller32_fs_model_r1'
 TOOLS = Path('/tmp/console-usb-sim-tools/extracted/usr')
-PRIMITIVES = Path('/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v')
 
 
 def sha(p):

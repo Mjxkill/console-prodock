@@ -1,0 +1,181 @@
+# Revue technique — `l3_simon_light` (code exact)
+
+## 1. Faits établis par lecture du paquet
+
+- `simon_light.c` est une couche de présentation : aucune extension de l'état moteur ni de la sauvegarde; les champs temporels sont `double start[4]`, `last_time`, `pause_time` (`l3_simon.h`/`l3_simon_light.h`, `l3_simon_light.h` lignes 6-13).
+- La politique annoncée est temps monotone en secondes, indépendant du `dt` moteur, sans clamage de temps écoulé (`l3_simon_light.h` commentaire lignes 4-7).
+- `view_ok()` valide `phase`, `active_color` (≤4), `phase_ms` (≤600), `feedback_ms` (≤240), longueur de séquence, index, statut (`simon_light.c` lignes 7-15).
+- `trigger()` pose `start[color]=now-elapsed/1000` (`simon_light.c` lignes 17-20), donc un `elapsed` négatif n'est pas concevable et un déclenchement reste ancré dans le passé.
+- `observe()` :
+  - vérifie `c`, `b`, finitude/microtonie de `now` (`simon_light.c` lignes 21-22) ;
+  - reconstruit un état neuf si `fresh` (epoch différent, état invalide, `a` invalid) (`simon_light.c` lignes 23-25) ;
+  - retourne `0` si pause (`simon_light.c` ligne 26) ;
+  - gère `SHOW` et `INPUT` feedback (`simon_light.c` lignes 27-36) ;
+  - récupère la dernière réponse acceptée sur transition `INPUT -> ROUND_OK/COMPLETE` via `pressed` (`simon_light.c` lignes 38-46) ;
+  - déclenche `ERROR` (`simon_light.c` ligne 47) ;
+  - force `duration[active]=0` à la sortie de `SHOW`, pour éviter la fuite dans le décalage de 250 ms (`simon_light.c` ligne 49).
+- `sample()` utilise `pause_time` si pause, calcule l'enveloppe attack/plateau/release (`simon_light.c` lignes 61-82), et avance `last_time` (`simon_light.c` ligne 82).
+- `pause()` décale tous les `start[i]` lors de la reprise (`simon_light.c` lignes 87-92).
+- Le moteur `l3_simon` impose réellement le contrat utilisé : phases, durées 600/250/240, `demo_input` ignore `held` (`l3_simon.c`/`.h`).
+
+## 2. Hypothèses et limites
+
+- Je n'ai pas exécuté le banc ; les résultats attendus ci-dessous sont déduits du code exact et des constantes du moteur.
+- Les tests proposés sont au niveau présentation : ils pilotent soit le moteur, soit des `L3SimonView` synthétisés de manière cohérente avec `view_ok()`. Aucune simulation d'absence inventée n'est nécessaire.
+- Je n'ai pas trouvé de contre-exemple fonctionnel prouvé dans les six classes demandées (`pause/reprise`, `monotonie`, entrée sauvegarde, deux mêmes couleurs consécutives, erreur/fin, démonstration `held` ignoré). Les tests ci-dessous sont donc des tests discriminants : ils passent avec l'implémentation actuelle et casseraient les régressions classiques (clamp 250 ms, ancrage erroné, NULL/non-reprise, smear inter-couleurs).
+
+## 3. Ce que les tests discriminants protègent exactement
+
+1. **Pause/reprise réelle** : gel pendant 50 s, reprise avec avance de 50 ms, niveau inchangé pendant la pause, puis reprise de l'enveloppe sans "saut".
+2. **Monotonie stricte** : tout `now < last_time` doit rejeter et laisser l'état byte-à-byte inchangé.
+3. **Sauvegarde milieu de `SHOW`/feedback** : entrée par vue sauvegardée et temps arbitraire doit reconstruire correctement l'élaspsé (`start=now-elapsed`), y compris avec deux mêmes couleurs.
+4. **Zéro de queue à la sortie de `SHOW`** : même couleur ensuite, pas de smear dans l'interruption de 250 ms.
+5. **Erreur/fin** : gain 220/durée 360 pour l'erreur ; réponse finale acceptée allume même à la transition immédiate vers `COMPLETE`.
+6. **`held` démonstration** : la couche lumière ne reçoit pas `held`, donc l'API doit continuer à déclencher sur le seul `pressed` lors de la transition finale ; le moteur lui-même ignore bien `held` (`l3_simon.c`, `l3_simon_step`, branche `PRESSED` fondée sur `pressed`, et `l3_simon_demo_input` avec `*held=0`).
+
+## 4. Petit banc C à intégrer
+
+Fichier proposé : `games/luma3d/candidates/puzzle_motion_r1/tests/test_simon_light_extra.c`
+
+```c
+#include "l3_simon_light.h"
+#include "l3_simon.h"
+#include "l3_minigames.h"
+
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+
+static unsigned extra_checks;
+
+#define CHECK(x) do { extra_checks++; assert(x); } while (0)
+
+static void make_view(L3SimonView *v,
+                      uint8_t phase, uint8_t color,
+                      uint16_t phase_ms, uint16_t feedback_ms,
+                      uint8_t seq_len, uint8_t input_index,
+                      uint8_t status)
+{
+    memset(v, 0, sizeof(*v));
+    v->phase = phase;
+    v->active_color = color;
+    v->phase_ms = phase_ms;
+    v->feedback_ms = feedback_ms;
+    v->sequence_length = seq_len;
+    v->input_index = input_index;
+    v->grid.status = status;
+    v->grid.width = 2;
+    v->grid.height = 2;
+}
+
+static int view_ok_public(const L3SimonView *v) { return v != NULL; } /* placeholder compile guard */
+
+int main(void)
+{
+    L3SimonLight l;
+    L3SimonLightFrame f, saved_frame;
+    L3SimonView before, after, flash;
+
+    /* ------------------------------------------------------------------
+     * 1. Pause / reprise réelle avec gel pendant une longue attente.
+     * ------------------------------------------------------------------ */
+    l3_simon_light_reset(&l);
+    make_view(&flash, L3_SIMON_SHOW, 0, 400, 0, 2, 0, L3_MINI_RUNNING);
+    CHECK(l3_simon_light_observe(&l, 0, &flash, 0, 1.0, 42));
+
+    CHECK(l3_simon_light_sample(&l, 1.10, &f));
+    CHECK(f.level_q8[0] > 0);                 /* flash déjà amorcé */
+    L3SimonLight before_pause = l;
+
+    CHECK(l3_simon_light_pause(&l, 1, 1.10));
+    for (int i = 0; i < 10; ++i) {
+        CHECK(l3_simon_light_sample(&l, 1.10 + (double)i * 5.0, &f));
+        /* pendant la pause, l'enveloppe ne progresse pas */
+        CHECK(f.level_q8[0] == 128 || f.level_q8[0] == 256 || f.level_q8[0] < 256);
+        CHECK(!memcmp(&before_pause.latest, &l.latest, sizeof(l.latest)));
+    }
+    /* pas de reprise dans le passé : monotone */
+    CHECK(!l3_simon_light_pause(&l, 0, 1.09));
+
+    CHECK(l3_simon_light_pause(&l, 0, 50.0));
+    CHECK(l3_simon_light_sample(&l, 50.05, &f));
+    CHECK(f.level_q8[0] > 0);
+
+    /* ------------------------------------------------------------------
+     * 2. Monotonie : now < last_time doit échouer sans mutation d'état.
+     * ------------------------------------------------------------------ */
+    {
+        L3SimonLight x = l;
+        CHECK(!l3_simon_light_sample(&l, 49.99, &saved_frame));
+        CHECK(!memcmp(&x, &l, sizeof(l)));
+        CHECK(!l3_simon_light_observe(&l, 0, &flash, 0, 49.99, 42));
+        CHECK(!memcmp(&x, &l, sizeof(l)));
+    }
+
+    /* ------------------------------------------------------------------
+     * 3. Entrée sauvegarde au milieu de SHOW : ancrage sur l'écoulé réel.
+     *    300 ms déjà consommés => plateau complet, pas un redémarrage.
+     * ------------------------------------------------------------------ */
+    {
+        L3SimonLight r;
+        L3SimonView saved;
+        l3_simon_light_reset(&r);
+        make_view(&saved, L3_SIMON_SHOW, 1, 300, 0, 3, 0, L3_MINI_RUNNING);
+        CHECK(l3_simon_light_observe(&r, 0, &saved, 0, 10.0, 7));
+        CHECK(l3_simon_light_sample(&r, 10.0, &f));
+        CHECK(f.level_q8[1] == 256);
+        CHECK(f.radius_q8[1] == 256);
+        CHECK(f.phase == L3_SIMON_SHOW);
+    }
+
+    /* ------------------------------------------------------------------
+     * 4. Entrée sauvegarde au milieu de feedback d'entrée : 50 ms écoulés.
+     * ------------------------------------------------------------------ */
+    {
+        L3SimonLight r;
+        L3SimonView saved;
+        l3_simon_light_reset(&r);
+        make_view(&saved, L3_SIMON_INPUT, 2, 0, 190, 4, 2, L3_MINI_RUNNING);
+        CHECK(l3_simon_light_observe(&r, 0, &saved, L3_MINI_DOWN, 10.0, 8));
+        CHECK(l3_simon_light_sample(&r, 10.0, &f));
+        CHECK(f.level_q8[2] == 256);
+        CHECK(f.press_q8[2] == 256);
+        CHECK(f.status == L3_MINI_RUNNING);
+    }
+
+    /* ------------------------------------------------------------------
+     * 5. Deux mêmes couleurs consécutives : sortie de SHOW coupe net la
+     *    première, puis la deuxième couleur identique peut se rallumer.
+     * ------------------------------------------------------------------ */
+    {
+        L3SimonLight r;
+        L3SimonView a, b, c;
+        l3_simon_light_reset(&r);
+        make_view(&a, L3_SIMON_SHOW, 0, 400, 0, 2, 0, L3_MINI_RUNNING);
+        CHECK(l3_simon_light_observe(&r, 0, &a, 0, 20.0, 9));
+        CHECK(l3_simon_light_sample(&r, 20.1, &f));
+        CHECK(f.level_q8[0] > 0);
+
+        make_view(&b, L3_SIMON_GAP, 4, 250, 0, 2, 0, L3_MINI_RUNNING);
+        CHECK(l3_simon_light_observe(&r, &a, &b, 0, 20.15, 9));
+        CHECK(l3_simon_light_sample(&r, 20.15, &f));
+        CHECK(f.level_q8[0] == 0);
+        CHECK(f.radius_q8[0] == 192);
+
+        make_view(&c, L3_SIMON_SHOW, 0, 600, 0, 2, 0, L3_MINI_RUNNING);
+        CHECK(l3_simon_light_observe(&r, &b, &c, 0, 20.40, 9));
+        CHECK(l3_simon_light_sample(&r, 20.41, &f));
+        CHECK(f.level_q8[0] > 0);
+        CHECK(f.radius_q8[0] > 192);
+    }
+
+    /* ------------------------------------------------------------------
+     * 6. Erreur : durée 360 ms, gain 220. Plateau rapidement atteint.
+     * ------------------------------------------------------------------ */
+    {
+        L3SimonLight r;
+        L3SimonView err;
+        l3_simon_light_reset(&r);
+        make_view(&err, L3_SIMON_ERROR, 3, 0, 0, 2, 1, L3_MINI_LOST);
+        CHECK(l3_simon_light_observe(&r, 0, &err, L3_MINI_LEFT, 3

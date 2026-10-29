@@ -1,0 +1,409 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Deuxième passe, 800 mots maximum. Révise les conclusions à partir des corrections vérifiées. Question précise : quels contrats de reset/initialisation diffèrent réellement, et quel test MINIMAL sans nouveau PnR peut réfuter une cause commune ? vid_hrstn et MIN_LOCK_CYCLES sont maintenant connus. Ne réclame pas une répétition des tests déjà faits. Distingue reset local durable, transitoire passé et horloge absente. Donne prédictions asymétriques honnêtes, pas une conclusion trois défauts indépendants par défaut. Évalue aussi pixel_up trois cycles vs LOCK qualifié 2ms sans en faire une cause prouvée.
+
+EVIDENCE PACKET:
+SECOND ROUND — corrected evidence. No new hardware, no new FPGA build. All three first reviews completed, opinions unproven.
+
+
+## evidence/packet.txt
+NEO / PRO DOCK COMMON-CAUSE REVIEW — FACT PACKET
+Created 2026-10-27; independent first-round material; no prior model answers.
+
+## Task and evidence discipline
+
+Independent adversarial review requested by the user: find a falsifiable common explanation for the Neo console failures versus a working Pro Dock. Consider one shared integration/constraint/startup problem AND the possibility of multiple unrelated faults. Do not assume a common cause exists. No hardware access, source edits, new synthesis or PnR is requested from reviewers.
+
+Deliver: (1) verified facts versus hypotheses; (2) a small causal graph stating which observations each hypothesis explains and cannot explain; (3) at most three high-value discriminating tests using existing bitstreams/observables or exact-source simulation before suggesting new PnR; (4) identify any precise violated contract/constraint with source lines and actual mapped endpoint. Do not propose an arbitrary timing exception, a blind B/C retarget, or an unexplained LOCAL_CLOCK patch.
+
+LW is a supported routing resource, not itself a diagnosis. An A/B result after rerouting changes the entire physical implementation; report the intervention and result without assigning causality to a named resource absent an established violated requirement. RTL simulation, synthesis/mapping identity, STA coverage, hardware behavior and visual feedback are distinct evidence categories. Missing exported SDF arcs are not proof that the internal Gowin STA library lacks them. Do not infer die revision from the package or tool B/C string alone. Do not treat a stale/zero snapshot as a fresh live measurement.
+
+This packet contains source excerpts, exact archived measurements and separately labelled interpretations. Earlier model opinions are deliberately excluded. Files remain untouched; this preparation performs reads and writes only this evidence folder. The Pro Dock reference remains protected. All new Neo versions remain candidates and global timing FAILs remain FAILs.
+
+## Build and physical comparison
+
+| Item | Pro Dock reference | Neo current diagnostic family | What is established / limitation |
+|---|---|---|---|
+| Exact target | GW5AST-138B / GW5AST-LV138FPG676AC1/I0 | GW5AST-138C / GW5AST-LV138PG484AC1/I0 | Actual build Tcl below. 676 versus484 package pins; B/C not interpreted as die revision here. |
+| Proven working software/hardware baseline | G22r0 + original Linux/NEBULA R17 restored/tested Oct21 | Analyzer L31r8 reportedly works on this same Neo; exact frozen Tcl also targets C/PG484 | L31 target independently hash-checked against its original manifest below. No new analyzer hardware experiment in this audit. |
+| Video | LCD800x480, pixel35MHz | HDMI1280x720, pixel74.375MHz, serial371.875MHz | 2.4x active pixels; current failing internal pattern uses no framebuffer DDR traffic. |
+| CPU and DDR clocks declared | CORE800, AHB/APB80, RTC10, DDR300/UI75MHz | same nominal frequencies | Hard CPU macro/library exports differ between Pro and Neo, confounded by target and generation/library version. |
+| DDR controller source | DDR3 5.9 lineage /300MHz | same byte-identical standalone controller and original arbiter/adapter | Physical board and pins differ; reference number equality does not establish physical timing equality. |
+| CPU FIFO | inferred dual-clock FIFO RTL | isolated 100/64-bit depth4 storage replaced with explicit FFs, same pointer/reset protocol | Not identical total implementation; real Neo source diff included. Larger USB/trace FIFOs remain inferred. |
+| GPU | functional geometry/pixel/compositor under G22r0 | evolved diagnostic sources, queue and observations, masks/selectors/netlist patches | Do not claim the complete GPU RTL/netlist is identical; comparison hashes below. |
+| USB device | C28 generated Controller3.3 + SoftPHY3.5/V_120, Gowin1.9.12.03, Oct2026 | active older Sipeed1.9.10.03 generated Nov2024 modules, old template targetB | New targetC USB IP was generated separately but is NOT in R19/R21/R21r2. Exact active provenance linked below. |
+| USB topology | 50->48->60/960->120MHz | same real primitive ratios and nominal domains | Old PHY lacking V_120 macro does NOT establish wrong 120MHz SDC. See mapped clock audit. |
+| Port inputs | SOFT-USB device and board LCD | SOFT-USB device +2low-speed HIDhosts, BL616 UART/JTAG, HDMI | Hostgamepads are separate from failing HSdevice path. |
+
+Pro Dock Oct21 hardware campaign: FPGA/USB HS480Mbps/CPU800MHz/Linux6.12.112 boot;384000pixel oracle and2430commands; threeNEBULAreference poses;10000frames in226.056s (44.24FPS),213740commands, up to39sprites/8layers, noGPUerrors/underflows/rejects. SDfour sectors reread identically (first detection timeout then retry retained). This validates those exact binaries at that time. Later game/kernel work must not be silently called original R17.
+Pro Dock reference is not a fully timing-closed control: setup−0.564ns/9violations; historical occasional USB CDC duplicated characters remain documented. A working game does not prove all CDC/reset/physical contracts.
+
+DDR part note: user identified H5TQ4G63EFR-RDC on Neo. Stored schematic versions include both Micron and Hynix Neo variants; Pro schematic4072 also uses HynixEFR. This is not an independently photographed package identification or board SI measurement.
+
+## tang/impl/gpu_geometry_g22r0/build.tcl:1-16
+
+SOURCE SHA256 9e1c46a07aad8294d2b29c766f8c7225f1f4943d6963f0cb78f0864e1980fdcc
+1: set_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0
+2: set_option -include_path {/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl}
+3: set_option -top_module console_top
+4: set_option -output_base_name console_gpu_geometry_g22r0
+5: set_option -verilog_std v2001
+6: set_option -use_cpu_as_gpio 1
+7: set_option -gen_text_timing_rpt 1
+8: set_option -gen_verilog_sim_netlist 1
+9: set_option -gen_sdf 1
+10: set_option -route_option 2
+11: set_option -replicate_resources 0
+12: set_option -place_option 3
+13: add_file {/home/michael/console/tang/impl/gpu_geometry_g22r0/impl/gwsynthesis/console_gpu_geometry_g22r0.vg}
+14: add_file {/home/michael/console/tang/impl/gpu_geometry_g22r0/constraints_resolved.cst}
+15: add_file {/home/michael/console/tang/impl/gpu_geometry_g22r0/source/diagnostics/timing_reports.sdc}
+16: run pnr
+
+## tang/impl/console_neo_n56r19_capture_ce_local/build.tcl:1-18
+
+SOURCE SHA256 ee8b9bf9d9dfcddb66ed1d99326325717e3b3f8ff4a9d2e7955dcff367d667fd
+1: set_device -name GW5AST-138C GW5AST-LV138PG484AC1/I0
+2: set_option -top_module console_neo
+3: set_option -output_base_name console_neo
+4: set_option -verilog_std sysv2017
+5: set_option -use_cpu_as_gpio 1
+6: set_option -use_sspi_as_gpio 0
+7: set_option -include_path {/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl;/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang}
+8: set_option -gen_text_timing_rpt 1
+9: set_option -gen_verilog_sim_netlist 1
+10: set_option -gen_sdf 1
+11: set_option -place_option 3
+12: set_option -route_option 2
+13: set_option -replicate_resources 0
+14: set_option -clock_route_order 1
+15: add_file {/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/console_neo.vg}
+16: add_file {/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo.cst}
+17: add_file {/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo.sdc}
+18: run pnr
+
+## tang/impl/console_neo_n56r21r2_resetqual_coupled/build.tcl:1-18
+
+SOURCE SHA256 72577abaabd11be011d55cac9a79b1ba61a872b4ffce1b0c3298f11d6dd0fc88
+1: set_device -name GW5AST-138C GW5AST-LV138PG484AC1/I0
+2: set_option -top_module console_neo
+3: set_option -output_base_name console_neo
+4: set_option -verilog_std sysv2017
+5: set_option -use_cpu_as_gpio 1
+6: set_option -use_sspi_as_gpio 0
+7: set_option -include_path {/home/michael/console/tang/impl/console_neo_n56r21r2_resetqual_coupled/source/tang/rtl;/home/michael/console/tang/impl/console_neo_n56r21r2_resetqual_coupled/source/tang}
+8: set_option -gen_text_timing_rpt 1
+9: set_option -gen_verilog_sim_netlist 1
+10: set_option -gen_sdf 1
+11: set_option -place_option 3
+12: set_option -route_option 2
+13: set_option -replicate_resources 0
+14: set_option -clock_route_order 1
+15: add_file {/home/michael/console/tang/impl/console_neo_n56r21r2_resetqual_coupled/console_neo.vg}
+16: add_file {/home/michael/console/tang/impl/console_neo_n56r21r2_resetqual_coupled/source/tang/boards/neo/neo.cst}
+17: add_file {/home/michael/console/tang/impl/console_neo_n56r21r2_resetqual_coupled/source/tang/boards/neo/neo.sdc}
+18: run pnr
+
+## L31r8 exact known-reference target binding
+
+{
+  "build": "/home/michael/logic_analyser_wifi/tang/impl/linux_l31r8_local_20261012",
+  "manifest_sha256": "919c228430c594b944e6b50cf9a56dd931e4839f558e0e32da3b0bcf7eda8262",
+  "frozen_tcl_sha256": "244a8ad90f0ebcfb91e472688f28023b431d9238e98c585343dac1983e78095b",
+  "manifest_expected": "244a8ad90f0ebcfb91e472688f28023b431d9238e98c585343dac1983e78095b",
+  "equal": true
+}
+
+## /home/michael/logic_analyser_wifi/tang/impl/linux_l31r8_local_20261012/workspace/tang/build_la16_usb.tcl:1-14
+
+SOURCE SHA256 244a8ad90f0ebcfb91e472688f28023b431d9238e98c585343dac1983e78095b
+1: # build_la16_usb.tcl — variante USB 3 de l'analyseur (la_top_usb = la_top avec USB_OUT = 1) ; le build UART reste build.tcl.
+2: # build.tcl — synthèse + P&R + bitstream, Gowin 1.9.12, sans GUI :
+3: #   G=~/gowin/Gowin_V1.9.12_linux
+4: #   LD_LIBRARY_PATH=$G/IDE/lib QT_QPA_PLATFORM=offscreen DISPLAY= $G/IDE/bin/gw_sh build.tcl
+5: # Chargement SRAM : openFPGALoader -b tangmega138k impl/pnr/la16.fs
+6: set_device -name GW5AST-138C GW5AST-LV138PG484AC1/I0
+7: if {[info exists env(STAGE)] && $env(STAGE) eq "pnr"} {
+8:     # A new gw_sh project otherwise reruns synthesis even for "run pnr".
+9:     # Explicitly import the existing mapped netlist for constraint-only trials.
+10:     set mapped_netlist impl/gwsynthesis/la16_usb.vg
+11:     if {![file exists $mapped_netlist]} { error "STAGE=pnr requires $mapped_netlist; run synthesis first" }
+12:     add_file $mapped_netlist
+13: } else {
+14: foreach f [glob rtl/periph/*.v rtl/video/*.v rtl/board/*.v rtl/board/riscv_ae350_soc_ext/*.v rtl/board/ddr3_standalone_32b/*.v rtl/board/sipeed/*.v rtl/*.v] { add_file $f }
+
+## Primary documentation conflict, not a target diagnosis
+
+Accessed2026-10-27: https://wiki.sipeed.com/hardware/en/tang/tang-console/mega-console.html (short alias https://wiki.sipeed.com/tangconsole).
+Its precautions list the138K FPG676 part but simultaneously recommend PBG484A and versionB; its no-response FAQ instead names the PG484 part. This is internally inconsistent. The illustration URL is https://wiki.sipeed.com/hardware/zh/tang/tang-mega-138k/assets/partno_138K.png ; it was not independently pixel-inspected in this packet. The linked official138K examples are https://github.com/sipeed/TangMega-138K-example.
+The working L31r8 frozen Tcl uses C/PG484 and its hash matches its build manifest. Thus the ambiguous wiki text does not establish that current Neo targetC is wrong. Parent is independently checking the newer Sipeed B->C guidance and physical device identification; it should be appended as a separately sourced addendum, not silently inferred here.
+
+## Chronology: measured behavior and confounding
+
+1. N55/N56: CPU/ILM/DDR pretests and legacy32byte fill pass; V1TARGET rejected and headers observed zero. N56r1 changes three control-placement constraints and reroutes same logic; A/B/A/B reload comparison reproduces N56failure and N56r1success. R1passes13configuration expectations,80configuration sequence and5pixel oracles, but mesh later rejects material restoration. This is physical implementation dependence, not proof LW hardware is defective. N56r1 still setupFAIL−0.440ns.
+2. Minimal HDMI with no CPU/DDR: DCEautoPG0 visible -> same netlist constrainedSG0 no signal -> sameautoPG0 visible. ExplicitPG0 and laterSG4 visible. FullR8SG4 retains visible internal pattern while framebufferfetch remains blocked. Therefore HDMI signal and DDRfetch are separable failures; no general SG-resource erratum established.
+3. FullR1Linux boot confirmed via kernel logs and after cold power viaUART, GPU720p/SD/twoHIDs initialized. Serial input corruption/XOFF occurred. A CPU-parked RGB565framebuffer test with1.84MB contents verified still had roughly720underflows/frame, zero completedfetches. No Linux/game is required to reproduce that reader problem.
+4. R19: CPUparked, internalHDMIpattern/checksum correct. TARGET/legacy/emptyclear accepted. CLEAR16color or depth can stall. During depth-only stall,3uncachedCPUwrites32B plus guards reread exactly; noGPUbuffer change. This does not establish GPUrequestneverasserted or DDRuniversallygood. COPY16 is rejected with done advancing, descriptor header opcode29 correct, source/destination/Z unchanged; its identical packet passes RTL/mapped simulation.
+5. R19->R21r1: only observer helper/content changes + observation fanout, with all original application primitive connectivity/INIT conserved by audit. Same CST/SDC/PnR options, new physical implementation. R21r1globalSTAFAIL−2.602ns. Two loads give properJTAGTAPID but DMI timeout and blackcamera; same100kHzTCK R19before/after responds and showspattern. Thus not a demonstration that a timing-clean equivalent design failed.
+6. Exact-source reset simulation (R19/R21 chain, real50ms wait,50/80MHz): loss ofLOCK between50MHz edges is captured by AHBasyncreset while qualifier remains stale, leading to PORrelease49.5ns afterLOCKreturns; another pulse phase yields12.5nsPORpulse whiledelay_done0. Both logical defects are reproduced, but physical occurrence on card is not established.1nsstimuli demonstrate logic, not guaranteed silicon pulse capture.
+7. R21r2coupled: isolated resetqualifier repair (async invalidation,2FFrelease,50ms wait; couple PLLready with observed AHBreset; clear both finalCPUresetpipeline stages). Exact-source, mapped-primitives and binary postroute helper-equivalence tests pass; globalSTAFAIL remains−4.813ns setup and−2.680ns recovery. SameDDR/USB/video application logic asR21r1; two new gates and twoCLEARconnections outsidehelper, plus new PnR.
+8. R21r2hardware now consistently responds overDMI: CPUexamined/parked0x80000004, ROM/GPU/geometry IDs exact. Fresh4reads over1.633s showframes0/checksum0 withmode0 andallframebuffer/layers/sprites disabled. R19pairedcontrol shows377588->377686frames and1ff8f800checksum. R21r2 restoredR19aftereachdiagnostic; finalmire andguardPASS. Current experiment does not distinguish pixelclock/reset fromcounterCDC. The latestcandidatephoto is obstructed/blurred and is NOT evidence ofa new blackscreen.
+9. Both versions' AHBUSBtraceID55544e41/status0/sequence0 have been read. No fresh USB-domain snapshot was requested duringthatreadonlytrial; zeros do not prove USBclockstopped. NoHSenumeration currently seen onNeo. R1earlierarmedtrace showed~12.87Mticks/200ms and~2.57M RXERRORcycles, noSOF/reset/token; that is anotherbuild and must not be promoted to currentmeasurement.
+
+Timing and positive source/mapped tests do not override these distinct physical outcomes. New PnR is a confound in all larger candidate changes. Source-level resets differ between Pro/L31/R19/R21r2; the common-underlying-architecture claim needs testing rather than assuming portability of integration.
+
+
+
+## contradiction_r1/README.md
+# Disposition ciblée DeepSeek / Beam — premier tour
+
+Les deux avis n'établissent pas de cause matérielle. Leur prudence sur le FAIL
+STA, les ressources LW, l'identité partielle du RTL et la portée des témoins est
+utile. Les classements de causes restent des hypothèses, pas des résultats.
+Aucune nouvelle simulation ou expérience matérielle n'a été exécutée ici.
+
+| Proposition des avis | Vérification et disposition |
+|---|---|
+| DeepSeek lignes 6/71–88 : la cible C ou l'ancien IP ne peuvent être la cause commune | Trop fort. L31r8 et R19 réfutent une incompatibilité universelle empêchant tout fonctionnement C/PG484. Ils ne réfutent pas un problème conditionnel de bloc, configuration, ressource ou intégration. Aucun couplage USB→GPU n'est démontré, mais son absence n'est pas prouvée non plus. |
+| DeepSeek ligne 20 : SHA manifeste = SHA Tcl | Faux libellé. Le SHA du Tcl est égal à la valeur stockée pour ce fichier dans le manifeste ; le fichier manifeste a son propre SHA. Le paquet contient les deux champs distincts. |
+| DeepSeek ligne 141 : FIFO FF pas nécessairement dans R19 | Réfuté directement. Les trois `source/tang/rtl/board/ddr_dcfifo.v` R19/R21r1/R21r2 ont le même SHA `449b5d7e65d3290f0b9cc1d5e574e09191d40bbfe8960f45374d9690e965103b`. Lignes 8–12 : substitution explicite des quatre slots CPU 100/64 bits. Elle était déjà présente dans R19. |
+| DeepSeek ligne 150 : COPY rejeté localise au handshake natif/arbitre | Faux. `gpu_copy565.v:78–94` valide le descripteur avant tout accès natif ; `descriptor_bad` peut mener à FINISH. La première requête de lecture n'arrive qu'en READ0, ligne 128. Le rejet observé ne prouve pas que ce chemin ait été exercé. Le header opcode29 ne valide pas les autres 248 bits ni les valeurs TARGET tenues. CLEAR bloqué et COPY rejeté restent deux symptômes distincts. |
+| Les deux avis : UTNA `[ID,0,0]` = snapshot stale | Terminologie fausse. `usb_idle_trace.v:74–78` expose ID, busy/rejected et compteur de captures terminées côté AHB. Ce sont bien les trois registres de contrôle lus, sans requête de capture. La banque USB à +40..bc n'a pas été lue. Ces trois valeurs ne mesurent pas l'activité du domaine USB. |
+| DeepSeek ligne 216 : source `vid_hrstn` non fournie | L'extrait du paquet omettait cette portion ; la source n'est pas inconnue. `ae350_soc.v:331–332` enregistre `exts_hrstn` sur `exts_hclk`; ligne369 le raccorde à `EXTS_HRSTN`. Dans le `.vo` R21r2, ligne1234562 : sortie hard CPU HRESETN→`u_soc/exts_hrstn`; lignes1122913–1122920 : DFFCE, D=ce net, CLK=vid_hclk, CE=VCC, CLEAR=GND, INIT0, Q=vid_hrstn. Ce n'est pas directement `hrst_sync[1]`, utilisé pour le pont DDR. Cela n'expose pas sa forme d'onde en MMIO. |
+| DeepSeek lignes 65–67/113/221/246 : exiger readback SRAM avant attribution ; SHA final différent | Le SHA final est R19 parce que la restauration est systématique et tracée ; ce n'est pas un désaccord de programmation du candidat. `program_coupled.log` contient le chemin FS exact, CRCCheck ON, SecurityBit ON, DONE et statut après programmation sans erreur détectée. `sram_readback_verified=false` reste une limite réelle, pas la preuve d'un chargement incorrect. La proposition de readback/checksum n'est pas exécutable telle quelle sous cette protection ; ne pas confondre checksum logiciel non vérifié et absence de CRC de configuration. |
+| Les deux avis : ticks USB positifs excluent une cause commune | Ils excluraient un arrêt total du domaine USB pendant la fenêtre capturée. Ils n'excluent ni défaut transitoire commun antérieur, ni reset libéré différemment, ni bruit/PLL séparées issues de la même référence. Si les deux observations échouent, cela ne prouve pas non plus un reset commun. Il faut conserver cette asymétrie dans les prédictions. |
+| Beam ligne 214 : test UTNA « read-only » | Faux périmètre : les commandes 1/6/2 écrivent l'observateur et modifient son état. Elles ne pilotent pas le datapath USB, mais c'est une nouvelle expérience commandée, distincte des lectures terminées. |
+| Beam lignes 32/152 : absence de commit/fetch explique frames0 en mode0 | Non démontré et non nécessaire au motif interne : le balayage de base n'attend pas un commit framebuffer. `gpu_scanout.v:245–274` incrémente frames au passage de trame tant que prst est libéré. Le fetch mémoire est séparé et désactivé dans cet essai. |
+| Beam lignes 257/278/283 : STA devient latence supplémentaire ; reset donne forcément aléatoire/guards faux ; rejet déterministe sépare logique et physique | Prédictions non fondées. Une violation peut produire mauvaise capture, état stable erroné ou absence d'effet ; une erreur physique peut être répétable. Une simulation RTL sans délais ne manifeste pas une violation STA. Ces propositions ne constituent pas des tests discriminants valides en l'état. |
+| Beam ligne 116 : R19 a corruption UART et boot Linux ; ligne283 : R19 déjà qualifié | Chronologie mélangée. Le boot Linux/UART corrompu cité appartient à R1. R19 est un diagnostic au timing FAIL, avec certains témoins matériels réussis, pas une version globalement qualifiée. |
+| DeepSeek/Beam : absence d'exception init_sync = chemin non couvert | Le chemin est précisément analysé et FAIL en recovery. L'absence de false_path n'est pas une absence de couverture. Le rapport établit une nouvelle frontière reset ; il faut distinguer sensitisation au démarrage (delay_done0) et libération finale, comme dans la note postroute. Aucun faux chemin à ajouter. |
+
+Les trois expériences déjà effectuées — CLEAR depth avec écritures CPU, COPY16
+avec oracle mémoire, R19/candidat/R19 avec mesures vidéo — ne doivent pas être
+relancées à l'identique comme « nouveau discriminant ». Une séquence plaçant
+CLEAR avant COPY s'arrête sur le blocage connu et n'apporte aucune observation
+COPY supplémentaire. Les simulations de qualification reset et les contrôles
+mappés existent déjà ; leur répétition n'établirait pas une occurrence physique.
+
+L'apport concret à conserver est le prochain relevé UTNA frais, avec ACK et
+banque stable, couplé aux compteurs vidéo et à une vue non obstruée, sous contrôle
+root. Ce relevé teste la vie partielle des domaines ; il ne décide pas à lui seul
+entre « une cause commune » et « plusieurs défauts ».
+
+Complément vérifié après le premier paquet : `../init_audit_01/` ne trouve aucun
+INIT incohérent avec DFFCE/DFFPE dans les quatre netlists. Cette absence de conflit
+ne prouve pas la présence des clocks ni la distribution physique des resets.
+
+
+## init_audit_01/README.md
+# Contrôle des valeurs initiales et resets — 27 octobre 2026
+
+Le contrôle des primitives routées ne trouve pas de conflit entre la polarité
+asynchrone et INIT dans les quatre versions examinées. Cela ne mesure pas la
+bonne distribution physique du reset ni la présence des horloges.
+
+| Version | DFFCE avec INIT0 | DFFPE avec INIT1 | Valeur incompatible ou INIT absent |
+|---|---:|---:|---:|
+| Pro Dock G22r0 | 13 930 | 166 | 0 |
+| Neo R19 | 15 537 | 165 | 0 |
+| Neo R21r1 | 15 545 | 165 | 0 |
+| Neo R21r2 couplé | 15 552 | 165 | 0 |
+
+`all_async_result.json` lie ces comptes aux quatre fichiers `.vo` exacts.
+Le contrôle porte sur les types DFFCE et DFFPE explicitement instanciés ; il
+ne prétend pas couvrir toutes les variantes de primitives Gowin.
+
+Le contrôle ciblé dans `result.json` couvre également tous les paramètres et
+raccordements des 195 FF Pro Dock et 198 FF de chacune des trois versions Neo :
+
+- synchroniseurs `pixel_up`, `u_gpu/prst` et `ae350_rst_sync` ;
+- `cdc_word` des images et de la somme vidéo : 71 FF par instance ;
+- trois séquenceurs de reset USB, y compris leurs compteurs.
+
+Les 198 noms, types et INIT sont identiques entre R19, R21r1 et R21r2. Les
+raccordements routés complets et lignes figurent dans `cells.json` ; cette
+identité de type/INIT n'est pas une identité des délais physiques.
+
+Les FF `pixel_up` et `prst` sont des DFFCE INIT0. Les deux FF
+`ae350_rst_sync` sont des DFFPE INIT1. Les trois sorties de reset USB sont
+également des DFFPE INIT1. Dans les deux `cdc_word`, les contrôles
+asynchrones sont constants GND, les FF ont INIT0 ; `req`, `ack`, `ack_s`,
+`req_s` et `hold` ont des initialisations explicites dans le RTL.
+`dst_data` n'en a pas, et reçoit INIT0 au mapping. Cette valeur par défaut
+ne constitue pas un conflit de polarité asynchrone. La mise à jour effective
+dépend encore de la présence des deux horloges et de la poignée de main.
+
+Le journal de synthèse N56r9, origine active des cellules considérées, contient
+deux avertissements EX2478 : déclaration initialisée des sorties `valid` de
+`gpu_blit_dma` et `reset` de `usb_reset_release`, en mode SystemVerilog. Ces
+messages sont conservés. La primitive routée du reset USB porte pourtant
+bien INIT1 ; le message seul ne prouve donc pas une initialisation physique
+incorrecte. Les helpers d'observation/reset ont aussi des EX2478 archivés.
+Aucun message de conflit entre INIT et reset asynchrone n'a été trouvé dans
+ces journaux examinés. Le journal synthèse Pro Dock original n'est plus dans
+les dossiers archivés disponibles ; son absence n'est pas interprétée comme
+absence historique d'avertissement.
+
+La note RN100-1.9.12.03E signalée par root justifie ce contrôle. Elle n'établit
+pas un défaut sur ces versions : la piste d'une constante INIT contradictoire
+n'est pas reproduite ici. Une capture physique manquée, une libération de reset
+mal synchronisée ou un défaut d'horloge restent des questions différentes.
+Aucun RTL, contrainte, bitstream ou état de carte n'a été modifié.
+
+
+## video_pll_audit_01/README.md
+# PLL vidéo : différence réelle, cause non établie
+
+Lecture des sources figées et des netlists routées R19, R21r2 et G22r0.
+Les paramètres et ports sont extraits dans `result.json`, avec SHA et lignes.
+Aucune recompilation ni mesure matérielle.
+
+| Paramètre | Neo R19 / R21r2 | Pro Dock G22r0 |
+|---|---|---|
+| DYN_ICP_SEL / DYN_LPF_SEL | TRUE / TRUE | FALSE / FALSE |
+| Entrées ICPSEL / LPFRES / LPFCAP | Toutes zéro | Toutes zéro, contrôle statique sélectionné |
+| Paramètres ICP_SEL / LPF_RES | X / X, non sélectionnés en mode dynamique | X / X, calcul automatique par Gowin en mode statique |
+| RESET PLL | GND | GND |
+| VCO / sortie vidéo nominale | 743,75 / 74,375 MHz | 1050 / 35 MHz |
+
+UG306-1.0.9E, tableaux 5-2 et 5-3, définit le choix statique/dynamique :
+le code ICPSEL zéro donne le courant minimal, LPFRES zéro la bande passante
+la plus large. Les X des paramètres statiques demandent un calcul automatique
+par Gowin ; ils ne représentent pas une entrée physique inconnue.
+Source primaire : https://cdn.gowinsemi.com.cn/UG306E.pdf
+Copie officielle locale lue :
+`/home/michael/logic_analyser_wifi/UG306-1.0.9E_Arora V Clock User Guide.pdf`.
+
+Cela prouve une configuration analogique différente de la PLL vidéo, pas un
+paramètre interdit ni une PLL physiquement instable. La documentation consultée
+ne donne pas une borne permettant de déclarer ces codes zéro invalides pour
+743,75 MHz. Les modèles numériques ne valident pas cette boucle analogique.
+
+Contrepoint essentiel : le fichier vidéo de l'analyseur L31r8 figé est strictement
+identique au fichier Neo R19/R21r2, SHA
+`0f70154da8757fcc14bbaa578659c48db07121ca2db3bc8208d57bbc892b9ef8`.
+Son `la_top.v:507–508` branche aussi ces trois entrées à zéro. L31r8 et R19
+ont affiché une image ; la configuration n'empêche donc pas systématiquement
+le fonctionnement. Une sensibilité conditionnelle n'est pas exclue.
+
+Le top Neo libère `pixel_up[2]` après trois fronts pixel de LOCK haut,
+environ 40 ns, sans qualification continue 2 ms de ce signal. UG306 demande
+2 ms d'observation avant de confirmer le verrouillage. C'est une lacune de
+qualification du démarrage HDMI. Le reset du scanout est une autre chaîne,
+issue de `vid_hrstn`, et la séquence CPU attend 50 ms : ne pas les confondre.
+Cette lacune n'établit pas que le PLL LOCK ait glitché pendant nos essais,
+ni qu'elle explique le compteur scanout nul, le GPU ou l'USB.
+
+Prochaine vérification utile : comparer cette configuration aux paramètres
+calculés par le générateur officiel pour la même cible et les mêmes fréquences,
+et obtenir une observation indépendante de pixel_clk / LOCK / resets. Une
+différence de paramètres seule ne justifie pas de lancer une série de routages.
+
+
+## video_pll_audit_01/result.json
+{
+  "neo_r19": {
+    "file": "tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.vo",
+    "sha256": "c519aedf27fdd29151ee10a668dcc9577bee8546dac2bdd6d263a2040ec1b6a2",
+    "line": 118627,
+    "parameters": {
+      "FCLKIN": "\"50\"",
+      "IDIV_SEL": "2",
+      "FBDIV_SEL": "1",
+      "MDIV_SEL": "29",
+      "MDIV_FRAC_SEL": "6",
+      "ODIV0_SEL": "2",
+      "ODIV2_SEL": "10",
+      "DYN_ICP_SEL": "\"TRUE\"",
+      "DYN_LPF_SEL": "\"TRUE\"",
+      "ICP_SEL": "6'bXXXXXX",
+      "LPF_RES": "3'bXXX",
+      "LPF_CAP": "2'b00"
+    },
+    "ports": {
+      "RESET": "GND",
+      "ICPSEL": "{GND, GND, GND, GND, GND, GND}",
+      "LPFRES": "{GND, GND, GND}",
+      "LPFCAP": "{GND, GND}"
+    }
+  },
+  "neo_r21r2": {
+    "file": "tang/impl/console_neo_n56r21r2_resetqual_coupled/impl/pnr/console_neo.vo",
+    "sha256": "1ed1aeae0b3830b20b2733a58a2d06e955ebfe252e7148479b900f1b44fda4a9",
+    "line": 118652,
+    "parameters": {
+      "FCLKIN": "\"50\"",
+      "IDIV_SEL": "2",
+      "FBDIV_SEL": "1",
+      "MDIV_SEL": "29",
+      "MDIV_FRAC_SEL": "6",
+      "ODIV0_SEL": "2",
+      "ODIV2_SEL": "10",
+      "DYN_ICP_SEL": "\"TRUE\"",
+      "DYN_LPF_SEL": "\"TRUE\"",
+      "ICP_SEL": "6'bXXXXXX",
+      "LPF_RES": "3'bXXX",
+      "LPF_CAP": "2'b00"
+    },
+    "ports": {
+      "RESET": "GND",
+      "ICPSEL": "{GND, GND, GND, GND, GND, GND}",
+      "LPFRES": "{GND, GND, GND}",
+      "LPFCAP": "{GND, GND}"
+    }
+  },
+  "prodock": {
+    "file": "tang/impl/gpu_geometry_g22r0/impl/pnr/console_gpu_geometry_g22r0.vo",
+    "sha256": "0d8715a85d66b6029460dd87b83fb3cc5db1c9a6fe63fea9de508b406bc0025e",
+    "line": 120427,
+    "parameters": {
+      "FCLKIN": "\"50\"",
+      "IDIV_SEL": "1",
+      "FBDIV_SEL": "1",
+      "MDIV_SEL": "21",
+      "MDIV_FRAC_SEL": "0",
+      "ODIV0_SEL": "30",
+      "ODIV2_SEL": "128",
+      "DYN_ICP_SEL": "\"FALSE\"",
+      "DYN_LPF_SEL": "\"FALSE\"",
+      "ICP_SEL": "6'bXXXXXX",
+      "LPF_RES": "3'bXXX",
+      "LPF_CAP": "2'b00"
+    },
+    "ports": {
+      "RESET": "GND",
+      "ICPSEL": "{GND, GND, GND, GND, GND, GND}",
+      "LPFRES": "{GND, GND, GND}",
+      "LPFCAP": "{GND, GND}"
+    }
+  },
+  "scope": "Read-only mapped parameters; no analog simulation or physical clock/LOCK measurement; no build."
+}
+
+
+## web_reset_independent.md
+**Recherche primaire indépendante — reset et démarrage GW5AST-138, 27 octobre 2026**
+
+Lecture seule, sauf cette note. Aucun build, changement RTL, accès carte ou commande de programmation. Contexte relu : `ARCHI/COMPATIBILITE_CARTES.md` et `tang/boards/ownership.json`. Les identités Pro Dock FPG676/B et Neo PG484/C sont le contexte du diagnostic, pas une identification physique refaite ici. Les pages ci-dessous sont les **pages imprimées**, non les indices PDF.
+
+| Sujet | Ce que la source primaire établit | Portée / réserve |
+|---|---|---|
+| Révisions B/C | Sipeed annonce le passage B→C depuis juillet 2025 pour **PG484A et FPG676A**. Pour C, sélectionner `Device Version: C` ; sinon la SSRAM est inutilisable. [Install IDE](https://wiki.sipeed.com/hardware/en/tang/common-doc/get_started/install-the-ide.html), rubrique Download, note après le tableau ; page affichant v1.2 mais contenu actualisé après cette date. | Prescription de configuration du projet ; pas une spécification de reset. Le boîtier seul ne détermine donc pas B/C. |
+| Identification | Troisième ligne du marquage laser, cinquième caractère : révision A/B/C. [Sipeed, Solutions](https://wiki.sipeed.com/hardware/en/tang/common-doc/questions.html), « How to Identify Device Version », page affichant v0.3. | La chaîne de grade `C1/I0` n'est pas une preuve de stepping C. |
+| Configuration / DONE | DONE est bidirectionnel, drain ouvert, rappel faible ; haut indique le réveil terminé. Une contrainte externe basse peut retarder ce réveil. Le manuel précise toutefois que DONE n'a pas à être pris en compte pour la configuration SRAM par JTAG. [UG704-1.0.9E, 27/08/2026](https://cdn.gowinsemi.com.cn/UG704E.pdf), p.9. | Ne pas transformer DONE en preuve de verrouillage PLL ou de disponibilité de chaque domaine utilisateur. |
+| GSR / réveil | La séquence active les sorties, protège les bascules par GSR, puis libère GSR avant la fin du réveil. [UG704](https://cdn.gowinsemi.com.cn/UG704E.pdf), p.51. La primitive GSR est active bas, entrée au niveau haut par défaut. [SUG283-3.6.1E, 22/09/2026](https://cdn.gowinsemi.com.cn/SUG283E.pdf), §8.1 p.20. | Cela ne documente pas une libération synchronisée sur chaque horloge utilisateur, ni l'équivalence GSR/POR_RSTN/HW_RSTN. |
+| LOCK / reset PLL | Si la référence était instable pendant le fonctionnement, ou après commutation de référence, réinitialiser la PLL une fois la référence stabilisée. LOCK peut présenter des impulsions pendant l'acquisition ; surveillance continue **au moins 2 ms** prescrite. [UG306-1.0.9E, 12/08/2026](https://cdn.gowinsemi.com.cn/UG306E.pdf), §5.1 p.39–40. | Un premier front LOCK ne satisfait pas à lui seul ce contrat. Ce constat documentaire ne prouve pas que ce défaut cause l'incident Neo. |
+| PLL_INIT | Pour les PLL 138K, l'horloge d'initialisation `init_clk` doit être dans **1–100 MHz** ; partage avec CLKIN possible à 20/50 MHz. [UG306](https://cdn.gowinsemi.com.cn/UG306E.pdf), p.54–55 ; famille GW5AST-138 dans le tableau p.34. | Les règles `pll_init_bypass`/mDRP p.97–98 concernent la section **PLLA** : ne pas les transposer automatiquement aux PLL 138K. Aucun erratum public B/C de PLL_INIT trouvé dans cette recherche. |
+| Délais PLL | `TLOCKMAX=15 ms`, impulsion reset PLL minimale **10 ns**. [DS1239-1.0.3E, 24/10/2025](https://cdn.gowinsemi.com.cn/DS1239E.pdf), tableau 3-18 p.44–45. | Le `TGPLLLOCK=2 ms` p.47 concerne le **transceiver** ; ce n'est ni TLOCKMAX du fabric, ni la durée de qualification de LOCK d'UG306. Ces délais ne dimensionnent pas directement POR/HW de l'AE350. |
+| AE350 : horloges | Core, DDR et groupe AHB/APB sont asynchrones entre eux ; **AHB et APB sont synchrones, rapport 1:1**. Core obligatoirement sur `PLL_R[0].CLKOUT1`, avec contrainte de placement. `PLL_L[0].CLKOUT2` pour DDR est recommandé. [MUG1031-1.3.1E, 23/01/2026](https://www.gowinsemi.com/upload/database_doc/2725/document_ja/69811021aaeed.pdf), p.11, 44, 46. | Distinguer l'obligation core, la recommandation DDR et les autres sorties données en exemple. |
+| AE350 : resets | `POR_RSTN` et `HW_RSTN` sont des entrées. `APB_PRSTN`, `EXTS_HRSTN`, `DDR_HRSTN`, `ROM_HRSTN` sont des sorties ; `FR_PRESETN` est une entrée du bloc flash. [MUG1031](https://cdn.gowinsemi.com.cn/MUG1031E.pdf), tableaux p.13–17. | Les noms locaux `PRESETN`/`HRESETN` doivent être reliés au bon port et au wrapper exact. Ce manuel ne donne pas de largeur minimale POR/HW, ni d'ordre de désassertion spécial B/C. Ne pas en inventer un à partir des noms. |
+
+**Contradiction à conserver explicitement.** UG704 p.14 et p.16 impose TCK de configuration ≥15 MHz aux versions A/B, sans minimum aux autres révisions ; p.17 précise qu'un reset TAP ne réinitialise pas CPU/périphériques. La [FAQ Sipeed](https://wiki.sipeed.com/hardware/en/tang/common-doc/questions.html), « Download frequency », recommande au contraire ≤2,5 MHz sans préciser ce cas. Portées/outils à clarifier avant toute conclusion ou changement de sonde : cette divergence ne démontre pas un problème de runtime après chargement.
+
+**Conséquence pour la revue — inférence, pas diagnostic.** Séparer les preuves de configuration/réveil, qualification LOCK, exécution de PLL_INIT, resets AE350 et resets de chaque périphérique. Une différence B/C peut rendre des IP ou mappings incompatibles, mais le symptôme « Pro Dock fonctionne, Neo échoue » ne démontre ni une cause commune ni une cause unique. Un délai ajouté, un slack négatif ou le nom d'une ressource LW ne remplace pas l'observation d'un contrat violé. La recherche n'a pas trouvé de spécification publique disant « C exige un reset plus long que B » ; absence trouvée n'est pas preuve d'absence d'erratum fournisseur.
+
+Traçabilité de lecture : UG704, DS1239, SUG283 et pages Sipeed consultés sur leurs sites primaires. Les ouvertures complètes UG306/MUG1031 ont rencontré timeout/HTTP403 ; lecture complémentaire des copies officielles déjà locales, sans modification : `reset_contract_01/UG306_109E.txt` (SHA-256 `69718b265a080023437835a0821d6d9f2e71d42eb021cef9d956f2f2216623de`) et `vendor_docs/MUG1031-1.3.1E.pdf` (`1f89dd6b591e439bef1b148fe4ea00cea79d1afb362df3822782255d97e26c0e`), sous `TESTS/neo_720p_20261012/capture_memory_20261027/`. Les extraits indexés du document primaire MUG1031 corroborent notamment ses ports et la page 44. Pas de recours à un miroir tiers comme autorité technique.
+
+ADDITIONAL VERIFIED FACTS (agent inspection; mapped cone extraction pending):
+MIN_LOCK_CYCLES=104000 (2.08ms at50MHz), no top override. vid_hrstn is hard CPU HRESETN registered once by vid_hclk; EXTS_HCLK=AHB_CLK. GPU busy_sync samples blitter_busy || queue_valid || command_word!=0, and blitter_busy includes (wp-rp)>=8. The same RTL expression exists on protected Pro Dock. Thus logic before synchronizer is a real audit candidate but is not yet a causal explanation; first determine whether it only feeds status or participates in command acceptance. A working CPU at observation time does not exclude earlier reset transients. A working L31r8 does not exclude conditional target/IP/resource issues. A visible or failed sub-block cannot by itself demonstrate exactly three independent faults.

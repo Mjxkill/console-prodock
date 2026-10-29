@@ -1,0 +1,79 @@
+Revue ciblée de `audit_postroute.py` : je liste uniquement les trous qui peuvent produire un PASS à tort, avec patch minimal et test discriminant.
+
+## Trous menant à un faux PASS
+
+**1. Pins de cellules parentes au nom de net inchangé mais au pilote changé** (`audit_postroute.py:108`, `:110`). Fait : une cellule dont le dict `pins` est identique est ignorée (`old[name]==new[name]` puis `continue`), et `delta` ne compare l'identité du pilote que pour les pins dont le nom de net a changé. Hypothèse réaliste : la renumérotation de nets entre deux runs réutilise un nom `nXXX_Y` pour une autre logique. Scénario : la cellule A garde son nom, sa sortie migre sur un autre net (classée `aliases`, l.117 satisfait) ; la cellule B garde `I0=foo` mais `foo` est désormais pilotée par une cellule `EXTRA`. Résultat : rewiring d'une entrée parente, `application_structural` PASS.
+
+```python
+ for name in old.keys()&new.keys():
+  if name.startswith(LOCAL) or name in expected_bus_changes:continue
+  ok,oi=old[name];nk,ni=new[name]
+  delta={p:dict(before=oi.get(p),after=ni.get(p)) for p in oi.keys()|ni.keys()
+         if oi.get(p)!=ni.get(p) or od.get(oi.get(p),set())!=nd.get(ni.get(p),set())}
+  if ok==nk and not delta:continue
+```
+Condition : `drivers()` (l.28) ne connaît que `Q F O G V`. Un net piloté par `SUM`/`COUT` d'ALU ou `Q0/Q1` apparaît sans pilote dans les deux netlists et passe la comparaison. Compléter le tuple et reporter le nombre de nets référencés sans pilote connu dans `result`, gaté à zéro.
+
+**2. Identité de bit held→shadow jamais prouvée** (`:98-103`, `:178-183`). Faits : la boucle bus vérifie le *nom* de net `trace_held[j]` sur I1 mais `drivers` (l.103) est seulement journalisé ; la boucle shadow exige `hs` non vide, pas `hs == held_j` ; `foreign` exclut tout ce qui commence par `BUS`. Un échange de pilotes `held_12_s1/Q` ↔ `held_13_s1/Q` au niveau .vo+SDF laisse les noms de nets intacts et passe tous les gates. Un FF held non observé par aucun shadow n'est pas détecté non plus.
+
+```python
+ held_name={int(m[1]):n for n in new if (m:=re.fullmatch(re.escape(LOCAL)+r'held_(\d+)_s1',n))}
+ assert set(held_name)==set(range(64))-set(held_alias),sorted(held_name)
+ # boucle bus, après la ligne 98 :
+   want={('constant','GND')} if j is None else {(held_name[j],'Q')}
+   ok=ok and nd.get(net,set())==want and nd.get(after[1].get('I0'),set())=={(BUS+'up_1_s1','Q')}
+ # boucle shadow, remplace le test de la ligne 182 :
+   j=held_alias.get(bit,bit);want={BUS+'up_1_s1'}|(set() if j is None else {held_name[j]})
+   if set(found)!=want:shadow_bad[name]=dict(origins=sorted(found),expected=sorted(want))
+ # gate :
+   held_shadow=... and {x['source'] for x in held}==set(held_name.values())
+```
+Le suffixe exact du FF `up[1]` dans le .vo est à confirmer, à dériver comme pour `shadow_(\d+)_s1`.
+
+**3. `constants` non gaté** (`:160-161`, `:204`). Fait : un pin D ou CE d'un FF observateur tiré à une constante est journalisé puis `continue`. Un bit `held`/`at_event` mort reste invisible si au moins un autre `bounds` existe. Le gate n'exige pas non plus une borne par FF.
+
+```python
+ bound_ff={x['destination'].rsplit('/',1)[0] for x in bounds}
+ observer_cones=bool(bounds) and bound_ff==set(sample+memory+held_ff) and not(constants or uncovered or crossings or clock_missing or terminals or cycles)
+```
+
+**4. Types de FF non filtrés** (`:146`, `:157`). Fait : `startswith('DFF')` accepte `DFFN*` et `DFFR*/DFFS*`. Un FF negedge recevrait une période pleine en `:172` au lieu d'une demi-période. Un pin `RESET`/`SET` synchrone sort du cône l.157 et n'est qu'énuméré dans `async_controls`, non gaté.
+
+```python
+ bad_kinds={n:v[0] for n,v in observer_ff.items() if v[0] not in ('DFF','DFFE','DFFC','DFFCE')}
+ observer_clocks=not wrong_clocks and not bad_kinds
+```
+
+**5. Complétude des arcs SDF non prouvée** (`:66`, `:137`). Fait : l'assertion `parsed==raw` prouve que chaque ligne présente a été parsée, pas qu'un arc attendu existe. Un INTERCONNECT absent vers un pin produit `TERMINAL` et échoue, mais un IOPATH `I2→F` absent sur une LUT du cône fait disparaître silencieusement l'origine via I2, y compris une origine CDC. Patch dans `origins()` après le test `incoming.get(pin)` :
+
+```python
+  kind,pins=new[name];got={s.rsplit('/',1)[1 if port in outs.get(name,()) else 0] for s,_ in incoming[pin]}
+  want=set(pins)-{port} if port in outs.get(name,()) else {n for n,p in nd.get(pins.get(port),set()) if n!='constant'}
+  if want!=got:cone_gaps.append(dict(pin=pin,vo=sorted(want),sdf=sorted(got)))
+```
+avec `outs[name].add(dest)` collecté en `:53` et retourné par `parse_sdf`, et `cone_gaps` ajouté au gate `observer_cones`. Les écarts sur cellules multi-sorties remontent en revue explicite, pas en waiver.
+
+**6. Marge held→shadow sans latence d'horloge** (`:187`). La formule ignore `clocks[origin]` et `clocks[name]` alors que `:172` les utilise. Le budget de deux cycles est conservateur par rapport au RTL (`neo_capture_bus.v:36-45` : capture au cinquième front HCLK après le front GPU au plus tôt), donc ce n'est pas un faux PASS aujourd'hui, mais la cohérence coûte une ligne :
+
+```python
+   sd=clocks[origin][1];dd=clocks[name][1]
+   protocol_margin_ns=None if sp is None else 2*bus_period+min(dd)-max(sd)-max(delay)-sp
+```
+
+## Preuve manquante sur le qualificatif global
+
+`:202` repose sur `inspect()` et `timing_checks()` non fournis. `len(timing)==4` ne dit pas quelles quatre valeurs. `:221` admet que le `set_max_delay 8ns` a des échecs STA « reportés séparément », mais aucun champ de `result` ne les contient. Si `inspect` renvoie PASS en ignorant ce groupe, `qualification_status=PASS` masque un échec STA réel. Il faut fournir le format de la section max_delay du `.tr`, puis ajouter un champ `sta_max_delay_failures` et un gate vérifiant que chaque endpoint en échec est exactement un `shadow_*/D` couvert par `held`. Aucun autre endpoint ne doit échouer.
+
+Point cosmétique : le commentaire `:153` cite « bit48/50 » et « held[63:60] » alors que l'alias réel est 50=49 et que held[61] est GND. À aligner sur `:94`.
+
+## Tests discriminants, sans matériel
+
+Chacun se fait sur une copie du `.vo` et du `.sdf`, et doit passer de PASS à FAIL après patch :
+
+1. Échanger les pilotes `held_12_s1/Q` et `held_13_s1/Q` dans les INTERCONNECT et dans le .vo en gardant les noms `trace_held[*]`. Script actuel : PASS.
+2. Renommer les nets pour qu'une entrée de LUT parente garde son nom mais soit pilotée par `u_accel/trace_observe_pixel_valid`. Script actuel : PASS.
+3. Connecter `held_20_s1/D` à `GND`. Script actuel : PASS avec `constants` non vide.
+4. Supprimer une ligne IOPATH `I2 F` d'une LUT du cône `at_event_5_s1`. Les compteurs `:66` restent cohérents, le script actuel passe.
+5. Remplacer `DFFCE` par `DFFNCE` pour un `after_event_*`. Script actuel : PASS avec borne surestimée.
+
+Chaque test journalise le `sha256` de la copie mutée dans `result.json` pour que la preuve négative soit reproductible.

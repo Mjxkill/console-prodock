@@ -1,0 +1,205 @@
+## 1. Correction d’identifiants et verdict recalculé
+
+Je retire explicitement ma conclusion antérieure fondée sur la confusion `kind` zéro-based / `mode=kind+1`. Le paquet la réfute :
+
+- `gpu_motion_probe.c` (SHA `c30ff894…`) teste bien `g->activities.arcade.active != kind + 1`, y compris dans `main`.
+- La fenêtre étiquetée `MODE 4` a `"kind": 4.0` et `"done": {"active": 5.0}` : c’est donc **MAISON** en fenêtre zéro-based.
+- Dans le vrai tour, la ligne correspondante est `"mode": 5.0, "name": "Maison"`.
+- Les 60 Ko/image et le pic de copie appartiennent donc bien à MAISON candidate : `dynamic_bytes = 21 495 360` pour 360 images = **59 709 B/image (~58,3 Kio)** ; `GPU_TOP rank=0 index=28 page=0 mesh_publish=0.054952288 s` dans `VARIANTE candidate MODE 4`.
+
+### Coût dominant recalculé, MAISON candidate vs shooter candidate
+
+Fenêtre `kind=4` / `active=5`, phase `moving`, 360 images :
+
+| Segment | Temps | Part du mur |
+|---|---:|---:|
+| `simulation` | 1,532 s | 5,2 % |
+| `preparation` | 8,236 s | 27,9 % |
+| dont `dynamic_publish` (mesh) | 4,002 s | 13,6 % du mur ; 48,6 % de `preparation` |
+| `submit` | 14,501 s | **49,2 %** |
+| `present` | 5,120 s | 17,4 % |
+| total | 29,463 s | — |
+
+Pour le shooter candidate (`kind=6` / `active=7`, 360 images) :
+
+| Segment | Temps | Part du mur |
+|---|---:|---:|
+| `simulation` | 0,888 s | 12,3 % |
+| `preparation` | 0,808 s | 11,2 % |
+| `submit` | 0 | 0 % |
+| `present` | 5,448 s | **75,6 %** |
+
+**Verdict recalculé :** en mouvement, MAISON candidate est dominée par `SUBMIT` (49,2 %), pas par la copie. La copie mesh représente néanmoins 13,6 % du mur et 48,6 % de `preparation` : c’est la composante logicielle copiée la plus identifiable, mais une optimisation minoritaire du coût total. Le shooter est dominé par `PRESENT` (75,6 %), avec `SUBMIT` nul dans cette fenêtre : le cache de publication ne viserait pas son coût principal.
+
+Il ne faut pas attribuer `SUBMIT` au raster : `prodock-gpu.c:127-188` y inclut `prodock_cache_sync`, l’alimentation FIFO, l’attente de complétion et un `usleep_range(10,20)` (`prodock-gpu.c:147-183`).
+
+Le tour complet confirme la même hiérarchie pour MAISON mode 5 : 156 images, 11,83 FPS, `submit_ms_per_frame=38,98`, `preparation=26,73`, `present=12,26`. C’est une portée différente de la fenêtre, mais cohérente.
+
+---
+
+## 2. Ce que la nouvelle preuve établit exactement
+
+Les totaux de la nouvelle preuve correspondent exactement à MAISON candidate :
+
+| Phase | `bytes` | blocs 32 B identiques | mots identiques | premier bloc |
+|---|---:|---:|---:|---:|
+| entry | 168 064 | 0 | 0 | 168 064 |
+| rest | 1 008 384 | 1 008 384 (100 %) | 1 008 384 (100 %) | 0 |
+| moving | 21 495 360 | 14 293 120 (**66,49 %**) | 19 734 720 (**91,81 %**) | 0 |
+
+Ces trois totaux sont identiques aux `dynamic_bytes` de `VARIANTE candidate MODE 4` : 168 064 / 1 008 384 / 21 495 360. La preuve porte donc bien sur le même trace MAISON candidate.
+
+Faits :
+
+- En moving, un cache 32 B éviterait au plus **7 202 240 octets d’écriture destination** (33,51 %), pas 91,8 %. Le chiffre 91,8 % est au mot de 4 B et n’est pas directement exploitable sans comparaisons 4 B, probablement plus coûteuses.
+- En rest, 100 % des blocs sont identiques : seules les écritures destination peuvent disparaître.
+- `first_block_bytes=0` en rest/moving indique qu’aucun nouveau bloc n’est touché après l’entrée dans ce trace.
+- En entry, `first_block_bytes=168 064` : tous les blocs sont des premiers contacts ; un cache à bits de validité doit donc forcer 100 % des écritures d’entrée.
+
+Limites :
+
+- Le probe est marqué `"hardware": "0"` : c’est une preuve hôte/local, pas une mesure Pro Dock.
+- Elle conserve les `memcpy` d’origine (`original_writes_retained=1`) et compare les sources à une ombre RAM : elle prouve la redondance des données, pas le temps gagné, ni que les écritures GM1 matérielles sont inchangées.
+- Elle ne supprime ni la génération CPU, ni les DRAW, ni les attentes. Le repos à 100 % inchangé ne justifie qu’un write-if-changed 32 B.
+
+---
+
+## 3. Cache de publication borné : conception
+
+Invariant central :
+
+> Pour chaque page 26/27, `dyn_shadow[page]` est l’image exacte des octets déjà publiés dans `r->memory + (26+page)<<20`. Toute écriture vers 26/27 passe par le helper. Alors, sauter une écriture quand `source == shadow` ne change pas la mémoire finale.
+
+Cet invariant est le même que celui déjà utilisé par `mini_ui.c:289-306` : comparaison avec `r->mini_shadow[page]`, jamais avec la VRAM, puis écriture conditionnelle.
+
+### Capacité
+
+D’après `candidate_maze_render.c`, `seal()` écrit à `(26U+page)<<20` et vérifie `b->offset > ((27U+page)<<20)`. Chaque page dynamique fait donc **1 MiB** :
+
+- ombre : `2 × 1 MiB = 2 MiB` ;
+- validité : `2 × (1 MiB / 32) = 2 × 32 768 = 64 Kio` en octets par bloc, ou 8 Kio en bitmap ;
+- total : **~2,06 MiB**, alloués une fois à l’ouverture, jamais par `seal()`.
+
+### Invalidation par mode / epochs
+
+- L’identifiant doit être le **mode** (`activity_mode`, c’est-à-dire `kind+1`), pas le `kind`. MAZE, SIMON et PLATFORM réutilisent tous 26/27 via le même `seal()` de `l3_arcade_3d_render` ; la tâche ne cite que MAZE/PLATFORM, mais SIMON est aussi concerné par le code fourni.
+- Si tous les écrivains de 26/27 passent par le helper, l’invalidation par mode n’est **pas nécessaire à la correction** : l’ombre reste cohérente. Elle est une sécurité bon marché : au changement de mode, on remet seulement les bits de validité à zéro (64 Kio), pas les 2 MiB d’ombre.
+- Il ne faut **pas** invalider à chaque image ou à chaque tick de présentation. Le probe montre 100 % de blocs identiques en rest sur 12 images ; une invalidation par frame transformerait ce repos en 100 % d’écritures. L’epoch ne doit être incrémenté que sur un reset explicite qui réécrit ou efface 26/27 hors du helper.
+- Le paquet ne montre aucun `memset` de 26/27 dans les resets fournis. Si un chemin ultérieur efface ces banques, il faut l’instrumenter et incrémenter l’epoch. Si `presentation_epoch` change à chaque frame, il ne faut pas l’utiliser comme clé.
+- Une écriture hors-bande en même mode n’est détectée ni par le mode ni par l’epoch. Le seul remède robuste est : **interdire tout écrivain de 26/27 hors du helper**, ou instrumenter ces chemins.
+
+### Zones non écrites, allocation, double page
+
+- Bits de validité initialement à zéro : un premier bloc tous zéros doit être écrit même si l’ombre est initialisée à zéro. Sinon on laisse l’ancien contenu 0xAA.
+- Un mesh plus court laisse une queue ancienne dans la page : l’ombre continue de la refléter ; un mesh plus long force les blocs encore invalides. C’est correct tant que la destination n’est pas modifiée ailleurs.
+- Allocation : `malloc` pour l’ombre, `calloc` pour la validité. En cas d’échec, libérer les allocations partielles, laisser les pointeurs `NULL`, et `seal()` retombe sur `memcpy`. Le cache ne doit jamais faire échouer l’ouverture ni `seal()`.
+- Double page : deux ombres et deux tableaux de validité distincts. Il faut passer la page **explicitement** depuis le `Builder`. Inférer la page par `offset >= 27 MiB` est piégeux : un mesh page 0 qui atteint exactement 27 MiB serait classé page 1. Le code actuel autorise `b->offset == (27+page)<<20` (`>` et non `>=`), donc ce cas limite existe.
+- Hors bornes ou `bytes` non multiple de 32 : retomber sur `memcpy` pour conserver le comportement d’échec actuel, sans introduire de saut silencieux.
+
+---
+
+## 4. Pseudo-diff minimal
+
+### `luma3d_render.h`, après `maze_dynamic` (l.49-50)
+
+```c
+#define L3_DYN_BANK_BYTES (1U << 20)
+#define L3_DYN_BLOCK      32U
+
+    uint8_t *dyn_shadow[2];        /* 2 x 1 MiB, miroir RAM de 26/27 MiB */
+    uint8_t *dyn_valid[2];         /* 2 x 32768, un octet par bloc 32 B */
+    uint32_t dyn_owner[2];         /* mode = kind+1, pas kind */
+    uint32_t dyn_epoch[2], dyn_epoch_base;
+    uint64_t dyn_changed_bytes, dyn_skipped_bytes;
+```
+
+### `candidate_maze_render.c`
+
+Ajouter `unsigned page;` au `Builder`, et le renseigner dans les deux constructeurs dynamiques :
+
+```c
+/* geometry() et l3_arcade_3d_render() : page = r->frame & 1 */
+Builder b = { .r = r, .offset = (26U + page) << 20, .page = page, ... };
+```
+
+Helper :
+
+```c
+static void dyn_copy(L3Render *r, unsigned page, uint32_t offset,
+                     const void *src, unsigned bytes, unsigned mode)
+{
+    uint32_t base = (26U + page) << 20;
+    if (!r->dyn_shadow[page] || !r->dyn_valid[page] ||
+        offset < base || (offset - base) > L3_DYN_BANK_BYTES ||
+        bytes > L3_DYN_BANK_BYTES - (offset - base) ||
+        (bytes & (L3_DYN_BLOCK - 1))) {
+        memcpy(r->memory + offset, src, bytes); /* fallback exact */
+        return;
+    }
+    if (r->dyn_owner[page] != mode ||
+        r->dyn_epoch[page] != r->dyn_epoch_base) {
+        memset(r->dyn_valid[page], 0,
+               L3_DYN_BANK_BYTES / L3_DYN_BLOCK);
+        r->dyn_owner[page] = mode;
+        r->dyn_epoch[page] = r->dyn_epoch_base;
+    }
+    const uint8_t *s = src;
+    unsigned blocks = bytes / L3_DYN_BLOCK;
+    for (unsigned i = 0; i < blocks; ++i) {
+        unsigned at = (offset - base) + i * L3_DYN_BLOCK;
+        uint8_t *sh = r->dyn_shadow[page] + at;
+        if (r->dyn_valid[page][at / L3_DYN_BLOCK] &&
+            !memcmp(s + i * L3_DYN_BLOCK, sh, L3_DYN_BLOCK)) {
+            r->dyn_skipped_bytes += L3_DYN_BLOCK;
+            continue;
+        }
+        memcpy(r->memory + offset + i * L3_DYN_BLOCK,
+               s + i * L3_DYN_BLOCK, L3_DYN_BLOCK);
+        memcpy(sh, s + i * L3_DYN_BLOCK, L3_DYN_BLOCK);
+        r->dyn_valid[page][at / L3_DYN_BLOCK] = 1;
+        r->dyn_changed_bytes += L3_DYN_BLOCK;
+    }
+}
+```
+
+Dans `seal()`, remplacer les deux `memcpy` par :
+
+```c
+dyn_copy(b->r, b->page, start, b->v, b->nv * 32, b->r->activity_mode);
+b->offset += b->nv * 32;
+
+dyn_copy(b->r, b->page, b->offset, b->f, b->nf * 32, b->r->activity_mode);
+b->offset += b->nf * 32;
+```
+
+Conserver `l3_probe_mesh_publish(start, b->offset - start, ...)` avec les **octets logiques** : la comparabilité du probe est préservée. Ajouter éventuellement l’impression de `dyn_changed_bytes` / `dyn_skipped_bytes`.
+
+À l’ouverture : `dyn_cache_open(r)` avec `dyn_epoch_base = 1`, allocation des deux pages, fallback silencieux si échec. À la fermeture : libération. Ne pas incrémenter `dyn_epoch_base` par frame.
+
+Le helper ne lit jamais `r->memory` pour comparer : `memcmp` ne porte que sur `src` et `dyn_shadow`. La seule lecture de la source est normale ; la destination n’est jamais relue. Pour garantir qu’aucune lecture VRAM n’est générée par `memcpy`, on peut utiliser huit stores 32 bits volatils comme `mini_ui.c:301`, mais cela change le profil de stores et demande mesure.
+
+---
+
+## 5. Contre-exemples que le test local doit traiter
+
+1. **Équivalence octet pour octet** : exécuter le même trace GM1 avec `memcpy` d’origine et avec cache ; après chaque frame, comparer un hash des 1 MiB de chaque page 26/27. Attendu : identique. En mode hôte uniquement ; pas de lecture VRAM matérielle.
+2. **Entry/rest/moving** : entry doit écrire 168 064 B (validité vide), rest 0 B (1 008 384 B sautés), moving 7 202 240 B écrits / 14 293 120 B sautés si la trace est déterministe. Vérifier aussi `commands`, `batches`, `draws`, `triangles` et `state_crc32` identiques au baseline.
+3. **Premier bloc tous zéros** : préremplir la page avec 0xAA, publier un bloc source 32 × 0. Une ombre zéro-initialisée sans bits de validité sauterait à tort ; le cache doit écrire les zéros.
+4. **Double page asymétrique** : page 0 contient P0, page 1 contient P1 ≠ P0. Republier P0 sur page 0. Une ombre unique comparerait à P1 et produirait soit un faux saut, soit une écriture inutile ; les hashes des deux pages doivent rester corrects.
+5. **Page 0 remplie exactement à 27 MiB** : un `seal()` suivant ne doit jamais écrire en page 1. Le test doit utiliser la page explicite, pas `offset >= 27 MiB`.
+6. **Mesh court puis long** : page fraîche, publier 64 Kio, puis 128 Kio. Les blocs [64 Kio,128 Kio) doivent être forcés s’ils n’ont jamais été valides ; s’ils l’ont été, un contenu identique peut être sauté, mais la mémoire finale doit être identique.
+7. **Changement MAZE → SIMON/PLATFORM** : publier un bloc dont les 32 B coïncident avec l’ancien contenu MAZE. Le saut est correct si la destination contient réellement ces octets. Puis répéter avec une écriture hors-bande préalable : le cache doit être invalidé ou le test doit échouer, ce qui prouve que l’invariant « tous les écrivains passent par le helper » est vital.
+8. **Échec d’allocation** : injecter `malloc/calloc = NULL` ; `seal()` doit continuer à écrire exactement les mêmes octets, ne pas retourner 0, et les logs doivent indiquer le cache désactivé.
+9. **Taille non multiple de 32 / offset non aligné** : le helper doit retomber sur `memcpy` et ne pas toucher aux bits de validité.
+10. **Padding non déterministe** : remplir les octets de padding des structures avec des valeurs aléatoires ; le cache doit comparer les 32 B tels quels, sans normaliser le padding, et la destination doit rester exactement égale à la source.
+11. **Epoch non par frame** : vérifier que `dyn_epoch_base` est constant pendant les 12 images de rest ; sinon le gain 100 % disparaît.
+
+---
+
+## 6. Budget, preuves manquantes, non-claims
+
+- Le travail du helper est borné : au plus `bytes/32` itérations, deux lectures de 32 B (source + ombre), un `memcmp`, une écriture GPU conditionnelle de 32 B, une écriture d’ombre conditionnelle. Aucune allocation par appel.
+- Pire cas « tout change » : plus de trafic RAM que le `memcpy` d’origine (une lecture et une écriture d’ombre supplémentaires par bloc). Meilleur cas « tout identique » : aucune écriture GPU, mais les deux lectures restent. **Aucun gain de temps n’est garanti.**
+- Sur le trace mesuré, les écritures destination passent au plus de 22 671 808 B à 7 370 304 B sur entry+rest+moving (32,5 %), ou de 21 495 360 B à 7 202 240 B en moving. C’est une borne sur les octets écrits, pas sur les FPS.
+- Preuves manquantes : distribution des blocs inchangés par frame (le pic index 28 n’est pas caractérisé) ; temps matériel du cache (`hardware=0` dans le probe) ; liste exhaustive de tous les écrivains de 26/27 dans le binaire complet, notamment shooter ; sémantique exacte de `presentation_epoch` et de `activity_mode` avant `seal()` ; coût réel des stores 32 B vers la mémoire GPU ; séparation de `mesh_publish` dans le tour complet mode 5.
+- Je n’ai exécuté aucun test, aucune action matérielle, et je n’ai modifié aucune source. Les propositions ci-dessus sont dérivées uniquement du paquet fourni.

@@ -1,0 +1,44 @@
+Terrasses d’ambre R9 — essai userspace am1, Pro Dock uniquement
+
+Autorisation parent : essai borné R9, mêmes G22r0 / noyau G3D1, sans nouvelle
+revue parent bloquante. Aucun FPGA, noyau, SD, flash ou outil Neo.
+État lu sous verrou : ws1 PID1331/startticks8373701, noyau attendu, cinq
+compteurs DISPLAY nuls. Le contrôleur exige à nouveau cette identité fraîche
+avant transfert et avant arrêt ; aucune réutilisation si elle a changé.
+
+ELF R9 : 62a9178dab260dc5e60be8b9bcea90b35f370357691fb157e5d7fd45a90616ee.
+Retour ws1 : 78afc779447e76f221b509f7b3e4c9a2abb347f98ab405f23001c9567a75050c.
+Les fichiers et imports locaux sont vérifiés contre le manifeste. Le récepteur
+1464 octets est relu exactement avant emploi. Le delta vérifie taille/CRC de
+l’ancien ELF et du nouveau, sans écraser ws1. Toutes les références sont
+vérifiées avant arrêt du jeu visible. Fichiers uniquement dans /tmp tmpfs.
+
+Une annonce précède l’arrêt, puis une seconde précède la première apparition
+R9 de dix secondes. Verrou exclusif et un seul port CDC pendant l’essai.
+Sept scènes : ws1 pose0, R9 poses0/10730/11990/12500/14720, ws1 pose0.
+Chaque scène mesure trente images après trois de chauffe ; aucune écriture
+UART entre lancement et marqueur EXIT. Les 96 000 pixels et les banques HUD
+sont comparés à l’oracle exact de chaque scène, compteurs nuls exigés.
+Ces poses sont des fixtures par simulation préalable, pas le parcours réel.
+Le témoin d’arrivée détecte seulement une régression : temps/image R9 au plus
+10 % supérieur, dérive témoin finale au plus 5 %. Ce ne sont ni un objectif
+de gain ni des percentiles de stabilité ; le passage ajouté change l’image.
+En cas de dépassement, retour ws1 sans répétition opportuniste.
+
+Si les scènes passent : nouvelle partie sans --advance, sauvegarde V3
+/tmp/am1-progress.save, fenêtre de 300 s sans écriture UART après vérification
+du démarrage. Exiger encore un processus vivant, puis arrêt propre et
+validation courrier4/atelier4/ambre5/région0 : le retour doit être accompli.
+La durée du processus inclut les contrôles autour de la fenêtre ; ce n’est
+pas une durée humaine de jeu. Reprise manuelle d’une image avec fichier V3
+strictement identique ; V2 ws1 relue avant/après et préservée.
+
+Après succès, laisser /tmp/luma3d-am1 en visite automatique à l’arrivée des
+terrasses (--advance10730 vrais pas), /tmp/am1-live.save distinct. Vérifier
+progression des presents et publier le PID seulement ensuite. Libérer CDC
+et verrou. La démo a stdin fermé, ce n’est pas une session clavier active.
+
+Toute erreur/interrupt : abort du transfert si nécessaire ; arrêt borné du
+PID précis courant ; relance ws1 avec une COPIE V2 /tmp/am1-ws1-recovery.save.
+Un PID non publié ou ambigu interdit le second lancement. Aucun NEBULA.
+Les résultats interrompus/échoués restent conservés, jamais déclarés PASS.

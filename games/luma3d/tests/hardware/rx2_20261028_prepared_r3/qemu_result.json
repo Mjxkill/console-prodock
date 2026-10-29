@@ -1,0 +1,181 @@
+{
+  "passed": true,
+  "hardware": false,
+  "scope": "Exact new RV32 receiver + Linux/QEMU + real BusyBox ash and production sender; no physical serial device",
+  "cases": [
+    {
+      "name": "shell_bootstrap_verified_before_execution",
+      "passed": true,
+      "elf_bytes": 13132,
+      "wire_bytes": 61193,
+      "sha256": "9a5b401858d72b17be6ea5e6765e9994ba4173c8658f8169dd2de1f529e5810e"
+    },
+    {
+      "name": "clean_0",
+      "passed": true,
+      "frames": 1,
+      "retries": 0
+    },
+    {
+      "name": "clean_1",
+      "passed": true,
+      "frames": 2,
+      "retries": 0
+    },
+    {
+      "name": "clean_511",
+      "passed": true,
+      "frames": 2,
+      "retries": 0
+    },
+    {
+      "name": "clean_512",
+      "passed": true,
+      "frames": 2,
+      "retries": 0
+    },
+    {
+      "name": "clean_513",
+      "passed": true,
+      "frames": 3,
+      "retries": 0
+    },
+    {
+      "name": "clean_4096",
+      "passed": true,
+      "frames": 9,
+      "retries": 0
+    },
+    {
+      "name": "clean_16384",
+      "passed": true,
+      "frames": 33,
+      "retries": 0
+    },
+    {
+      "name": "header",
+      "passed": true,
+      "retries": 1
+    },
+    {
+      "name": "payload",
+      "passed": true,
+      "retries": 1
+    },
+    {
+      "name": "drop",
+      "passed": true,
+      "retries": 1
+    },
+    {
+      "name": "duplicate_char",
+      "passed": true,
+      "retries": 1
+    },
+    {
+      "name": "oversize",
+      "passed": true,
+      "retries": 1
+    },
+    {
+      "name": "duplicate_old_block",
+      "passed": true
+    },
+    {
+      "name": "stop_resume",
+      "passed": true
+    },
+    {
+      "name": "truncation_1",
+      "passed": true
+    },
+    {
+      "name": "truncation_17",
+      "passed": true
+    },
+    {
+      "name": "truncation_100",
+      "passed": true
+    },
+    {
+      "name": "truncation_740",
+      "passed": true
+    },
+    {
+      "name": "truncation_745",
+      "passed": true
+    },
+    {
+      "name": "lost_ack_resume",
+      "passed": true
+    },
+    {
+      "name": "late_suffix_in_shell",
+      "passed": true
+    },
+    {
+      "name": "slow_read_finite",
+      "passed": true
+    },
+    {
+      "name": "enospc_checkpoint",
+      "passed": true,
+      "offset": 4096,
+      "returncode": 4
+    },
+    {
+      "name": "enospc_resume",
+      "passed": true
+    },
+    {
+      "name": "resume_wrong_prefix_refused",
+      "passed": true
+    },
+    {
+      "name": "parent_symlink_refused",
+      "passed": true
+    },
+    {
+      "name": "final_symlink_refused",
+      "passed": true
+    },
+    {
+      "name": "hardlink_refused",
+      "passed": true
+    },
+    {
+      "name": "blocking_stdout_deadline",
+      "passed": true,
+      "elapsed_ms": 2005
+    },
+    {
+      "name": "stdin_hup_finite",
+      "passed": true,
+      "elapsed_ms": 100
+    },
+    {
+      "name": "wrapper_survives_errexit",
+      "passed": true
+    }
+  ],
+  "inputs": {
+    "games/luma3d/candidates/uart_rx2_20261028_r1/build_r3/receiver": "9a5b401858d72b17be6ea5e6765e9994ba4173c8658f8169dd2de1f529e5810e",
+    "games/luma3d/candidates/uart_rx2_20261028_r1/receiver.c": "89576f63473e13fa3f783a5d75b4c20f8797f4828451b771e21d7fc26bf86544",
+    "games/luma3d/candidates/uart_rx2_20261028_r1/sender.py": "a9fd98347ab14c227f4ed641a6511ee795458e1b2efa63333b38a4d55ef421d2",
+    "games/luma3d/candidates/uart_rx2_20261028_r1/bootstrap.py": "042ad3b207b71f01234c2c42e101dad0c8282d3f347fab73b649bdc409edd33a",
+    "games/luma3d/candidates/uart_rx2_20261028_r1/guest_init.c": "81edfedf9c7819fb313b6c0b981436f9af186857536b35fce2be724244a7af4f",
+    "games/luma3d/candidates/uart_rx2_20261028_r1/guest_inspect.c": "73215ea5e03c97fc2a9bb9cc91da948b235045b07d75cabf43f32ad79c44ada8",
+    "games/luma3d/candidates/uart_rx2_20261028_r1/guest_full.c": "5f802c70c6c762f1f788a0adfe22651ff546e76995b6fafd8508774c0b80ffdc",
+    "games/luma3d/candidates/uart_rx2_20261028_r1/run_qemu.py": "3d415ac5dc8b14e352555ba4397483a084365b50169f0fa7eb82f539e808988c",
+    "linux/build/rootfs/bin/busybox": "e727a1b13670fea63aead8b6414ecf84290f56182a958cc832fe4c08ed69d3d0",
+    "games/luma3d/build-kernel/prodock_g3d1_20261024_r1/kernel/arch/riscv/boot/Image": "c1da479552951b611d2ef5462616ce85743109b4d38275864e92bc00439a93ac",
+    "linux/build/opensbi-qemu-virt/platform/generic/firmware/fw_dynamic.bin": "a8b88d9bedd0e71527d926da03eb58e2b71efa16fce059de816e2407f65d9c61"
+  },
+  "artifacts": {
+    "init": "36011430580036a504315b00f22c91af2f13ae0ea2a47627c5e45d9661ffea61",
+    "inspect": "e71a205beda072b5717c3a67f593a5cfab75f2a16df797576bb409b441119ed6",
+    "full": "81e6053020ca98a87625b5f8b118844bf6b5c8afc96a97937b2e1e0031ab080d",
+    "initrd.gz": "496a22c75aaf76684b53ec090a1d219bf803d808a6787207535a09f1df71c69f",
+    "qemu.log": "ee27d21031b42f382b2f7839502e8e3b09d83663d3d68cfedde0a7a09b74e668"
+  }
+}

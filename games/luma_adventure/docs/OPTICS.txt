@@ -1,0 +1,72 @@
+LUMA — réseaux de lumière (candidat local)
+
+Les salles emploient la même logique C sur PC et AE350. Aucun nouveau RTL,
+pilote ni opcode GPU. Les segments utilisent la surface d’effets existante.
+Ces nouveaux réseaux n’ont pas été mesurés sur Pro Dock ou Neo.
+
+Contrat des données
+------------------
+Toutes les optiques sont centrées sur des cases de 32 pixels. Maximum quatre
+sources et douze miroirs par salle ; la limite globale reste 64 entités.
+
+emitter : direction 0=Est, 1=Sud, 2=Ouest, 3=Nord. requires/forbids peuvent lire
+les interrupteurs mais aucun bit produit par un récepteur.
+mirror : orientation 0='/' ou 1='\'. E alterne les deux orientations. Le miroir
+est un obstacle physique et arrête les flèches ; il réfléchit la lumière.
+receiver : grants est un bit unique entre 0 et 23, réservé à ce récepteur.
+Il transmet la lumière. Les portes peuvent exiger ce bit allumé ou éteint.
+
+Les sources, miroirs et récepteurs ne peuvent partager la même case. Les
+miroirs/récepteurs ne sont pas conditionnels. Les autres producteurs de flags
+ne doivent pas écrire les bits des récepteurs ; les lampes peuvent les lire.
+Le constructeur refuse ces ambiguïtés avant de produire les ressources.
+
+La lumière traverse l’eau, les portes et le personnage. Elle s’arrête sur
+les murs (#, t, H), les caisses et les limites de la carte. Une caisse sur un
+récepteur ou une source l’occulte. Les portes sont transparentes afin qu’une
+porte commandée par la lumière ne crée pas de circuit oscillant.
+
+Réflexion '/' : Est→Nord, Sud→Ouest, Ouest→Sud, Nord→Est.
+Réflexion '\' : Est→Sud, Sud→Est, Ouest→Nord, Nord→Ouest.
+Une trajectoire s’arrête si elle rencontre une paire (case,direction) déjà
+parcourue. Avec les budgets ci-dessus, 256 segments suffisent même en boucle.
+Les récepteurs sont évalués simultanément, puis leurs flags sont remplacés ;
+ils ne restent pas allumés après le déplacement du faisceau.
+Les sources peuvent lire les dalles. Leur occupation est recalculée avant
+la lumière à l'entrée d'une salle, au chargement et avant une interaction,
+afin qu'une ancienne position du joueur ne laisse pas une porte ouverte.
+
+Sauvegarde et récupération
+-------------------------
+Le format v5 conserve les orientations par ID stable d’entité, ainsi que les
+caisses et les progrès existants. Le lecteur actuel accepte v4 et v5. Le
+lecteur R5 historique refuse v5 sans toucher au fichier : il ne peut donc pas
+réenregistrer une nouvelle partie en oubliant les états des miroirs.
+Les états optiques dérivés sont recalculés après chargement ou retour de carte.
+R restaure les caisses et orientations initiales de la salle intérieure,
+sans retirer trésors, éclats, clés, ennemis vaincus ou progrès d’autres salles.
+
+Validation
+----------
+make build/test-light
+ASAN_OPTIONS=detect_leaks=0 ./build/test-light
+python3 tests/test_light_contract.py
+python3 tools/validate_candidate.py content/reflections_candidate/manifest.json --exit-world 2 --preview
+
+Le dernier outil résout le candidat par commandes de jeu et produit un vrai
+binaire PC séparé ; il ne modifie pas campaign.json. Ses témoins ne sont jamais
+liés dans le jeu. Les durées des témoins avec solution connue ne mesurent pas
+le temps humain de découverte ou de résolution.
+
+Intégration
+-----------
+Les dix salles sont désormais accessibles au chapitre 3 par la Poste des
+Reflets. La mission facultative c17_reflections attend la quête c15 et le
+coffre de la dernière salle, puis accorde le drapeau extérieur 512 au retour.
+Ce drapeau ouvre une galerie dans les deux sens entre les quais existants.
+L'ancienne c16 ne devient pas une c17 déjà résolue lors d'une migration.
+L'annexe des archives et la conversation de retour restent des propositions.
+
+Les cinq images d'optiques (source, miroir et récepteur avec leurs états)
+sont des icônes procédurales provisoires. Les sols et autres mécanismes
+conservent les ressources ComfyUI. Aucune génération imagegen n'est utilisée.

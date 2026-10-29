@@ -1,0 +1,415 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Find concrete safety, buffered suffix, deadline or state regression in prepared receiver; concise evidence and minimal test, no imagined physical speed.
+
+EVIDENCE PACKET:
+Review this prepared-only C RX2 buffered receiver. No hardware evidence. Only changed input read buffering; sender framing and protocol unchanged. Find concrete counterexamples, especially deadline and FIN with buffered suffix. Do not request board commands. Consider counts and QEMU proof, do not infer physical speed.
+
+FILE receiver.c
+#define _GNU_SOURCE
+/* Temporary userspace receiver. No board, GPU, SD or historical RX access. */
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
+
+#define BLOCK 512u
+#define HEADER 44u
+#define ARMOR 744u
+#define MAXFILE (32u*1024u*1024u)
+enum { DONE=0, STOPPED=1, IDLE=2, TOTAL=3, IO=4, ARGS=5, SIGNAL=6, RESUME=7, BAD_LIMIT=8, ROLLBACK=9 };
+static volatile sig_atomic_t stopped;
+static uint8_t nonce[16];
+static char nonce_hex[33];
+static uint32_t committed, running_crc, nextseq;
+static uint64_t end_ms;
+static int flags0=-1,flags1=-1,have_term,nonblock_output;
+static struct termios saved_term;
+static uint64_t now(void){struct timespec t;if(clock_gettime(CLOCK_MONOTONIC,&t))return UINT64_MAX;return(uint64_t)t.tv_sec*1000u+(unsigned)t.tv_nsec/1000000u;}
+static uint32_t crc_more(uint32_t crc,const uint8_t *p,unsigned n){crc=~crc;while(n--){crc^=*p++;for(unsigned j=0;j<8;j++)crc=(crc>>1)^(0xedb88320u&-(crc&1));}return~crc;}
+static uint32_t u32(const uint8_t*p){return(uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
+static void signal_stop(int sig){(void)sig;stopped=1;}
+static int hexval(int c){if(c>='0'&&c<='9')return c-'0';if(c>='a'&&c<='f')return c-'a'+10;return-1;}
+static int number(const char*s,uint32_t*v,int base){uint32_t n=0;unsigned k=0;for(;*s;s++,k++){int d=base==16?hexval(*s):(*s>='0'&&*s<='9'?*s-'0':-1);if(d<0||n>(UINT32_MAX-(unsigned)d)/(unsigned)base)return 0;n=n*base+(unsigned)d;}*v=n;return k>0;}
+static int waitfd(int fd,short events,uint64_t deadline,int stop_sensitive){for(;;){uint64_t t=now();if((stop_sensitive&&stopped)||t>=deadline)return 0;unsigned remain=(unsigned)(deadline-t);struct pollfd p={fd,events,0};int q=poll(&p,1,remain>1000?1000:(int)remain);if(q>0){if(p.revents&events)return 1;if(p.revents&(POLLHUP|POLLERR|POLLNVAL))return-1;}if(q<0&&errno!=EINTR)return-1;}}
+static int sendall(const void*data,unsigned n,uint64_t deadline){const uint8_t*p=data;while(n){if(waitfd(1,POLLOUT,deadline,0)!=1)return 0;ssize_t k=write(1,p,n);if(k<0&&(errno==EAGAIN||errno==EINTR))continue;if(k<=0)return 0;p+=k;n-=(unsigned)k;}return 1;}
+static int rollback(int fd){struct stat st;return!ftruncate(fd,committed)&&!fstat(fd,&st)&&st.st_size==(off_t)committed;}
+static void puthex(char*p,uint32_t v){for(unsigned i=0;i<8;i++){p[7-i]="0123456789abcdef"[v&15];v>>=4;}}
+static int reply(char kind,unsigned reason){
+ char b[90];unsigned n=0;memcpy(b+n,"RX2 ",4);n+=4;memcpy(b+n,nonce_hex,32);n+=32;b[n++]=' ';b[n++]=kind;
+ uint32_t a[]={nextseq,committed,running_crc,reason};for(unsigned i=0;i<4;i++){b[n++]=' ';puthex(b+n,a[i]);n+=8;}
+ uint32_t h=crc_more(0,(const uint8_t*)b,n);b[n++]=' ';puthex(b+n,h);n+=8;b[n++]='\n';
+ return sendall(b,n,now()+1000);
+}
+static void restore(void){if(have_term)tcsetattr(0,TCSANOW,&saved_term);if(flags0>=0)fcntl(0,F_SETFL,flags0);if(flags1>=0)fcntl(1,F_SETFL,flags1);}
+static int b64val(int c){if(c>='A'&&c<='Z')return c-'A';if(c>='a'&&c<='z')return c-'a'+26;if(c>='0'&&c<='9')return c-'0'+52;if(c=='+')return 62;if(c=='/')return 63;return-1;}
+static int decode(const char*s,unsigned n,uint8_t*out){
+ if(!n||(n&3)||n>ARMOR)return-1;unsigned k=0;
+ for(unsigned i=0;i<n;i+=4){int a=b64val(s[i]),b=b64val(s[i+1]),c=b64val(s[i+2]),d=b64val(s[i+3]);if(a<0||b<0)return-1;out[k++]=(uint8_t)((a<<2)|(b>>4));
+  if(s[i+2]=='='){if(s[i+3]!='='||i+4!=n||(b&15))return-1;break;}if(c<0)return-1;out[k++]=(uint8_t)((b<<4)|(c>>2));
+  if(s[i+3]=='='){if(i+4!=n||(c&3))return-1;break;}if(d<0)return-1;out[k++]=(uint8_t)((c<<6)|d);
+ }return(int)k;
+}
+static int safe_path(const char*p){if(strncmp(p,"/tmp/rx2-",9)||strlen(p)>220||strstr(p,".."))return 0;for(const char*s=p+9;*s;s++)if(!((*s>='a'&&*s<='z')||(*s>='0'&&*s<='9')||*s=='-'||*s=='_'||*s=='.'))return 0;return p[9]!=0;}
+int main(int argc,char**argv){
+ uint32_t total=0,wantcrc=0,idle=0,limit=0;int fd=-1,result=ARGS;uint8_t prefix[4096];
+ if(argc!=8||!safe_path(argv[1])||strlen(argv[2])!=32||!number(argv[3],&total,10)||total>MAXFILE||!number(argv[4],&wantcrc,16)||!number(argv[6],&idle,10)||idle<100||idle>30000||!number(argv[7],&limit,10)||limit<idle||limit>3600000)return ARGS;
+ if(strcmp(argv[5],"new")&&strcmp(argv[5],"resume"))return ARGS;
+ for(unsigned i=0;i<16;i++){int a=hexval(argv[2][i*2]),b=hexval(argv[2][i*2+1]);if(a<0||b<0)return ARGS;nonce[i]=(uint8_t)(a*16+b);}memcpy(nonce_hex,argv[2],33);
+ end_ms=now()+limit;
+ struct sigaction sa;memset(&sa,0,sizeof(sa));sa.sa_handler=signal_stop;sigemptyset(&sa.sa_mask);sigaction(SIGINT,&sa,NULL);sigaction(SIGTERM,&sa,NULL);sigaction(SIGHUP,&sa,NULL);sa.sa_handler=SIG_IGN;sigaction(SIGPIPE,&sa,NULL);
+ /* Read both saved flags before altering either: they may share an OFD. */
+ flags0=fcntl(0,F_GETFL);flags1=fcntl(1,F_GETFL);if(flags0<0||flags1<0)goto done;
+ if(fcntl(0,F_SETFL,flags0|O_NONBLOCK)||fcntl(1,F_SETFL,flags1|O_NONBLOCK))goto done;nonblock_output=1;
+ if(!tcgetattr(0,&saved_term)){struct termios raw=saved_term;cfmakeraw(&raw);have_term=1;if(tcsetattr(0,TCSANOW,&raw))goto done;}
+ fd=open(argv[1],O_RDWR|O_CLOEXEC|O_NOFOLLOW|(argv[5][0]=='n'?(O_CREAT|O_EXCL):0),0600);if(fd<0){result=IO;goto done;}
+ struct stat st;if(fstat(fd,&st)||!S_ISREG(st.st_mode)||st.st_nlink!=1||st.st_size<0||(uint64_t)st.st_size>total||((unsigned)st.st_size%BLOCK&&(uint32_t)st.st_size!=total)){result=RESUME;goto done;}
+ committed=(uint32_t)st.st_size;nextseq=(committed+BLOCK-1)/BLOCK;
+ for(unsigned left=committed;left;){if(stopped||now()>=end_ms){result=stopped?SIGNAL:TOTAL;goto done;}unsigned n=left>sizeof(prefix)?sizeof(prefix):left;ssize_t k=read(fd,prefix,n);if(k<0&&errno==EINTR)continue;if(k<=0){result=IO;goto done;}running_crc=crc_more(running_crc,prefix,(unsigned)k);left-=(unsigned)k;}
+ if(!reply('R',0)){result=IO;goto done;}
+ char armor[ARMOR];uint8_t packet[HEADER+BLOCK+4];unsigned used=0,bad=0;int oversized=0;uint64_t deadline=now()+idle;
+ uint8_t incoming[1024];unsigned in_at=0,in_size=0;
+ for(;;){
+  if(stopped){result=SIGNAL;break;}
+  if(in_at==in_size){
+   uint64_t n=now();if(n>=end_ms){result=TOTAL;break;}if(n>=deadline){result=IDLE;break;}
+   uint64_t until=deadline<end_ms?deadline:end_ms;int waiting=waitfd(0,POLLIN,until,1);if(waiting<0){result=IO;break;}if(!waiting)continue;
+   ssize_t k=read(0,incoming,sizeof(incoming));if(k<0&&(errno==EAGAIN||errno==EINTR))continue;if(k<=0){result=IO;break;}
+   in_at=0;in_size=(unsigned)k;
+  }
+  uint8_t ch=incoming[in_at++];
+  if(ch){if(used<ARMOR)armor[used++]=(char)ch;else oversized=1;continue;}
+  if(!used&&!oversized)continue;
+  /* Recheck absolute deadlines before every complete frame, also buffered. */
+  uint64_t checked=now();if(checked>=end_ms){result=TOTAL;break;}if(checked>=deadline){result=IDLE;break;}
+  int bytes=oversized?-1:decode(armor,used,packet);used=0;oversized=0;
+  if(bytes<(int)HEADER||memcmp(packet,"LX2P",4)||memcmp(packet+4,nonce,16)||u32(packet+40)!=crc_more(0,packet,40))goto nack;
+  uint32_t op=u32(packet+20),seq=u32(packet+24),offset=u32(packet+28),len=u32(packet+32),hash=u32(packet+36);
+  if(len>BLOCK||bytes!=(int)(HEADER+len)||hash!=crc_more(0,packet+HEADER,len))goto nack;
+  if(op==2||op==3){if(len||seq!=nextseq||offset!=committed)goto nack;if(op==3){result=STOPPED;break;}if(committed!=total||running_crc!=wantcrc)goto nack;if(fsync(fd)){result=IO;break;}result=DONE;break;}
+  if(op!=1||!len||offset>=total||len!=(total-offset>BLOCK?BLOCK:total-offset)||offset%BLOCK||seq!=offset/BLOCK)goto nack;
+  if(offset<committed&&len<=committed-offset){if(!reply('A',0)){result=IO;break;}deadline=now()+idle;continue;}
+  if(offset!=committed||seq!=nextseq)goto nack;
+  for(unsigned at=0;at<len;){ssize_t w=write(fd,packet+HEADER+at,len-at);if(w<0&&errno==EINTR&&!stopped)continue;if(w<=0){result=rollback(fd)?IO:ROLLBACK;goto done;}at+=(unsigned)w;}
+  if(fdatasync(fd)){result=rollback(fd)?IO:ROLLBACK;break;}
+  running_crc=crc_more(running_crc,packet+HEADER,len);committed+=len;nextseq++;bad=0;
+  if(!reply('A',0)){result=IO;break;}deadline=now()+idle;continue;
+ nack:
+  if(++bad>16){result=BAD_LIMIT;break;}if(!reply('N',1)){result=IO;break;}deadline=now()+idle;
+ }
+done:
+ if(fd>=0&&close(fd)&&result==DONE)result=IO;
+ if(nonblock_output)(void)reply('X',(unsigned)result);
+ restore();return result;
+}
+
+FILE sender.py
+"""RX2 host protocol. Generic I/O only: no device open or shell launch by default.
+
+The caller owns the exclusive console lock, identity, storage and bootstrap.
+After launch, this module emits only Base64/NUL until a fresh RETURN is observed.
+"""
+import base64
+import dataclasses
+import math
+import re
+import struct
+import time
+import zlib
+
+BLOCK=512
+SAFE=frozenset(b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\0')
+LINE=re.compile(rb'RX2 ([0-9a-f]{32}) ([RANX]) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8})')
+
+def crc(data):return zlib.crc32(data)&0xffffffff
+def frame(nonce,op,seq,offset,data=b''):
+    head=b'LX2P'+bytes.fromhex(nonce)+struct.pack('<5I',op,seq,offset,len(data),crc(data))
+    assert len(head)==40 and len(data)<=BLOCK
+    wire=b'\0'+base64.b64encode(head+struct.pack('<I',crc(head))+data)+b'\0'
+    assert set(wire)<=SAFE
+    return wire
+
+@dataclasses.dataclass(frozen=True)
+class Reply:
+    kind:str; seq:int; offset:int; prefix:int; reason:int
+
+class TransferError(RuntimeError):pass
+class Uncertain(TransferError):pass
+
+class Session:
+    def __init__(self,io,nonce,data,idle_ms=5000,total_ms=1800000,chunk=16,pause=.002):
+        if not re.fullmatch('[0-9a-f]{32}',nonce):raise ValueError('nonce')
+        if len(data)>32*1024*1024 or not 100<=idle_ms<=30000 or not idle_ms<=total_ms<=3600000:raise ValueError('bounds')
+        if type(chunk)!=int or not 1<=chunk<=4096 or not math.isfinite(pause) or pause<0:raise ValueError('pacing')
+        full_frame=math.ceil(746/chunk)*pause
+        if full_frame+max(.02,full_frame*.25)>idle_ms/1000:raise ValueError('pacing exceeds idle budget')
+        if math.ceil(len(data)/BLOCK)*full_frame>total_ms/1000:raise ValueError('pacing exceeds total budget')
+        self.io,self.nonce,self.data=io,nonce,bytes(data)
+        self.idle_ms,self.total_ms,self.chunk,self.pause=idle_ms,total_ms,chunk,pause
+        self.pending=bytearray();self.replies=[];self.returncode=None;self.ready=False;self.offset=0;self.seq=0;self.sent_frames=0;self.retries=0;self.terminal=None
+        self.started=time.monotonic();self.return_seen=False;self.cancelled=False
+        self.return_line=re.compile(rb'RX2_RETURN_'+nonce.encode()+rb':([0-9]+)')
+        # Linear construction, rather than rehashing an ever-growing prefix
+        # for every block of a multi-megabyte ELF.
+        self.prefixes={0:0};prefix=0
+        for offset in range(0,len(self.data),BLOCK):
+            part=self.data[offset:offset+BLOCK];prefix=zlib.crc32(part,prefix)&0xffffffff
+            self.prefixes[offset+len(part)]=prefix
+
+    def command(self,executable,path,resume=False):
+        if not re.fullmatch('/tmp/luma-rx2-[a-z0-9_-]+',executable):raise ValueError('RX path')
+        if not re.fullmatch('/tmp/rx2-[a-z0-9_.-]+',path) or '..' in path or len(path)>220:raise ValueError('target path')
+        # Sole textual command, BEFORE this Session receives READY. Root must
+        # confirm a shell and verify executable bytes before issuing it.
+        return (f"rc=0; {executable} {path} {self.nonce} {len(self.data)} {crc(self.data):08x} "
+                f"{'resume' if resume else 'new'} {self.idle_ms} {self.total_ms} || rc=$?; "
+                f"printf '\\nRX2_RETURN_{self.nonce}:%s\\n' \"$rc\"\n").encode()
+
+    def _line(self,line):
+        line=line.rstrip(b'\r')
+        m=self.return_line.fullmatch(line)
+        if m:
+            self.returncode=int(m[1]);self.return_seen=True;return ('return',self.returncode)
+        m=LINE.fullmatch(line)
+        if m:
+            if m[1].decode()!=self.nonce:raise Uncertain('foreign nonce reply')
+            if crc(line.rsplit(b' ',1)[0])!=int(m[7],16):raise Uncertain('reply CRC')
+            r=Reply(m[2].decode(),*[int(m[i],16) for i in range(3,7)])
+            self.replies.append(r)
+            if r.kind=='X':self.terminal=r
+            return ('reply',r)
+        if line.startswith(b'RX2 '):raise Uncertain('malformed reply')
+        if self.ready and line and line not in (b'RX2_PROMPT> ',):
+            raise Uncertain('unexpected receiver output '+repr(line[:100]))
+        # A bounded printable command echo/banner may precede READY.
+        if not self.ready and any(c<32 and c not in (9,13) for c in line):raise Uncertain('nontext preamble')
+        return None
+
+    def event(self,timeout):
+        end=time.monotonic()+timeout;received=0
+        while time.monotonic()<end:
+            while b'\n' in self.pending:
+                line,_,tail=self.pending.partition(b'\n');self.pending[:]=tail
+                r=self._line(bytes(line))
+                if r:return r
+            b=self.io.read(min(.1,max(0,end-time.monotonic())))
+            if b:self.pending.extend(b);received+=len(b)
+            if len(self.pending)>8192 or received>32768:raise Uncertain('bounded output exceeded')
+        raise Uncertain('receive timeout; no retransmission allowed')
+
+    def _checkpoint(self,r):
+        if r.offset>len(self.data) or r.offset%BLOCK and r.offset!=len(self.data):raise Uncertain('checkpoint offset')
+        if r.seq!=(r.offset+BLOCK-1)//BLOCK or r.prefix!=self.prefixes[r.offset]:raise Uncertain('checkpoint prefix')
+
+    def begin(self):
+        kind,r=self.event(self.idle_ms/1000+2)
+        if kind!='reply' or r.kind!='R' or r.reason:raise TransferError('receiver not ready')
+        self._checkpoint(r);self.offset,self.seq=r.offset,r.seq;self.ready=True
+        return r
+
+    def send(self,wire):
+        if not self.ready or self.return_seen or self.terminal:raise TransferError('receiver not active')
+        if not wire or not set(wire)<=SAFE:raise ValueError('unsafe wire alphabet')
+        self.sent_frames+=1
+        # io.write must itself have a finite timeout. A partial write error
+        # abandons this session; it never causes a replay of the frame.
+        for i in range(0,len(wire),self.chunk):
+            if time.monotonic()>=self.started+self.total_ms/1000:raise Uncertain('host session deadline')
+            part=wire[i:i+self.chunk];n=self.io.write(part)
+            if n!=len(part):raise Uncertain('partial transmit')
+            if self.pause:time.sleep(self.pause)
+
+    def block(self,mutate=None):
+        if self.offset>=len(self.data):raise TransferError('no block remains')
+        initial=self.offset;data=self.data[initial:initial+BLOCK];end=initial+len(data)
+        packet=frame(self.nonce,1,self.seq,initial,data)
+        for attempt in range(4):
+            wire=mutate(packet,attempt) if mutate else packet;self.send(wire)
+            deadline=time.monotonic()+self.idle_ms/1000+1
+            while True:
+                if time.monotonic()>=deadline:raise Uncertain('ACK deadline')
+                kind,r=self.event(max(.001,deadline-time.monotonic()))
+                if kind!='reply':raise TransferError('receiver returned during DATA')
+                self._checkpoint(r)
+                if r.kind=='X':raise TransferError('receiver terminal reason '+str(r.reason))
+                if r.kind=='A' and r.offset==end and r.reason==0:
+                    self.offset,self.seq=r.offset,r.seq;return r
+                if r.kind=='A' and r.offset<=initial and r.reason==0:continue
+                if r.kind=='N' and r.offset==initial and r.reason==1:
+                    self.retries+=1;break
+                raise Uncertain('unexpected acknowledgement')
+        raise TransferError('NACK retry limit')
+
+    def finish(self,stop=False):
+        if not stop and self.offset!=len(self.data):raise TransferError('incomplete source')
+        self.send(frame(self.nonce,3 if stop else 2,self.seq,self.offset))
+        deadline=time.monotonic()+self.idle_ms/1000+2
+        # A duplicate prior ACK may precede the terminal response.
+        while not self.terminal:
+            if time.monotonic()>=deadline:raise Uncertain('FIN deadline')
+            kind,r=self.event(max(.001,deadline-time.monotonic()))
+            if kind!='reply':raise Uncertain('return without terminal checkpoint')
+            self._checkpoint(r)
+            if r.kind=='A' and r.offset<=self.offset:continue
+            if r.kind!='X':raise Uncertain('unexpected FIN response')
+        self._checkpoint(self.terminal)
+        expected=1 if stop else 0
+        if self.terminal.reason!=expected:raise TransferError('terminal failure')
+        self.await_return(max(.001,deadline-time.monotonic()))
+        if self.returncode!=expected:raise TransferError('wrapper/terminal mismatch')
+        return self.terminal
+
+    def await_return(self,timeout=None):
+        # This method NEVER writes. Use it even following timeout/corruption.
+        if timeout is None:timeout=self.idle_ms/1000+3
+        end=time.monotonic()+timeout
+        while not self.return_seen:
+            if time.monotonic()>=end:raise Uncertain('shell return not confirmed')
+            try:self.event(max(.001,end-time.monotonic()))
+            except Uncertain:
+                # Malformed reply is not permission to send. Preserve the
+                # remaining bytes and continue looking for the fresh wrapper.
+                if time.monotonic()>=end:raise
+        return self.returncode
+
+    def cancel_line(self):
+        if not self.return_seen:raise Uncertain('no fresh process return')
+        if self.cancelled:raise TransferError('already cancelled')
+        # A separate caller must now verify the prompt before a new command.
+        if self.io.write(b'\x15\n')!=2:raise Uncertain('line cancellation partial')
+        self.cancelled=True
+
+FILE counts_r1/result.json
+{
+  "passed": true,
+  "hardware": false,
+  "scope": "Executable libc call counts on host, not ProDock throughput or syscall/vDSO attribution",
+  "records": [
+    {
+      "version": "old",
+      "source_sha256": "89576f63473e13fa3f783a5d75b4c20f8797f4828451b771e21d7fc26bf86544",
+      "chunk": 4096,
+      "pause": 0,
+      "bytes": 2048,
+      "counts": {
+        "read0": 3046,
+        "poll0": 3046,
+        "clocks": 6110,
+        "writes_file": 4,
+        "fdatasync": 4
+      },
+      "local_seconds": 0.00726067298091948
+    },
+    {
+      "version": "old",
+      "source_sha256": "89576f63473e13fa3f783a5d75b4c20f8797f4828451b771e21d7fc26bf86544",
+      "chunk": 16,
+      "pause": 0.002,
+      "bytes": 2048,
+      "counts": {
+        "read0": 3046,
+        "poll0": 3046,
+        "clocks": 6110,
+        "writes_file": 4,
+        "fdatasync": 4
+      },
+      "local_seconds": 0.39924722304567695
+    },
+    {
+      "version": "buffered",
+      "source_sha256": "ea4e67933fc9d0e074cc4bc71256e72e54bf2dd0e03fc7a4a9fca01b05e43727",
+      "chunk": 4096,
+      "pause": 0,
+      "bytes": 2048,
+      "counts": {
+        "read0": 5,
+        "poll0": 5,
+        "clocks": 33,
+        "writes_file": 4,
+        "fdatasync": 4
+      },
+      "local_seconds": 0.006526949000544846
+    },
+    {
+      "version": "buffered",
+      "source_sha256": "ea4e67933fc9d0e074cc4bc71256e72e54bf2dd0e03fc7a4a9fca01b05e43727",
+      "chunk": 16,
+      "pause": 0.002,
+      "bytes": 2048,
+      "counts": {
+        "read0": 192,
+        "poll0": 192,
+        "clocks": 407,
+        "writes_file": 4,
+        "fdatasync": 4
+      },
+      "local_seconds": 0.3995923240436241
+    }
+  ]
+}
+
+FILE speed_r1/result.json
+{
+  "passed": true,
+  "hardware": false,
+  "scope": "Exact RV32 binaries under one Linux QEMU boot; timings do not predict board throughput",
+  "records": [
+    {
+      "version": "old",
+      "pause": 0.002,
+      "chunk": 16,
+      "payload_bytes": 32768,
+      "qemu_seconds": 6.209636696963571,
+      "qemu_bytes_per_second": 5276.959281051517,
+      "retries": 0,
+      "offset": 32768
+    },
+    {
+      "version": "buffered",
+      "pause": 0.002,
+      "chunk": 16,
+      "payload_bytes": 32768,
+      "qemu_seconds": 6.206019890028983,
+      "qemu_bytes_per_second": 5280.034640663545,
+      "retries": 0,
+      "offset": 32768
+    },
+    {
+      "version": "old",
+      "pause": 0,
+      "chunk": 16,
+      "payload_bytes": 32768,
+      "qemu_seconds": 0.6146020180312917,
+      "qemu_bytes_per_second": 53315.802810025365,
+      "retries": 0,
+      "offset": 32768
+    },
+    {
+      "version": "buffered",
+      "pause": 0,
+      "chunk": 16,
+      "payload_bytes": 32768,
+      "qemu_seconds": 0.20531672006472945,
+      "qemu_bytes_per_second": 159597.32840885708,
+      "retries": 0,
+      "offset": 32768
+    }
+  ],
+  "inputs": {
+    "/home/michael/console/games/luma3d/candidates/uart_rx2_20261028_r1/build_r3/receiver": "9a5b401858d72b17be6ea5e6765e9994ba4173c8658f8169dd2de1f529e5810e",
+    "/home/michael/console/games/luma3d/candidates/uart_rx2_buffered_20261028_r1/build_r1/receiver": "c28b795a17922708a0f990eff4c0ef05dfd8aa2f7a20f036f4fbab51b67ad466",
+    "/home/michael/console/games/luma3d/candidates/uart_rx2_buffered_20261028_r1/run_speed.py": "c2d4af6339eb3ecef850a42fd186ba024fb76a033b6800d3b4efabdd6517aafb",
+    "/home/michael/console/games/luma3d/candidates/uart_rx2_buffered_20261028_r1/receiver.c": "ea4e67933fc9d0e074cc4bc71256e72e54bf2dd0e03fc7a4a9fca01b05e43727",
+    "/home/michael/console/games/luma3d/candidates/uart_rx2_buffered_20261028_r1/sender.py": "a9fd98347ab14c227f4ed641a6511ee795458e1b2efa63333b38a4d55ef421d2",
+    "/home/michael/console/games/luma3d/build-kernel/prodock_g3d1_20261024_r1/kernel/arch/riscv/boot/Image": "c1da479552951b611d2ef5462616ce85743109b4d38275864e92bc00439a93ac",
+    "/home/michael/console/linux/build/rootfs/bin/busybox": "e727a1b13670fea63aead8b6414ecf84290f56182a958cc832fe4c08ed69d3d0"
+  },
+  "pipeline_duplicate_data_fin_passed": true
+}

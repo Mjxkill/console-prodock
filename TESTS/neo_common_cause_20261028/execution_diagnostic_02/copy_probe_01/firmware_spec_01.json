@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "neo_copy565_firmware_01",
+  "parent_task_id": "neo_clear_cpu_liveness_01",
+  "inputs": [
+    "ANALYSIS.md",
+    "CONTRACT.md",
+    "PLAN.md",
+    "baseline.bin",
+    "build_local.py",
+    "copy_model.py",
+    "gpu_copy565.v",
+    "microdma.S",
+    "rv32_model.py",
+    "validate.py"
+  ],
+  "owned": [
+    "microdma.S",
+    "copy_model.py",
+    "ANALYSIS.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "validate.py"
+    ]
+  ],
+  "timeout_seconds": 60,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "min_model_steps": 2,
+    "min_tool_calls": 4,
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "domain": "fpga",
+  "task_type": "implementation",
+  "difficulty": "high",
+  "task_family": "neo_bounded_ilm_firmware",
+  "acceptance_criteria": "ExactBIN02 bounded COPY565 source, same928B, only2compareinstructions+packet changed,16protectedfault/ABI/RV32 cases and fullrangeguards; originalunchanged; finalofficialtestafterreport.",
+  "prompt": "Read CONTRACT.md and protected validate.py. Toolchain is already verified; implement ONLY microdma.S, copy_model.py, ANALYSIS.md. Run official taskbox_run_tests before edit, then after changes; avoid manual repeated builds and unrelated environment checks. Derive COPY model byte semantics from ABI, not copied RTL. Preserve exact source/layout limits. Finish report then final official run_tests; no edits after final PASS."
+}

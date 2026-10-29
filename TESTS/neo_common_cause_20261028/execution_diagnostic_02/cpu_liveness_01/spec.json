@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "neo_clear_cpu_liveness_01",
+  "parent_task_id": "neo_r19_clear_chain_scoreboard_correction_02",
+  "inputs": [
+    "ANALYSIS.md",
+    "CONTRACT.md",
+    "INPUTS.json",
+    "bench.sv",
+    "ddr_gpu_arb.v",
+    "ddr_ui_adapt.v",
+    "gpu_copy565.v",
+    "gpu_perspective.v",
+    "gpu_texture_cache.v",
+    "gpu_triangle.v",
+    "gpu_v1.v",
+    "native_memory.sv",
+    "scenario.svh",
+    "test_liveness.py"
+  ],
+  "owned": [
+    "scenario.svh",
+    "ANALYSIS.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "test_liveness.py"
+    ]
+  ],
+  "timeout_seconds": 60,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "min_model_steps": 2,
+    "min_tool_calls": 4,
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "domain": "fpga",
+  "task_type": "test_design",
+  "difficulty": "high",
+  "task_family": "neo_cpu_clear_liveness",
+  "acceptance_criteria": "Eight protected exactRTL scenarios: CPU32 reads/data, native command footprint, blocked/recovery queues, healthy and fault injection, bounded interpretation/no hardware attribution. Final fixed tests after lastwrite.",
+  "prompt": "Read CONTRACT.md, protected bench.sv and test_liveness.py. Implement only scenario.svh and ANALYSIS.md. Existing baseline compiles and passes infrastructure TARGET/CLEAR, but lacks CPU/fault scenarios intentionally. Run fixed taskbox_run_tests before edits; implement bounded8scenario driver using exact RTL; inspect/correct tests. Report measured table and interpretation for future hardware reader. Finish all edits including report BEFORE final fixed taskbox_run_tests; no further writes after PASS. Never change harness, RTL or test checker."
+}

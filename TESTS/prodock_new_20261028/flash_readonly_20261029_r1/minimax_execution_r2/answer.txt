@@ -1,0 +1,77 @@
+I'll start by reading the key documentation files.Now I understand the failures. Let me examine the remaining reference file and then rewrite the coordinator.Now I'll rewrite the coordinator with all the required fixes.The review tests now pass. Now let me write the owned integration tests.## Objective
+- Complete the root-only flash read-only coordinator (`flash_readonly.py`), add real fake-subprocess integration tests (`test_owned.py`), and write `REPORT.md`.
+- Reproduce failures first, use taskbox tools on owned files only, no hardware/network, and run the final complete test suite after the report.
+
+## Important Details
+- Read order already honored: `REPAIR.md` then `CONTRACT.md`; do not re-read references repeatedly.
+- Owned files: `flash_readonly.py`, `test_owned.py`, `REPORT.md`. Reference/`CONTRACT.md`/`REPAIR.md` are immutable.
+- Working dir is `/work`; tools: `taskbox_read_file`, `taskbox_write_file`, `taskbox_exec`, `taskbox_run_tests`.
+- Pinned: tool SHA `1c0c245f4bcad2c537b5fbaf77d055c5eccf6b3b17835a24c79be631cd218066`, runtime SHA `101c3c17456644f08217c3b11103aa78f8ab4debf4d2d133831c9c91c6d6d873`, loader SHA `f8387d5a0fa31ba2c832ebb5ed88e0c98594dbb75ad9df9a3321cc9574a970b4`, guard SHA `47c4e095d6dab667f8c7d30ecf8c581e9f6bcdf278080242e92ba68616eaff5c`.
+- Runtime must be `ROOT/runtime/openFPGALoader` (never `ROOT/bin/runtime/...`); tool `ROOT/bin/openFPGALoader`; loader `ROOT/TESTS/prodock_new_20261028/load_fpga.py`; ROOT `/home/michael/console-validation-20261001`.
+- Guard imported only from `reference/target_guard.py` beside the module, SHA verified before exec; use `guard.command` + `guard.guarded_target`; no sys.path import, no local command fallback.
+- Target: FTDI `0403:6010` serial `2025071717`, board `tangmega138k`, idcode `1081b`, host `michael-AX15`. Timeouts: detect 120s, dump 900s each, `--timeout` 1..1800.
+- No `--root` CLI flag, no `PRODOCK_ROOT`; internal constructor `root=` injection allowed for fakes.
+- Dump logs must contain exactly one `found 1 devices`, `index 0:`, `idcode 0x1081b`, one JEDEC record, one `Detected:` geometry record; `Done` must follow the `100.00%` marker and match the detection.
+- `prepare(dump)` must use `evidence['parsed']['capacity']`; prepare opens no resource/file.
+- Result-provenance write failure must clear `passed`; preexisting output dir must be refused without overwriting existing `detect.json`/`dump.json` (output-dir ownership tracked).
+- Partial/full logs, failed JSON, and the attempted command must survive timeout/interruption; `default_runner` kills and reaps the child before lock release; `auto_boot_1st_fail` after `Done` is a historical annotation, not an error.
+- SRAM interruption consequence must stay explicit in prepare output and report; no flash write/erase/unprotect/bulk commands.
+- All files <1000 physical lines; `flash_readonly.py` is currently 967 lines (under hard limit, above the <450 aim).
+
+## Work State
+### Completed
+- Initial `taskbox_run_tests` reproduced: `test_owned_tests_not_empty` failure (stub `test_owned.py`), plus review failures `test_dump_identity_mandatory` (no raise) and `test_existing_proof_not_overwritten` (existing `detect.json` overwritten).
+- Rewrote `flash_readonly.py` (42911 bytes, 967 lines) fixing: runtime path, guard SHA-gated import and reuse, strict `parse_dump_log` identification/geometry/completion checks, `prepare` capacity bug, result-write failure semantics, output-dir ownership/no-overwrite, symlink/traversal refusal, log+command preservation on timeout/interruption, signal handling, and kill/reap in `default_runner`.
+- Post-rewrite `taskbox_run_tests`: `test_review.py` now fully passes (3/3 OK); `test_contract.py` fails only on the empty `test_owned.py` stub.
+- Wrote `test_owned.py` (22629 bytes) with ~21 unittest cases: fake guard/runner at the real runner boundary; detect evidence, prepare, detection mismatch refusal, dump failure variants, timeout/interruption preservation, no-overwrite, single-lock coverage, allowlisted commands, exact runtime path, failed result write.
+
+### Active
+- `test_owned.py` has been written but never executed; known bug to fix first: in `PinnedIdentities.test_guard_receives_the_pinned_paths`, `GuardModule.guarded_target` is a `@staticmethod` referencing `self.state` (NameError) — capture the outer `state` variable instead.
+- `REPORT.md` is still the stub: `Implementation and actual tests pending. No hardware access.`
+
+### Blocked
+- (none)
+
+## Next Move
+1. Run `python3 test_owned.py` (and `taskbox_run_tests`), fix the `self.state` staticmethod bug and any observed failures until all owned + protected tests pass.
+2. Write `REPORT.md` with the implementation summary, pinned identities, refusal/proof-preservation behavior, SRAM consequence, and actual test results; then re-run the final complete test suite after the report.
+
+## Relevant Files
+- `flash_readonly.py`: rewritten coordinator (967 lines), all repair fixes implemented.
+- `test_owned.py`: new owned integration tests (22629 bytes), written but not yet run.
+- `REPORT.md`: stub; must be completed with real results.
+- `REPAIR.md`: read-only list of verified defects to satisfy.
+- `CONTRACT.md`: read-only behavioral contract (phases, CLI, evidence, limits).
+- `test_contract.py`: protected suite; only remaining prior failure was the empty owned-test stub.
+- `test_review.py`: protected review suite; now passing (runtime path, dump identity mandatory, no overwrite of existing proof).
+- `reference/target_guard.py`: immutable reviewed guard, SHA `47c4e095...eaff5c`.
+- `reference/load_fpga.py`: immutable loader copy, SHA `f8387d5a...970b4`.
+- `FIRST_ATTEMPT_FAILURE.txt`: original protected-suite failure trace.Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.All 21 owned tests and the 3 protected suites pass. Now let me capture real CLI evidence for the report.All work is complete and verified. Final state:
+
+## Files changed
+| File | Change | Lines |
+|---|---|---|
+| `flash_readonly.py` | Complete rewrite of the coordinator (all 9 REPAIR.md defects) | 971 |
+| `test_owned.py` | New integration suite, 21 cases at the real runner boundary | 495 |
+| `REPORT.md` | Implementation + actual test report (was a stub) | 188 |
+
+## Fixes made this round
+1. **`_execute_dump` did not record the parsed identity** → the dump JSON lacked `capacity`/`jedec`/`model`/`sectors`. Added them from `evidence['parsed']` (same source `prepare(dump)` already uses).
+2. **`test_prepare_of_the_dump_phase_after_a_fake_detect` wrongly asserted `argv == []`** — the fake detect pass had already run one command. Now snapshots the argv count before `prepare()` and asserts it is unchanged (i.e. prepare really runs no command).
+
+## Tests observed (tool evidence)
+- `python3 -m unittest -v test_owned` → **Ran 21 tests, OK**
+- `taskbox_run_tests` (protected suite, run *after* REPORT.md was updated) → 3 suites:
+  - `test_contract.py`: 4 tests, OK
+  - `test_owned.py`: 21 tests, OK
+  - `test_review.py`: 3 tests, OK
+  - **28 tests total, 0 failures, 0 errors, passed: true**
+- `python3 flash_readonly.py --phase detect --out .../TESTS/NEW` (prepare mode) → printed the plan with `will_run: false`, `sram_interrupted: true`, `flash_writes: 0`, the pinned wrapper/runtime/loader SHAs, the reviewed detect argv, and the SRAM-erasure consequence; no file created, no process started.
+- `python3 -c "compile(...)"` → both modules compile (the `py_compile` failure was only a read-only `__pycache__` write, not a code error).
+
+## Limitations (also stated in REPORT.md)
+- **Hardware validation is pending** — no `--run` against the real FTDI 0403:6010 was performed; real log shape, flash contents and timing are unverified.
+- Tests use a small honest geometry (4 × 64 KiB) and synthetic v1.1.1-shaped logs; they prove coordinator decisions, not silicon behaviour.
+- The coordinator is 971 lines: under the hard 1000 limit but above the contract's `<450` aim; it was not minified.
+- Root cleanup of partial logs/dumps is deliberately left to root; the tool never deletes or restores artifacts.
+- No code-quality score is claimed — only the measured results above.

@@ -6,7 +6,9 @@ module gpu_scanout #(
     parameter WIDTH = 800, HEIGHT = 480,
     parameter H_TOTAL = 1193, V_TOTAL = 533,
     parameter H_START = 182, V_START = 8,
-    parameter H_SYNC = 210, V_SYNC = 45
+    parameter H_SYNC = 210, V_SYNC = 45,
+    parameter X_BITS = (WIDTH > 1024 ? 11 : 10),
+    parameter Y_BITS = (HEIGHT > 512 ? 10 : 9)
 ) (
     input wire hclk, hresetn, hsel, hwrite,
     input wire [31:0] haddr, hwdata,
@@ -23,7 +25,10 @@ module gpu_scanout #(
     output wire [5:0] lcd_r, lcd_g, lcd_b
 );
     localparam BURSTS = WIDTH / 32;
-    // G1 requires WIDTH divisible by 32 and <=1024; pitch equals WIDTH.
+    // Supported boards: 800x480 and 1280x720; WIDTH is divisible by 32.
+    localparam BLOCK_BITS = X_BITS-5;
+    localparam RGB_BITS = X_BITS-4;
+    localparam TAG_BITS = 32+Y_BITS;
     // syn_preserve : le même synchroniseur de reset existe dans gpu_accel ; fusionnés, l'un des deux
     // modules recevrait son reset de l'autre bout de la puce.
     reg [1:0] prst = 0;
@@ -112,6 +117,7 @@ module gpu_scanout #(
             palette[bus_addr[9:2]] <= hwdata[17:0];
 
     reg [31:0] active_base = 0, frames = 0, underflows = 0;
+    reg underflow_pending = 0;
     reg active_enable = 0;
     reg active_rgb565=0,request_rgb565=0;
     reg active_layers=0,active_bank=0;
@@ -142,7 +148,7 @@ module gpu_scanout #(
         else begin
             if(!line_pending)line_elapsed<=0;else line_elapsed<=line_elapsed+1'b1;
             if(clear_maxima)total_cycles<=0;
-            else if(done_pending && tag[8:0]!=0 && line_elapsed>total_cycles)total_cycles<=line_elapsed;
+            else if(done_pending && tag[Y_BITS-1:0]!=0 && line_elapsed>total_cycles)total_cycles<=line_elapsed;
         end
     end
     reg [1:0] enabled_sync;
@@ -154,9 +160,9 @@ module gpu_scanout #(
     end
     // Decode read addresses in the existing AHB address phase. The data
     // phase only gates/ORs register values; read latency is unchanged.
-    reg [27:0] read_select;
+    reg [29:0] read_select;
     genvar reg_index;
-    generate for (reg_index=0; reg_index<28; reg_index=reg_index+1) begin: read_decode
+    generate for (reg_index=0; reg_index<30; reg_index=reg_index+1) begin: read_decode
         always @(posedge hclk)
             if (!hresetn) read_select[reg_index] <= (reg_index == 0);
             else if (hready) read_select[reg_index] <= (haddr[11:0] == reg_index*4);
@@ -190,7 +196,9 @@ module gpu_scanout #(
             ({32{read_select[24]}} & (r_display_checksum)) |
             ({32{read_select[25]}} & (r_total_cycles)) |
             ({32{read_select[26]}} & (32'h00000007)) | // overlays, x2, stride
-            ({32{read_select[27]}} & {16'd0,shadow_stride});
+            ({32{read_select[27]}} & {16'd0,shadow_stride}) |
+            ({32{read_select[28]}} & ((HEIGHT << 16) | WIDTH)) |
+            ({32{read_select[29]}} & ((V_TOTAL << 16) | H_TOTAL));
     end
 
     // Pixel domain: line requests sent during blanking, one line ahead.
@@ -198,16 +206,16 @@ module gpu_scanout #(
     reg [9:0] vy = 0;
     wire visible_y = vy >= V_START && vy < V_START + HEIGHT;
     wire visible = visible_y && hx >= H_START && hx < H_START + WIDTH;
-    wire [9:0] x = hx[9:0] - H_START[9:0];
-    wire [8:0] y = vy[8:0] - V_START[8:0];
+    wire [X_BITS-1:0] x = hx[X_BITS-1:0] - H_START[X_BITS-1:0];
+    wire [Y_BITS-1:0] y = vy[Y_BITS-1:0] - V_START[Y_BITS-1:0];
     wire vblank_start = hx == 0 && vy == V_START + HEIGHT;
     reg [1:0] commit_sync = 0, ack_sync = 0;
     reg request_toggle = 0, acknowledge = 0, ack_seen = 0;
     reg [31:0] request_base = 0;
     reg request_layers=0,request_bank=0;
     reg request_sprites=0;
-    reg [40:0] request_tag = 0;
-    reg [40:0] ready_tag [0:1];
+    reg [TAG_BITS-1:0] request_tag = 0;
+    reg [TAG_BITS-1:0] ready_tag [0:1];
     reg [1:0] ready_valid = 0;
     reg line_good = 0;
     wire request_idle = request_toggle == ack_sync[1];
@@ -224,7 +232,7 @@ module gpu_scanout #(
     // Keep the pixel-domain address adder separate from the format select;
     // a multiply-add lets synthesis absorb mailbox registers from hclk into
     // the same DSP as pixel-domain registers.
-    wire [31:0] indexed_row_offset = ({23'b0, y} + 32'd1) * WIDTH;
+    wire [31:0] indexed_row_offset = ({{(32-Y_BITS){1'b0}}, y} + 32'd1) * WIDTH;
     wire [31:0] row_byte_offset = active_rgb565 ?
         {indexed_row_offset[30:0],1'b0} : indexed_row_offset;
     // Increment a row pointer instead of multiplying a cross-domain stride.
@@ -235,6 +243,7 @@ module gpu_scanout #(
     always @(posedge pixel_clk) begin
         if (!prst[1]) begin
             hx <= 0; vy <= 0; frames <= 0; underflows <= 0;
+            underflow_pending <= 0;
             commit_sync <= 0; applied_toggle <= 0;
             active_base <= 0; active_enable <= 0;
             active_rgb565<=0;request_rgb565<=0;active_half<=0;request_half<=0;active_stride<=0;row_pointer<=0;
@@ -244,6 +253,12 @@ module gpu_scanout #(
             ack_sync <= 0; ack_seen <= 0; ready_valid <= 0; line_good <= 0;
         end else begin
             commit_sync <= {commit_sync[0], commit_toggle};
+            // Neo: separate the wide line-tag comparison from the counter
+            // enable. The event is counted one pixel later, still once/line.
+            if (WIDTH > 1024) begin
+                underflow_pending <= 0;
+                if (underflow_pending) underflows <= underflows + 1'b1;
+            end
             ack_sync <= {ack_sync[0], acknowledge};
             if (hx == H_TOTAL - 1) begin
                 hx <= 0;
@@ -270,21 +285,23 @@ module gpu_scanout #(
                     request_rgb565<=next_rgb565;request_half<=next_half;
                     request_layers<=next_layers;request_bank<=next_bank;
                     request_sprites<=next_sprites;
-                    request_tag <= {next_frame, 9'd0};
+                    request_tag <= {next_frame, {Y_BITS{1'b0}}};
                     request_toggle <= ~request_toggle;
                 end
             end
             if (hx == 0 && visible_y) begin
                 row_pointer<=following_row;
                 line_good <= ready_valid[y[0]] && ready_tag[y[0]] == {frames, y};
-                if (active_enable && !(ready_valid[y[0]] && ready_tag[y[0]] == {frames, y}))
-                    underflows <= underflows + 1'b1;
+                if (active_enable && !(ready_valid[y[0]] && ready_tag[y[0]] == {frames, y})) begin
+                    if (WIDTH > 1024) underflow_pending <= 1;
+                    else underflows <= underflows + 1'b1;
+                end
                 if (active_enable && y < HEIGHT - 1 && request_idle) begin
                     request_base <= active_rgb565 && (active_half || active_stride!=0) ? following_row:active_base + row_byte_offset;
                     request_rgb565<=active_rgb565;request_half<=active_half;
                     request_layers<=active_layers;request_bank<=active_bank;
                     request_sprites<=active_sprites;
-                    request_tag <= {frames, y + 9'd1};
+                    request_tag <= {frames, y + {{(Y_BITS-1){1'b0}},1'b1}};
                     request_toggle <= ~request_toggle;
                 end
             end
@@ -292,13 +309,38 @@ module gpu_scanout #(
     end
 
     // Memory domain: whole lines are composed before becoming visible.
-    reg [255:0] lines [0:127];
-    reg [255:0] overlay_lines [0:63];
-    reg [31:0] overlay_coverage [0:63];
+    // Capture the held mailbox payload before it fans out to the 720p
+    // engines. The source retains it until the completed-line ack returns.
+    wire [31:0] line_base;
+    wire line_rgb565,line_half,line_layers,line_bank,line_sprites;
+    wire [Y_BITS-1:0] line_y;
+    generate if(WIDTH>1024)begin:g_line_mailbox
+        reg [31:0] base=0;
+        reg rgb565=0,halfres=0,layers=0,bank=0,sprites=0;
+        reg [Y_BITS-1:0] row=0;
+        always @(posedge mem_clk)begin
+            if(!mrst[1])begin base<=0;rgb565<=0;halfres<=0;layers<=0;bank<=0;sprites<=0;row<=0;end
+            else if(!line_pending && request_sync[1]!=acknowledge)begin
+                base<=request_base;rgb565<=request_rgb565;halfres<=request_half;
+                layers<=request_layers;bank<=request_bank;sprites<=request_sprites;
+                row<=request_tag[Y_BITS-1:0];
+            end
+        end
+        assign line_base=base;assign line_rgb565=rgb565;assign line_half=halfres;
+        assign line_layers=layers;assign line_bank=bank;assign line_sprites=sprites;assign line_y=row;
+    end else begin:g_line_direct
+        assign line_base=request_base;assign line_rgb565=request_rgb565;assign line_half=request_half;
+        assign line_layers=request_layers;assign line_bank=request_bank;
+        assign line_sprites=request_sprites;assign line_y=request_tag[Y_BITS-1:0];
+    end endgenerate
+    reg dispatch_line=0;
+    reg [255:0] lines [0:(2<<RGB_BITS)-1];
+    reg [255:0] overlay_lines [0:(2<<BLOCK_BITS)-1];
+    reg [31:0] overlay_coverage [0:(2<<BLOCK_BITS)-1];
     reg rgb_start=0,rgb_phase=0;
     wire [31:0] block_coverage;
     reg [1:0] request_sync = 0;
-    reg [40:0] tag = 0;
+    reg [TAG_BITS-1:0] tag = 0;
     reg reader_start=0,current_layers=0,done_pending=0;
     reg cache_start=0,prefetch_active=0,line_pending=0;
     wire cache_done,cache_busy,cache_fetch_valid,reader_fetch_valid;
@@ -312,13 +354,13 @@ module gpu_scanout #(
     wire rgb_fetch_valid,rgb_done,rgb_block_valid;
     wire [28:0] rgb_fetch_addr;
     wire [255:0] rgb_block_data;
-    wire [5:0] rgb_block_index;
+    wire [RGB_BITS-1:0] rgb_block_index;
     // Each engine drains before the next starts; inactive engines have no
     // outstanding request. Keep the owner mux off the DDR arbitration path.
     assign fetch_valid=rgb_fetch_valid || cache_fetch_valid || reader_fetch_valid;
     assign fetch_addr=rgb_phase ? rgb_fetch_addr : prefetch_active ? cache_fetch_addr : reader_fetch_addr;
     wire reader_busy,reader_done,block_valid;
-    wire [4:0] block_index;
+    wire [BLOCK_BITS-1:0] block_index;
     wire [255:0] block_data;
     // Cut the DDR arbiter's tag decode from the high-fanout line RAM enables.
     // Data runs continuously so the tag decode only drives one valid register.
@@ -333,26 +375,39 @@ module gpu_scanout #(
         clear_sync<={clear_sync[1:0],clear_toggle};
     end
     gpu_line_reader #(.WIDTH(WIDTH),.HEIGHT(HEIGHT)) u_reader (
-        .clk(mem_clk),.resetn(mrst[1]),.start(reader_start && (!request_rgb565 || request_layers)),.layers(request_layers),.config_bank(request_bank),
+        .clk(mem_clk),.resetn(mrst[1]),.start(reader_start && (!line_rgb565 || line_layers)),.layers(line_layers),.config_bank(line_bank),
         .clear_maxima(clear_maxima),
-        .sprites(request_sprites && request_layers),
-        .base(request_base),.line_y(request_tag[8:0]),.busy(reader_busy),.done(reader_done),
+        .sprites(line_sprites && line_layers),
+        .base(line_base),.line_y(line_y),.busy(reader_busy),.done(reader_done),
         .config_address(config_address),.config_data(config_data),
         .fetch_valid(reader_fetch_valid),.fetch_addr(reader_fetch_addr),.fetch_ready(fetch_ready && !prefetch_active && !rgb_phase),.fetch_data(returned_data),.fetch_data_valid(returned_valid && !prefetch_active && !rgb_phase),
         .block_valid(block_valid),.block_index(block_index),.block_data(block_data),.block_coverage(block_coverage),.max_cycles(max_cycles),.invalid_layers(invalid_layers),
         .sprite_head_layer(sprite_head_layer),.sprite_head_index(sprite_head_index),.sprite_index(sprite_index),.sprite_metadata(sprite_metadata),
         .sprite_row_address(sprite_row_address),.sprite_row_data(sprite_row_data),.max_sprites(max_sprites),.max_sprite_pixels(max_sprite_pixels));
     gpu_rgb_reader #(.WIDTH(WIDTH)) u_rgb_reader (
-        .clk(mem_clk),.resetn(mrst[1]),.start(rgb_start),.pipelined(request_layers),.halfres(request_half),.base(request_base),
+        .clk(mem_clk),.resetn(mrst[1]),.start(rgb_start),.pipelined(line_layers || WIDTH>1024),.halfres(line_half),.base(line_base),
         .done(rgb_done),.fetch_valid(rgb_fetch_valid),.fetch_addr(rgb_fetch_addr),
         .fetch_ready(fetch_ready && rgb_phase),.fetch_data(returned_data),
         .fetch_data_valid(returned_valid && rgb_phase),
         .block_valid(rgb_block_valid),.block_index(rgb_block_index),.block_data(rgb_block_data));
-    wire output_block_valid=request_rgb565 ? rgb_block_valid:block_valid;
-    wire [5:0] output_block_index=request_rgb565 ? rgb_block_index:{1'b0,block_index};
-    wire [255:0] output_block_data=request_rgb565 ? rgb_block_data:block_data;
+    wire raw_block_valid=line_rgb565 ? rgb_block_valid:block_valid;
+    wire [RGB_BITS-1:0] raw_block_index=line_rgb565 ? rgb_block_index:{1'b0,block_index};
+    wire [255:0] raw_block_data=line_rgb565 ? rgb_block_data:block_data;
+    // Neo's wider line RAM spans many physical banks. Register its write
+    // enable and payload together, also cutting BRAM -> checksum arithmetic.
+    reg staged_valid=0,staged_done=0;
+    reg [RGB_BITS-1:0] staged_index;
+    reg [255:0] staged_data;
+    always @(posedge mem_clk)begin
+        staged_valid<=mrst[1] && raw_block_valid;
+        staged_done<=mrst[1] && (line_rgb565 ? rgb_done:reader_done);
+        staged_index<=raw_block_index;staged_data<=raw_block_data;
+    end
+    wire output_block_valid=WIDTH>1024 ? staged_valid:raw_block_valid;
+    wire [RGB_BITS-1:0] output_block_index=WIDTH>1024 ? staged_index:raw_block_index;
+    wire [255:0] output_block_data=WIDTH>1024 ? staged_data:raw_block_data;
     gpu_sprite_cache u_sprites (
-        .clk(mem_clk),.resetn(mrst[1]),.start(cache_start),.config_bank(request_bank),.busy(cache_busy),.done(cache_done),
+        .clk(mem_clk),.resetn(mrst[1]),.start(cache_start),.config_bank(line_bank),.busy(cache_busy),.done(cache_done),
         .clear_maxima(clear_maxima),
         .config_address(sprite_config_address),.config_data(sprite_config_data),
         .fetch_valid(cache_fetch_valid),.fetch_addr(cache_fetch_addr),.fetch_ready(fetch_ready && prefetch_active),
@@ -377,26 +432,38 @@ module gpu_scanout #(
     end
     always @(posedge mem_clk) begin
         if (!mrst[1]) begin
-            request_sync <= 0; acknowledge <= 0;reader_start<=0;current_layers<=0;done_pending<=0;tag <= 0;
+            dispatch_line<=0;request_sync <= 0; acknowledge <= 0;reader_start<=0;current_layers<=0;done_pending<=0;tag <= 0;
             cache_start<=0;prefetch_active<=0;line_pending<=0;rgb_start<=0;rgb_phase<=0;
             checksum <= 0; frame_checksum <= 0; fetch_frames <= 0;
         end else begin
             request_sync <= {request_sync[0], request_toggle};
             reader_start<=0;cache_start<=0;rgb_start<=0;
             if(cache_done) begin prefetch_active<=0;reader_start<=1;end
-            if(reader_done && request_rgb565)begin rgb_start<=1;rgb_phase<=1;end
-            done_pending<=request_rgb565 ? rgb_done:reader_done;
+            if(reader_done && line_rgb565)begin rgb_start<=1;rgb_phase<=1;end
+            done_pending<=WIDTH>1024 ? staged_done:(line_rgb565 ? rgb_done:reader_done);
             if (done_pending) begin
                 acknowledge<=request_sync[1];
                 line_pending<=0;
-                if(tag[8:0]==HEIGHT-1) begin frame_checksum<=checksum;fetch_frames<=fetch_frames+1'b1;end
+                if(tag[Y_BITS-1:0]==HEIGHT-1) begin frame_checksum<=checksum;fetch_frames<=fetch_frames+1'b1;end
             end else if(!line_pending && request_sync[1]!=acknowledge) begin
-                tag<=request_tag;current_layers<=request_layers && !request_rgb565;line_pending<=1;
-                rgb_phase<=request_rgb565 && !request_layers;
-                if(request_layers && request_sprites && request_tag[8:0]==0) begin cache_start<=1;prefetch_active<=1;end
-                else if(request_rgb565 && !request_layers)rgb_start<=1;
+                tag<=request_tag;line_pending<=1;
+                if(WIDTH>1024)dispatch_line<=1;
+                else begin
+                    current_layers<=line_layers && !line_rgb565;
+                    rgb_phase<=line_rgb565 && !line_layers;
+                    if(line_layers && line_sprites && line_y==0) begin cache_start<=1;prefetch_active<=1;end
+                    else if(line_rgb565 && !line_layers)rgb_start<=1;
+                    else reader_start<=1;
+                    if(line_y==0)checksum<=0;
+                end
+            end
+            if(dispatch_line)begin
+                dispatch_line<=0;current_layers<=line_layers && !line_rgb565;
+                rgb_phase<=line_rgb565 && !line_layers;
+                if(line_layers && line_sprites && line_y==0)begin cache_start<=1;prefetch_active<=1;end
+                else if(line_rgb565 && !line_layers)rgb_start<=1;
                 else reader_start<=1;
-                if(request_tag[8:0]==0) checksum<=0;
+                if(line_y==0)checksum<=0;
             end
             if(check_valid2) checksum<=current_layers ? rotate(checksum,5)^burst_hash : checksum+burst_sum;
         end
@@ -405,7 +472,7 @@ module gpu_scanout #(
         if (mrst[1] && output_block_valid) lines[{tag[0], output_block_index}] <= output_block_data;
 
     always @(posedge mem_clk) begin
-        if(mrst[1] && block_valid && request_rgb565 && request_layers)begin
+        if(mrst[1] && block_valid && line_rgb565 && line_layers)begin
             overlay_lines[{tag[0],block_index}]<=block_data;
             overlay_coverage[{tag[0],block_index}]<=block_coverage;
         end
@@ -423,17 +490,31 @@ module gpu_scanout #(
     reg [17:0] rgb, fallback1, fallback2;
     reg [17:0] direct_rgb;
     reg format1=0,format2=0;
-    wire [9:0] rgb_x=active_half ? {1'b0,x[9:1]}:x;
+    wire [X_BITS-1:0] rgb_x=active_half ? {1'b0,x[X_BITS-1:1]}:x;
     reg [3:0] direct_index;
     wire [15:0] direct_pixel=pixel_word[direct_index*16+:16];
+    wire [7:0] palette_address=overlay1 ? overlay_word[byte_index*8+:8]:pixel_word[byte_index*8+:8];
+    reg [7:0] palette_address2;
+    reg [31:0] palette_group2;
+    reg [1:0] palette_byte2;
+    // At 720p split the 32:1 byte selector into 8:1 and 4:1 stages,
+    // followed by the palette RAM. Direct RGB and controls match all four
+    // pixel cycles. The Pro Dock keeps its original two-cycle path.
+    reg de3=0,hs3=1,vs3=1,good3=0,en3=0,format3=0,overlay3=0,covered3=0;
+    reg [17:0] direct_rgb3,fallback3;
+    reg de4=0,hs4=1,vs4=1,good4=0,en4=0,format4=0,overlay4=0,covered4=0;
+    reg [17:0] direct_rgb4,fallback4;
     always @(posedge pixel_clk) begin
-        pixel_word <= lines[{y[0], active_rgb565 ? rgb_x[9:4]:{1'b0,x[9:5]}}];
-        overlay_word<=overlay_lines[{y[0],x[9:5]}];
-        coverage_word<=overlay_coverage[{y[0],x[9:5]}];
+        pixel_word <= lines[{y[0], active_rgb565 ? rgb_x[X_BITS-1:4]:{1'b0,x[X_BITS-1:5]}}];
+        overlay_word<=overlay_lines[{y[0],x[X_BITS-1:5]}];
+        coverage_word<=overlay_coverage[{y[0],x[X_BITS-1:5]}];
         overlay1<=active_rgb565 && active_layers;overlay2<=overlay1;
         covered2<=coverage_word[byte_index];
         byte_index <= x[4:0];direct_index<=rgb_x[3:0];
-        rgb <= palette[overlay1 ? overlay_word[byte_index*8+:8]:pixel_word[byte_index*8+:8]];
+        palette_group2<=overlay1 ? overlay_word[byte_index[4:2]*32+:32]:pixel_word[byte_index[4:2]*32+:32];
+        palette_byte2<=byte_index[1:0];
+        palette_address2<=palette_group2[palette_byte2*8+:8];
+        rgb <= palette[WIDTH>1024 ? palette_address2:palette_address];
         direct_rgb<={direct_pixel[15:11],direct_pixel[15],direct_pixel[10:5],direct_pixel[4:0],direct_pixel[4]};
         format1<=active_rgb565;format2<=format1;
         de1 <= visible && prst[1]; de2 <= de1;
@@ -442,20 +523,31 @@ module gpu_scanout #(
         good1 <= line_good; good2 <= good1;
         en1 <= active_enable; en2 <= en1;
         fallback1 <= {6{x[7:5]}}; fallback2 <= fallback1;
+        de3<=de2;hs3<=hs2;vs3<=vs2;good3<=good2;en3<=en2;
+        format3<=format2;overlay3<=overlay2;covered3<=covered2;
+        direct_rgb3<=direct_rgb;fallback3<=fallback2;
+        de4<=de3;hs4<=hs3;vs4<=vs3;good4<=good3;en4<=en3;
+        format4<=format3;overlay4<=overlay3;covered4<=covered3;
+        direct_rgb4<=direct_rgb3;fallback4<=fallback3;
     end
-    wire [17:0] out_rgb = !en2 ? fallback2 : good2 ? (format2 && !(overlay2 && covered2) ? direct_rgb:rgb) : 18'b0;
+    wire out_de=WIDTH>1024 ? de4:de2;
+    wire out_hs=WIDTH>1024 ? hs4:hs2;
+    wire out_vs=WIDTH>1024 ? vs4:vs2;
+    wire [17:0] out_rgb = WIDTH>1024 ?
+        (!en4 ? fallback4 : good4 ? (format4 && !(overlay4 && covered4) ? direct_rgb4:rgb) : 18'b0):
+        (!en2 ? fallback2 : good2 ? (format2 && !(overlay2 && covered2) ? direct_rgb:rgb) : 18'b0);
     reg was_vs=1;
     always @(posedge pixel_clk)begin
         if(!prst[1])begin display_checksum<=0;display_sum<=0;was_vs<=1;end
         else begin
-            was_vs<=vs2;
-            if(was_vs && !vs2)begin display_checksum<=display_sum;display_sum<=0;end
-            else if(de2)display_sum<=display_sum+{14'd0,out_rgb};
+            was_vs<=out_vs;
+            if(was_vs && !out_vs)begin display_checksum<=display_sum;display_sum<=0;end
+            else if(out_de)display_sum<=display_sum+{14'd0,out_rgb};
         end
     end
-    assign lcd_en = de2;
-    assign lcd_hs = hs2;
-    assign lcd_vs = vs2;
-    assign {lcd_r, lcd_g, lcd_b} = de2 ? out_rgb : 18'b0;
+    assign lcd_en = out_de;
+    assign lcd_hs = out_hs;
+    assign lcd_vs = out_vs;
+    assign {lcd_r, lcd_g, lcd_b} = out_de ? out_rgb : 18'b0;
 endmodule
 `default_nettype wire

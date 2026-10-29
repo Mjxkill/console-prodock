@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Boot real RV32 software on QEMU virt; this is not an AE350 simulation."""
+import os
 from pathlib import Path
 import subprocess
-p = Path(__file__).resolve().parents[1] / 'build'
+p = Path(__file__).resolve().parents[1] / ('build-neo' if os.environ.get('CONSOLE_BOARD')=='neo' else 'build')
 cmd = ['qemu-system-riscv32', '-machine', 'virt', '-cpu', 'rv32', '-m', '256M',
        '-smp', '1', '-nographic', '-monitor', 'none', '-no-reboot',
        '-bios', str(p / 'opensbi-qemu-virt/platform/generic/firmware/fw_dynamic.bin'),

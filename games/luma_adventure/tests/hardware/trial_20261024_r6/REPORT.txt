@@ -1,0 +1,28 @@
+LUMA R6 — essai négatif de performance, conservé sans promotion
+
+Même G22r0 / Linux NEBULA R17, mêmes ressources et mêmes scénarios que R5.
+Changement : cache CPU exact des blocs de 32 octets pour les effets.
+Exécution et compteurs GPU : PASS ; NEBULA restauré, processus et cinq
+compteurs vérifiés après cinq secondes. Aucun FPGA, noyau ou stockage SD modifié.
+
+Chaque fenêtre contient 600 images après 120 images d'échauffement, sans
+commande UART. Seul l'ELF est retransféré ; les ressources correspondent
+aux SHA du transfert R5 et chaque paquet utilisé est validé en longueur et
+CRC par le runtime avant upload GPU. Monde 17 non utilisé/non revalidé.
+
+walk : 52.09 FPS, p95 <= 29.8 ms, p99 <= 37.6 ms, max 56.054 ms, 23/600 images > 33,333 ms.
+
+horse : 51.43 FPS, p95 <= 32.2 ms, p99 <= 40.4 ms, max 56.737 ms, 29/600 images > 33,333 ms.
+
+sanctuary : 46.38 FPS, p95 <= 37.5 ms, p99 <= 55.5 ms, max 68.913 ms, 81/600 images > 33,333 ms.
+
+La salle 22 régresse : 46,38 FPS / p95 37,5 ms, contre 49,51 FPS / 35,5 ms
+pour R5. Les copies d'effets passent de 3,33 à 1,67 Mo, mais scene_phase
+augmente de 1,70 à 2,18 s. Le désassemblage montre que memcmp compare les
+blocs octet par octet sur cette musl. Le gain de trafic ne suffit pas.
+Les fenêtres ne sont pas un replay image par image : elles avancent la même
+simulation selon le temps réel et peuvent finir dans des positions différentes.
+
+Les captures locales et le modèle GPU prouvent la conservation des pixels.
+Ces résultats n'établissent ni la régularité globale à 30 FPS, ni la durée
+d'une partie humaine, ni une qualification Neo.

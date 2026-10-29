@@ -1,0 +1,120 @@
+```python
+"""Pure offline validation for UMSC read records; no transport/MMIO."""
+import unittest
+from dataclasses import dataclass
+from typing import Any, Iterable
+
+BASE = 0xE9003000
+IDENTITY = 0x554D5343
+FORBIDDEN = {0x08, 0x20}
+CANONICAL = {0x00, 0x04, 0x28}
+
+@dataclass
+class Status:
+    seq: int
+    owner: bool          # bit8: firmware currently serves the disk
+    requested: bool      # bit9: service requested
+    online: bool         # bit5
+    highspeed: bool      # bit6, meaningful only with online
+    loss: bool           # bit7
+    bus_reset_seen: bool  # bit2
+    bot_reset_seen: bool  # bit3
+
+@dataclass
+class Result:
+    identities: list[int]
+    versions: list[int]
+    statuses: list[Status]
+    findings: list[str]
+    # A read of this window also refreshes the RTL watchdog.
+    watchdog_refreshed_by_read: bool = True
+
+def _off(addr: int) -> int:
+    return addr - BASE if addr >= BASE else addr
+
+def _parts(rec: Any, fallback_seq: int):
+    if isinstance(rec, dict):
+        a = rec.get("addr", rec.get("address", rec.get("offset", 0)))
+        return int(rec.get("seq", fallback_seq)), int(a), int(rec["value"])
+    if len(rec) == 2:
+        return fallback_seq, int(rec[0]), int(rec[1])
+    return int(rec[0]), int(rec[1]), int(rec[2])
+
+def decode_umsc_records(records: Iterable[Any]) -> Result:
+    ids, versions, statuses, findings = [], [], [], []
+    seen = set()
+    for i, rec in enumerate(records):
+        seq, addr, val = _parts(rec, i)
+        off = _off(addr)
+        if off in FORBIDDEN:
+            findings.append(f"seq{seq}:forbidden_transport_read")
+            continue
+        if off == 0x00:
+            ids.append(val)
+            seen.add(off)
+            if val != IDENTITY:
+                findings.append(f"seq{seq}:wrong_id")
+        elif off == 0x28:
+            versions.append(val)
+            seen.add(off)
+            if val != 1:
+                findings.append(f"seq{seq}:version_not_one")
+        elif off == 0x04:
+            st = Status(seq, bool(val & (1 << 8)), bool(val & (1 << 9)),
+                        bool(val & (1 << 5)), bool(val & (1 << 6)),
+                        bool(val & (1 << 7)), bool(val & (1 << 2)),
+                        bool(val & (1 << 3)))
+            statuses.append(st)
+            seen.add(off)
+            if st.owner and not st.requested:
+                findings.append(f"seq{seq}:owner_without_request")
+            if st.highspeed and not st.online:
+                findings.append(f"seq{seq}:highspeed_without_online")
+        else:
+            findings.append(f"seq{seq}:unexpected_offset")
+    if not CANONICAL.issubset(seen):
+        findings.append("partial_read_set")
+    return Result(ids, versions, statuses, findings)
+
+class TestUmscOffline(unittest.TestCase):
+    def a(self, off, val):
+        return (BASE + off, val)
+
+    def test_wrong_id(self):
+        r = decode_umsc_records([self.a(0x00, 0)])
+        self.assertTrue(any("wrong_id" in f for f in r.findings))
+
+    def test_version_zero(self):
+        r = decode_umsc_records([self.a(0x28, 0)])
+        self.assertTrue(any("version_not_one" in f for f in r.findings))
+
+    def test_partial_pair(self):
+        r = decode_umsc_records([self.a(0x00, IDENTITY), self.a(0x04, 0)])
+        self.assertIn("partial_read_set", r.findings)
+
+    def test_bit8_owner_vs_bit9_request(self):
+        r = decode_umsc_records([self.a(0x04, 0x0100), self.a(0x04, 0x0200)])
+        self.assertEqual((r.statuses[0].owner, r.statuses[0].requested), (True, False))
+        self.assertEqual((r.statuses[1].owner, r.statuses[1].requested), (False, True))
+
+    def test_contradictory_status_preserves_transitions(self):
+        r = decode_umsc_records([self.a(0x04, 0x0200), self.a(0x04, 0x0000)])
+        self.assertEqual([(s.owner, s.requested) for s in r.statuses],
+                         [(False, True), (False, False)])
+        self.assertFalse(any("owner_without_request" in f for f in r.findings))
+
+    def test_online_highspeed_host_absent(self):
+        r = decode_umsc_records([self.a(0x04, 0x0040)])
+        self.assertTrue(any("highspeed_without_online" in f for f in r.findings))
+
+    def test_forbidden_addresses(self):
+        r = decode_umsc_records([self.a(0x08, 1), self.a(0x20, 2)])
+        self.assertTrue(any("forbidden_transport_read" in f for f in r.findings))
+
+    def test_watchdog_side_effect(self):
+        r = decode_umsc_records([self.a(0x04, 0)])
+        self.assertTrue(r.watchdog_refreshed_by_read)
+
+if __name__ == "__main__":
+    unittest.main()
+```

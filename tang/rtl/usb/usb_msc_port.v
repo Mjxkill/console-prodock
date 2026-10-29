@@ -80,6 +80,9 @@ module usb_msc_port #(
         if (!reset_n) begin ur <= 0; hu <= 0; end
         else begin ur <= {ur[1:0], 1'b1}; hu <= {hu[0], hr[2]}; end
 
+    // Assert immediately, release each domain through its own synchronizer.
+    // The last local reset flop drives the state, rather than the distant
+    // shared reset expression; hr/ur also retain the cross-domain ready gate.
     // Purge avec acquittement aller-retour : une horloge USB arrêtée ne
     // peut plus manquer la demande entière. Après observation côté USB,
     // tenir le reset 128 cycles AHB ; attendre ensuite son retrait observé
@@ -92,8 +95,8 @@ module usb_msc_port #(
     (* ASYNC_REG="TRUE" *) reg [1:0] flush_s = 0, busrst_s = 0, online_s = 0, hs_s = 0;
     reg        flush_u;
     (* ASYNC_REG="TRUE" *) reg [1:0] flush_ack_h = 0;
-    always @(posedge hclk or negedge reset_n)
-        if(!reset_n) flush_ack_h<=0;
+    always @(posedge hclk or negedge hr[2])
+        if(!hr[2]) flush_ack_h<=0;
         else flush_ack_h<={flush_ack_h[0],flush_u};
     always @(posedge clk) begin
         flush_s <= {flush_s[0], flush_h};
@@ -125,8 +128,8 @@ module usb_msc_port #(
     wire ubase  = !ur[2] || !hu[1] || bus_reset;
     wire uflush = flush_u || handback_active;
     assign ep_flush = uflush;
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin owner_u <= 1'b0; handback <= 6'd0; handback_active<=0; end
+    always @(posedge clk or negedge ur[2]) begin
+        if (!ur[2]) begin owner_u <= 1'b0; handback <= 6'd0; handback_active<=0; end
         else begin
             // Same cycles as (handback != 0), without a counter reduction
             // in front of the distributed endpoint/FIFO reset and enables.
@@ -150,11 +153,11 @@ module usb_msc_port #(
     reg        halt_toggle;
     (* ASYNC_REG="TRUE" *) reg [2:0] halt_s = 0;
     (* ASYNC_REG="TRUE" *) reg [1:0] halted_h = 0;
-    always @(posedge clk or negedge reset_n)
-        if(!reset_n)halt_s<=0;
+    always @(posedge clk or negedge ur[2])
+        if(!ur[2])halt_s<=0;
         else halt_s<={halt_s[1:0],halt_toggle};
-    always @(posedge hclk or negedge reset_n)
-        if(!reset_n)halted_h<=0;
+    always @(posedge hclk or negedge hr[2])
+        if(!hr[2])halted_h<=0;
         else halted_h<={halted_h[0],ep_halted};
     assign halt_request=halt_s[2]!=halt_s[1];
     reg [15:0] pushed;
@@ -201,8 +204,8 @@ module usb_msc_port #(
         lost_s <= {lost_s[1:0], lost_toggle};
     end
 
-    always @(posedge hclk or negedge reset_n) begin
-        if (!reset_n) begin
+    always @(posedge hclk or negedge hr[2]) begin
+        if (!hr[2]) begin
             write_pending <= 1'b0; read_pending <= 1'b0; address <= 8'd0; hrdata <= 32'd0;
             flush_count <= 8'd0; quiet_h <= 1'b0; seen_bus_reset <= 1'b0; seen_bot_reset <= 1'b0; lost <= 1'b0;
             pushed <= 16'd0; serve <= 1'b0; watchdog <= {1'b1, {WATCHDOG_BITS{1'b1}}}; tx_room <= 1'b0;
@@ -294,8 +297,8 @@ module usb_msc_port #(
     reg [15:0] pushed_u;
     wire tx_take = tx_valid && !ureset && !serial_busy;
     wire tx_first = tx_take && !tx_word[34];
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin serial <= 24'd0; serial_left <= 2'd0; serial_gap <= 1'b0; end
+    always @(posedge clk or negedge ur[2]) begin
+        if (!ur[2]) begin serial <= 24'd0; serial_left <= 2'd0; serial_gap <= 1'b0; end
         else if (ureset) begin serial_left <= 2'd0; serial_gap <= 1'b0; end
         else begin
             serial_gap <= 1'b0;
@@ -314,8 +317,8 @@ module usb_msc_port #(
     // contrôleur -> sélection/sérialisation -> écriture BSRAM de EP1.
     // Le reset EP1 annule aussi l'octet déjà dans cet étage. tx_idle_u tient
     // compte du compteur publié, donc de cette latence supplémentaire.
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin ep_tx_dval <= 1'b0; ep_tx_data <= 8'd0; ep_tx_committed <= 16'd0; end
+    always @(posedge clk or negedge ur[2]) begin
+        if (!ur[2]) begin ep_tx_dval <= 1'b0; ep_tx_data <= 8'd0; ep_tx_committed <= 16'd0; end
         else if (ubase || uflush) begin ep_tx_dval <= 1'b0; ep_tx_data <= 8'd0; ep_tx_committed <= 16'd0; end
         else begin
             ep_tx_dval <= owner_u ? tx_first || serial_emit : empty_tx_dval;
@@ -323,8 +326,8 @@ module usb_msc_port #(
             ep_tx_committed <= committed_u;
         end
     end
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin pushed_u <= 16'd0; committed_u <= 16'd0; end
+    always @(posedge clk or negedge ur[2]) begin
+        if (!ur[2]) begin pushed_u <= 16'd0; committed_u <= 16'd0; end
         else if (ubase || uflush) begin pushed_u <= 16'd0; committed_u <= 16'd0; end
         else if (!owner_u) begin
             if (empty_tx_dval) pushed_u <= pushed_u + 1'b1;

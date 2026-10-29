@@ -1,0 +1,19 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Fonction de variation déterministe de36arbres à géométrie/drawcalls constants; code court, futur lot séparé.
+
+EVIDENCE PACKET:
+Tache future independante, ne modifie rien. Jardin3D tropplat: arbresconiquesverts repetes. Propose une fonction C deterministe de variations lisibles des36arbres (position/largeur/hauteur/inclinaison/palette) SANS ajoutertriangles ni commandes ni textures. Conserverpositions hors carre accessible +-14, au moinsune coordabs>=16.5. Les ombres/fleurs demanderaient autre lot, ne les invente pas ici. Le draw actuel doit garder memecompteprimitive; proposeparametresdifferentspararbre et groupingnaturel, pasdegrille. Cielbleu/lunes/horizonbrume sontdeja implemente. Reponse maximum600mots, donne codecourt et2 tests bornes. Pas de longraisonnement ni promesseFPS, pas outils. Limite explicite: variantedisposition seule, pasrefontevisuelle.
+static void garden_tree(unsigned i,float *x,float *z,float *height,float *width){
+    /* Three irregular groves leave a view northward towards the distant sky.
+       The trunk stays outside the accessible square, including its thickness. */
+    static const float centers[3]={.25f,2.25f,4.35f};
+    float angle=centers[i/12]+((int)(i%12)-5.5f)*.095f+.06f*sinf(i*1.83f);
+    float radius=24+4*sinf(i*2.3f)+2*cosf(i*.63f);
+    *x=sinf(angle)*radius;*z=cosf(angle)*radius;
+    float extent=fmaxf(fabsf(*x),fabsf(*z));
+    if(extent<16.5f){*x*=16.5f/extent;*z*=16.5f/extent;}
+    *height=4.2f+1.1f*(1+sinf(i*1.71f));
+    *width=1.8f+.45f*(1+cosf(i*2.11f));
+}

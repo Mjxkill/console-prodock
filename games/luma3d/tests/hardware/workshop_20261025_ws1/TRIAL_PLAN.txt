@@ -1,0 +1,39 @@
+Atelier r8 / sauvegarde V2 : essai userspace Pro Dock borné, sans modification matérielle
+
+ELF figé 78afc779447e76f221b509f7b3e4c9a2abb347f98ab405f23001c9567a75050c.
+Seul repli : sf2 /tmp/luma3d-sf2, SHA ad74b613145bf410c55ac3501962ecea9089f448d84a40e3056bff8671f09d8d.
+Départ attendu PID 1193, startticks 7812193. Vérification fraîche sous verrou
+/tmp/prodock-diagnostic.lock, CDC série11252024 exclusive, kernel G3D1,
+DISPLAY propre, continuité FPGA G22r0. Aucun JTAG/FPGA/noyau/SD/flash.
+
+sf2 continue pendant le transfert RAM. Récepteur relu, delta ELF reconstruit
+avec CRC et références vérifiées, seconde garde PID/startticks/cmdline.
+Annonce avant bascule ; délai explicite de dix secondes avant l'atelier.
+Après arrêt sf2, sa sauvegarde V1 /tmp/sf2-live.save est relevée et préservée.
+Un repli emploie sa copie /tmp/wsN-sf2-recovery.save, jamais un fichier V2.
+
+Cinq fenêtres fixes, une fois chacune : sf2 arrivée0 ; atelier arrivée0 ;
+atelier ailettes6500 ; atelier réserve6780 ; sf2 arrivée0 témoin final.
+30 images après3 chauffe, aucune écriture UART avant EXIT. Comparaison de
+96 000 pixels contre l'oracle propre à chaque version/scène, deux banques HUD,
+compteurs géométrie et DISPLAY. Les deux poses de l'atelier sont des fixtures
+obtenues par simulation préalable ; elles ne prouvent pas le parcours matériel.
+Garde manifeste seulement : arrivée ≤10% plus lente ; dérive témoin ≤5%.
+Pas de revendication de gain ou de percentile, ni répétition pour obtenir PASS.
+
+Ensuite nouvelle partie automatique réelle, SANS --advance, avec sauvegarde
+/tmp/wsN-progress.save. Après progression constatée :240s sans écriture UART.
+Arrêt propre ; exiger courrier4/relais3 et atelier phase4/mode5/cuivre3/bleue2,
+simulation≥165,9s, erreurs nulles. Relire136octets, CRC/V2/IDs/états validés.
+Reprise manuelle une image sur le même V2 ; progression et données conservées.
+
+Succès : lancer une nouvelle visite --advance6280 --save/tmp/wsN-live.save,
+à l'approche de l'atelier. Ces6 280 pas font réellement jouer l'autopilote au
+chargement ; aucune injection de flags/positions. Cette présentation est une
+visite automatique, pas une partie humaine depuis le début. Vérifier process,
+progression PRESENT, DISPLAY propre, V1 de sf2 inchangée. Publier nouveau PID,
+libérer CDC/verrou et laisser LUMA affiché, sans NEBULA.
+Échec après arrêt : nettoyer le PID exact puis repli sf2 et progression vérifiée.
+PID non publié/ambigu interdit un deuxième lancement ; interruptions gérées.
+Les sauvegardes sont exclusivement RAM volatile. Toutes les mesures et les
+éventuels échecs seront archivés ; aucun essai Neo.

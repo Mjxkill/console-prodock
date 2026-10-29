@@ -1,0 +1,35 @@
+I'll start by reading the contract and running the initial tests in parallel, as required.Initial run confirms all 9 tests error on the `NotImplementedError` stub, as expected. Now let me read the test file and current stub to pin down exact expectations.The tests and contract are clear. Let me analyze the requirements:
+
+**Key semantics from contract + tests:**
+- Validate every record: must be in a `list`, each a `dict` with a string `event`; relevant events (`tool_start`, `tool_finish`, `test_finish`) need nonempty string `launch_id`, `request_id` nonempty-string-or-int (no bool); `test_finish` needs `index` int 0..1023, `returncode` int −255..255 (no bools), `timeout`/`output_limited` must be real bools; tool records need string `name`.
+- Outcome identity `(launch_id, request_id, index)` counted once; identical repeats tolerated, non-identical repeats → `ValueError`. Same for tool records per `(event, launch, request)`.
+- `complete` ⟺ run_tests starts set == finishes set == set of (launch, request) that have outcomes (order-independent; empty input is complete).
+- Observed outcomes always count in `test_runs`/`test_failures` even when incomplete; `test_calls` = distinct run_tests identities in starts OR finishes.
+- All errors are `ValueError`; never mutate input.
+
+Now I'll implement `agent_audit.py`:Module written. Now running the protected acceptance tests again:All 9 tests pass on the first repair. Let me do one final sanity check confirming the module stays under 1000 physical lines and the empty-input contract holds:Done. The task is complete with observed evidence at every step.
+
+## Files changed
+- **`agent_audit.py`** (only owned file written; 153 physical lines, pure module with zero imports): implemented `summarize(records)` per CONTRACT.md.
+
+## Tests observed
+1. **Baseline (before any edit):** `taskbox_run_tests` → 9/9 errored with `NotImplementedError`, as expected since the module was a stub.
+2. **After implementing:** `taskbox_run_tests` → **Ran 9 tests, OK — all passing** (`passed: true`, `test_failures: 0`), including:
+   - empty input → complete zero-test view; outcome counting vs. call counting (`test_calls=1` for 3 commands in one call)
+   - idempotent identical duplicates; conflicting same-identity repeat → `ValueError`
+   - out-of-order tolerance and all 5 partial-lifecycle cases → `complete=False` while observed outcomes still count
+   - string request IDs separated by launch; `timeout`/`output_limited` failures even with returncode 0
+   - unrelated tools/lifecycle events ignored; no input mutation
+   - strict validation: bool/int range checks on `index`, `returncode`; real-bool checks on flags; nonempty `launch_id`, string-or-int `request_id`; missing-field, non-list (`{}`, `None`), non-dict, and non-string `event` inputs all raise `ValueError`
+3. **Sanity check:** module imports cleanly, 153 lines (< 1000), empty summary correct.
+
+## Implementation notes
+- Errors are uniformly `ValueError` (no `TypeError`), per contract wording.
+- Duplicate tolerance compares full record equality per identity (outcomes keyed `(launch_id, request_id, index)`, tool records keyed `(event, launch_id, request_id)`); any same-identity repeat that isn't an identical record is treated as conflicting.
+- `complete` ⟺ run_tests starts == finishes == set of (launch, request) with at least one observed outcome; this makes empty input complete and rejects start-without-finish, finish-without-start, outcome-without-lifecycle, and finished-call-without-outcomes, while still counting observed commands.
+- Input is never mutated; results are order-independent via sets/dicts.
+
+## Limits
+- Ambiguity in the contract on repeats that are neither fully identical nor conflicting on the defined fields (e.g., identical relevant fields plus an extra unknown key): I chose the strict reading — same identity must repeat identically, otherwise `ValueError`. Both provided tests agree with this reading, but a hypothetical stream adding harmless extra keys to one duplicate would be rejected.
+- Similarly, two different tool names reusing the same `(launch, request)` identity raise `ValueError` rather than coexisting, consistent with "launches separate otherwise reused request IDs."
+- Only `agent_audit.py` was modified; the protected test file and contract were read-only and untouched. No network, hardware, or processes were invoked.

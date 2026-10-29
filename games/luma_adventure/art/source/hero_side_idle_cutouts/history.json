@@ -1,0 +1,142 @@
+{
+  "66f668ba-d880-4477-b3fb-2c9fb92286bb": {
+    "prompt": [
+      42,
+      "66f668ba-d880-4477-b3fb-2c9fb92286bb",
+      {
+        "load": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "luma_hero_side_idle_00001_.png [output]"
+          }
+        },
+        "model": {
+          "class_type": "LoadBackgroundRemovalModel",
+          "inputs": {
+            "bg_removal_name": "birefnet.safetensors"
+          }
+        },
+        "crop_00": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load",
+              0
+            ],
+            "width": 512,
+            "height": 512,
+            "x": 0,
+            "y": 0
+          }
+        },
+        "mask": {
+          "class_type": "RemoveBackground",
+          "inputs": {
+            "bg_removal_model": [
+              "model",
+              0
+            ],
+            "image": [
+              "crop_00",
+              0
+            ]
+          }
+        },
+        "invert": {
+          "class_type": "InvertMask",
+          "inputs": {
+            "mask": [
+              "mask",
+              0
+            ]
+          }
+        },
+        "rgba": {
+          "class_type": "JoinImageWithAlpha",
+          "inputs": {
+            "image": [
+              "crop_00",
+              0
+            ],
+            "alpha": [
+              "invert",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "rgba",
+              0
+            ],
+            "filename_prefix": "luma_hero_side_idle_cutout"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792796782767
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "luma_hero_side_idle_cutout_00001_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 512,
+              "height": 512
+            },
+            "id": "b1e00d18-4967-43bb-8268-f0625f7e10a9"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "66f668ba-d880-4477-b3fb-2c9fb92286bb",
+            "timestamp": 1792796782768
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "model"
+            ],
+            "prompt_id": "66f668ba-d880-4477-b3fb-2c9fb92286bb",
+            "timestamp": 1792796782771
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "66f668ba-d880-4477-b3fb-2c9fb92286bb",
+            "timestamp": 1792796783439
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

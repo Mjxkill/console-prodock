@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "implement_trusted_audit_counters",
+  "run_id": "ignored_unless_cli",
+  "inputs": [
+    "agent_audit.py",
+    "CONTRACT.md",
+    "test_agent_audit.py"
+  ],
+  "owned": [
+    "agent_audit.py"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "test_agent_audit.py"
+    ]
+  ],
+  "timeout_seconds": 30,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "min_model_steps": 2,
+    "min_tool_calls": 4
+  },
+  "domain": "model_workflow",
+  "task_type": "implementation",
+  "difficulty": "medium",
+  "task_family": "trusted_mcp_audit_counter",
+  "acceptance_criteria": "Implement pure strict audit counters;9protectedadversarialtests pass; one opencode invocation performs read,testfailurebeforeedit,ownededit,testpass; independent final tests pass; originals unchanged.",
+  "prompt": "Implement agent_audit.py according to CONTRACT.md. Use taskbox_read_file to read the contract and tests. FIRST use taskbox_run_tests before any write: initial failure is expected because the module is unfinished. Then implement only agent_audit.py, run taskbox_run_tests again, and repair any remaining failures in this same session. Do not merely print proposed code. You have real tools and an isolated copy; tests and contract are read-only. Finish with observed results and limits. Do not invoke network or hardware."
+}

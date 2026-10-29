@@ -1,0 +1,93 @@
+LUMA R9b — réseaux optiques et retour galerie sur Pro Dock
+
+Résultat : PASS d'exécution et de fonctionnement ciblé, régularité insuffisante.
+NEBULA restauré, processus et cinq compteurs DISPLAY vérifiés après 5 secondes.
+Contrôleur terminé et accès série libéré. Aucun flash, FPGA, noyau ou SD écrit.
+
+Identités
+---------
+Pro Dock Mega Pro Dock, CDC 11252024, Linux 6.12.112-prodock R17 conservé.
+G22r0 par continuité de la restauration documentée ; fichier de référence SHA
+fbbea9c357d0c4d5b33c3c4a7e54f9ed0ff8e31cc3fad1ac9dc1771f8e8cba5f.
+Il n'existe pas de registre donnant le hash du bitstream chargé.
+GPU ABI 1, caps 0x1ff, mémoire 0x00800000 + 90 177 536, affichage 800×480.
+
+Jeu : exactement l'ELF du lot local reflections_20261024, 473292 octets,
+SHA 23f096f081d81d958a81f911a9b30441d51f27f0e377f10682f0bd7024ad7218.
+Probe fonctionnel séparé, 468976 octets,
+SHA 7912ed8abc5d03d196df23dd4377c792b28ab70b0573542b692a11fecb0a1c82.
+Il partage les sources moteur/rendu/données figées ; sa conduite est différente.
+Manifeste et contrôleur sont identifiés par SHA dans results/result.json.
+
+Huit fichiers, 1973733 octets, transférés uniquement vers /tmp en RAM :
+jeu, probe, paquet commun et régions 2/22/26/27/35. SHA vérifiés côté hôte,
+CRC par bloc puis global sur cible ; les packs chargés passent ensuite
+longueur/CRC contre leurs identités compilées avant upload GPU.
+118 reprises série corrigées et consignées ; aucun bloc non validé accepté.
+Ce sous-ensemble ne constitue PAS une installation de la campagne entière.
+En particulier, le monde 0 sous /tmp n'a pas été mis à jour pour ce candidat.
+
+Cadence normale — jeu inchangé
+-----------------------------
+Chaque scène démarre directement et utilise les déplacements/tirs automatiques
+du jeu : 120 images d'échauffement, puis 600 mesurées, sans commande UART
+pendant la fenêtre. Chargement initial exclu. Ce ne sont pas des solutions
+de salles ni une mesure de durée de campagne.
+
+Scène                    FPS     p95<=ms  p99<=ms  max ms   >33,333 ms
+Salle 22, témoin R5       48,91   36,2     55,0     85,863   47/600
+Salle 26, premier réseau  49,57   36,0     40,2     90,423   50/600
+Salle 35, dernier réseau  47,25   36,8     49,3     55,336   81/600
+
+Le critère moyenne >= 30 FPS et p95 <= 33,333 ms échoue dans les trois fenêtres.
+Les moyennes sont élevées mais ne démontrent pas 30 FPS réguliers.
+Le témoin R5 historique était à 49,51 FPS / p95 <= 35,5 ms en salle 22 ; ces fenêtres
+et leurs trajectoires temporelles ne sont pas une comparaison causale exacte.
+Aucune optimisation de rendu n'a été introduite pour cette campagne d'essai.
+
+SUBMIT=0 pendant ces mesures : paysage défilant en couche de tuiles, sprites
+et effets indexés. Maximum respectivement 20/12/36 sprites, aucun acteur écarté.
+Tous errors/uf/invalid/sprites/fault sont nuls après chaque fenêtre.
+Les détails simulation, scène, HUD, PRESENT et octets copiés restent dans
+les journaux bruts, sans assimiler cache_us au coût total de PRESENT.
+
+Fonctionnement — exécutable de test séparé
+-----------------------------------------
+Départ direct en salle 26 : 598 pas, 152 rendus, 1 rotation effective, 2 changements
+de faisceau, sortie réelle vers 27. Aucune injection de progression préalable.
+Départ direct en salle 35 : 3554 pas, 899 rendus, 5 rotations, 8 changements de
+faisceau, jusqu'à 13 segments ; deux caisses déplacées, coffre ouvert, sortie
+réelle vers la région 2, mission complétée et galerie empruntée dans les deux sens.
+Les pas/rotations correspondent aux témoins PC du même probe.
+
+Pour le second test, les prérequis des anciennes missions extérieures sont
+explicitement semés au départ. Ensuite, les actions passent par luma_step ;
+aucun miroir, caisse, coffre, ennemi ou arrivée n'est modifié directement.
+Le rendu a lieu tous les quatre pas et à chaque interaction : ce mode n'est
+PAS une cadence de jeu normale et aucun FPS n'en est déduit. Les commandes
+du moteur sont automatisées ; les boutons physiques/manettes ne sont pas testés.
+
+Les deux changements de région montrent la scène de chargement avant l'upload.
+Le compteur loading_scenes=2 inclut l'écran initial natif et une transition.
+Le retour vers la région 2 charge 4 717 568 octets décompressés : 2,863 s CPU et
+2,580 s copie/vérification, soit environ 5,44 s. L'attente reste une limite d'usage.
+Aucune erreur GPU ni underflow pendant les solutions et transitions.
+
+Conservation et limites
+----------------------
+R5–R8 et le lot local restent inchangés. R9 initial n'a pas été exécuté ;
+sa revue a supprimé --leave-running afin de toujours restaurer NEBULA.
+R9a a refusé un contrôle INFO trop précoce : le GPU est exclusif tant que
+NEBULA tourne. Aucun transfert ni arrêt de NEBULA dans cet essai refusé.
+R9b valide INFO après arrêt contrôlé, comme R5. Le banc simulé couvre succès,
+échec de probe/restauration, identité incorrecte et exclusivité du GPU.
+
+Cet essai ne qualifie ni toutes les 36 cartes, ni sauvegardes matérielles,
+ni périphériques d'entrée physiques, ni la durée humaine ou l'endurance.
+La lecture visuelle du LCD par une personne n'a pas été confirmée ici.
+49,4 minutes avec solutions connues reste la seule durée du parcours complet
+actuel, mesurée par l'automate PC ; l'objectif humain de plusieurs heures
+reste non mesuré et non acquis. Neo reste entièrement en attente pour ce jeu.
+
+Preuves : manifest.json, sources/paquets figés, results/*.log et result.json,
+host_run.log, controller.log et evidence_sha256.json.

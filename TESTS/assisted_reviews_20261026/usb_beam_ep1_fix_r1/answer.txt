@@ -1,0 +1,260 @@
+## 1. Diagnostic minimal
+
+Le défaut est localisé dans `tang/rtl/usb/sync_fifo/usb_fifo.v` :
+
+- les lignes 357-378 mettent à zéro `tx_pending[1]` pendant `i_ep1_flush` **seulement si `i_usb_endpt == 4'd1`** ;
+- `tx_saved_len[1]` n'est jamais effacé sur `i_ep1_flush` ;
+- `usb_payload_pop` (ligne 335) peut encore capturer/valider un paquet sur EP1 pendant la purge ;
+- la sortie `s_usb_txlen` (lignes 690-717) conserve potentiellement la longueur gelée de `tx_saved_len[1]` ;
+- `ep1_offer` et `ep1_sent` (lignes 394-410) sont déjà correctement remis à zéro par `i_ep1_flush`, mais l'état global `tx_pending[1]` reste réservé.
+
+Ainsi, si la purge survient pendant EP0/EP2, l'ancien `tx_saved_len[1]` reste actif lors de la re-sélection d'EP1.
+
+La correction doit donc :
+1. invalider `tx_pending[1]` et `tx_saved_len[1]` **indépendamment** de l'endpoint courant ;
+2. bloquer une nouvelle réservation et un nouveau `POP` EP1 pendant la purge ;
+3. forcer l'offre en cours à zéro si EP1 est sélectionné pendant la purge ;
+4. ne pas toucher à `tx_pending[2]`/`tx_saved_len[2]`, ni aux ACK normaux (`i_usb_txpktfin`) ;
+5. conserver la sémantique de retransmission EP2 et de gel de longueur pendant absence d'ACK.
+
+## 2. Patch unifié minimal
+
+```diff
+--- a/tang/rtl/usb/sync_fifo/usb_fifo.v
++++ b/tang/rtl/usb/sync_fifo/usb_fifo.v
+@@ -333,6 +333,14 @@ wire [15:1] ep_rx_dval;
+ reg  [ 3:0] s_endpt_sel;
+ // An empty IN poll may strobe POP while a newly arrived UART byte is
+ // already in RAM but not yet visible through the registered length.
+ // Advance packet RAM only for an advertised payload, never for that ZLP.
++// EP1 purge must also stop a pending pop: the retained length and packet
++// RAM are being invalidated even when the controller is on EP0/EP2.
++#ifdef EP1_IN_PACKET
++wire usb_payload_pop = i_usb_txpop && tx_endpoint_ready &&
++                       !s_usb_txcork && s_usb_txlen != 0 &&
++                       !(i_ep1_flush && i_usb_endpt == 4'd1);
++#else
+ wire usb_payload_pop = i_usb_txpop && tx_endpoint_ready &&
+                        !s_usb_txcork && s_usb_txlen != 0;
++#endif
+ 
+@@ -357,21 +365,34 @@ always @(posedge i_clk or posedge i_reset) begin
+     if (i_reset) begin
+         tx_pending <= 0;
+     end
+-    else if (i_usb_endpt != 0) begin
+-        if (i_usb_txpktfin) begin
+-            tx_pending[i_usb_endpt] <= 1'b0;
+-        end
+-`ifdef EP1_IN_PACKET
+-        // A flushed packet must not be replayed with its old length.
+-        else if (i_ep1_flush && i_usb_endpt == 4'd1) begin
+-            tx_pending[1] <= 1'b0;
+-        end
+-`endif
+-        // An empty IN poll can strobe POP without transferring a payload.
+-        // Reserving its zero length would permanently block later arrivals.
+-        else if (usb_payload_pop && !tx_pending[i_usb_endpt]) begin
+-            tx_pending[i_usb_endpt] <= 1'b1;
+-            tx_saved_len[i_usb_endpt] <= s_usb_txlen;
+-        end
++    else begin
++        if (i_usb_endpt != 0) begin
++            if (i_usb_txpktfin) begin
++                tx_pending[i_usb_endpt] <= 1'b0;
++            end
++`ifdef EP1_IN_PACKET
++            else if (usb_payload_pop &&
++                     !(i_ep1_flush && i_usb_endpt == 4'd1) &&
++                     !tx_pending[i_usb_endpt]) begin
++`else
++            else if (usb_payload_pop && !tx_pending[i_usb_endpt]) begin
++`endif
++                // An empty IN poll can strobe POP without transferring a payload.
++                // Reserving its zero length would permanently block later arrivals.
++                tx_pending[i_usb_endpt] <= 1'b1;
++                tx_saved_len[i_usb_endpt] <= s_usb_txlen;
++            end
++        end
++`ifdef EP1_IN_PACKET
++        // EP1 purge invalidates the pending/saved length of EP1 itself,
++        // independently of the endpoint currently selected by the controller.
++        // EP2 and other endpoints keep their retransmission state.
++        if (i_ep1_flush) begin
++            tx_pending[1] <= 1'b0;
++            tx_saved_len[1] <= 12'd0;
++        end
++`endif
+     end
+ end
+ 
+@@ -697,9 +718,18 @@ always @(posedge i_clk or posedge i_reset) begin
+         if (i_usb_endpt == 4'd0) begin
+             s_usb_txcork <= 1'b0;
+             s_usb_rxrdy  <= 1'b0;
+             s_usb_txlen  <= 12'd0;
+         end
+         else begin
+             s_usb_rxrdy  <= usb_rxrdy[i_usb_endpt];
++            // Do not expose a stale EP1 retained length while that endpoint is
++            // being purged. The purge flag is stronger than the registered offer.
++#ifdef EP1_IN_PACKET
++            if (i_usb_endpt == 4'd1 && i_ep1_flush) begin
++                s_usb_txlen  <= 12'd0;
++                s_usb_txcork <= 1'b1;
++            end else
++#endif
+             if (i_usb_txpktfin || (|tx_retire)) begin
+                 s_usb_txlen <= 0;
+                 s_usb_txcork <= 1;
+             end else if (!i_usb_txact || i_usb_endpt != s_endpt_sel || s_usb_txcork) begin
+                 s_usb_txlen <= tx_pending[i_usb_endpt] ? tx_saved_len[i_usb_endpt] : usb_txlen[i_usb_endpt];
+                 s_usb_txcork <= (tx_pending[i_usb_endpt] ? tx_saved_len[i_usb_endpt] : usb_txlen[i_usb_endpt]) == 0;
+             end
+         end
+     end
+ end
+```
+
+Points de priorité implémentés :
+
+- `i_usb_txpktfin` continue à effacer `tx_pending[endpt]` pour l'ACK normal ;
+- `i_ep1_flush` efface ensuite `tx_pending[1]`/`tx_saved_len[1]`, donc la purge a priorité sur une pop non processed pour EP1 ;
+- les pop EP2 restent possibles, car le blocage `!(i_ep1_flush && i_usb_endpt == 4'd1)` ne concerne que EP1 ;
+- EP2 conserve `tx_pending[2]`/`tx_saved_len[2]` ;
+- le gel de longueur EP1 (retransmission sans ACK) est conservé hors purge, y compris après arrivée de nouveaux octets.
+
+## 3. Extension proposée du banc de test
+
+Extension SV minimale, fondée sur le probe existant. Elle garde le paramètre `+FLUSH_ENDPOINT=0/1/2` et ajoute `+FLUSH_CYCLES=...` pour tester la purge courte d'un cycle.
+
+```systemverilog
+`timescale 1ns/1ps
+module ep1_flush_review_tb;
+  reg clk=0, reset=1, flush=0;
+  always #8.333 clk=~clk;
+
+  reg [3:0] endpoint=1;
+  reg txact=0, txpop=0, txpktfin=0, dval=0;
+  reg [7:0] data=0;
+  reg [15:0] committed=0;
+
+  wire [15:0] sent;
+  wire [11:0] txlen;
+  wire cork;
+  wire [7:0] txdata;
+
+  integer selected=1, flush_cycles=64, i;
+
+  usb_fifo dut(
+    .i_clk(clk), .i_reset(reset), .i_usb_endpt(endpoint),
+    .i_usb_txact(txact), .i_usb_txpop(txpop), .i_usb_txpktfin(txpktfin),
+    .o_usb_txdat(txdata), .o_usb_txcork(cork), .o_usb_txlen(txlen),
+    .i_usb_rxact(1'b0), .i_usb_rxval(1'b0), .i_usb_rxdat(8'b0),
+    .i_usb_rxpktval(1'b0), .o_usb_rxrdy(),
+    .i_ep1_tx_clk(clk), .i_ep1_tx_max(12'd512), .i_ep1_tx_dval(dval),
+    .i_ep1_tx_data(data), .i_ep1_flush(flush),
+    .i_ep1_tx_committed(committed), .o_ep1_tx_sent(sent),
+    .i_ep1_rx_clk(clk), .i_ep1_rx_rdy(1'b1), .o_ep1_rx_dval(),
+    .o_ep1_rx_data(),
+    .i_ep2_tx_clk(clk), .i_ep2_tx_max(12'd512), .i_ep2_tx_dval(1'b0),
+    .i_ep2_tx_data(8'b0),
+    .i_ep2_rx_clk(clk), .i_ep2_rx_rdy(1'b1), .o_ep2_rx_dval(),
+    .o_ep2_rx_data(), .diagnostic_data()
+  );
+
+  task automatic load13;
+    begin
+      for (i=0; i<13; i++) begin @(negedge clk); dval=1; data=8'ha0+i; end
+      @(negedge clk); dval=0; committed=13;
+      repeat(12) @(negedge clk);
+    end
+  endtask
+
+  initial begin
+    if ($value$plusargs("FLUSH_ENDPOINT=%d", selected)) begin end
+    if ($value$plusargs("FLUSH_CYCLES=%d", flush_cycles)) begin end
+
+    repeat(6) @(negedge clk); reset=0;
+    load13;
+
+    if (cork || txlen != 13) $fatal(1, "initial EP1 packet not offered");
+    txact=1; txpop=1;
+    @(negedge clk); txpop=0;
+    repeat(5) @(negedge clk); txact=0;
+    repeat(5) @(negedge clk);
+
+    if (!dut.tx_pending[1]) $fatal(1, "no unacknowledged EP1 packet created");
+    if (dut.tx_saved_len[1] != 12'd13)
+      $fatal(1, "bad saved EP1 length");
+
+    // Témoin : reprise sans ACK, puis gel malgré nouveaux octets committés.
+    endpoint=1; repeat(8) @(negedge clk);
+    if (txlen != 13 || dut.tx_pending[1] != 1'b1)
+      $fatal(1, "unacknowledged EP1 retransmission not preserved");
+    committed=16; repeat(8) @(negedge clk);
+    if (txlen != 13)
+      $fatal(1, "EP1 saved length changed before ACK");
+
+    // Témoin EP2 : son état de retransmission doit survivre à la purge EP1.
+    force dut.tx_pending[2] = 1'b1;
+    force dut.tx_saved_len[2] = 12'd7;
+    release dut.tx_pending[2];
+    release dut.tx_saved_len[2];
+
+    // Purge, éventuellement sélectionnée EP0/EP1/EP2.
+    endpoint=selected;
+    repeat(3) @(negedge clk);
+    flush=1; committed=0;
+    repeat(flush_cycles) @(negedge clk);
+    flush=0;
+    repeat(5) @(negedge clk);
+    endpoint=1;
+    repeat(8) @(negedge clk);
+
+    $display("FLUSH_ENDPOINT=%0d FLUSH_CYCLES=%0d pending=%0b saved=%0d "
+             "packet_ram_count=%0d offered=%0d cork=%0b ep2_pending=%0b",
+             selected, flush_cycles, dut.tx_pending[1], dut.tx_saved_len[1],
+             dut.ep1_txlen, txlen, cork, dut.tx_pending[2]);
+
+    if (!cork || txlen != 0 || dut.tx_pending[1] || dut.tx_saved_len[1] != 0)
+      $fatal(1, "STALE_EP1_AFTER_FLUSH");
+    if (dut.tx_pending[2] != 1'b1 || dut.tx_saved_len[2] != 12'd7)
+      $fatal(1, "EP2_RETRANSMISSION_DESTROYED_BY_EP1_FLUSH");
+
+    // Nouveau paquet après purge.
+    for (i=0; i<5; i++) begin @(negedge clk); dval=1; data=8'hb0+i; end
+    @(negedge clk); dval=0; committed=5;
+    repeat(16) @(negedge clk);
+    endpoint=1; repeat(8) @(negedge clk);
+    if (dut.tx_pending[1] || txlen != 5 || cork)
+      $fatal(1, "NEW_PACKET_AFTER_PURGE_NOT_OFFERED");
+
+    $display("PASS flush endpoint=%0d cycles=%0d", selected, flush_cycles);
+    $finish;
+  end
+
+  initial begin #100000; $fatal(1, "timeout"); end
+endmodule
+```
+
+Usage recommandée pour la mutation isolée :
+
+```sh
+# contrôle EP1 sélectionné pendant purge
++FLUSH_ENDPOINT=1  +FLUSH_CYCLES=64
+# défaut EP0
++FLUSH_ENDPOINT=0  +FLUSH_CYCLES=64
+# défaut EP2
++FLUSH_ENDPOINT=2  +FLUSH_CYCLES=64
+# purge courte, un cycle
++FLUSH_ENDPOINT=0  +FLUSH_CYCLES=1
+```
+
+## 4. Limites / preuves non établies
+
+- Ce patch vise uniquement le défaut logique de purge EP1 et les états `tx_pending`/`tx_saved_len` ; il ne modifie pas les ports ni l'ABI.
+- Il ne démontre pas à lui seul un comportement USB sur câble : le probe modélise le contrôleur, non la PHY ni le modèle de transactions.
+- Il ne traite pas la saturation TX ni le problème F02 ; ces points restent hors portée.
+- Le témoin EP2 de l'extension utilise une mise sous contrainte simulée (`force`) pour injecter un état de retransmission EP2 sans implémenter un scénario COM complet ; pour une preuve plus forte, il faudrait ajouter un vrai transfert EP2 avec ACK perdu avant la purge.
+- Le parent doit valider le patch dans un candidat isolé avant toute modification du fichier partagé Neo/Pro Dock. Aucune modification matérielle, routage ou chargement FPGA n'a été réalisée dans cette revue.

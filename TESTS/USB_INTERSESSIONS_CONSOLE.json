@@ -316,7 +316,7 @@
     "next_question": "Dans vos traces, un paquet non livré peut-il être acquitté comme une répétition (numéro de séquence) ? Ici ACK UTMI + FIN + FIFO retirée sont maintenant observés pour le même paquet perdu. Aucun enregistrement du câble encore disponible.",
     "limits": "Le défaut de reset système prouvé des deux côtés ne constitue pas une cause commune établie des pertes/échecs spontanés. Les mesures G13 ne sont pas extrapolées à USB2."
   },
-  "updated_at": "2026-10-03T14:28:52.594651+00:00",
+  "updated_at": "2026-10-15T21:47:02.830925+00:00",
   "controller_transaction_simulation_20261002": {
     "bench": "TESTS/rtl/usb_controller_packet_tb.sv",
     "runner": "tools/check_usb_controller_sim.py",
@@ -835,5 +835,71 @@
     ],
     "last_linux_devnum": 18,
     "last_wire_address": null
+  },
+  "neo_reset_distribution_20261015": {
+    "context": "Michael a depuis autorisé le port de la console sur la Neo 2025041420. Le projet analyseur reste lu seulement; aucune de ses compilations n’est modifiée.",
+    "finding": "Petit circuit sans DDR/FIFO/GPU, timing conforme : copie reset sur LW observée bloquée à 0; mêmes entrées D/CLK/CLEAR/CE que les autres copies.",
+    "ab_first": {
+      "auto_lw": {
+        "frames": 955,
+        "reset_epochs": 60,
+        "copies": 7,
+        "error_mask": 8
+      },
+      "requested_local_actual_primary": {
+        "frames": 954,
+        "reset_epochs": 60,
+        "copies": 15,
+        "errors": 0
+      }
+    },
+    "netlist": "Identique après retrait des seuls commentaires date/chemins; quatre contraintes CLOCK_LOC différentes.",
+    "limits": [
+      "Un seul A/B avec données à ce stade; passages suivants sans UART pour les deux variantes, non concluants.",
+      "Pas de preuve distinguant routage/bitstream et silicium; pas de test identique Pro Dock.",
+      "V1.9.12.03 compile le reproducteur et passe timing; comparaison carte sans UART, donc aucune conclusion entre versions.",
+      "Même après rechargement N35, les trois reproducteurs restent sans UART; pas de nouvelle mesure valide."
+    ],
+    "evidence": "TESTS/neo_720p_20261012/reset_reproducer/README.md",
+    "full_console": "N36r0 : les douze resets moteurs ET mrst[1] sont libérés. Deux rechargements passent TARGET; huit remplissages 4096 octets et 1120 lectures ciblées exacts. Timing non conforme : -4.866 ns/97 setup/0 hold. N35r1 reste en routage.",
+    "board_anchor": "TESTS/neo_720p_20261012/board_n36r0_reload2",
+    "board_state": "N36r0 en SRAM, CPU arrêté, Linux non lancé. SD/flash inchangées.",
+    "coordination": "Cette note locale ne notifie pas automatiquement l’autre session."
+  },
+  "neo_gpu_controls_20261016": {
+    "updated_at": "2026-10-16T19:47:43.447193+00:00",
+    "scope": "Neo console only; analyzer worktree and stable Pro Dock untouched",
+    "timing": "N38r0 PASS: setup +0.259 ns, hold +0.129 ns, zero violations",
+    "hardware": "N36: exact depth/textures but 31577 wrong color bytes. N38: 15 triangles vs 61 expected on 105-command reference; first mesh 1 vs 5. CPU remains parked; Linux not started.",
+    "candidate": "N40r2/N41r0 fail setup. Explicit diagnostic observations reach all-zero AE350 TAP twice each, no GPU result. N38 restored. N41r1_newide routing.",
+    "mapped_controls": {
+      "u_accel/u_v1/n60343_3": "CL_READ CE: 386 DFFRE and 4 MULT27X36",
+      "u_accel/u_v1/u_pixels/n34374_4": "pixel buffers: 514 RESET and 16 SET loads",
+      "u_accel/u_v1/u_pixels/n38025_3": "shader START/IDLE command capture: 256 CE loads",
+      "u_gpu/mrst[1]": "scanout reset"
+    },
+    "uart": "r3 periodic telemetry reset still gives zero bytes. Analyzer notes already report persistent BL616 return-path failure; no firmware or power cycle performed here.",
+    "evidence": "TESTS/NEO_720P_20261012.md; TESTS/neo_720p_20261012/n36_progress.json",
+    "rejected_variants": {
+      "N38r1": "Different GPU reset promoted to LW; setup -0.055 ns; not loaded",
+      "N38r2_newide": "Gowin V1.9.12.03; -6.510 ns / 262 setup / 0 hold; not loaded",
+      "N38r3_primary": "Timing passes, but all four requested PRIMARY controls remain on LW; not loaded"
+    },
+    "face_diagnostics": "N38 inside: counters and depth exact, 2784 wrong color bytes incl neighboring masked pixels. Near/side clipped faces yield zero triangles, no error counter. All three initial 3 MiB verified; texture/mesh data unchanged.",
+    "board_anchor": "TESTS/neo_720p_20261012/board_n38r0_after_n40r2",
+    "board_state": "N38r0 restored and strict memory/TARGET preflight PASS; CPU halted at parking, no Linux, scanout disabled.",
+    "programming_check": "N38 identical file at 1-MHz programming TCK: DONE/no flagged CRC error but AE350 TAP all-zero twice. Reload at 6 MHz restored TAP and preflight; original geometry failure reproduced. Verbose final configuration status is now checked; no full SRAM readback claim.",
+    "preflight_fix": "Completion alone was insufficient: new GPU preflight guard compares error/lost/rejection counters and correctly fails N40 hardware before any kernel transfer."
+  },
+  "neo_reset_jtag_20261016": {
+    "updated_at": "2026-10-16T20:46:22.095829+00:00",
+    "finding": "6000 JTAG snapshots on minimal RTL with no DDR/FIFO/GPU/AE350: three auto loads fail mask8/copies7, three LOCAL-constrained loads pass mask0/copies15. All builds pass timing.",
+    "counterexample": "1.9.12.03 LOCAL candidate passes despite reset still reported LW. Allocation label alone cannot establish hardware failure.",
+    "scope": "Same normalized netlist within each IDE A/B, same SDC. Four CST changes; full physical placement/routing can differ.",
+    "report": "TESTS/neo_720p_20261012/reset_reproducer/JTAG_20261016.md",
+    "board_state": "N38r0 restored and strict memory/TARGET preflight PASS; CPU halted at parking, no Linux, scanout disabled.",
+    "board_anchor": "TESTS/neo_720p_20261012/board_n38r0_after_n40r2",
+    "next_build": "console_neo_n41r1_newide: exact N41r0 netlist/CST/SDC, different Gowin IDE; routing not yet finished.",
+    "coordination": "Local note only; no message sent to the other session or Gowin."
   }
 }

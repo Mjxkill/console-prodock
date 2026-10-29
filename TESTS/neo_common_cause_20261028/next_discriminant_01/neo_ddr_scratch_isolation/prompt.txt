@@ -1,0 +1,1670 @@
+You are an implementation or review assistant. Work ONLY from the supplied text packet. Tools, filesystem access and execution are unavailable. Produce the requested concrete artifact. Separate evidence from hypotheses. Never claim tests were run. Results require independent review and validation. Keep code modular, documented, and below 1000 physical lines per file.
+
+TASK:
+Audit whether candidate scratch0x12000000..0x1200007f can be proven isolated for a future CPUthenGPUmicroDMA. Trace exact CPU byteaddress→AHBCDC→UIadapter and GPUv1 byte→nativeword; identify other clients/ring/scanout, cache/MMU state missing, CPUpark coverage. Output proof/missing evidence table <=90lines. NO runnablewrites and no assertion oldscript comment is sufficient proof.
+
+ACCEPTANCE:
+Use current frozen sources not obsoleteSipeedbridge; numeric units and footprint explicit; distinguish historicalscratch use from proofcurrentisolation; list exact missing gates ormemorymap ifunknown, no hardware instructions emitted.
+
+PACKET:
+Prepared read-only engineering packet. No hardware access, no new FPGA build, no controller mutation. Candidate exact R22r1 bitstream SHA55601256120915adbb08279c0b6bd42caabf8deff261bf87b8a7b8d8cbf9c8aa, normalized netlist0eb5638a63c4c2562f78db1dc71474830b7425b23c30b56674639bac4a4cb191. Frozen RTL ancestry is R19, netlist-only UTW1 observer instrumentation. Root alone may later load candidate and restore R19 SHA1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c. Global STA FAIL remains: setup-1.013 GPU busy_sync, recovery-0.212 GPUcapture. No qualification claim.
+Real combined run20261028_133840: CPU parked Mmode,satp0,ROM WFI/J loop80000000/04, framebuffer disabled. GPU snapshots seq1 host0received0done0; seq2/3 host8received8done1, all12engine resetsreleased at captures, no bad/lost, opcode31. First diagnostic falsely FAILED because raw received +5010 is held at prior snapshot until new request; this was fixed offline and original report preserved. Matrix only configures registers: NO DDR test yet. Scanout counters requests/returns0. Video counter+89 between namedT0/T1200 includingJTAG overhead; do not infer frequency. UTW1 coherent4captures version1, no cause identified. Host USB device359f:2011 serial11252024 absent; no hosttraffic attempted. USB observer ticks advanced; this is NOT proofof60MHz/HS/PHY960MHz.
+Required output: short concrete proposed artifact, no broad essay, distinguish proven from missing evidence, cite supplied lines, no claims tests executed, no automatic code changes. Four parallel reviewers have separate scopes. No numeric quality self-rating. Do not emit runnable DDR writes; first establish memory map/isolation and stop on missing proof.
+
+FILE tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/boards/neo/console_neo.v SHA256 ac0f0244c40784e9ce0cd82eed7d754d948a14c404b4a55b13f04caa5fa03364 LINES 1..207
+1: // Tang Mega Neo / Console 138K, PG484C: shared console GPU in DDR3, HDMI 720p.
+2: // AE350 800 MHz; AHB/APB 80 MHz; DDR UI 75 MHz; pixel 74.375 MHz.
+3: `define CONSOLE_GPU
+4: `define CONSOLE_USB_DIAG
+5: `default_nettype none
+6: module console_neo (
+7:     input wire clk, uart_rx,
+8:     inout wire [1:0] gamepad_dp,gamepad_dm,
+9:     inout wire usb_dxp_io,usb_dxn_io,usb_term_dp_io,usb_term_dn_io,
+10:     input wire usb_rxdp_i,usb_rxdn_i,
+11:     output wire usb_pullup_en_o,
+12:     output wire uart_tx, led_n, ae350_tx,
+13:     output wire tmds_clk_p,tmds_clk_n,
+14:     output wire [2:0] tmds_d_p,tmds_d_n,
+15:     input wire ae350_tck,ae350_tms,ae350_tdi,
+16:     output wire ae350_tdo,
+17:     output wire [2:0] ddr_bank,
+18:     output wire ddr_cs,ddr_ras,ddr_cas,ddr_we,ddr_ck,ddr_ck_n,ddr_cke,ddr_reset_n,ddr_odt,
+19:     output wire [15:0] ddr_addr,
+20:     output wire [3:0] ddr_dm,
+21:     inout wire [31:0] ddr_dq,
+22:     inout wire [3:0] ddr_dqs,ddr_dqs_n,
+23:     output wire sd_clk,sd_cmd,sd_d3,
+24:     input wire sd_d0
+25: );
+26:     wire pixel_clk,clk5x_raw,clk5x,pixel_lock;
+27:     video_pll u_video_pll(.lock(pixel_lock),.clkout0(clk5x_raw),.clkout2(pixel_clk),
+28:         .clkout1(),.clkout3(),.clkout4(),.clkin(clk),.reset(1'b0),
+29:         .icpsel(6'd0),.lpfres(3'd0),.lpfcap(2'd0),
+30:         .enclk0(1'b1),.enclk1(1'b0),.enclk2(1'b1),.enclk3(1'b0),.enclk4(1'b0));
+31:     DCE u_video_fast(.CLKIN(clk5x_raw),.CLKOUT(clk5x),.CE(1'b1));
+32:     reg [2:0] pixel_up=0;
+33:     always @(posedge pixel_clk or negedge pixel_lock)
+34:         if(!pixel_lock)pixel_up<=0;else pixel_up<={pixel_up[1:0],1'b1};
+35:     wire vid_hclk,vid_hrstn,vid_hsel,vid_hwrite,vid_hready;
+36:     wire [31:0] vid_haddr,vid_hwdata,vid_hrdata;
+37:     wire [1:0] vid_htrans;
+38:     wire gpu_clk,gpu_valid,gpu_ready,gpu_data_valid;
+39:     wire [28:0] gpu_addr;
+40:     wire [255:0] gpu_data;
+41:     wire blit_valid,blit_write,blit_ready,blit_rd_valid;
+42:     wire [28:0] blit_addr;
+43:     wire [255:0] blit_wr_data,blit_rd_data;
+44:     wire [31:0] blit_wr_mask;
+45:     wire bus_hsel,bus_hwrite,bus_hready;
+46:     wire [31:0] bus_haddr,bus_hwdata,bus_hrdata;
+47:     wire [1:0] bus_htrans;
+48:     video_bus_stage u_video_bus(.clk(vid_hclk),.resetn(vid_hrstn),
+49:         .s_hsel(vid_hsel),.s_hwrite(vid_hwrite),.s_htrans(vid_htrans),
+50:         .s_haddr(vid_haddr),.s_hwdata(vid_hwdata),.s_hready(vid_hready),.s_hrdata(vid_hrdata),
+51:         .m_hsel(bus_hsel),.m_hwrite(bus_hwrite),.m_htrans(bus_htrans),
+52:         .m_haddr(bus_haddr),.m_hwdata(bus_hwdata),.m_hready(bus_hready),.m_hrdata(bus_hrdata));
+53:     wire [31:0] scan_hrdata,blit_hrdata;
+54:     wire scan_hready,blit_hready;
+55:     wire [31:0] usb_trace_hrdata,usb_msc_hrdata;
+56:     wire usb_trace_hready,usb_msc_hready;
+57:     reg [2:0] selected=0;
+58:     always @(posedge vid_hclk)begin
+59:         if(!vid_hrstn)selected<=0;
+60:         else if(bus_hsel)selected<=bus_haddr[14:12];
+61:     end
+62:     // Same USB trace/MSC ABI as Pro Dock, with registered slave responses.
+63:     assign bus_hrdata=selected[2] ? (selected[1] ? scan_debug_hrdata:(selected[0] ? debug_hrdata:pad_hrdata)):selected[1] ? (selected[0] ? usb_msc_hrdata:usb_trace_hrdata):
+64:                                   (selected[0] ? blit_hrdata:scan_hrdata);
+65:     assign bus_hready=selected[2] ? (selected[1] ? scan_debug_hready:(selected[0] ? debug_hready:1'b1)):selected[1] ? (selected[0] ? usb_msc_hready:usb_trace_hready):
+66:                                   (selected[0] ? blit_hready:scan_hready);
+67:     wire [31:0] scan_debug_hrdata;
+68:     wire scan_debug_hready;
+69:     wire [95:0] scan_debug_state;
+70:     wire [255:0] scan_debug_live;
+71:     neo_scan_observe u_scan_observe(.clk(gpu_clk),.resetn(vid_hrstn),
+72:         .scan_valid(scan_valid),.scan_ready(scan_ready),
+73:         .arb_valid(gpu_valid),.arb_ready(gpu_ready),.arb_addr(gpu_addr),
+74:         .data_valid(gpu_data_valid),.state_words(scan_debug_state),.live(scan_debug_live));
+75:     neo_gpu_debug u_scan_debug(.hclk(vid_hclk),.resetn(vid_hrstn),.mem_clk(gpu_clk),
+76:         .hsel(bus_hsel && bus_haddr[14:12]==6),.hwrite(bus_hwrite),
+77:         .htrans(bus_htrans),.haddr(bus_haddr),.hwdata(bus_hwdata),
+78:         .hrdata(scan_debug_hrdata),.hready(scan_debug_hready),
+79:         .host_accept(1'b0),.live(scan_debug_live),.observe_packet_words(64'd0));
+80:     wire [31:0] debug_hrdata;
+81:     wire debug_hready;
+82:     wire [255:0] gpu_debug_state;
+83:     wire gpu_debug_accept;
+84:     wire [63:0] gpu_observe_packet_words;
+85:     neo_gpu_debug u_gpu_debug(.hclk(vid_hclk),.resetn(vid_hrstn),.mem_clk(gpu_clk),
+86:         .hsel(bus_hsel && bus_haddr[14:12]==5),.hwrite(bus_hwrite),
+87:         .htrans(bus_htrans),.haddr(bus_haddr),.hwdata(bus_hwdata),.hrdata(debug_hrdata),.hready(debug_hready),
+88:         .host_accept(gpu_debug_accept),.live(gpu_debug_state),.observe_packet_words(gpu_observe_packet_words));
+89:     wire [31:0] pad_hrdata;
+90:     neo_gamepads u_gamepads(.clk(vid_hclk),.resetn(vid_hrstn),
+91:         .hsel(bus_hsel && bus_haddr[14:12]==4),.hwrite(bus_hwrite),
+92:         .htrans(bus_htrans),.haddr(bus_haddr),.hrdata(pad_hrdata),.hready(),
+93:         .dp(gamepad_dp),.dm(gamepad_dm));
+94:     `include "boards/neo/soft_usb.vh"
+95:     wire de,hs,vs;
+96:     wire [5:0] red,green,blue;
+97:     wire scan_valid,scan_ready;
+98:     wire [28:0] scan_addr;
+99:     neo_scan_queue u_scan_queue(.clk(gpu_clk),.resetn(vid_hrstn),
+100:         .in_valid(scan_valid),.in_addr(scan_addr),.in_ready(scan_ready),
+101:         .out_valid(gpu_valid),.out_addr(gpu_addr),.out_ready(gpu_ready));
+102:     gpu_scanout #(.WIDTH(1280),.HEIGHT(720),.H_TOTAL(1650),.V_TOTAL(750),
+103:         .H_START(260),.V_START(25),.H_SYNC(40),.V_SYNC(5)) u_gpu (
+104:         .hclk(vid_hclk),.hresetn(vid_hrstn),.hsel(bus_hsel && bus_haddr[14:12]==0),.hwrite(bus_hwrite),
+105:         .haddr(bus_haddr),.hwdata(bus_hwdata),.htrans(bus_htrans),.hrdata(scan_hrdata),.hready(scan_hready),
+106:         .pixel_clk(pixel_clk),.mem_clk(gpu_clk),
+107:         .fetch_valid(scan_valid),.fetch_addr(scan_addr),.fetch_ready(scan_ready),
+108:         .fetch_data(gpu_data),.fetch_data_valid(gpu_data_valid),
+109:         .lcd_en(de),.lcd_hs(hs),.lcd_vs(vs),.lcd_r(red),.lcd_g(green),.lcd_b(blue),
+110:         .scan_debug_state(scan_debug_state));
+111:     gpu_accel u_accel(.hclk(vid_hclk),.hresetn(vid_hrstn),
+112:         .hsel(bus_hsel && bus_haddr[14:12]==1),.hwrite(bus_hwrite),
+113:         .haddr(bus_haddr),.hwdata(bus_hwdata),.htrans(bus_htrans),.hrdata(blit_hrdata),.hready(blit_hready),
+114:         .mem_clk(gpu_clk),.valid(blit_valid),.write(blit_write),.addr(blit_addr),
+115:         .wr_data(blit_wr_data),.wr_mask(blit_wr_mask),.ready(blit_ready),
+116:         .rd_data(blit_rd_data),.rd_valid(blit_rd_valid),
+117:         .debug_state(gpu_debug_state),.debug_accept(gpu_debug_accept),.observe_packet_words(gpu_observe_packet_words));
+118:     hdmi_out u_hdmi(.pclk(pixel_clk),.clk5x(clk5x),.rst(!pixel_up[2]),
+119:         .de(de),.hs(~hs),.vs(~vs),.r({red,red[5:4]}),.g({green,green[5:4]}),.b({blue,blue[5:4]}),
+120:         .tmds_clk_p(tmds_clk_p),.tmds_clk_n(tmds_clk_n),.tmds_d_p(tmds_d_p),.tmds_d_n(tmds_d_n));
+121:     // ====================== AE350 : PLLs + SoC + DDR3 (socle analyseur) ======================
+122:     wire        core_clk, ahb_clk, apb_clk, rtc_clk, bus80_clk, pll_ae350_lock;  // horloges du SoC (PLL AE350)
+123:     wire        ddr_init;               // 1 : calibration DDR3 terminée (sortie du socle)
+124:     wire        ae350_rx;     // console UART2 du AE350
+125:     wire ddr3_pll_lock, ddr3_memory_clk, ddr3_clk_in, ddr3_stop, ddr3_init_completed;
+126:     wire        ae350_rstn, ddr3_rstn;
+127:     wire [3:0] soc_dbg;
+128:     wire [7:0]  soc_ahb_dbg;
+129:     wire [15:0] soc_ddr_dbg;
+130:     wire [63:0] ev_data_unused; wire ev_ready_unused, evin_valid_unused;
+131:     wire [31:0] evin_data_unused;
+132:     wire [63:0] rr_data_unused; wire rr_valid_unused;
+133:     // PLL système du AE350 (socle analyseur : lock + init_clk + PLL_INIT) :
+134:     // clkout0 = 80 MHz (bus AHB/APB), clkout1 = core 800 MHz, clkout4 = RTC 10 MHz
+135:     Gowin_PLL_AE350 u_pll_ae350 (
+136:         .lock    (pll_ae350_lock),
+137:         .clkin   (clk),
+138:         .init_clk (clk),
+139:         .clkout0 (bus80_clk), .clkout1 (core_clk), .clkout2 (), .clkout3 (), .clkout4 (rtc_clk),
+140:         .enclk0  (1'b1), .enclk1 (1'b1), .enclk2 (1'b1), .enclk3 (1'b1), .enclk4 (1'b1)
+141:     );
+142:     // ahb_clk/apb_clk : DÉJÀ déclarés ligne 232 (wire) : NE PAS redéclarer ici !
+143:     // (EX2830 : « Second declaration of 'ahb_clk' is ignored » : le wire local était ignoré,
+144:     //  l'entrée AHB_CLK du SoC restait non câblée → bus APB mort → CPU figé au 1er accès APB.)
+145:     assign ahb_clk = bus80_clk;
+146:     assign apb_clk = ahb_clk;   // APB = net de l'AHB (1:1 exigé par le SoC, en-tête du socle)
+147:     // Reset du CPU : attend le LOCK de la PLL AE350 (schéma de l'analyseur : rst = sync ~lock)
+148:     reg [1:0] ae350_rst_sync = 2'b11;
+149:     always @(posedge bus80_clk or negedge pll_ae350_lock)
+150:         if (!pll_ae350_lock) ae350_rst_sync <= 2'b11;
+151:         else ae350_rst_sync <= {ae350_rst_sync[0], 1'b0};
+152:     wire ae350_por_n = ~ae350_rst_sync[1];
+153: 
+154:     // SoC AE350 + DDR3 standalone + pont Sipeed (socle analyseur, validé V3)
+155:     wire core_wfi_w;                 // CORE0_WFI_MODE du cœur (preuve de vie sans bus)
+156:     // Isolated startup experiment: default 50 ms, UART mode 0/1 for A/B.
+157:     wire trial_request, trial_mode, trial_holding, trial_done;
+158:     wire trial_ahb_tick, trial_rtc_tick;
+159:     wire [3:0] trial_epoch;
+160:     neo_reset_trial u_reset_trial (
+161:         .clk_ref(clk), .ahb_clk(bus80_clk), .rtc_clk(rtc_clk), .serial_rx(uart_rx),
+162:         .ddr_ready(ddr_init), .pll_ready(pll_ae350_lock), .cpu_reset_n(soc_dbg[0]),
+163:         .release_request(trial_request), .delay_mode(trial_mode), .command_epoch(trial_epoch),
+164:         .holding(trial_holding), .delay_done(trial_done),
+165:         .ahb_tick(trial_ahb_tick), .rtc_tick(trial_rtc_tick));
+166:     ae350_soc u_soc (
+167:         .trial_release(trial_request),
+168:         .clk50(clk),
+169:         .rst_key_n(ae350_por_n),
+170:         .core_clk(core_clk), .ahb_clk(ahb_clk), .apb_clk(apb_clk), .rtc_clk(rtc_clk),
+171:         .ddr_bank(ddr_bank), .ddr_cs(ddr_cs), .ddr_ras(ddr_ras), .ddr_cas(ddr_cas), .ddr_we(ddr_we),
+172:         .ddr_ck(ddr_ck), .ddr_ck_n(ddr_ck_n), .ddr_cke(ddr_cke), .ddr_reset_n(ddr_reset_n), .ddr_odt(ddr_odt),
+173:         .ddr_addr(ddr_addr), .ddr_dm(ddr_dm), .ddr_dq(ddr_dq), .ddr_dqs(ddr_dqs), .ddr_dqs_n(ddr_dqs_n),
+174:         .tck(ae350_tck), .tms(ae350_tms), .tdi(ae350_tdi), .tdo(ae350_tdo),
+175:         .uart2_tx(ae350_tx), .uart2_rx(ae350_rx), .ddr_init(ddr_init), .dbg(soc_dbg),
+176:         .sd_clk(sd_clk), .sd_cmd(sd_cmd), .sd_miso(sd_d0), .sd_cs_n(sd_d3), .sd_detect(1'b0),
+177:         .ahb_dbg(soc_ahb_dbg), .ddr_dbg(soc_ddr_dbg), .core_wfi_dbg(core_wfi_w),
+178:         // Legacy acquisition inputs are inactive; video uses its own DDR port.
+179:         .ev_clk(clk), .ev_valid(1'b0), .ev_data(64'd0),
+180:         .evin_valid(), .evin_data(), .evin_ready(1'b0),
+181:         .rr_valid(), .rr_data(), .rr_ready(1'b0),
+182:         .acq_v3(1'b0), .acq_start(1'b0), .acq_run(1'b0), .acq_div(8'd0), .acq_mask(16'hFFFF),
+183:         .acq_now(32'd0),
+184:         .vid_hclk(vid_hclk), .vid_hrstn(vid_hrstn), .vid_hsel(vid_hsel), .vid_hwrite(vid_hwrite),
+185:         .vid_haddr(vid_haddr), .vid_hwdata(vid_hwdata), .vid_htrans(vid_htrans),
+186:         .vid_hrdata(vid_hrdata), .vid_hready(vid_hready),
+187:         .gpu_clk(gpu_clk), .gpu_valid(gpu_valid), .gpu_addr(gpu_addr), .gpu_ready(gpu_ready),
+188:         .gpu_data(gpu_data), .gpu_data_valid(gpu_data_valid),
+189:         .blit_valid(blit_valid), .blit_write(blit_write), .blit_addr(blit_addr),
+190:         .blit_wr_data(blit_wr_data), .blit_wr_mask(blit_wr_mask), .blit_ready(blit_ready),
+191:         .blit_rd_data(blit_rd_data), .blit_rd_valid(blit_rd_valid)
+192:     );
+193: 
+194:     // USB and BL616 input are arbitrated as bytes in the USB 60 MHz domain.
+195:     // Neither serial input is combined electrically or switched mid-frame.
+196:     neo_console_input u_console_input(
+197:         .clk(phy_clk),.reset(usb_app_reset),.debug_rx(uart_rx),
+198:         .usb_valid(ep2_rx_dval),.usb_data(ep2_rx_data),.usb_ready(ep2_rx_rdy),
+199:         .cpu_tx(ae350_tx),.cpu_rx(ae350_rx),
+200:         .cpu_valid(uart_rx_data_val),.cpu_data(uart_rx_data),.overflow());
+201:     // Mirror CPU output on the BL616 relay, also when CDC is in use.
+202:     uart_console_channel #(.FIFO_LOG2(3),.REGISTER_FIFO(1)) u_console_output(
+203:         .clk(bus80_clk),.rst(!ae350_por_n),.rx(ae350_tx),.tx(uart_tx),
+204:         .rx_div(16'd694),.tx_div(16'd40),.overflow(),.diagnostic());
+205:     assign led_n=~ddr_init;
+206: endmodule
+207: `default_nettype wire
+
+FILE tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/rtl/board/ae350_soc.v SHA256 e811670991b885d4a613322ca5713539d8955a62a06b5fe195048c0ff82a1009 LINES 129..210
+129:     // --- PLL DDR3 ---------------------------------------------------------------------------
+130:     // P0-a (V4, réappliqué le 2026-09-25) : l'horloge 50 MHz de l'IP DDR3 / DDR_CLK du SoC / HCLK du pont est la BROCHE clk50, comme
+131:     // dans l'exemple Gowin-Sipeed ddr_test (`.clk(clk)` = broche, `memory_clk` = PLL) : un arbre d'horloge global de moins (build V4
+132:     // complet : 10 horloges globales demandées, clk50_d et ddr3_clk_in tombaient sur LW). Validé sur UART le 22/09 (TESTS_V3).
+133:     wire ddr3_memory_clk, ddr3_lock, ddr3_stop, clk0_unused, clk1_unused;
+134:     wire ddr3_clk_in = clk50;
+135:     Gowin_PLL_DDR3 u_pll_ddr3 (
+136:         .lock    (ddr3_lock),
+137:         .clkout0 (clk0_unused),        // 50 MHz : plus utilisé (P0-a)
+138:         .clkout1 (clk1_unused),        // non utilisé
+139:         .clkout2 (ddr3_memory_clk),    // 300 MHz
+140:         .clkin   (clk50),
+141:         .init_clk(clk50),
+142:         .reset   (1'b0),
+143:         .enclk0  (1'b1),
+144:         .enclk1  (1'b0),
+145:         .enclk2  (ddr3_stop)
+146:     );
+147: 
+148:     // --- Resets -----------------------------------------------------------------------------
+149:     wire ddr3_init_completed;
+150:     wire ddr3_init_ip;                // état de calibration réel de l'IP (diag : ddr3_init_completed peut être forcé)
+151:     reg  [1:0] init_sync = 2'b00;
+152:     always @(posedge ahb_clk or negedge rst_key_n)
+153:         if (!rst_key_n) init_sync <= 2'b00;
+154:         else init_sync <= {init_sync[0], trial_release};
+155:     wire ae350_rstn = init_sync[1];
+156:     assign ddr_init = ddr3_init_completed;
+157:     assign dbg = {1'b1, ddr3_stop, ddr3_lock, ae350_rstn};
+158:     assign ddr_addr[15] = 1'b0;
+159: 
+160:     // --- Bus mémoire de données du SoC (AHB 64 bits) -> pont Sipeed -> IP DDR3 -----------------
+161:     wire [63:0] ddr_hrdata, ddr_hwdata;
+162:     wire [31:0] ddr_haddr;
+163:     wire [2:0]  ddr_hburst, ddr_hsize;
+164:     wire [3:0]  ddr_hprot;
+165:     wire [1:0]  ddr_htrans;
+166:     wire        ddr_hready, ddr_hresp, ddr_hwrite, ddr_hclk, ddr_hrstn;
+167:     wire [1:0]  ddr_hresp2;
+168:     assign ddr_hresp = ddr_hresp2[0];
+169:     // ddr_writer : état/commandes, domaine clk_out de l'IP ; resynchronisation dans la section registres
+170:     localparam [31:0] RING_BASE = 32'h2000_0000;   // E2-f1-d : anneau = moitié haute du Go (512 Mo = 67 M entrées)
+171:     localparam [31:0] RING_SIZE = 32'h2000_0000;   // la moitié basse reste au cœur (test mémoire E1, données)
+172:     wire        wr_clk, wr_done, wr_active, wr_restart_tgl, wr_restart, wr_ring_full;
+173:     assign gpu_clk = wr_clk;
+174:     wire [31:0] wr_wptr, wr_cycles, wr_seed, wr_rptr, wr_used;
+175:     // FIFO événements (ev_clk → clk_out) et pointeurs de l'anneau
+176:     wire        fi_valid, fi_ready, ev_wr_rst, ev_rd_rst, start_wr;
+177:     wire [31:0] rd_lost;                                    // E2-g : entrées non poussées par le lecteur (doit rester 0)
+178:     wire [63:0] fi_data;
+179:     wire [9:0]  fi_count, ev_wr_count;
+180:     wire [31:0] ev_lost;
+181:     // Reset du pont : calibration DDR3 resynchronisée sur son HCLK (voir en-tête ; DDR_HRSTN et DDR_HCLK
+182:     // du SoC ne sont pas utilisés — DDR_HCLK n'est qu'une copie de DDR_CLK dans la netlist).
+183:     reg  [1:0] hrst_sync = 2'b00;
+184:     always @(posedge ddr3_clk_in) hrst_sync <= {hrst_sync[0], ddr3_init_completed};
+185:     /* verilator lint_off UNUSEDSIGNAL */
+186:     wire hresp_unused = ddr_hresp2[1];
+187:     wire [3:0] hprot_unused = ddr_hprot;
+188:     wire hclk_unused = ddr_hclk, hrstn_unused = ddr_hrstn;
+189:     /* verilator lint_on UNUSEDSIGNAL */
+190:     generate if (RAM_PROBE == 0) begin : g_ddr
+191:     ddr_subsys #(.RING_BASE(RING_BASE), .RING_SIZE(RING_SIZE), .PATTERN(0)) u_ddr (
+192:         .DDR3_MEMORY_CLK(ddr3_memory_clk), .DDR3_CLK_IN(ddr3_clk_in), .DDR3_RSTN(1'b1),
+193:         .DDR3_LOCK(ddr3_lock), .DDR3_STOP(ddr3_stop), .DDR3_INIT(ddr3_init_completed),
+194:         .DDR3_BANK(ddr_bank), .DDR3_CS_N(ddr_cs), .DDR3_RAS_N(ddr_ras), .DDR3_CAS_N(ddr_cas), .DDR3_WE_N(ddr_we),
+195:         .DDR3_CK(ddr_ck), .DDR3_CK_N(ddr_ck_n), .DDR3_CKE(ddr_cke), .DDR3_RESET_N(ddr_reset_n), .DDR3_ODT(ddr_odt),
+196:         .DDR3_ADDR(ddr_addr[14:0]), .DDR3_DM(ddr_dm), .DDR3_DQ(ddr_dq), .DDR3_DQS(ddr_dqs), .DDR3_DQS_N(ddr_dqs_n),
+197:         .HCLK(ddr3_clk_in), .HRESETN(hrst_sync[1]), .HADDR(ddr_haddr), .HSIZE(ddr_hsize), .HWRITE(ddr_hwrite),
+198:         .HTRANS(ddr_htrans), .HBURST(ddr_hburst), .HWDATA(ddr_hwdata),
+199:         .HREADY_O(ddr_hready), .HRESP(ddr_hresp2), .HRDATA(ddr_hrdata), .DBG(ddr_dbg),
+200:         .wr_clk(wr_clk), .wr_done(wr_done), .wr_active(wr_active), .wr_wptr(wr_wptr), .wr_cycles(wr_cycles),
+201:         .wr_restart(wr_restart || start_wr), .wr_seed(wr_seed),
+202:         .wr_rptr(wr_rptr), .wr_ring_full(wr_ring_full), .wr_used(wr_used),
+203:         .rd_clk(ev_clk), .rd_rst_wr(ev_rd_rst), .rd_rst_rd(ev_wr_rst), .rd_valid(rr_valid), .rd_data(rr_data), .rd_ready(rr_ready),
+204:         .rd_lost(rd_lost),
+205:         .fi_valid(fi_valid), .fi_data(fi_data), .fi_ready(fi_ready), .fi_count(fi_count),
+206:         .gpu_valid(gpu_valid), .gpu_addr(gpu_addr), .gpu_ready(gpu_ready),
+207:         .gpu_data(gpu_data), .gpu_data_valid(gpu_data_valid),
+208:         .blit_valid(blit_valid), .blit_write(blit_write), .blit_addr(blit_addr),
+209:         .blit_wr_data(blit_wr_data), .blit_wr_mask(blit_wr_mask), .blit_ready(blit_ready),
+210:         .blit_rd_data(blit_rd_data), .blit_rd_valid(blit_rd_valid)
+
+FILE tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/rtl/board/ddr_subsys.v SHA256 c7042cce82b356180cbb83dc7d1b469dfbe885aae712d68ab47585f88e88e537 LINES 1..218
+1: // ddr_subsys.v — sous-système DDR3 : IP DDR3 standalone Gowin (32 bits, 1 Go) + pont AHB 64 bits à deux FIFO CDC.
+2: // `ahb_ddr_cdc` remplace le pont Sipeed dont les contrôles traversaient directement les horloges 50/75 MHz.
+3: // Historique : remplace `gw_ahb_ddr3_top` de Sipeed (mêmes ports) : l'IP est
+4: // instanciée ICI pour que son interface utilisateur (cmd/addr/wr_data 128 bits, BL8) puisse être partagée en E2
+5: // entre le pont (cœur AE350) et `ddr_writer` par `ddr_arb` (ARCHI_V3 § 9). E2-b : 1er temps = pont seul en
+6: // câblage direct (E1 rejoué à l'identique) ; 2e temps = `ddr_arb` inséré, port writer (m1) inactif, E1 rejoué.
+7: //
+8: // INS_LOC/sdc (la16.cst, la16.sdc) : `.../u_ddr/u_ip/gw3_top/u_ddr_phy_top/{u_dll,fclkdiv}`.
+9: `default_nettype none
+10: module ddr_subsys #(
+11:     parameter [31:0] RING_BASE = 32'h1000_0000,
+12:     parameter [31:0] RING_SIZE = 32'h1000_0000,
+13:     parameter        PATTERN   = 0                  // 1 : motif de test E2-c au lieu du flux
+14: ) (
+15:     // PLL DDR3 et IP
+16:     input  wire         DDR3_MEMORY_CLK,   // 300 MHz
+17:     input  wire         DDR3_CLK_IN,       // 50 MHz : clk de l'IP (= DDR_CLK du SoC = HCLK)
+18:     input  wire         DDR3_RSTN,         // 1 (486tang)
+19:     input  wire         DDR3_LOCK,
+20:     output wire         DDR3_STOP,         // pll_stop -> enclk2 de la PLL
+21:     output wire         DDR3_INIT,         // init_calib_complete
+22:     // Puce DDR3 (16 bits)
+23:     output wire [2:0]   DDR3_BANK,
+24:     output wire         DDR3_CS_N, DDR3_RAS_N, DDR3_CAS_N, DDR3_WE_N,
+25:     output wire         DDR3_CK, DDR3_CK_N, DDR3_CKE, DDR3_RESET_N, DDR3_ODT,
+26:     output wire [14:0]  DDR3_ADDR,
+27:     output wire [3:0]   DDR3_DM,                  // E2-f1 : IP en DQ 32 bits (deux puces, 1 Go), ARCHI_V3 § 11
+28:     inout  wire [31:0]  DDR3_DQ,
+29:     inout  wire [3:0]   DDR3_DQS, DDR3_DQS_N,
+30:     // AHB 64 bits (esclave, depuis le SoC)
+31:     input  wire         HCLK, HRESETN,
+32:     input  wire [31:0]  HADDR,
+33:     input  wire [2:0]   HSIZE, HBURST,
+34:     input  wire         HWRITE,
+35:     input  wire [1:0]   HTRANS,
+36:     input  wire [63:0]  HWDATA,
+37:     output wire         HREADY_O,
+38:     output wire [1:0]   HRESP,
+39:     output wire [63:0]  HRDATA,
+40:     output wire [15:0]  DBG,               // diag (voir gw_ahb_ddr3)
+41:     // Graphics uses the native 256-bit interface in the ui_clk domain.
+42:     input wire gpu_valid,
+43:     input wire [28:0] gpu_addr,
+44:     output wire gpu_ready,
+45:     output wire [255:0] gpu_data,
+46:     output wire gpu_data_valid,
+47:     input wire blit_valid, blit_write,
+48:     input wire [28:0] blit_addr,
+49:     input wire [255:0] blit_wr_data,
+50:     input wire [31:0] blit_wr_mask,
+51:     output wire blit_ready,
+52:     output wire [255:0] blit_rd_data,
+53:     output wire blit_rd_valid,
+54:     // ddr_writer (E2-c : motif ; domaine clk_out de l'IP — le wrapper resynchronise)
+55:     output wire         wr_clk,            // clk_out, pour que le wrapper synchronise ses signaux
+56:     output wire         wr_done,
+57:     output wire         wr_active,
+58:     output wire [31:0]  wr_wptr,
+59:     output wire [31:0]  wr_cycles,
+60:     input  wire         wr_restart,        // impulsion, domaine wr_clk
+61:     input  wire [31:0]  wr_seed,
+62:     // E2-d : anneau (mode flux) — rptr du cœur (déjà resynchronisé), plein, octets présents ; FIFO événements
+63:     output wire [31:0]  wr_rptr,           // E2-g : pointeur de lecture du lecteur fabric (domaine wr_clk), publié
+64:     output wire         wr_ring_full,
+65:     output wire [31:0]  wr_used,
+66:     input  wire         fi_valid,
+67:     input  wire [63:0]  fi_data,
+68:     output wire         fi_ready,
+69:     input  wire [9:0]   fi_count,
+70:     // E2-g : sortie du lecteur d'anneau vers event_enc (domaine rd_clk = clk 100 MHz), FIFO vidée au 'S'
+71:     input  wire         rd_clk,
+72:     input  wire         rd_rst_wr,         // 'S' : reset côté écriture de la FIFO du lecteur ET redémarrage du lecteur
+73:                                            // (domaine wr_clk) = la MÊME impulsion que le vidage de la FIFO amont et le
+74:                                            // redémarrage du writer (un seul cdc_clear : sinon course, entrées périmées)
+75:     input  wire         rd_rst_rd,         // 'S' : reset côté lecture (domaine rd_clk), tenu pendant la poignée de main
+76:     output wire         rd_valid,
+77:     output wire [63:0]  rd_data,
+78:     input  wire         rd_ready,
+79:     output wire [31:0]  rd_lost            // entrées que le lecteur n'a pas pu pousser (ne doit jamais bouger)
+80: );
+81:     // Interface utilisateur de l'IP (noms de DDR3_Memory_Interface_Top)
+82:     wire         ui_clk;                   // clk_out de l'IP (75 MHz = memory_clk / 4)
+83:     wire         ui_cmd_ready, ui_cmd_en, ui_wr_data_rdy, ui_wr_data_en, ui_wr_data_end;
+84:     wire         ui_rd_data_valid, ui_rd_data_end;
+85:     wire [2:0]   ui_cmd;
+86:     wire [28:0]  ui_addr;
+87:     wire [127:0] ui_wr_data, ui_rd_data;
+88:     wire [15:0]  ui_wr_data_mask;
+89: 
+90:     // Côté IP : sortie de l'arbitre (ip_*) ; côté pont : m0 de l'arbitre (ui_* du pont)
+91:     wire         ip_cmd_ready, ip_cmd_en, ip_wr_data_rdy, ip_wr_data_en, ip_wr_data_end;
+92:     wire [2:0]   ip_cmd;
+93:     wire [28:0]  ip_addr;
+94:     wire [127:0] ip_wr_data;
+95:     wire [15:0]  ip_wr_data_mask;
+96:     wire [3:0]   arb_dbg;
+97:     /* verilator lint_off UNUSEDSIGNAL */
+98:     wire [3:0] arb_dbg_unused = arb_dbg;
+99:     wire end_unused = ui_wr_data_end;      // l'arbitre pose end = en lui-même
+100:     /* verilator lint_on UNUSEDSIGNAL */
+101: 
+102:     // E2-f1 : l'IP est en DQ 32 bits (rafales de 256 bits, adresses en mots de 32 bits, 1 Go) ; ddr_ui_adapt reproduit
+103:     // devant l'arbitre l'interface 128 bits du contrôleur 16 bits (ARCHI_V3 § 11) — pont, arbitre, writer inchangés.
+104:     wire         w_cmd_ready, w_cmd_en, w_wr_data_rdy, w_wr_data_en, w_wr_data_end, w_rd_data_valid, w_rd_data_end;
+105:     wire [2:0]   w_cmd;
+106:     wire [28:0]  w_addr;
+107:     wire [255:0] w_wr_data, w_rd_data;
+108:     wire [31:0]  w_wr_data_mask;
+109:     ddr_ui_adapt u_adapt (
+110:         .clk(ui_clk), .rst_n(DDR3_INIT),
+111:         .u_cmd_en(ip_cmd_en), .u_cmd(ip_cmd), .u_addr(ip_addr), .u_cmd_ready(ip_cmd_ready),
+112:         .u_wr_data_en(ip_wr_data_en), .u_wr_data_end(ip_wr_data_end), .u_wr_data(ip_wr_data), .u_wr_data_mask(ip_wr_data_mask),
+113:         .u_wr_data_rdy(ip_wr_data_rdy), .u_rd_data(ui_rd_data), .u_rd_data_valid(ui_rd_data_valid), .u_rd_data_end(ui_rd_data_end),
+114:         .ip_cmd_en(w_cmd_en), .ip_cmd(w_cmd), .ip_addr(w_addr), .ip_cmd_ready(w_cmd_ready),
+115:         .ip_wr_data_en(w_wr_data_en), .ip_wr_data_end(w_wr_data_end), .ip_wr_data(w_wr_data), .ip_wr_data_mask(w_wr_data_mask),
+116:         .ip_wr_data_rdy(w_wr_data_rdy), .ip_rd_data(w_rd_data), .ip_rd_data_valid(w_rd_data_valid), .ip_rd_data_end(w_rd_data_end));
+117: 
+118:     wire m_cmd_ready, m_cmd_en, m_wr_data_rdy, m_wr_data_en, m_wr_data_end;
+119:     wire m_rd_data_valid, m_rd_data_end;
+120:     wire [2:0] m_cmd;
+121:     wire [28:0] m_addr;
+122:     wire [255:0] m_wr_data, m_rd_data;
+123:     wire [31:0] m_wr_data_mask;
+124:     ddr_gpu_arb u_gpu_arb (
+125:         .clk(ui_clk), .rst_n(DDR3_INIT),
+126:         .c_en(w_cmd_en), .c_cmd(w_cmd), .c_addr(w_addr), .c_ready(w_cmd_ready),
+127:         .c_wr_en(w_wr_data_en), .c_wr_end(w_wr_data_end), .c_wr_data(w_wr_data), .c_wr_mask(w_wr_data_mask),
+128:         .c_wr_ready(w_wr_data_rdy), .c_rd_data(w_rd_data), .c_rd_valid(w_rd_data_valid), .c_rd_end(w_rd_data_end),
+129:         .g_valid(gpu_valid), .g_addr(gpu_addr), .g_ready(gpu_ready), .g_data(gpu_data), .g_data_valid(gpu_data_valid),
+130:         .b_valid(blit_valid), .b_write(blit_write), .b_addr(blit_addr), .b_wr_data(blit_wr_data),
+131:         .b_wr_mask(blit_wr_mask), .b_ready(blit_ready), .b_rd_data(blit_rd_data), .b_rd_valid(blit_rd_valid),
+132:         .m_en(m_cmd_en), .m_cmd(m_cmd), .m_addr(m_addr), .m_ready(m_cmd_ready),
+133:         .m_wr_en(m_wr_data_en), .m_wr_end(m_wr_data_end), .m_wr_data(m_wr_data), .m_wr_mask(m_wr_data_mask),
+134:         .m_wr_ready(m_wr_data_rdy), .m_rd_data(m_rd_data), .m_rd_valid(m_rd_data_valid), .m_rd_end(m_rd_data_end));
+135: 
+136:     DDR3_Memory_Interface_Top u_ip (
+137:         .clk(DDR3_CLK_IN), .pll_stop(DDR3_STOP), .memory_clk(DDR3_MEMORY_CLK), .pll_lock(DDR3_LOCK), .rst_n(DDR3_RSTN),
+138:         .cmd_ready(m_cmd_ready), .cmd(m_cmd), .cmd_en(m_cmd_en), .addr(m_addr),
+139:         .wr_data_rdy(m_wr_data_rdy), .wr_data(m_wr_data), .wr_data_en(m_wr_data_en), .wr_data_end(m_wr_data_end),
+140:         .wr_data_mask(m_wr_data_mask),
+141:         .rd_data(m_rd_data), .rd_data_valid(m_rd_data_valid), .rd_data_end(m_rd_data_end),
+142:         .sr_req(1'b0), .ref_req(1'b0), .sr_ack(), .ref_ack(),
+143:         .init_calib_complete(DDR3_INIT), .clk_out(ui_clk), .ddr_rst(), .burst(1'b1),
+144:         .O_ddr_addr(DDR3_ADDR), .O_ddr_ba(DDR3_BANK), .O_ddr_cs_n(DDR3_CS_N), .O_ddr_ras_n(DDR3_RAS_N),
+145:         .O_ddr_cas_n(DDR3_CAS_N), .O_ddr_we_n(DDR3_WE_N), .O_ddr_clk(DDR3_CK), .O_ddr_clk_n(DDR3_CK_N),
+146:         .O_ddr_cke(DDR3_CKE), .O_ddr_odt(DDR3_ODT), .O_ddr_reset_n(DDR3_RESET_N), .O_ddr_dqm(DDR3_DM),
+147:         .IO_ddr_dq(DDR3_DQ), .IO_ddr_dqs(DDR3_DQS), .IO_ddr_dqs_n(DDR3_DQS_N)
+148:     );
+149: 
+150:     // ddr_writer (E2-d : mode flux, anneau [RING_BASE, +RING_SIZE[ ; le mode motif E2-c reste disponible par le
+151:     // paramètre PATTERN) → m1 de l'arbitre. La FIFO événements est dans le wrapper (elle franchit ev_clk → clk_out).
+152:     assign wr_clk = ui_clk;
+153:     wire         m1_cmd_en, m1_urgent, m1_ready;
+154:     wire [28:0]  m1_addr;
+155:     wire [127:0] m1_wr_data;
+156:     wire [15:0]  m1_wr_mask;
+157:     ddr_writer #(.BASE_BYTES(RING_BASE), .SIZE_BYTES(RING_SIZE), .PATTERN(PATTERN), .URGENT_LEVEL(10'd384)) u_writer (
+158:         .clk(ui_clk), .rst_n(DDR3_INIT), .pat_seed({wr_seed, wr_seed}), .restart(wr_restart),
+159:         .rptr(wr_rptr), .ring_full(wr_ring_full),
+160:         .fi_valid(fi_valid), .fi_data(fi_data), .fi_ready(fi_ready), .fi_count(fi_count),
+161:         .m1_cmd_en(m1_cmd_en), .m1_addr(m1_addr), .m1_wr_data(m1_wr_data), .m1_wr_mask(m1_wr_mask),
+162:         .m1_urgent(m1_urgent), .m1_ready(m1_ready),
+163:         .wptr(wr_wptr), .done(wr_done), .active(wr_active), .cycles(wr_cycles));
+164:     assign wr_used = (wr_wptr >= wr_rptr) ? (wr_wptr - wr_rptr) : (RING_SIZE - wr_rptr + wr_wptr);
+165: 
+166:     // E2-g : lecteur d'anneau (m2) → FIFO 64 bits clk_out → rd_clk → event_enc. Vidage au 'S' par les impulsions du
+167:     // cdc_clear de la FIFO amont (wrapper) : writer, lecteur et les deux FIFO repartent sur la même impulsion.
+168:     wire         m2_cmd_en, m2_ready, m2_rd_valid, fo_valid, fo_ready, rd_active;
+169:     wire         fo_wr_rst = rd_rst_wr, fo_rd_rst = rd_rst_rd;
+170:     wire [28:0]  m2_addr;
+171:     wire [127:0] m2_rd_data;
+172:     wire [63:0]  fo_data;
+173:     wire [9:0]   fo_count, fo_rd_count;
+174:     wire [31:0]  fo_lost;
+175:     ddr_reader #(.SIZE_BYTES(RING_SIZE), .BASE_BYTES(RING_BASE), .FO_LOG2(9)) u_reader (
+176:         .clk(ui_clk), .rst_n(DDR3_INIT), .restart(fo_wr_rst), .wptr(wr_wptr), .rptr(wr_rptr),
+177:         .fo_valid(fo_valid), .fo_data(fo_data), .fo_ready(fo_ready), .fo_count(fo_count),
+178:         .m2_cmd_en(m2_cmd_en), .m2_addr(m2_addr), .m2_ready(m2_ready), .m2_rd_data(m2_rd_data), .m2_rd_valid(m2_rd_valid),
+179:         .active(rd_active), .lost(rd_lost));
+180:     ddr_dcfifo #(.WIDTH(64), .DEPTH_LOG2(9)) u_rdfifo (
+181:         .wr_clk(ui_clk), .wr_rst(fo_wr_rst), .wr_valid(fo_valid), .wr_data(fo_data), .wr_ready(fo_ready),
+182:         .wr_lost(fo_lost), .wr_count(fo_count),
+183:         .rd_clk(rd_clk), .rd_rst(fo_rd_rst), .rd_valid(rd_valid), .rd_data(rd_data), .rd_ready(rd_ready), .rd_count(fo_rd_count));
+184:     /* verilator lint_off UNUSEDSIGNAL */
+185:     wire [41:0] rd_unused = {rd_active, fo_lost, fo_rd_count};   // fo_lost = 0 par le crédit du lecteur
+186:     /* verilator lint_on UNUSEDSIGNAL */
+187: 
+188:     // Arbitre : m0 = pont (tampon d'une commande), m1 = ddr_writer.
+189:     // Reset synchrone = calibration terminée (comme le domaine lpddr du pont).
+190:     wire         b_rd_valid, b_rd_end;
+191:     wire [127:0] b_rd_data;
+192:     ddr_arb u_arb (
+193:         .clk(ui_clk), .rst_n(DDR3_INIT),
+194:         .m0_cmd_en(ui_cmd_en), .m0_cmd(ui_cmd), .m0_addr(ui_addr), .m0_cmd_ready(ui_cmd_ready),
+195:         .m0_wr_en(ui_wr_data_en), .m0_wr_data(ui_wr_data), .m0_wr_mask(ui_wr_data_mask), .m0_wr_rdy(ui_wr_data_rdy),
+196:         .m0_rd_data(b_rd_data), .m0_rd_valid(b_rd_valid), .m0_rd_end(b_rd_end),   // E2-g : routées par étiquette (m0 / m2)
+197:         .m1_cmd_en(m1_cmd_en), .m1_addr(m1_addr), .m1_wr_data(m1_wr_data), .m1_wr_mask(m1_wr_mask),
+198:         .m1_urgent(m1_urgent), .m1_ready(m1_ready),
+199:         .m2_cmd_en(m2_cmd_en), .m2_addr(m2_addr), .m2_ready(m2_ready), .m2_rd_data(m2_rd_data), .m2_rd_valid(m2_rd_valid),
+200:         .ui_cmd_en(ip_cmd_en), .ui_cmd(ip_cmd), .ui_addr(ip_addr), .ui_cmd_ready(ip_cmd_ready),
+201:         .ui_wr_data_en(ip_wr_data_en), .ui_wr_data_end(ip_wr_data_end), .ui_wr_data(ip_wr_data),
+202:         .ui_wr_data_mask(ip_wr_data_mask), .ui_wr_data_rdy(ip_wr_data_rdy),
+203:         .ui_rd_data(ui_rd_data), .ui_rd_data_valid(ui_rd_data_valid), .ui_rd_data_end(ui_rd_data_end),
+204:         .dbg(arb_dbg));
+205: 
+206:     // The legacy bridge crossed completion/control levels directly between
+207:     // HCLK=50 MHz and UI=75 MHz. Commands and completions now use two FIFOs.
+208:     ahb_ddr_cdc u_bridge (
+209:         .rst_n(DDR3_RSTN && DDR3_INIT && HRESETN), .hclk(HCLK), .ui_clk(ui_clk),
+210:         .haddr(HADDR),.hsize(HSIZE),.hwrite(HWRITE),.htrans(HTRANS),.hwdata(HWDATA),
+211:         .hready(HREADY_O),.hresp(HRESP),.hrdata(HRDATA),.dbg(DBG),
+212:         .cmd_ready(ui_cmd_ready),.cmd(ui_cmd),.cmd_en(ui_cmd_en),.addr(ui_addr),
+213:         .wr_ready(ui_wr_data_rdy),.wr_data(ui_wr_data),.wr_en(ui_wr_data_en),.wr_mask(ui_wr_data_mask),
+214:         .rd_data(b_rd_data),.rd_valid(b_rd_valid)
+215:     );
+216:     assign ui_wr_data_end=ui_wr_data_en;
+217: endmodule
+218: `default_nettype wire
+
+FILE tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/rtl/board/ahb_ddr_cdc.v SHA256 c8bee60c9d820dd443d72fab7a919859c8ada51563dcd633afb6d1b2640d38da LINES 1..126
+1: // AE350 AHB64 -> DDR UI128. Both commands and completions cross through
+2: // dual-clock FIFOs; no request, ready, empty or completion bypasses them.
+3: // One AHB data phase is outstanding. SEQ beats are handled like NONSEQ;
+4: // the master retains address/data while HREADY is low, including cache bursts.
+5: // rst_n is the common transaction reset: downstream DDR arbitration/read tags
+6: // must be reset with it (the integration uses loss of DDR calibration).
+7: `default_nettype none
+8: module ahb_ddr_cdc (
+9:     input wire hclk, ui_clk, rst_n,
+10:     input wire [31:0] haddr,
+11:     input wire [2:0] hsize,
+12:     input wire hwrite,
+13:     input wire [1:0] htrans,
+14:     input wire [63:0] hwdata,
+15:     output wire hready,
+16:     output wire [1:0] hresp,
+17:     output reg [63:0] hrdata,
+18:     input wire cmd_ready, wr_ready,
+19:     output wire cmd_en, wr_en,
+20:     output wire [2:0] cmd,
+21:     output wire [28:0] addr,
+22:     output wire [127:0] wr_data,
+23:     output wire [15:0] wr_mask,
+24:     input wire [127:0] rd_data,
+25:     input wire rd_valid,
+26:     output wire [15:0] dbg
+27: );
+28:     // Assertion is asynchronous even when either clock is stopped. The FIFO
+29:     // itself resets synchronously: each local release holds it reset for at
+30:     // least three edges. Exchange release levels before permitting traffic,
+31:     // so a stopped peer cannot publish its pre-reset pointer/head on restart.
+32:     (* ASYNC_REG = "TRUE" *) reg [2:0] h_release = 0, u_release = 0;
+33:     (* ASYNC_REG = "TRUE" *) reg [1:0] u_up_h = 0, h_up_u = 0;
+34:     always @(posedge hclk or negedge rst_n)
+35:         if (!rst_n) begin h_release<=0; u_up_h<=0; end
+36:         else begin h_release<={h_release[1:0],1'b1}; u_up_h<={u_up_h[0],u_release[2]}; end
+37:     always @(posedge ui_clk or negedge rst_n)
+38:         if (!rst_n) begin u_release<=0; h_up_u<=0; end
+39:         else begin u_release<={u_release[1:0],1'b1}; h_up_u<={h_up_u[0],h_release[2]}; end
+40:     wire h_reset = !h_release[2] || !u_up_h[1];
+41:     wire u_reset = !u_release[2] || !h_up_u[1];
+42: 
+43:     localparam H_IDLE=3'd0, H_DATA=3'd1, H_WAIT=3'd2, H_REPLY=3'd3,
+44:                H_ERROR1=3'd4, H_ERROR2=3'd5;
+45:     reg [2:0] hs=H_IDLE;
+46:     reg write_q;
+47:     reg [26:0] address_q;
+48:     reg [7:0] mask_q;
+49:     wire request_ready, request_valid, request_pop;
+50:     wire [99:0] request;
+51:     wire response_ready, response_valid;
+52:     wire [63:0] response;
+53:     wire request_push = !h_reset && hs==H_DATA && request_ready;
+54:     wire response_pop = !h_reset && hs==H_WAIT && response_valid;
+55:     assign hready = !h_reset && (hs==H_IDLE || hs==H_REPLY || hs==H_ERROR2);
+56:     assign hresp = (hs==H_ERROR1 || hs==H_ERROR2) ? 2'b01 : 2'b00;
+57:     wire invalid = hsize>3 || haddr[31:30]!=0 ||
+58:                    (hsize==1 && haddr[0]) ||
+59:                    (hsize==2 && |haddr[1:0]) ||
+60:                    (hsize==3 && |haddr[2:0]);
+61:     wire [7:0] byte_enable = hsize==0 ? (8'h01 << haddr[2:0]) :
+62:                             hsize==1 ? (8'h03 << haddr[2:0]) :
+63:                             hsize==2 ? (8'h0f << haddr[2:0]) : 8'hff;
+64:     always @(posedge hclk) begin
+65:         if (h_reset) begin hs<=H_IDLE; hrdata<=0; write_q<=0; address_q<=0; mask_q<=8'hff; end
+66:         else begin
+67:             case (hs)
+68:                 H_IDLE,H_REPLY,H_ERROR2: begin
+69:                     hs<=H_IDLE;
+70:                     if (htrans[1]) begin
+71:                         write_q<=hwrite; address_q<=haddr[29:3]; mask_q<=~byte_enable;
+72:                         hs<=invalid ? H_ERROR1 : H_DATA;
+73:                     end
+74:                 end
+75:                 H_DATA: if(request_ready) hs<=H_WAIT;
+76:                 H_WAIT: if(response_valid) begin hrdata<=response; hs<=H_REPLY; end
+77:                 H_ERROR1: hs<=H_ERROR2;
+78:                 default: hs<=H_IDLE;
+79:             endcase
+80:         end
+81:     end
+82: 
+83:     ddr_dcfifo #(.WIDTH(100),.DEPTH_LOG2(2)) u_requests (
+84:         .wr_clk(hclk),.wr_rst(h_reset),.wr_valid(request_push),
+85:         .wr_data({write_q,address_q,mask_q,hwdata}),.wr_ready(request_ready),
+86:         .wr_full(),.wr_lost(),.wr_count(),
+87:         .rd_clk(ui_clk),.rd_rst(u_reset),.rd_valid(request_valid),
+88:         .rd_data(request),.rd_ready(request_pop),.rd_count());
+89: 
+90:     localparam U_IDLE=2'd0, U_ISSUE=2'd1, U_READ=2'd2, U_REPLY=2'd3;
+91:     reg [1:0] us=U_IDLE;
+92:     reg [99:0] active;
+93:     reg [63:0] result;
+94:     wire is_write=active[99];
+95:     wire upper=active[72]; // byte address bit 3, within the aligned 16-byte UI beat
+96:     assign request_pop = !u_reset && us==U_IDLE && request_valid;
+97:     assign cmd_en = !u_reset && us==U_ISSUE && cmd_ready && (!is_write || wr_ready);
+98:     assign wr_en = cmd_en && is_write;
+99:     assign cmd = is_write ? 3'b000 : 3'b001;
+100:     assign addr = {active[98:73],3'b000}; // 16-bit words, aligned to 16 bytes
+101:     assign wr_data = {active[63:0],active[63:0]};
+102:     assign wr_mask = upper ? {active[71:64],8'hff} : {8'hff,active[71:64]};
+103:     wire [63:0] read_half = upper ? rd_data[127:64] : rd_data[63:0];
+104:     wire response_push = !u_reset && us==U_REPLY && response_ready;
+105:     always @(posedge ui_clk) begin
+106:         if(u_reset) begin us<=U_IDLE; active<=0; result<=0; end
+107:         else case(us)
+108:             U_IDLE: if(request_valid) begin active<=request; us<=U_ISSUE; end
+109:             U_ISSUE: if(cmd_en) begin
+110:                 if(is_write) begin result<=0; us<=U_REPLY; end
+111:                 else if(rd_valid) begin result<=read_half; us<=U_REPLY; end
+112:                 else us<=U_READ;
+113:             end
+114:             U_READ: if(rd_valid) begin result<=read_half; us<=U_REPLY; end
+115:             U_REPLY: if(response_ready) us<=U_IDLE;
+116:         endcase
+117:     end
+118:     ddr_dcfifo #(.WIDTH(64),.DEPTH_LOG2(2)) u_responses (
+119:         .wr_clk(ui_clk),.wr_rst(u_reset),.wr_valid(response_push),
+120:         .wr_data(result),.wr_ready(response_ready),.wr_full(),.wr_lost(),.wr_count(),
+121:         .rd_clk(hclk),.rd_rst(h_reset),.rd_valid(response_valid),
+122:         .rd_data(response),.rd_ready(response_pop),.rd_count());
+123:     // Local-domain state only; debug is observational, never handshake logic.
+124:     assign dbg={8'b0,h_reset,response_valid,request_ready,hs,2'b0};
+125: endmodule
+126: `default_nettype wire
+
+FILE tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/rtl/board/ddr_ui_adapt.v SHA256 c5fce284cfff9bd3cca03ea1ee3ac8a769da28ca05c1c28cc1762040427c4d7a LINES 1..120
+1: // ddr_ui_adapt.v — adaptateur de largeur entre l'interface utilisateur « 16 bits » (128 bits par rafale, adresses en
+2: // mots de 16 bits, sémantique du contrôleur DDR3 Gowin en DQ 16 telle que modélisée dans sim/ddr3_ui_model.py et
+3: // validée sur carte en E1/E2) et l'IP DDR3 configurée en DQ 32 bits (256 bits par rafale, adresses en mots de 32 bits,
+4: // 1 Go) — ARCHI_V3 § 11 (E2-f1). Il permet de garder le pont Sipeed, ddr_arb et ddr_writer tels quels.
+5: //
+6: // Sémantique reproduite (côté amont, « u_* ») :
+7: //   - adresse u_addr en mots de 16 bits ; une rafale couvre les 16 octets à (u_addr & ~7) × 2 ; si u_addr n'est pas
+8: //     alignée, la donnée écrite et le masque sont TOURNÉS de (u_addr & 7) mots (c'est ce que faisait le contrôleur
+9: //     16 bits : « la donnée présentée commence au mot demandé »), et une lecture rend la rafale tournée en sens
+10: //     inverse (mot demandé en tête) ;
+11: //   - masque : 1 = octet non écrit.
+12: // Côté IP 32 bits (« ip_* ») : commandes toujours ALIGNÉES sur la rafale de 32 octets (ip_addr = octets / 4 avec les
+13: // 3 bits bas à 0) ; la moitié de 128 bits visée est u_addr[3] (octet 16 de la rafale), l'autre moitié est masquée.
+14: // Hypothèse à vérifier sur carte : rafale alignée = 8 mots de 32 bits en petit-boutiste (mot 0 en bas), comme en 16 bits.
+15: // Lectures : l'IP rend dans l'ordre → file d'étiquettes {moitié, rotation} ; cmd_ready amont = IP prête ET file non
+16: // pleine (jamais de commande perdue en silence). Données d'écriture : wr_data_en passe tel quel (l'IP les apparie).
+17: `default_nettype none
+18: module ddr_ui_adapt #(
+19:     parameter TAG_LOG2 = 4                  // 16 lectures en vol au plus (le pont n'en a qu'une, le writer aucune)
+20: ) (
+21:     input  wire         clk,
+22:     input  wire         rst_n,
+23:     // amont : interface 128 bits (sortie de ddr_arb)
+24:     input  wire         u_cmd_en,
+25:     input  wire [2:0]   u_cmd,
+26:     input  wire [28:0]  u_addr,
+27:     output wire         u_cmd_ready,
+28:     input  wire         u_wr_data_en,
+29:     input  wire         u_wr_data_end,
+30:     input  wire [127:0] u_wr_data,
+31:     input  wire [15:0]  u_wr_data_mask,
+32:     output wire         u_wr_data_rdy,
+33:     output wire [127:0] u_rd_data,
+34:     output wire         u_rd_data_valid,
+35:     output wire         u_rd_data_end,
+36:     // aval : IP DDR3 en DQ 32 (256 bits)
+37:     output wire         ip_cmd_en,
+38:     output wire [2:0]   ip_cmd,
+39:     output wire [28:0]  ip_addr,
+40:     input  wire         ip_cmd_ready,
+41:     output wire         ip_wr_data_en,
+42:     output wire         ip_wr_data_end,
+43:     output wire [255:0] ip_wr_data,
+44:     output wire [31:0]  ip_wr_data_mask,
+45:     input  wire         ip_wr_data_rdy,
+46:     input  wire [255:0] ip_rd_data,
+47:     input  wire         ip_rd_data_valid,
+48:     input  wire         ip_rd_data_end
+49: );
+50:     // --- rotation d'un mot de 128 bits par n mots de 16 bits (gauche pour écrire, droite pour lire) -------------
+51:     function [127:0] rotl128; input [127:0] d; input [2:0] n;
+52:         begin rotl128 = (d << (16 * n)) | (d >> (128 - 16 * n)); end
+53:     endfunction
+54:     function [127:0] rotr128; input [127:0] d; input [2:0] n;
+55:         begin rotr128 = (d >> (16 * n)) | (d << (128 - 16 * n)); end
+56:     endfunction
+57:     function [15:0] rotl16; input [15:0] m; input [2:0] n;
+58:         begin rotl16 = (m << (2 * n)) | (m >> (16 - 2 * n)); end
+59:     endfunction
+60: 
+61:     // --- file d'étiquettes des lectures en vol ------------------------------------------------------------------
+62:     localparam DEPTH = 1 << TAG_LOG2;
+63:     reg  [3:0]          tags [0:DEPTH-1];                    // {half, rot}
+64:     reg  [TAG_LOG2:0]   tq_w = 0, tq_r = 0;
+65:     // `tq_full` REGISTRÉ (calculé sur les pointeurs du cycle suivant) : combinatoire, il entrait dans u_cmd_ready →
+66:     // arbitre → mux de données 256 bits → tampon d'écriture de l'IP, chemin en violation de 1 ns (E2-f1, sdc corrigé).
+67:     // Pessimiste d'un cycle sur la libération d'une place (16 lectures en vol, le pont n'en a qu'une) : sans effet.
+68:     reg                 tq_full = 1'b0;
+69:     wire                tq_empty = (tq_w == tq_r);
+70:     assign u_cmd_ready = ip_cmd_ready && !tq_full;
+71:     wire   push = u_cmd_en && u_cmd_ready && (u_cmd == 3'b001);
+72:     wire   pop  = ip_rd_data_valid;
+73:     wire [TAG_LOG2:0] tq_w_n = tq_w + {{TAG_LOG2{1'b0}}, push};
+74:     wire [TAG_LOG2:0] tq_r_n = tq_r + {{TAG_LOG2{1'b0}}, pop};
+75:     wire [TAG_LOG2:0] tq_count = tq_w - tq_r;
+76:     always @(posedge clk) begin
+77:         if (!rst_n) begin
+78:             tq_w <= 0; tq_r <= 0; tq_full <= 1'b0;
+79:         end else begin
+80:             // The write slot is free whenever the queue is not full. Prepare
+81:             // its tag every such cycle; only push publishes it by advancing
+82:             // tq_w. Never overwrite this slot while full: it is then the head.
+83:             // This removes upstream arbitration from the RAM write enable.
+84:             if (!tq_full) tags[tq_w[TAG_LOG2-1:0]] <= {half, rot};
+85:             tq_w <= tq_w_n; tq_r <= tq_r_n;
+86:             // L11 : même valeur que (tq_w_n, tq_r_n) « écart = DEPTH », calculée sur les pointeurs courants ; push et
+87:             // pop, qui arrivent tard (arbitre, IP), ne font plus que choisir entre trois comparaisons déjà prêtes.
+88:             tq_full <= (push && !pop) ? tq_count == DEPTH - 1 : (!push && pop) ? tq_count == DEPTH + 1 : tq_count == DEPTH;
+89:         end
+90:     end
+91:     /* verilator lint_off UNUSEDSIGNAL */
+92:     wire tq_underflow = pop && tq_empty;                     // donnée rendue sans lecture en vol : incohérence (banc)
+93:     /* verilator lint_on UNUSEDSIGNAL */
+94: 
+95:     // --- commande --------------------------------------------------------------------------------------------
+96:     // Le masque et la donnée d'écriture dépendent de l'adresse de la commande : le pont et le writer présentent
+97:     // wr_data_en au même cycle que cmd_en (ddr_arb : ui_wr_data_end = ui_wr_data_en), on utilise donc u_addr du cycle.
+98:     wire [2:0] rot  = u_addr[2:0];
+99:     wire       half = u_addr[3];
+100:     // Contrat amont (celui de ddr_arb) : u_cmd_en seulement quand u_cmd_ready ; on verrouille quand même la file
+101:     // pleine côté IP pour qu'une lecture sans étiquette ne puisse jamais partir (désynchronisation silencieuse).
+102:     assign ip_cmd_en = u_cmd_en && !tq_full;
+103:     assign ip_cmd    = u_cmd;
+104:     assign ip_addr   = {1'b0, u_addr[28:4], 3'b000};        // octets / 4, aligné sur la rafale de 32 octets
+105:     wire [127:0] wdata_eff = rotl128(u_wr_data, rot);
+106:     wire [15:0]  wmask_eff = rotl16(u_wr_data_mask, rot);
+107:     assign ip_wr_data      = {wdata_eff, wdata_eff};
+108:     assign ip_wr_data_mask = half ? {wmask_eff, 16'hFFFF} : {16'hFFFF, wmask_eff};
+109:     assign ip_wr_data_en   = u_wr_data_en;
+110:     assign ip_wr_data_end  = u_wr_data_end;
+111:     assign u_wr_data_rdy   = ip_wr_data_rdy;
+112: 
+113:     // --- données lues : moitié demandée, tournée pour que le mot demandé soit en tête -----------------------------
+114:     wire [3:0]   tag_r  = tags[tq_r[TAG_LOG2-1:0]];
+115:     wire [127:0] rhalf  = tag_r[3] ? ip_rd_data[255:128] : ip_rd_data[127:0];
+116:     assign u_rd_data       = rotr128(rhalf, tag_r[2:0]);
+117:     assign u_rd_data_valid = ip_rd_data_valid;
+118:     assign u_rd_data_end   = ip_rd_data_end;
+119: endmodule
+120: `default_nettype wire
+
+FILE tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/rtl/video/gpu_v1.v SHA256 2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71 LINES 1..629
+1: // GPU V1 extended RGB565 pipeline. New opcodes 22..30; legacy 1..21 unchanged.
+2: // Targets and textures use byte addresses; native DDR uses aligned word addresses.
+3: `default_nettype none
+4: module gpu_v1(
+5:     input wire [3:0] child_resetn,
+6:     input wire clk,rst,start,
+7:     input wire [255:0] command,
+8:     output reg done,
+9:     output wire busy,
+10:     output wire [31:0] observe_packet_word0,
+11:     output wire target_config_valid,material_config_valid,
+12:     output reg [31:0] rejected,fragments,passed,
+13:     output wire [31:0] texture_hits,texture_misses,
+14:     output wire valid,write,
+15:     output wire [28:0] addr,
+16:     output wire [255:0] wr_data,
+17:     output wire [31:0] wr_mask,
+18:     input wire ready,rd_valid,
+19:     input wire [255:0] rd_data
+20: );
+21:     localparam IDLE=0,BAD=1,FINISH=2,TARGET_CHECK=3,TEX_CHECK=4,
+22:       TRI_START=5,TRI_BOOT=6,TRI_WAIT=7,SPAN_CLIP=8,ROW_ADDR=9,
+23:       PLANE_MUL=10,PLANE_SUM=11,PLANE_LOAD=12,CHUNK=13,COLOR_REQ=14,
+24:       COLOR_WAIT=15,Z_REQ=16,Z_WAIT=17,PIX_BEGIN=18,PIX_ADDR=19,
+25:       PIX_TEX=20,PIX_UNPACK=21,PIX_MOD=22,PIX_FOG=23,PIX_FOG_MIX=24,
+26:       PIX_BLEND=25,PIX_STORE=26,PIX_NEXT=27,COLOR_WRITE=28,
+27:       COLOR_SENT=29,Z_WRITE=30,Z_SENT=31,ADVANCE=32,RECT_SETUP=33,
+28:       RECT_ROW=34,RECT_CHUNK=35,RECT_COLOR=36,RECT_CSENT=37,
+29:       RECT_Z=38,RECT_ZSENT=39,RECT_NEXT=40,COPY_START=41,COPY_WAIT=42,RECT_BOUNDS=43,RECT_CLIP=44,DECODE=45,TARGET_WAIT=46,TEX_WAIT=47,
+30:       DECODE_WAIT=48,TARGET_VALIDATE=49,TEX_VALIDATE=50,SPAN_BOUNDS=51,
+31:       PIX_LOD=52,PIX_OFFSET=53,PIX_FETCH=54,PIX_OPAQUE=55,DECODE_PIPE=56,TARGET_PIPE=57;
+32:     reg [57:0] state;
+33:     assign busy=!state[IDLE];
+34:     // Gowin 1.9.12 can absorb consecutive, independently enabled command
+35:     // registers into a DSP C pipeline with the enables reversed. This affects
+36:     // COPY's source base and TARGET's depth range, so preserve the packet
+37:     // boundary in fabric (SUG550 section 4.3/5.12).
+38:     // See TESTS/test_gpu_copy_dsp.py for the primitive-level reproduction.
+39:     reg [255:0] packet /* synthesis syn_preserve=1 */;
+40:     assign observe_packet_word0=packet[31:0];
+41:     wire [31:0] w0=packet[31:0],w1=packet[63:32],w2=packet[95:64],w3=packet[127:96],
+42:         w4=packet[159:128],w5=packet[191:160],w6=packet[223:192],w7=packet[255:224];
+43:     reg target_valid,material_valid,texture_valid,fast_shade,opaque_shade;
+44:     assign target_config_valid=target_valid;
+45:     assign material_config_valid=material_valid;
+46:     reg [29:0] color_base,z_base,texture_base;
+47:     reg [15:0] width,height,color_stride,z_stride,tex_width,tex_height,tex_stride;
+48:     reg [15:0] left,top,right,bottom;
+49:     reg [7:0] flags;
+50:     reg [8:0] alpha,tint_r,tint_g,tint_b;
+51:     reg [15:0] solid,fog_color,fog_near;
+52:     reg [24:0] fog_scale;
+53:     reg tex_argb;
+54:     reg [1:0] mode_u,mode_v;
+55:     reg [3:0] mip_level;
+56:     reg [6:0] plane_valid;
+57:     reg signed [47:0] origins[0:6];
+58:     reg signed [31:0] dx[0:6],dy[0:6];
+59:     reg signed [48:0] value[0:6];
+60:     reg [2:0] plane_index;
+61:     reg signed [48:0] product_x,product_y,plane_sum;
+62:     reg [10:0] px,span_left;
+63:     reg [9:0] py;
+64:     reg [4:0] chunk_count,chunk_left;
+65:     reg [3:0] lane;
+66:     reg [31:0] color_row,z_row;
+67:     reg [28:0] color_addr,z_addr;
+68:     reg [255:0] color_buf,z_buf;
+69:     wire [31:0] pixel_mask;
+70:     reg [15:0] pixel_written /* synthesis syn_preserve=1 */;
+71:     wire [15:0] pixel_written_next /* synthesis syn_keep=1 */;
+72:     wire pixel_commit=!color_load && pixel_visible &&
+73:         (state[PIX_STORE] || state[PIX_OPAQUE]);
+74:     genvar mask_lane;
+75:     generate for(mask_lane=0;mask_lane<16;mask_lane=mask_lane+1)begin: mask_data
+76:         assign pixel_written_next[mask_lane]=!rst && !state[CHUNK] &&
+77:             (pixel_written[mask_lane] || (pixel_commit && lane==mask_lane));
+78:         assign pixel_mask[mask_lane*2+:2]={2{!pixel_written[mask_lane]}};
+79:     end endgenerate
+80:     always @(posedge clk)pixel_written<=pixel_written_next;
+81:     // Track whether this chunk contains a stored pixel. Do not reduce the
+82:     // 32-bit byte mask in the wide native-request enable path.
+83:     reg chunk_dirty;
+84:     reg native_valid,native_write;
+85:     reg [28:0] native_addr;
+86:     reg [255:0] native_data;
+87:     reg [31:0] native_mask;
+88:     reg cache_start,cache_invalidate;
+89:     reg [29:0] cache_address;
+90:     wire cache_busy,cache_done,cache_valid;
+91:     wire [28:0] cache_addr;
+92:     wire [15:0] cached_texel;
+93:     // Only the pixel texture state owns this client, after color/Z replies drain.
+94:     wire copy_done,copy_bad,copy_valid,copy_write;
+95:     wire [28:0] copy_addr;
+96:     wire [255:0] copy_data;
+97:     wire [31:0] copy_mask;
+98:     gpu_copy565 u_copy(.clk(clk),.rst(!child_resetn[0]),.start(state[COPY_START]),.command(packet),
+99:         .dst_base(color_base),.dst_stride(color_stride),.dst_height(height),
+100:         .clip_l(left),.clip_t(top),.clip_r(right),.clip_b(bottom),
+101:         .done(copy_done),.bad(copy_bad),.valid(copy_valid),.write(copy_write),
+102:         .addr(copy_addr),.wr_data(copy_data),.wr_mask(copy_mask),
+103:         .ready(ready && state[COPY_WAIT]),.rd_valid(rd_valid && state[COPY_WAIT]),.rd_data(rd_data));
+104:     assign valid=native_valid || cache_valid || copy_valid;
+105:     // Les multiplexeurs de sortie (adresse, 256 bits de données, masque : plus de 300 entrées) sont
+106:     // commandés par copy_sel, quatre copies d'un bit de phase (COPY_START/COPY_WAIT) qui couvre tous
+107:     // les cycles où copy_valid peut valoir 1, plutôt que par copy_valid lui-même : ce registre du
+108:     // moteur de copie, à 305 destinations, faisait un fil de 5,7 ns (r621). Hors de ces cycles, valid
+109:     // vaut 0 et la valeur des bus est sans effet ; les transactions DDR sont identiques.
+110:     reg [3:0] copy_sel /* synthesis syn_preserve=1 */;
+111:     always @(posedge clk) copy_sel<={4{state[COPY_START] || state[COPY_WAIT]}};
+112:     assign write=copy_sel[0] ? copy_write:native_valid && native_write;
+113:     assign addr=copy_sel[0] ? copy_addr:cache_valid ? cache_addr:native_addr;
+114:     assign wr_data={copy_sel[2] ? copy_data[255:128]:native_data[255:128],copy_sel[1] ? copy_data[127:0]:native_data[127:0]};
+115:     assign wr_mask=copy_sel[3] ? copy_mask:native_mask;
+116:     gpu_texture_cache u_cache(.clk(clk),.rst(!child_resetn[1]),.invalidate(cache_invalidate),.start(cache_start),
+117:         .byte_address(cache_address),.busy(cache_busy),.done(cache_done),.texel(cached_texel),
+118:         .hits(texture_hits),.misses(texture_misses),.valid(cache_valid),.addr(cache_addr),
+119:         .ready(ready && !native_valid),.rd_data(rd_data),.rd_valid(rd_valid && state[PIX_TEX]));
+120:     reg [32:0] color_end,z_end,texture_end;
+121:     always @(posedge clk)begin
+122:         color_end<={3'b0,color_base}+color_stride*height;
+123:         z_end<={3'b0,z_base}+z_stride*height;
+124:         texture_end<={3'b0,texture_base}+tex_stride*tex_height;
+125:     end
+126:     wire texture_alias=(texture_base<color_end && color_base<texture_end) ||
+127:                        ((flags[1] || flags[2]) && texture_base<z_end && z_base<texture_end);
+128:     wire need_background=alpha!=256 || flags[5] || (flags[0] && tex_argb);
+129:     // Explicit set/hold removes the wide FSM clock-enable priority cone.
+130:     // All native requests hold VALID until their registered DDR acceptance.
+131:     // These issue/wait states are mutually exclusive in the one-hot machine.
+132:     wire native_issue=(state[COLOR_REQ] && need_background) ||
+133:         (state[Z_REQ] && flags[1]) ||
+134:         (state[COLOR_WRITE] && chunk_dirty) || state[Z_WRITE] ||
+135:         (state[RECT_COLOR] && clear_flags[0]) || (state[RECT_Z] && clear_flags[1]);
+136:     wire native_wait=state[COLOR_WAIT] || state[Z_WAIT] || state[COLOR_SENT] ||
+137:         state[Z_SENT] || state[RECT_CSENT] || state[RECT_ZSENT];
+138:     always @(posedge clk)begin
+139:         if(rst)native_valid<=0;
+140:         else native_valid<=native_issue || (native_valid && native_wait && !ready);
+141:     end
+142:     wire [4:0] room=5'd16-{1'b0,px[3:0]};
+143:     reg triangle_start;
+144:     wire triangle_busy,triangle_valid;
+145:     wire [10:0] triangle_x,triangle_width;
+146:     wire [9:0] triangle_y;
+147:     gpu_triangle #(.WIDTH(1024),.HEIGHT(512)) u_triangle(.clk(clk),.rst(!child_resetn[2]),.start(triangle_start),
+148:         .x0(w1[31:16]),.y0(w1[15:0]),.x1(w2[31:16]),.y1(w2[15:0]),
+149:         .x2(w3[31:16]),.y2(w3[15:0]),.busy(triangle_busy),.valid(triangle_valid),
+150:         .ready(state[TRI_WAIT]),.span_x(triangle_x),.span_width(triangle_width),.span_y(triangle_y));
+151:     reg [10:0] unclipped_end;
+152:     reg [10:0] clipped_left,clipped_right;
+153:     always @(posedge clk)begin
+154:         clipped_left<=px<left ? left[10:0]:px;
+155:         clipped_right<=unclipped_end>right ? right[10:0]:unclipped_end;
+156:     end
+157:     // Two rational samples overlap division with texture/shading work.
+158:     reg per_select /* synthesis syn_preserve=1 */;
+159:     reg [1:0] per_ready;
+160:     wire [1:0] per_start,per_done,per_valid;
+161:     wire signed [48:0] per_u[0:1],per_v[0:1];
+162:     wire signed [48:0] twice_u={{16{dx[0][31]}},dx[0],1'b0};
+163:     wire signed [48:0] twice_v={{16{dx[1][31]}},dx[1],1'b0};
+164:     wire signed [48:0] twice_q={{16{dx[2][31]}},dx[2],1'b0};
+165:     assign per_start[0]=flags[4] && (state[CHUNK] || (state[PIX_ADDR] && !per_select && chunk_left>2));
+166:     assign per_start[1]=flags[4] && ((state[CHUNK] && span_left>1 && room>1) || (state[PIX_ADDR] && per_select && chunk_left>2));
+167:     gpu_perspective u_per0(.clk(clk),.rst(!child_resetn[3]),.start(per_start[0]),
+168:         .uq(state[CHUNK] ? value[0]:value[0]+twice_u),.vq(state[CHUNK] ? value[1]:value[1]+twice_v),
+169:         .q(state[CHUNK] ? value[2]:value[2]+twice_q),.done(per_done[0]),.valid(per_valid[0]),.tu(per_u[0]),.tv(per_v[0]));
+170:     gpu_perspective u_per1(.clk(clk),.rst(!child_resetn[3]),.start(per_start[1]),
+171:         .uq(state[CHUNK] ? value[0]+dx[0]:value[0]+twice_u),.vq(state[CHUNK] ? value[1]+dx[1]:value[1]+twice_v),
+172:         .q(state[CHUNK] ? value[2]+dx[2]:value[2]+twice_q),.done(per_done[1]),.valid(per_valid[1]),.tu(per_u[1]),.tv(per_v[1]));
+173:     reg [6:0] plane_write;
+174:     wire pixel_advance=state[PIX_NEXT] || state[PIX_STORE] || state[PIX_OPAQUE];
+175:     wire per_select_next /* synthesis syn_keep=1 */;
+176:     assign per_select_next=!rst && !state[CHUNK] && (per_select ^ pixel_advance);
+177:     always @(posedge clk)per_select<=per_select_next;
+178:     genvar plane_number;
+179:     generate for(plane_number=0;plane_number<7;plane_number=plane_number+1)begin: plane_registers
+180:         always @(posedge clk)begin
+181:             if(rst)begin origins[plane_number]<=0;dx[plane_number]<=0;dy[plane_number]<=0;end
+182:             else if(plane_write[plane_number])begin
+183:                 origins[plane_number]<={w4[15:0],w1};dx[plane_number]<=w2;dy[plane_number]<=w3;
+184:             end
+185:         end
+186:     end endgenerate
+187:     always @(posedge clk)begin
+188:         if(rst)begin per_ready<=0;end
+189:         else begin
+190:             for(integer n=0;n<2;n=n+1)begin
+191:                 if(per_start[n])per_ready[n]<=0;
+192:                 else if(per_done[n])per_ready[n]<=1;
+193:             end
+194:         end
+195:     end
+196:     reg signed [48:0] raw_u,raw_v,coord_u,coord_v;
+197:     reg rational_valid;
+198:     reg [8:0] tex_u,tex_v;
+199:     reg [24:0] texture_offset;
+200:     reg [29:0] texture_column;
+201:     function [16:0] coordinate;
+202:         input signed [48:0] v;
+203:         input [15:0] size;
+204:         input [1:0] mode;
+205:         reg [15:0] p;
+206:         begin
+207:             if(mode==1)begin p=v[15:0]&(size-16'd1);coordinate={1'b1,p};end
+208:             else if(mode==2)coordinate={1'b1,(v<0 ? 16'd0:v>=$signed({1'b0,size}) ? size-16'd1:v[15:0])};
+209:             else coordinate={v>=0 && v<$signed({1'b0,size}),v[15:0]};
+210:         end
+211:     endfunction
+212:     wire [16:0] addressed_u=coordinate(coord_u,tex_width,mode_u);
+213:     wire [16:0] addressed_v=coordinate(coord_v,tex_height,mode_v);
+214:     reg [15:0] pixel,background,depth;
+215:     reg [8:0] effective_alpha;
+216:     reg [8:0] gain_r,gain_g,gain_b,fog_factor;
+217:     reg [14:0] mod_r,mod_g,mod_b;
+218:     reg [17:0] alpha_product;
+219:     reg [41:0] fog_product;
+220:     reg signed [16:0] fog_delta;
+221:     reg [14:0] fog_r,fog_g,fog_b;
+222:     reg [15:0] mix_r,mix_g,mix_b;
+223:     reg pixel_visible;
+224:     // z_sample et depth_in_range sont pris à PIX_BEGIN, en même temps que depth : lane et value[3] ne
+225:     // changent pas entre PIX_BEGIN et PIX_LOD, où sample_visible est lu, et z_buf n'y change que par la
+226:     // réponse DDR anticipée ci-dessous. Avant, le choix de la voie
+227:     // (16 x 16 bits) et la comparaison sur 49 bits se faisaient dans le cycle de PIX_LOD (r621 : 0,75 ns).
+228:     reg [15:0] z_sample;
+229:     reg depth_in_range;
+230:     wire sample_visible=rational_valid && (!(flags[1] || flags[2] || flags[7]) || depth_in_range) &&
+231:         (!flags[1] || depth<z_sample);
+232:     reg sample_allowed;
+233:     wire [4:0] unpack_r=flags[0] && tex_argb ? {pixel[11:8],pixel[11]}:pixel[15:11];
+234:     wire [5:0] unpack_g=flags[0] && tex_argb ? {pixel[7:4],pixel[7:6]}:pixel[10:5];
+235:     wire [4:0] unpack_b=flags[0] && tex_argb ? {pixel[3:0],pixel[3]}:pixel[4:0];
+236:     function [8:0] gain;
+237:         input signed [48:0] v;
+238:         begin gain=v<0 ? 9'd0:v>49'sd16777216 ? 9'd256:v[24:16];end
+239:     endfunction
+240:     wire [8:0] texture_alpha=!flags[0] || !tex_argb ? 9'd256:
+241:         pixel[15:12]==15 ? 9'd256:{1'b0,pixel[15:12],pixel[15:12]};
+242:     wire [8:0] inverse_alpha=9'd256-effective_alpha;
+243:     wire [8:0] inverse_fog=9'd256-fog_factor;
+244:     reg [1:0] clear_flags;
+245:     reg [15:0] clear_color,clear_depth,rect_bottom,rect_left,rect_right;
+246:     wire signed [16:0] rect_x=$signed(w4[31:16]),rect_y=$signed(w4[15:0]);
+247:     wire signed [17:0] rect_end_x=rect_x+$signed({1'b0,w5[31:16]});
+248:     wire signed [17:0] rect_end_y=rect_y+$signed({1'b0,w5[15:0]});
+249:     reg signed [17:0] rect_request_l,rect_request_t,rect_request_r,rect_request_b;
+250:     reg signed [17:0] rect_l,rect_t,rect_r,rect_b;
+251:     reg [31:0] rect_mask;
+252:     // Validate in parallel, then apply through registered predicates. Packet
+253:     // comparators must not drive hundreds of descriptor FF clock enables.
+254:     reg bad_header,bad_scissor,bad_material,bad_plane,bad_triangle,bad_clear,
+255:         bad_invalidate,bad_target,bad_texture;
+256:     reg [2:0] scissor_bad,material_bad;
+257:     reg [5:0] target_bad;
+258:     reg [7:1] word_nonzero;
+259:     always @(posedge clk)begin
+260:         // DECODE_WAIT/DECODE_PIPE cover both reduction stages. These reserved
+261:         // words otherwise feed several wide zero tests directly from packet.
+262:         for(integer w=1;w<8;w=w+1)word_nonzero[w]<=|packet[w*32+:32];
+263:         bad_header<=w0[23:0]!=0 && !(w0[31:24]==26 && w0[23:3]==0 && w0[2:0]<7);
+264:         scissor_bad[0]<=w1[31:16]>w2[31:16] || w2[31:16]>width;
+265:         scissor_bad[1]<=w1[15:0]>w2[15:0] || w2[15:0]>height;
+266:         scissor_bad[2]<=!target_valid || w3!=0 || w4!=0 || w5!=0 || w6!=0 || w7!=0;
+267:         bad_scissor<=|scissor_bad;
+268:         material_bad[0]<=w1>255 || (w1[4] && !w1[0]) || w2>256 || w3>65535;
+269:         material_bad[1]<=w4[31:27]!=0 || w4[8:0]>256 || w4[17:9]>256 || w4[26:18]>256;
+270:         material_bad[2]<=w6>32'h01000000 || w7!=0;
+271:         bad_material<=|material_bad;
+272:         bad_plane<=w0[2:0]>=7 || w4[31:16]!=0 || (|word_nonzero[7:5]);
+273:         bad_triangle<=!target_valid || !material_valid || (|word_nonzero[7:4]) ||
+274:             (flags[0] && (!texture_valid || plane_valid[1:0]!=3 || texture_alias)) ||
+275:             (flags[4] && !plane_valid[2]) || ((flags[1] || flags[2] || flags[7]) && !plane_valid[3]) ||
+276:             (flags[6] && plane_valid[6:4]!=7);
+277:         bad_clear<=!target_valid || w1>3 || w2>65535 || w3>65535 || (|word_nonzero[7:6]);
+278:         bad_invalidate<=|word_nonzero;
+279:         target_bad[0]<=w1[31:30]!=0 || w2[31:30]!=0 || color_base[4:0]!=0 || z_base[4:0]!=0;
+280:         target_bad[1]<=width==0 || width>1024 || height==0 || height>512;
+281:         target_bad[2]<=color_stride[4:0]!=0 || z_stride[4:0]!=0 || color_stride<width*2 || z_stride<width*2;
+282:         target_bad[3]<=color_end>33'h040000000 || z_end>33'h040000000;
+283:         target_bad[4]<=color_base<z_end && z_base<color_end;
+284:         target_bad[5]<=w5!=0 || w6!=0 || w7!=0;
+285:         bad_target<=|target_bad;
+286:         bad_texture<=w1[31:30]!=0 || texture_base[4:0]!=0 || tex_width==0 || tex_width>512 || tex_height==0 || tex_height>512 ||
+287:             tex_stride[4:0]!=0 || tex_stride<tex_width*2 || texture_end>33'h040000000 ||
+288:             w3[31:17]!=0 || w4[31:8]!=0 || mip_level>9 || mode_u==3 || mode_v==3 ||
+289:             (mode_u==1 && (tex_width&(tex_width-1))!=0) || (mode_v==1 && (tex_height&(tex_height-1))!=0) ||
+290:             w5!=0 || w6!=0 || w7!=0;
+291:     end
+292:     always @*begin
+293:         rect_mask=32'hffffffff;
+294:         for(integer b=0;b<16;b=b+1)if(b>=px[3:0] && b<({1'b0,px[3:0]}+chunk_count))rect_mask[b*2+:2]=0;
+295:     end
+296:     // Wide reply data is captured independently of the arbiter return tag.
+297:     reg [255:0] returned_data;
+298:     reg color_load,z_load;
+299:     always @(posedge clk)begin
+300:         returned_data<=rd_data;
+301:         if(rst)begin color_load<=0;z_load<=0;end
+302:         else begin color_load<=state[COLOR_WAIT] && rd_valid;z_load<=state[Z_WAIT] && rd_valid;end
+303:     end
+304:     always @(posedge clk)begin
+305:         if(rst)begin color_buf<=0;z_buf<=0;chunk_dirty<=0;end
+306:         else if(state[CHUNK])begin color_buf<=0;z_buf<=0;chunk_dirty<=0;end
+307:         else begin
+308:             if(color_load)color_buf<=returned_data;
+309:             // PIX_MOD sends zero effective alpha directly to PIX_NEXT.
+310:             // Every path to PIX_STORE has already passed that guard; do not
+311:             // repeat its nine-bit reduction on the wide buffer enables.
+312:             else if(state[PIX_STORE] && pixel_visible)begin
+313:                 color_buf[lane*16+:16]<={mix_r>=16'd8192 ? 5'd31:mix_r[12:8],
+314:                     mix_g>=16'd16384 ? 6'd63:mix_g[13:8],mix_b>=16'd8192 ? 5'd31:mix_b[12:8]};
+315:                 chunk_dirty<=1;
+316:             end
+317:             else if(state[PIX_OPAQUE] && pixel_visible)begin
+318:                 // No fog or blending: their identity operations leave the
+319:                 // rounded modulation unchanged, for RGB565 and solid colors.
+320:                 color_buf[lane*16+:16]<={mod_r[12:8],mod_g[13:8],mod_b[12:8]};
+321:                 chunk_dirty<=1;
+322:             end
+323:             if(z_load)z_buf<=returned_data;
+324:             else if(state[PIX_STORE] && pixel_visible)z_buf[lane*16+:16]<=depth;
+325:             else if(state[PIX_OPAQUE] && pixel_visible)z_buf[lane*16+:16]<=depth;
+326:         end
+327:     end
+328:     // Plane arithmetic shares a multiplier pair across attributes at each span.
+329:     // px_mul/py_mul : copie de px/py prise un cycle plus tôt, entrée des multiplicateurs. Sans elle,
+330:     // la synthèse absorbe px dans le registre d'entrée du DSP, et toute la logique de mise à jour
+331:     // de px (comparaison clipped_left/clipped_right, multiplexeur) doit atteindre la colonne DSP en
+332:     // un cycle : c'était le seul chemin en défaut de la compilation r325 (0,49 ns). px et py sont
+333:     // écrits au moins deux cycles avant PLANE_MUL (SPAN_CLIP, ROW_ADDR), donc les produits sont
+334:     // identiques au cycle près.
+335:     reg [10:0] px_mul,py_mul;
+336:     always @(posedge clk)begin
+337:         px_mul<=px;py_mul<=py;
+338:         product_x<=$signed({1'b0,px_mul})*dx[plane_index];
+339:         product_y<=$signed({1'b0,py_mul})*dy[plane_index];
+340:         plane_sum<=product_x+origins[plane_index];
+341:         if(state[PLANE_LOAD])value[plane_index]<=plane_sum+product_y;
+342:         else if(pixel_advance)for(integer p=0;p<7;p=p+1)value[p]<=value[p]+dx[p];
+343:     end
+344:     always @(posedge clk)begin
+345:         if(rst)begin
+346:             packet<=0;plane_write<=0;state<=58'b1<<IDLE;done<=0;native_write<=0;native_addr<=0;native_data<=0;native_mask<=-1;
+347:             target_valid<=0;texture_valid<=0;material_valid<=0;plane_valid<=0;fast_shade<=1;opaque_shade<=0;
+348:             rejected<=0;fragments<=0;passed<=0;cache_start<=0;cache_invalidate<=0;cache_address<=0;
+349:             color_base<=0;z_base<=0;texture_base<=0;width<=0;height<=0;color_stride<=0;z_stride<=0;
+350:             left<=0;top<=0;right<=0;bottom<=0;tex_width<=0;tex_height<=0;tex_stride<=0;
+351:             flags<=0;alpha<=256;solid<=0;tint_r<=256;tint_g<=256;tint_b<=256;
+352:             fog_color<=0;fog_near<=0;fog_scale<=0;tex_argb<=0;mode_u<=0;mode_v<=0;mip_level<=0;
+353:             px<=0;py<=0;span_left<=0;chunk_count<=0;chunk_left<=0;lane<=0;plane_index<=0;
+354:             color_row<=0;z_row<=0;color_addr<=0;z_addr<=0;triangle_start<=0;unclipped_end<=0;
+355:             raw_u<=0;raw_v<=0;coord_u<=0;coord_v<=0;rational_valid<=0;tex_u<=0;tex_v<=0;
+356:             texture_offset<=0;texture_column<=0;
+357:             pixel<=0;background<=0;depth<=0;effective_alpha<=0;pixel_visible<=0;sample_allowed<=0;
+358:             gain_r<=0;gain_g<=0;gain_b<=0;fog_factor<=0;
+359:             mod_r<=0;mod_g<=0;mod_b<=0;alpha_product<=0;fog_product<=0;fog_delta<=0;
+360:             fog_r<=0;fog_g<=0;fog_b<=0;mix_r<=0;mix_g<=0;mix_b<=0;
+361:             rect_request_l<=0;rect_request_t<=0;rect_request_r<=0;rect_request_b<=0;rect_l<=0;rect_t<=0;rect_r<=0;rect_b<=0;
+362:             clear_flags<=0;clear_color<=0;clear_depth<=0;rect_bottom<=0;rect_left<=0;rect_right<=0;
+363:         end else begin
+364:             done<=0;plane_write<=0;cache_start<=0;cache_invalidate<=0;triangle_start<=0;
+365:             case(1'b1) // synthesis parallel_case
+366:             state[IDLE]:if(start)begin packet<=command;state<=58'b1<<DECODE_WAIT;end
+367:             state[DECODE_WAIT]:state<=58'b1<<DECODE_PIPE;
+368:             state[DECODE_PIPE]:state<=58'b1<<DECODE;
+369:             state[TARGET_WAIT]:state<=58'b1<<TARGET_CHECK;
+370:             state[TEX_WAIT]:state<=58'b1<<TEX_CHECK;
+371:             state[TARGET_CHECK]:state<=58'b1<<TARGET_PIPE;
+372:             state[TARGET_PIPE]:state<=58'b1<<TARGET_VALIDATE;
+373:             state[TEX_CHECK]:state<=58'b1<<TEX_VALIDATE;
+374:             state[DECODE]:begin
+375:                 if(bad_header)begin
+376:                     // A malformed descriptor must not leave the previous one usable.
+377:                     case(w0[31:24])
+378:                     22:target_valid<=0;
+379:                     24:texture_valid<=0;
+380:                     25:material_valid<=0;
+381:                     26:if(w0[2:0]<7)plane_valid[w0[2:0]]<=0;
+382:                     endcase
+383:                     state<=58'b1<<BAD;
+384:                 end
+385:                 else case(w0[31:24])
+386:                 22:begin
+387:                     target_valid<=0;color_base<=w1[29:0];z_base<=w2[29:0];width<=w3[31:16];height<=w3[15:0];
+388:                     color_stride<=w4[31:16];z_stride<=w4[15:0];
+389:                     state<=58'b1<<TARGET_WAIT;
+390:                 end
+391:                 23:begin
+392:                     if(bad_scissor)state<=58'b1<<BAD;
+393:                     else begin left<=w1[31:16];top<=w1[15:0];right<=w2[31:16];bottom<=w2[15:0];state<=58'b1<<FINISH;end
+394:                 end
+395:                 24:begin
+396:                     texture_valid<=0;texture_base<=w1[29:0];tex_width<=w2[31:16];tex_height<=w2[15:0];
+397:                     tex_stride<=w3[15:0];tex_argb<=w3[16];mode_u<=w4[1:0];mode_v<=w4[3:2];mip_level<=w4[7:4];
+398:                     state<=58'b1<<TEX_WAIT;
+399:                 end
+400:                 25:begin
+401:                     material_valid<=0;
+402:                     if(bad_material)state<=58'b1<<BAD;
+403:                     else begin
+404:                         fast_shade<=w1[7:6]==0 && w4==32'h04020100;
+405:                         opaque_shade<=w2==256 && !w1[5] && !w1[7];
+406:                         flags<=w1[7:0];alpha<=w2[8:0];solid<=w3[15:0];
+407:                         tint_r<=w4[8:0];tint_g<=w4[17:9];tint_b<=w4[26:18];
+408:                         fog_near<=w5[31:16];fog_color<=w5[15:0];fog_scale<=w6[24:0];
+409:                         material_valid<=1;state<=58'b1<<FINISH;
+410:                     end
+411:                 end
+412:                 26:begin
+413:                     if(bad_plane)begin
+414:                         if(w0[2:0]<7)plane_valid[w0[2:0]]<=0;state<=58'b1<<BAD;
+415:                     end else begin
+416:                         plane_write<=7'b1<<w0[2:0];
+417:                         plane_valid[w0[2:0]]<=1;state<=58'b1<<FINISH;
+418:                     end
+419:                 end
+420:                 27:begin
+421:                     if(bad_triangle)state<=58'b1<<BAD;
+422:                     else state<=58'b1<<(alpha==0 || left==right || top==bottom ? FINISH:TRI_START);
+423:                 end
+424:                 28:begin
+425:                     if(bad_clear)state<=58'b1<<BAD;
+426:                     else begin clear_flags<=w1[1:0];clear_color<=w2[15:0];clear_depth<=w3[15:0];state<=58'b1<<RECT_BOUNDS;end
+427:                 end
+428:                 29:state<=58'b1<<(target_valid ? COPY_START:BAD);
+429:                 30:begin
+430:                     if(bad_invalidate)state<=58'b1<<BAD;
+431:                     else begin cache_invalidate<=1;state<=58'b1<<FINISH;end
+432:                 end
+433:                 default:state<=58'b1<<BAD;
+434:                 endcase
+435:             end
+436:             state[COPY_START]:state<=58'b1<<COPY_WAIT;
+437:             state[COPY_WAIT]:if(copy_done)begin cache_invalidate<=1;state<=58'b1<<(copy_bad ? BAD:FINISH);end
+438:             state[BAD]:begin rejected<=rejected+1'b1;state<=58'b1<<FINISH;end
+439:             state[FINISH]:begin done<=1;state<=58'b1<<IDLE;end
+440:             state[TARGET_VALIDATE]:begin
+441:                 if(bad_target)state<=58'b1<<BAD;
+442:                 else begin target_valid<=1;left<=0;top<=0;right<=width;bottom<=height;state<=58'b1<<FINISH;end
+443:             end
+444:             state[TEX_VALIDATE]:begin
+445:                 if(bad_texture)state<=58'b1<<BAD;
+446:                 else begin texture_valid<=1;state<=58'b1<<FINISH;end
+447:             end
+448:             state[TRI_START]:begin triangle_start<=1;state<=58'b1<<TRI_BOOT;end
+449:             state[TRI_BOOT]:state<=58'b1<<TRI_WAIT;
+450:             state[TRI_WAIT]:begin
+451:                 if(triangle_valid)begin px<=triangle_x;py<=triangle_y;unclipped_end<=triangle_x+triangle_width;state<=58'b1<<SPAN_BOUNDS;end
+452:                 else if(!triangle_busy)state<=58'b1<<FINISH;
+453:             end
+454:             state[SPAN_BOUNDS]:state<=58'b1<<SPAN_CLIP;
+455:             state[SPAN_CLIP]:begin
+456:                 if(py<top || py>=bottom || clipped_left>=clipped_right)state<=58'b1<<TRI_WAIT;
+457:                 else begin px<=clipped_left;span_left<=clipped_right-clipped_left;state<=58'b1<<ROW_ADDR;end
+458:             end
+459:             state[ROW_ADDR]:begin
+460:                 color_row<=color_base+py*color_stride;z_row<=z_base+py*z_stride;plane_index<=0;state<=58'b1<<PLANE_MUL;
+461:             end
+462:             state[PLANE_MUL]:state<=58'b1<<PLANE_SUM;
+463:             state[PLANE_SUM]:state<=58'b1<<PLANE_LOAD;
+464:             state[PLANE_LOAD]:begin
+465:                 if(plane_index==6)state<=58'b1<<CHUNK;
+466:                 else begin plane_index<=plane_index+1'b1;state<=58'b1<<PLANE_MUL;end
+467:             end
+468:             state[CHUNK]:begin
+469:                 color_addr<=(color_row+({21'd0,px}<<1))>>2;z_addr<=(z_row+({21'd0,px}<<1))>>2;
+470:                 lane<=px[3:0];chunk_count<=span_left>room ? room:span_left[4:0];chunk_left<=span_left>room ? room:span_left[4:0];
+471:                 state<=58'b1<<COLOR_REQ;
+472:             end
+473:             state[COLOR_REQ]:begin
+474:                 if(need_background)begin native_addr<={color_addr[28:3],3'b0};native_write<=0;state<=58'b1<<COLOR_WAIT;end
+475:                 else state<=58'b1<<Z_REQ;
+476:             end
+477:             state[COLOR_WAIT]:begin
+478:                 if(rd_valid)state<=58'b1<<Z_REQ;
+479:             end
+480:             state[Z_REQ]:begin
+481:                 if(flags[1])begin native_addr<={z_addr[28:3],3'b0};native_write<=0;state<=58'b1<<Z_WAIT;end
+482:                 else state<=58'b1<<PIX_BEGIN;
+483:             end
+484:             state[Z_WAIT]:begin
+485:                 if(rd_valid)state<=58'b1<<PIX_BEGIN;
+486:             end
+487:             state[PIX_BEGIN]:if(!flags[4] || per_ready[per_select])begin
+488:                 raw_u<=flags[4] ? per_u[per_select]:value[0]>>>16;
+489:                 raw_v<=flags[4] ? per_v[per_select]:value[1]>>>16;
+490:                 rational_valid<=!flags[4] || per_valid[per_select];
+491:                 depth<=value[3][31:16];background<=color_buf[lane*16+:16];
+492:                 // z_buf reçoit la réponse DDR (z_load) au premier cycle de PIX_BEGIN : anticiper cette valeur.
+493:                 z_sample<=z_load ? returned_data[lane*16+:16]:z_buf[lane*16+:16];
+494:                 depth_in_range<=value[3]>=0 && value[3]<49'sh100000000;
+495:                 gain_r<=flags[6] ? gain(value[4]):tint_r;gain_g<=flags[6] ? gain(value[5]):tint_g;gain_b<=flags[6] ? gain(value[6]):tint_b;
+496:                 state<=58'b1<<PIX_LOD;
+497:             end
+498:             state[PIX_LOD]:begin
+499:                 coord_u<=raw_u>>>mip_level;coord_v<=raw_v>>>mip_level;
+500:                 sample_allowed<=sample_visible;
+501:                 state<=58'b1<<PIX_ADDR;
+502:             end
+503:             state[PIX_ADDR]:begin
+504:                 fragments<=fragments+1'b1;
+505:                 pixel_visible<=sample_allowed;
+506:                 if(!sample_allowed || (flags[0] && (!addressed_u[16] || !addressed_v[16])))state<=58'b1<<PIX_NEXT;
+507:                 else if(flags[0])begin
+508:                     tex_u<=addressed_u[8:0];tex_v<=addressed_v[8:0];state<=58'b1<<PIX_OFFSET;
+509:                 end else begin
+510:                     pixel<=solid;
+511:                     if(flags[0])pixel_visible<=0;
+512:                     state<=58'b1<<PIX_UNPACK;
+513:                 end
+514:             end
+515:             state[PIX_OFFSET]:begin
+516:                 texture_offset<=tex_v*tex_stride;
+517:                 texture_column<=texture_base+{tex_u,1'b0};state<=58'b1<<PIX_FETCH;
+518:             end
+519:             state[PIX_FETCH]:begin
+520:                 cache_address<=texture_column+texture_offset;
+521:                 cache_start<=1;state<=58'b1<<PIX_TEX;
+522:             end
+523:             state[PIX_TEX]:if(cache_done)begin pixel<=cached_texel;state<=58'b1<<PIX_UNPACK;end
+524:             state[PIX_UNPACK]:begin
+525:                 if(flags[3] && pixel==0)pixel_visible<=0;
+526:                 mod_r<=unpack_r*gain_r+15'd128;mod_g<=unpack_g*gain_g+15'd128;mod_b<=unpack_b*gain_b+15'd128;
+527:                 if(fast_shade)begin
+528:                     fog_r<={2'b0,unpack_r,8'd128};fog_g<={1'b0,unpack_g,8'd128};fog_b<={2'b0,unpack_b,8'd128};
+529:                 end
+530:                 alpha_product<=alpha*texture_alpha+18'd128;
+531:                 fog_delta<=$signed({1'b0,depth})-$signed({1'b0,fog_near});
+532:                 state<=58'b1<<((flags[3] && pixel==0) || texture_alpha==0 ? PIX_NEXT:
+533:                     opaque_shade && !(flags[0] && tex_argb) ? PIX_OPAQUE:PIX_MOD);
+534:             end
+535:             state[PIX_MOD]:begin
+536:                 effective_alpha<=alpha_product[16:8];
+537:                 fog_product<=fog_delta<0 ? 42'd0:fog_delta*fog_scale;
+538:                 if(!flags[7])fog_factor<=0;
+539:                 state<=58'b1<<(alpha_product[16:8]==0 ? PIX_NEXT:fast_shade ? PIX_BLEND:flags[7] ? PIX_FOG:PIX_FOG_MIX);
+540:             end
+541:             state[PIX_FOG]:begin
+542:                 fog_factor<=!flags[7] ? 9'd0:fog_product>=42'd16777216 ? 9'd256:fog_product[24:16];
+543:                 state<=58'b1<<PIX_FOG_MIX;
+544:             end
+545:             state[PIX_FOG_MIX]:begin
+546:                 fog_r<=mod_r[12:8]*inverse_fog+fog_color[15:11]*fog_factor+15'd128;
+547:                 fog_g<=mod_g[13:8]*inverse_fog+fog_color[10:5]*fog_factor+15'd128;
+548:                 fog_b<=mod_b[12:8]*inverse_fog+fog_color[4:0]*fog_factor+15'd128;
+549:                 state<=58'b1<<PIX_BLEND;
+550:             end
+551:             state[PIX_BLEND]:begin
+552:                 mix_r<=fog_r[12:8]*effective_alpha+background[15:11]*(flags[5] ? 9'd256:inverse_alpha)+16'd128;
+553:                 mix_g<=fog_g[13:8]*effective_alpha+background[10:5]*(flags[5] ? 9'd256:inverse_alpha)+16'd128;
+554:                 mix_b<=fog_b[12:8]*effective_alpha+background[4:0]*(flags[5] ? 9'd256:inverse_alpha)+16'd128;
+555:                 state<=58'b1<<PIX_STORE;
+556:             end
+557:             state[PIX_STORE]:begin
+558:                 if(pixel_visible)passed<=passed+1'b1;
+559:                 lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=58'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
+560:             end
+561:             state[PIX_OPAQUE]:begin
+562:                 if(pixel_visible)passed<=passed+1'b1;
+563:                 lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=58'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
+564:             end
+565:             state[PIX_NEXT]:begin
+566:                 lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;state<=58'b1<<(chunk_left==1 ? COLOR_WRITE:PIX_BEGIN);
+567:             end
+568:             state[COLOR_WRITE]:begin
+569:                 if(!chunk_dirty)state<=58'b1<<ADVANCE;
+570:                 else begin native_addr<={color_addr[28:3],3'b0};native_data<=color_buf;native_mask<=pixel_mask;
+571:                     native_write<=1;state<=58'b1<<COLOR_SENT;end
+572:             end
+573:             state[COLOR_SENT]:if(ready)begin state<=58'b1<<(flags[2] ? Z_WRITE:ADVANCE);end
+574:             state[Z_WRITE]:begin native_addr<={z_addr[28:3],3'b0};native_data<=z_buf;native_mask<=pixel_mask;
+575:                 native_write<=1;state<=58'b1<<Z_SENT;end
+576:             state[Z_SENT]:if(ready)begin state<=58'b1<<ADVANCE;end
+577:             state[ADVANCE]:begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=58'b1<<(span_left==chunk_count ? TRI_WAIT:CHUNK);end
+578:             state[RECT_BOUNDS]:begin
+579:                 rect_request_l<=rect_x;rect_request_t<=rect_y;rect_request_r<=rect_end_x;rect_request_b<=rect_end_y;
+580:                 state<=58'b1<<RECT_CLIP;
+581:             end
+582:             state[RECT_CLIP]:begin
+583:                 rect_l<=rect_request_l<$signed({1'b0,left}) ? $signed({1'b0,left}):rect_request_l;
+584:                 rect_t<=rect_request_t<$signed({1'b0,top}) ? $signed({1'b0,top}):rect_request_t;
+585:                 rect_r<=rect_request_r>$signed({1'b0,right}) ? $signed({1'b0,right}):rect_request_r;
+586:                 rect_b<=rect_request_b>$signed({1'b0,bottom}) ? $signed({1'b0,bottom}):rect_request_b;
+587:                 state<=58'b1<<RECT_SETUP;
+588:             end
+589:             state[RECT_SETUP]:begin
+590:                 // Empty rectangles may update these private temporaries, but
+591:                 // never issue DDR traffic. Keep the wide emptiness comparison
+592:                 // out of py's data/enable path (also absorbed into DSP inputs).
+593:                 rect_left<=rect_l[15:0];rect_right<=rect_r[15:0];rect_bottom<=rect_b[15:0];py<=rect_t[9:0];
+594:                 if(clear_flags==0 || rect_l>=rect_r || rect_t>=rect_b)state<=58'b1<<FINISH;
+595:                 else state<=58'b1<<RECT_ROW;
+596:             end
+597:             state[RECT_ROW]:begin
+598:                 px<=rect_left[10:0];span_left<=rect_right-rect_left;
+599:                 color_row<=color_base+py*color_stride;z_row<=z_base+py*z_stride;state<=58'b1<<RECT_CHUNK;
+600:             end
+601:             state[RECT_CHUNK]:begin
+602:                 color_addr<=(color_row+({21'd0,px}<<1))>>2;z_addr<=(z_row+({21'd0,px}<<1))>>2;
+603:                 chunk_count<=span_left>room ? room:span_left[4:0];state<=58'b1<<RECT_COLOR;
+604:             end
+605:             state[RECT_COLOR]:begin
+606:                 if(clear_flags[0])begin native_addr<={color_addr[28:3],3'b0};native_data<={16{clear_color}};native_mask<=rect_mask;
+607:                     native_write<=1;state<=58'b1<<RECT_CSENT;end
+608:                 else state<=58'b1<<RECT_Z;
+609:             end
+610:             state[RECT_CSENT]:if(ready)begin state<=58'b1<<RECT_Z;end
+611:             state[RECT_Z]:begin
+612:                 if(clear_flags[1])begin native_addr<={z_addr[28:3],3'b0};native_data<={16{clear_depth}};native_mask<=rect_mask;
+613:                     native_write<=1;state<=58'b1<<RECT_ZSENT;end
+614:                 else state<=58'b1<<RECT_NEXT;
+615:             end
+616:             state[RECT_ZSENT]:if(ready)begin state<=58'b1<<RECT_NEXT;end
+617:             state[RECT_NEXT]:begin
+618:                 if(span_left>chunk_count)begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=58'b1<<RECT_CHUNK;end
+619:                 else begin
+620:                     py<=py+1'b1;
+621:                     state<=58'b1<<(py+1>=rect_bottom ? FINISH:RECT_ROW);
+622:                 end
+623:             end
+624:             default:begin state<=58'b1<<BAD;end
+625:             endcase
+626:         end
+627:     end
+628: endmodule
+629: `default_nettype wire
+
+FILE tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/rtl/video/gpu_geometry.v SHA256 9f0b3183fdb6a856ccf15ff17dc87c7f008e3906edc7ece0c64f615beb4b5ca8 LINES 240..330
+240:  integer j;
+241:  always @(posedge clk)begin
+242:   shader_start<=0;div_start<=0;done<=0;
+243:   if(rst)begin
+244:    state<=81'b1<<(IDLE);fetch_valid<=0;shader_start<=0;div_start<=0;done<=0;
+245:    matrix_valid<=0;camera_valid<=0;material_valid<=0;draw_active<=0;target_w<=0;target_h<=0;
+246:    projecting<=0;
+247:    geom_errors<=0;vertices<=0;triangles<=0;culled<=0;clipped<=0;slivers<=0;geom_cycles<=0;
+248:    ambient<=256;diffuse<=0;light_x<=0;light_y<=0;light_z<=0;
+249:    // material_valid is the reset boundary. Material payload is private and
+250:    // is overwritten by a validated material before drawing; resetting it
+251:    // also reset distant DSP input FFs through the whole engine reset tree.
+252:    shader_command<=0;fetch_addr<=0;
+253:   end else begin
+254:    if(!state[IDLE]&&!state[PASS])geom_cycles<=geom_cycles+1'b1;
+255:    case(1'b1) // synthesis parallel_case
+256:     state[IDLE]:if(start)begin
+257:      // Separate the distant command FIFO and address sums from validation.
+258:      captured_command<=command;
+259:      mesh_vertex_end<={1'b0,command[63:32]}+{12'b0,command[127:112],5'b0};
+260:      mesh_face_end<={1'b0,command[95:64]}+{12'b0,command[111:96],5'b0};
+261:      state<=81'b1<<(DECODE);
+262:     end
+263:     state[DECODE]:begin
+264:      if(w0[31:24]<31)begin
+265:       shader_command<=captured_command;shader_start<=1;state<=81'b1<<(PASS);
+266:       if(w0[31:24]==22)begin target_w<=w3[31:16];target_h<=w3[15:0];camera_valid<=0;end
+267:       if(w0[31:24]==25)begin material<=captured_command;material_valid<=0;end
+268:      end else case(w0[31:24])
+269:       31:begin
+270:        matrix_bad<=w0[23:0]!=0||w1>2||w6!=0||w7!=0;
+271:        state<=81'b1<<(MATRIX_VALIDATE);
+272:       end
+273:       32:begin
+274:        camera_valid<=0;
+275:        // Invalid CAMERA keeps camera_valid clear. Private payload capture
+276:        // can therefore precede validation, avoiding its wide CE fanout.
+277:        near_z<=w1;far_z<=w2;fx<=w3;fy<=w4;cx<=w5[31:16];cy<=w5[15:0];width<=w6[31:16];height<=w6[15:0];cam_index<=0;
+278:        camera_bad[0]<=w0[23:0]!=0||w7!=0;
+279:        camera_bad[1]<=$signed(w1)<4096||$signed(w2)<=$signed(w1);
+280:        camera_bad[2]<=$signed(w3)<65536||$signed(w4)<65536||w3>32'h10000000||w4>32'h10000000;
+281:        camera_bad[3]<=w5[31:16]>w6[31:16]||w5[15:0]>w6[15:0];
+282:        camera_bad[4]<=!w6[31:16]||w6[31:16]>1024||!w6[15:0]||w6[15:0]>512;
+283:        camera_bad[5]<=w6!={target_w,target_h};
+284:        state<=81'b1<<(CAMERA_VALIDATE);
+285:       end
+286:       33:begin
+287:        light_bad<=w0[23:0]!=0||w2[31:16]!=0||w3[15:0]>256||w3[31:16]>256||w4!=0||w5!=0||w6!=0||w7!=0;
+288:        state<=81'b1<<(LIGHT_VALIDATE);
+289:       end
+290:       34:begin
+291:        // Only a validated DRAW asserts draw_active and starts memory reads.
+292:        vb<=w1;fb<=w2;nv<=w3[31:16];nf<=w3[15:0];vi<=0;fi<=0;cull_enable<=w4[0];
+293:        // Check independent groups before driving state/clock enables. This
+294:        // avoids a long combinational path through the whole DRAW descriptor.
+295:        draw_bad[0]<=w0[23:0]!=0||w4>1||w5!=0||w6!=0||w7!=0;
+296:        draw_bad[1]<=(w1&31)!=0||(w2&31)!=0||mesh_vertex_end>33'h020000000||mesh_face_end>33'h020000000;
+297:        draw_bad[2]<=matrix_valid!=7||!camera_valid||!material_valid||w3[31:16]==0||w3[31:16]>256||w3[15:0]==0;
+298:        state<=81'b1<<(DRAW_VALIDATE);
+299:       end
+300:       default:state<=81'b1<<(FAIL);
+301:      endcase
+302:     end
+303:     state[DRAW_VALIDATE]:begin
+304:      if(|draw_bad)state<=81'b1<<(FAIL);
+305:      else begin draw_active<=1;state<=81'b1<<(V_REQ);end
+306:     end
+307:     state[MATRIX_VALIDATE]:begin
+308:      if(matrix_bad)state<=81'b1<<(FAIL);
+309:      else begin
+310:       case(w1[1:0])
+311:        0:begin matrix[0]<=w2;matrix[1]<=w3;matrix[2]<=w4;matrix[3]<=w5;matrix_valid[0]<=1;end
+312:        1:begin matrix[4]<=w2;matrix[5]<=w3;matrix[6]<=w4;matrix[7]<=w5;matrix_valid[1]<=1;end
+313:        2:begin matrix[8]<=w2;matrix[9]<=w3;matrix[10]<=w4;matrix[11]<=w5;matrix_valid[2]<=1;end
+314:        default: ;
+315:       endcase
+316:       state<=81'b1<<(FINISH);
+317:      end
+318:     end
+319:     state[CAMERA_VALIDATE]:state<=81'b1<<(|camera_bad ? FAIL:CAM_DIV);
+320:     state[LIGHT_VALIDATE]:begin
+321:      if(light_bad)state<=81'b1<<(FAIL);
+322:      else begin light_x<=w1[31:16];light_y<=w1[15:0];light_z<=w2[15:0];ambient<=w3[8:0];diffuse<=w3[24:16];state<=81'b1<<(FINISH);end
+323:     end
+324:     state[PASS]:if(shader_done)begin
+325:      // Use the pixel engine's complete descriptor validation, including
+326:      // headers/reserved bits. Lighting must never sanitize an invalid tint.
+327:      if(w0[31:24]==25)material_valid<=shader_material_valid&&!w1[6];
+328:      if(w0[31:24]==22&&!shader_target_valid)begin target_w<=0;target_h<=0;camera_valid<=0;end
+329:      state<=81'b1<<(FINISH);
+330:     end
+
+FILE tools/neo/memory_probe.S SHA256 7fd835c4354f2e5d6058932bca0c167b6870dafeca731c7637e8e394d5c64d7c LINES 1..125
+1: /* Volatile diagnostic only: execute in ILM, touch scratch DDR 0x12000000.
+2:  * C000 holds the verified expected pattern; B000/D000 hold CPU readbacks.
+3:  * E000 holds status. Always return to the known external boot parking loop.
+4:  */
+5: .option norvc
+6: .section .text
+7: .global _start
+8: _start:
+9:     li t0, 0
+10:     csrw mie, t0
+11:     csrw mstatus, t0
+12:     la t0, trap
+13:     csrw mtvec, t0
+14:     li s0, 0xa000e000
+15:     li t0, 0x4d435055
+16:     sw t0, 0(s0)
+17:     sw zero, 4(s0)
+18:     sw zero, 8(s0)
+19:     sw zero, 12(s0)
+20: #ifdef PROBE_GPU
+21:     sw zero, 16(s0)
+22:     sw zero, 20(s0)
+23:     sw zero, 24(s0)
+24:     sw zero, 28(s0)
+25: #endif
+26:     /* Read the pattern previously written by JTAG, without changing DDR. */
+27:     li t0, 0x12000000
+28:     li t1, 0xa000b000
+29:     li t2, 1024
+30: read_jtag:
+31:     lw t3, 0(t0)
+32:     sw t3, 0(t1)
+33:     addi t0, t0, 4
+34:     addi t1, t1, 4
+35:     addi t2, t2, -1
+36:     bnez t2, read_jtag
+37:     li t0, 1
+38:     sw t0, 4(s0)
+39:     /* Write the same verified pattern with CPU stores. */
+40:     li t0, 0xa000c000
+41:     li t1, 0x12000000
+42:     li t2, 1024
+43: write_cpu:
+44:     lw t3, 0(t0)
+45:     sw t3, 0(t1)
+46:     addi t0, t0, 4
+47:     addi t1, t1, 4
+48:     addi t2, t2, -1
+49:     bnez t2, write_cpu
+50:     fence iorw, iorw
+51:     li t0, 2
+52:     sw t0, 4(s0)
+53:     li t0, 0x12000000
+54:     li t1, 0xa000d000
+55:     li t2, 1024
+56: read_cpu:
+57:     lw t3, 0(t0)
+58:     sw t3, 0(t1)
+59:     addi t0, t0, 4
+60:     addi t1, t1, 4
+61:     addi t2, t2, -1
+62:     bnez t2, read_cpu
+63:     li t0, 3
+64:     sw t0, 4(s0)
+65: #ifdef PROBE_GPU
+66:     /* Exercise the GPU command port with CPU MMIO stores, independent of
+67:      * OpenOCD's repeated writes to one FIFO address. TARGET does no DMA. */
+68:     li s1, 0xe9001000
+69:     lw t0, 0(s1)
+70:     sw t0, 24(s0)
+71:     li t1, 0x424c5432
+72:     bne t0, t1, gpu_bad_id
+73:     lw s2, 8(s1)
+74:     sw s2, 16(s0)
+75:     addi s2, s2, 1
+76:     slli s2, s2, 16
+77:     srli s2, s2, 16
+78:     la t0, gpu_target
+79:     li t1, 8
+80: gpu_send:
+81:     lw t2, 0(t0)
+82:     sw t2, 16(s1)
+83:     addi t0, t0, 4
+84:     addi t1, t1, -1
+85:     bnez t1, gpu_send
+86:     fence iorw, iorw
+87:     li t1, 50000
+88: gpu_poll:
+89:     lw t2, 8(s1)
+90:     sw t2, 20(s0)
+91:     slli t2, t2, 16
+92:     srli t2, t2, 16
+93:     beq t2, s2, gpu_ok
+94:     addi t1, t1, -1
+95:     bnez t1, gpu_poll
+96:     li t0, -1
+97:     j gpu_result
+98: gpu_bad_id:
+99:     li t0, -2
+100:     j gpu_result
+101: gpu_ok:
+102:     li t0, 1
+103: gpu_result:
+104:     sw t0, 28(s0)
+105: #endif
+106: park:
+107:     fence iorw, iorw
+108:     li t0, 0x80000000
+109:     jr t0
+110: .balign 4
+111: trap:
+112:     li s0, 0xa000e000
+113:     csrr t0, mcause
+114:     sw t0, 8(s0)
+115:     csrr t0, mtval
+116:     sw t0, 12(s0)
+117:     li t0, -1
+118:     sw t0, 4(s0)
+119:     j park
+120: #ifdef PROBE_GPU
+121: .balign 4
+122: gpu_target:
+123:     .word 0x16000000, 0x12000000, 0x12001000, 0x00200040
+124:     .word 0x00400040, 0, 0, 0
+125: #endif
+
+FILE tools/neo/probe_memory.py SHA256 9e448538b620fec803a08ec055c5f4a7027bc3a892bf2c3e8efe39c0d875de17 LINES 50..60
+50:         parser.error('--status-only cannot be combined with active probes')
+51:     previous = json.loads((args.failed_load/'result.json').read_text())
+52:     if previous['passed'] and previous.get('run_mode') != 'preflight_only':
+53:         raise SystemExit('Refusing to halt a successfully booted Linux')
+54:     # Only after a verified failed launcher attempt. This scratch region is
+55:     # outside both the staged payload and decoded kernel/initramfs.
+56:     out = args.out.resolve()
+57:     out.mkdir(parents=True, exist_ok=False)
+58:     if args.status_only:
+59:         commands=recovery_commands(args.failed_load)[:-3]
+60:         for when in ('BEFORE','AFTER'):
+
+FILE TESTS/neo_common_cause_20261028/combined_gpu_usb_prepared_01/combined_20261028_133840/r19_initial_guard.tcl SHA256 fbf4b8d5653b4982c43c138902ad47a70f841f8f2f1b36364b10bca263be7cdc LINES 1..29
+1: init
+2: halt
+3: riscv set_enable_virt2phys off
+4: set registers [get_reg -force {pc priv satp}]
+5: set pc [dict get $registers pc]
+6: if {($pc!=0x80000000 && $pc!=0x80000004) || [dict get $registers priv]!=3 || [dict get $registers satp]!=0} {error "Expected parked CPU in M mode, no Linux"}
+7: set rom [read_memory 0x80000000 32 2]
+8: if {[lindex $rom 0]!=0x10500073 || [lindex $rom 1]!=0xffdff06f} {error "Parking ROM differs"}
+9: if {[lindex [read_memory 0xe9000000 32 1] 0]!=0x47505531 || [lindex [read_memory 0xe9000070 32 1] 0]!=0x02d00500} {error "Wrong GPU/geometry"}
+10: echo "PARKED_CPU $pc"
+11: if {[lindex [read_memory 0xe9000008 32 1] 0]!=0 || [lindex [read_memory 0xe900000c 32 1] 0]!=0} {error "Display is not parked on internal bars"}
+12: if {[lindex [read_memory 0xe9000060 32 1] 0]!=0x1ff8f800} {error "Internal pattern differs"}
+13: 
+14: echo "NCP_RAW_BEFORE_ASSERT [read_memory 0xe9005080 32 7]"
+15: foreach {addr expected} {
+16:   0xe9005080 0x4e435031 0xe9005088 0 0xe900508c 0
+17:   0xe9001004 0 0xe9001008 0 0xe9001034 0
+18: } {
+19:   if {[lindex [read_memory $addr 32 1] 0]!=$expected} {error "Unexpected idle GPU/NCP counters"}
+20: }
+21: echo "NCP_COUNTERS [read_memory 0xe9005088 32 2]"
+22: echo "WARM_CHECK_0"
+23: 
+24: set u [read_memory 0xe9002000 32 3]
+25: echo "RESTORED_UTNA $u"
+26: if {[lindex $u 0]!=0x55544e41 || [lindex $u 1]!=0 || [lindex $u 2]!=0} {error "Restored UTNA not fresh"}
+27: echo RESTORED_UTNA_FRESH
+28: 
+29: shutdown

@@ -1,0 +1,49 @@
+**Deuxième passe — contrats de reset et test minimal sans nouveau PnR**
+
+**1. Ce qui est établi (faits du paquet)**
+
+- `vid_hrstn` = sortie HRESETN du macro CPU, re-registrée une fois sur `vid_hclk` = AHB_CLK (`ae350_soc.v:331–332, 369` ; `.vo` R21r2 l. 1122913–1122920, DFFCE INIT0, CLEAR=GND). Le reset du scanout descend donc du reset dur du CPU, pas de `pixel_up`.
+- `MIN_LOCK_CYCLES=104000` (2,08 ms à 50 MHz) qualifie LOCK pour la chaîne CPU. `pixel_up[2]` libère après trois fronts pixel (~40 ns). Un même design applique donc deux contrats LOCK incompatibles entre eux ; seul le second viole UG306 §5.1 p.39–40.
+- Sur R21r2, DMI répond, IDs ROM/GPU/géométrie lus via AHB (packet §8). Donc EXTS_HRSTN est libéré au moment de l'observation ; `vid_hrstn` bas durable est exclu, sauf reset de banque registres séparé non documenté.
+- Quatre lectures sur 1,633 s donnent frames=0/checksum=0 (§8). Un transitoire passé et terminé est exclu pour ce compteur : il aurait repris à compter. Reste un reset récurrent (période inférieure à une trame), une horloge pixel absente, ou une CDC muette.
+- PLL vidéo : Neo en mode dynamique avec codes zéro, Pro en statique auto (`result.json`), mais fichier identique à L31r8 qui affiche (`la_top.v:507–508`). Non suffisant comme cause.
+
+**2. Contrats qui diffèrent réellement**
+
+| Contrat | Pro G22r0 | Neo R19 | Neo R21r2 | Différence réelle |
+|---|---|---|---|---|
+| Qualification LOCK chaîne CPU | ? (non extrait) | qualifieur avec défauts logiques simulés (§6) | invalidation async + 2 FF + 50 ms, couplage PLL-ready/AHB reset, CLEAR des deux étages finaux (§7) | Oui, R19↔R21r2, en amont de HRESETN donc de `vid_hrstn` |
+| Reset scanout | via HRESETN | idem | idem, mais HRESETN produit par une séquence POR/HW différente | Hérite du point précédent |
+| `pixel_up` | 3 fronts (si top identique : non vérifié) | 3 fronts | 3 fronts | Pas prouvée différente ; vulnérabilité commune aux Neo, plus plausible à 743,75 MHz VCO en mode dynamique |
+| Reset USB | 3 séquenceurs DFFPE INIT1 | idem | idem | Aucune différence de type/INIT ; délais physiques non comparés |
+
+Conclusion partielle : le seul contrat *prouvé* modifié entre R19 (frames avancent) et R21r2 (frames=0) est la chaîne POR/HW→HRESETN, avec un nouveau PnR comme confondant et un FAIL recovery −2,680 ns sur `init_sync`. Rien ne distingue encore « HRESETN relâché tard ou plusieurs fois » de « horloge pixel absente ».
+
+**3. pixel_up 40 ns contre LOCK qualifié 2 ms — évaluation**
+
+Prédiction si cette lacune était active : une impulsion LOCK pendant l'acquisition libère OSER/scanout sur une horloge pixel encore instable, puis LOCK retombe. Deux issues : (a) `pixel_up` retombe aussi et re-reset le domaine pixel — reset *récurrent* tant que le VCO oscille autour du verrou, compteur toujours à 0 ; (b) `pixel_up` reste haut, horloge finalement stable, compteur avance. Le cas (b) est ce que montre R19 ; le cas (a) expliquerait R21r2 seulement si le PnR a déplacé la charge/placement PLL ou si la séquence POR révisée change l'instant du premier LOCK. Cela n'explique ni CLEAR bloqué ni COPY rejeté sous R19, qui tourne avec le même `pixel_up`. C'est donc une cause candidate *locale* vidéo R21r2, pas une cause commune, et non prouvée.
+
+**4. Test minimal, sans PnR, qui réfute ou non la cause commune**
+
+Un seul chargement R21r2, trois observables existants, puis restauration R19 :
+
+1. **Vue HDMI non obstruée** (moniteur ou grabber lisant le mode). « Pas de signal » = pas d'horloge TMDS : PLL vidéo/`pixel_up`/OSER non libérés. « Noir avec mode détecté » = horloge et synchros vivantes, donc `gpu_scanout.v:245–274` devrait compter ; frames=0 pointe alors sur la CDC `cdc_word` ou sur un reset récurrent du seul compteur.
+2. **UTNA frais armé** (commandes 1/6/2, ACK, banque +40..bc), pas les trois registres de contrôle de `usb_idle_trace.v:74–78`. Ticks sur 200 ms positifs = domaine USB clocké et libéré.
+3. **Écriture DMI du registre mode** (valeur motif R19) puis relecture frames ×4. Élimine l'hypothèse « état programmé différent entre les deux lectures ».
+
+Prédictions, asymétriques :
+
+| HDMI | USB ticks | Lecture |
+|---|---|---|
+| mode détecté | >0 | Cause commune de reset/PLL **réfutée** pour l'instant observé. Défaut local scanout/CDC. |
+| pas de signal | >0 | Cause commune réfutée pour l'USB ; défaut vidéo local (PLL dynamique, `pixel_up`, OSER). Un déclencheur commun au démarrage reste possible si seule la chaîne 40 ns y est sensible. |
+| pas de signal | 0 | **Compatible** avec un défaut commun de démarrage, mais tout aussi compatible avec deux défauts ; non concluant. |
+| mode détecté | 0 | USB local ; vidéo clockée, CDC/compteur à examiner. |
+
+Seule la première ligne tranche. Aucune ligne ne prouve une cause commune ; aucune ne prouve trois défauts indépendants.
+
+**5. Pour plus tard, hors de ce tour**
+
+Patch minimal candidat, à ne pas construire maintenant : qualifier `pixel_up` par le même compteur MIN_LOCK_CYCLES, en domaine 50 MHz, avec invalidation asynchrone sur chute de LOCK. Il ne doit entrer qu'après le relevé ci-dessus, sinon le nouveau PnR masquera à nouveau le résultat.
+
+Preuve manquante : forme d'onde physique de LOCK vidéo, `pixel_up[2]` et `vid_hrstn`. Sans sonde, les trois états « reset durable, transitoire passé, horloge absente » ne se séparent que par le croisement HDMI × compteurs décrit en §4.

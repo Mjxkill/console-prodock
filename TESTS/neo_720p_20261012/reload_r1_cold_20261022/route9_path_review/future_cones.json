@@ -1,0 +1,4489 @@
+{
+  "hardware_access": false,
+  "route_started": false,
+  "cst_modified": false,
+  "build": "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150",
+  "cells": {
+    "u_gpu/prst_0_s0": {
+      "cell": {
+        "kind": "DFFCE",
+        "pins": {
+          "D": "VCC",
+          "CLK": "pixel_clk",
+          "CE": "VCC",
+          "CLEAR": "u_scan_observe/gowin_split_inv_from_n6_s2_onet",
+          "Q": "u_gpu/prst[0]"
+        }
+      },
+      "params": {
+        "INIT": "1'b0"
+      },
+      "locations": [
+        "R103C173[3][A]"
+      ],
+      "anchor": null,
+      "pins": {
+        "Q": {
+          "net": "u_gpu/prst[0]",
+          "drivers": [
+            [
+              "u_gpu/prst_0_s0",
+              "DFFCE",
+              "Q"
+            ]
+          ],
+          "load_count": 1,
+          "load_pin_counts": {
+            "D": 1
+          },
+          "loads": [
+            [
+              "u_gpu/prst_1_s0",
+              "DFFCE",
+              "D"
+            ]
+          ]
+        }
+      }
+    },
+    "u_gpu/prst_1_s0": {
+      "cell": {
+        "kind": "DFFCE",
+        "pins": {
+          "D": "u_gpu/prst[0]",
+          "CLK": "pixel_clk",
+          "CE": "VCC",
+          "CLEAR": "u_scan_observe/gowin_split_inv_from_n6_s2_onet",
+          "Q": "u_gpu/prst[1]"
+        }
+      },
+      "params": {
+        "INIT": "1'b0"
+      },
+      "locations": [
+        "R103C173[2][A]"
+      ],
+      "anchor": null,
+      "pins": {
+        "D": {
+          "net": "u_gpu/prst[0]",
+          "drivers": [
+            [
+              "u_gpu/prst_0_s0",
+              "DFFCE",
+              "Q"
+            ]
+          ],
+          "load_count": 1,
+          "load_pin_counts": {
+            "D": 1
+          },
+          "loads": [
+            [
+              "u_gpu/prst_1_s0",
+              "DFFCE",
+              "D"
+            ]
+          ]
+        },
+        "Q": {
+          "net": "u_gpu/prst[1]",
+          "drivers": [
+            [
+              "u_gpu/prst_1_s0",
+              "DFFCE",
+              "Q"
+            ]
+          ],
+          "load_count": 6,
+          "load_pin_counts": {
+            "I1": 2,
+            "I0": 2,
+            "I2": 1,
+            "I": 1
+          },
+          "loads": [
+            [
+              "u_gpu/n13847_s1",
+              "LUT2",
+              "I1"
+            ],
+            [
+              "u_gpu/n13860_s1",
+              "LUT2",
+              "I1"
+            ],
+            [
+              "u_gpu/n4139_s1",
+              "LUT2",
+              "I0"
+            ],
+            [
+              "u_gpu/n3186_s2",
+              "LUT3",
+              "I0"
+            ],
+            [
+              "u_gpu/n14070_s2",
+              "LUT3",
+              "I2"
+            ],
+            [
+              "u_gpu/n4065_s2",
+              "INV",
+              "I"
+            ]
+          ]
+        }
+      }
+    },
+    "u_gpu/n4065_s2": {
+      "cell": {
+        "kind": "INV",
+        "pins": {
+          "I": "u_gpu/prst[1]",
+          "O": "u_gpu/n4065_5"
+        }
+      },
+      "params": null,
+      "locations": [],
+      "anchor": null,
+      "pins": {
+        "I": {
+          "net": "u_gpu/prst[1]",
+          "drivers": [
+            [
+              "u_gpu/prst_1_s0",
+              "DFFCE",
+              "Q"
+            ]
+          ],
+          "load_count": 6,
+          "load_pin_counts": {
+            "I1": 2,
+            "I0": 2,
+            "I2": 1,
+            "I": 1
+          },
+          "loads": [
+            [
+              "u_gpu/n13847_s1",
+              "LUT2",
+              "I1"
+            ],
+            [
+              "u_gpu/n13860_s1",
+              "LUT2",
+              "I1"
+            ],
+            [
+              "u_gpu/n4139_s1",
+              "LUT2",
+              "I0"
+            ],
+            [
+              "u_gpu/n3186_s2",
+              "LUT3",
+              "I0"
+            ],
+            [
+              "u_gpu/n14070_s2",
+              "LUT3",
+              "I2"
+            ],
+            [
+              "u_gpu/n4065_s2",
+              "INV",
+              "I"
+            ]
+          ]
+        },
+        "O": {
+          "net": "u_gpu/n4065_5",
+          "drivers": [
+            [
+              "u_gpu/n4065_s2",
+              "INV",
+              "O"
+            ]
+          ],
+          "load_count": 259,
+          "load_pin_counts": {
+            "RESET": 258,
+            "SET": 1
+          },
+          "loads": [
+            [
+              "u_gpu/vy_9_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_8_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_7_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_6_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_5_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_4_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_3_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_2_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_1_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/vy_0_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_31_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_30_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_29_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_28_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_27_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_26_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_25_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_24_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_23_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_22_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_21_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_20_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_19_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_18_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_17_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_16_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_15_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_14_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_13_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_12_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_11_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_10_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_9_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_8_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_7_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_6_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_5_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_4_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_3_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_2_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_1_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/frames_0_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_31_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_30_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_29_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_28_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_27_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_26_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_25_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_24_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_23_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_22_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_21_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_20_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_19_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_18_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_17_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_16_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_15_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_14_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_13_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_12_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_11_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_10_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_9_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_8_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_7_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_6_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_5_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_4_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_3_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_2_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_1_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/underflows_0_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/commit_sync_1_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/commit_sync_0_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/applied_toggle_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_29_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_28_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_27_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_26_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_25_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_24_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_23_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_22_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_21_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_20_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_19_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_18_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_17_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_16_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_15_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_14_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_13_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_12_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_11_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_10_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_9_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_8_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_7_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_6_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_base_5_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_enable_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_rgb565_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_half_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_15_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_14_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_13_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_12_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_11_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_10_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_9_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_8_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_7_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_6_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_stride_5_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_layers_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_bank_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/active_sprites_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/ack_sync_1_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/ack_sync_0_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/ack_seen_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/line_good_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/de1_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_31_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_30_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_29_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_28_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_27_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_26_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_25_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_24_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_23_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_22_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_21_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_20_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_19_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_18_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_17_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_16_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_15_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_14_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_13_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_12_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_11_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_10_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_9_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_8_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_7_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_6_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_5_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_4_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_3_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_2_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_1_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/display_checksum_0_s0",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/was_vs_s0",
+              "DFFSE",
+              "SET"
+            ],
+            [
+              "u_gpu/request_rgb565_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_half_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_29_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_28_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_27_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_26_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_25_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_24_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_23_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_22_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_21_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_20_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_19_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_18_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_17_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_16_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_15_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_14_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_13_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_12_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_11_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_10_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_9_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_8_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_7_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_6_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_5_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_layers_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_bank_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_sprites_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_31_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_30_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_29_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_28_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_27_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_26_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_25_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_24_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_23_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_22_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_21_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_20_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_19_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_18_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_17_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_16_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_15_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_14_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_13_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_12_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_11_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_10_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_9_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_8_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_7_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_6_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_base_5_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_41_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_40_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_39_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_38_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_37_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_36_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_35_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_34_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_33_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_32_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_31_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_30_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_29_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_28_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_27_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_26_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_25_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_24_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_23_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_22_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_21_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_20_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_19_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_18_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_17_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_16_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_15_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_14_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_13_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_12_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_11_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_8_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_7_s1",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_31_s4",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/row_pointer_30_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_toggle_s2",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_10_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_9_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_6_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_5_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_4_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_3_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_2_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_1_s3",
+              "DFFRE",
+              "RESET"
+            ],
+            [
+              "u_gpu/request_tag_0_s4",
+              "DFFRE",
+              "RESET"
+            ]
+          ]
+        }
+      }
+    },
+    "u_accel/busy_sync_0_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_accel/n563_4",
+          "CLK": "vid_hclk",
+          "CE": "VCC",
+          "RESET": "u_scan_observe/gowin_split_inv_from_n6_s2_onet",
+          "Q": "u_accel/busy_sync[0]"
+        }
+      },
+      "params": {
+        "INIT": "1'b0"
+      },
+      "locations": [
+        "R45C60[0][A]"
+      ],
+      "anchor": "R[45:65]C[60:85]",
+      "pins": {
+        "D": {
+          "net": "u_accel/n563_4",
+          "drivers": [
+            [
+              "u_accel/n563_s0",
+              "LUT3",
+              "F"
+            ]
+          ],
+          "load_count": 1,
+          "load_pin_counts": {
+            "D": 1
+          },
+          "loads": [
+            [
+              "u_accel/busy_sync_0_s0",
+              "DFFRE",
+              "D"
+            ]
+          ]
+        },
+        "Q": {
+          "net": "u_accel/busy_sync[0]",
+          "drivers": [
+            [
+              "u_accel/busy_sync_0_s0",
+              "DFFRE",
+              "Q"
+            ]
+          ],
+          "load_count": 1,
+          "load_pin_counts": {
+            "D": 1
+          },
+          "loads": [
+            [
+              "u_accel/busy_sync_1_s0",
+              "DFFRE",
+              "D"
+            ]
+          ]
+        }
+      }
+    },
+    "u_accel/busy_sync_1_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_accel/busy_sync[0]",
+          "CLK": "vid_hclk",
+          "CE": "VCC",
+          "RESET": "u_scan_observe/gowin_split_inv_from_n6_s2_onet",
+          "Q": "u_accel/busy_sync[1]"
+        }
+      },
+      "params": {
+        "INIT": "1'b0"
+      },
+      "locations": [],
+      "anchor": null,
+      "pins": {
+        "D": {
+          "net": "u_accel/busy_sync[0]",
+          "drivers": [
+            [
+              "u_accel/busy_sync_0_s0",
+              "DFFRE",
+              "Q"
+            ]
+          ],
+          "load_count": 1,
+          "load_pin_counts": {
+            "D": 1
+          },
+          "loads": [
+            [
+              "u_accel/busy_sync_1_s0",
+              "DFFRE",
+              "D"
+            ]
+          ]
+        },
+        "Q": {
+          "net": "u_accel/busy_sync[1]",
+          "drivers": [
+            [
+              "u_accel/busy_sync_1_s0",
+              "DFFRE",
+              "Q"
+            ]
+          ],
+          "load_count": 1,
+          "load_pin_counts": {
+            "I3": 1
+          },
+          "loads": [
+            [
+              "u_accel/response_data_0_s12",
+              "LUT4",
+              "I3"
+            ]
+          ]
+        }
+      }
+    },
+    "u_accel/n563_s0": {
+      "cell": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "gpu_debug_state_177[38]",
+          "I1": "gpu_debug_state_178[96]",
+          "I2": "u_accel/gpu_debug_state_37_3",
+          "F": "u_accel/n563_4"
+        }
+      },
+      "params": {
+        "INIT": "8'hEF"
+      },
+      "locations": [
+        "R45C60[0][A]"
+      ],
+      "anchor": "R[45:65]C[60:85]",
+      "pins": {
+        "I0": {
+          "net": "gpu_debug_state_177[38]",
+          "drivers": [
+            [
+              "u_accel/u_commands/head_valid_s5",
+              "DFFRE",
+              "Q"
+            ]
+          ],
+          "load_count": 6,
+          "load_pin_counts": {
+            "D": 1,
+            "I0": 4,
+            "I1": 1
+          },
+          "loads": [
+            [
+              "u_gpu_debug/held_38_s0",
+              "DFFRE",
+              "D"
+            ],
+            [
+              "u_accel/n563_s0",
+              "LUT3",
+              "I0"
+            ],
+            [
+              "u_accel/gpu_debug_state_102_s0",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_commands/pop_s2",
+              "LUT3",
+              "I0"
+            ],
+            [
+              "u_accel/u_commands/pop_s3",
+              "LUT3",
+              "I1"
+            ],
+            [
+              "u_accel/u_commands/n473_s8",
+              "LUT4",
+              "I0"
+            ]
+          ]
+        },
+        "I1": {
+          "net": "gpu_debug_state_178[96]",
+          "drivers": [
+            [
+              "u_accel/u_blitter/gpu_debug_state_96_s0",
+              "LUT3",
+              "F"
+            ]
+          ],
+          "load_count": 10,
+          "load_pin_counts": {
+            "D": 1,
+            "I1": 3,
+            "I0": 3,
+            "I2": 2,
+            "I3": 1
+          },
+          "loads": [
+            [
+              "u_gpu_debug/held_96_s0",
+              "DFFRE",
+              "D"
+            ],
+            [
+              "u_accel/n563_s0",
+              "LUT3",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2496_s3",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2484_s4",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2469_s4",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2462_s3",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2458_s3",
+              "LUT3",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2490_s12",
+              "LUT3",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2482_s7",
+              "LUT4",
+              "I3"
+            ],
+            [
+              "u_accel/u_blitter/n2448_s9",
+              "LUT4",
+              "I2"
+            ]
+          ]
+        },
+        "I2": {
+          "net": "u_accel/gpu_debug_state_37_3",
+          "drivers": [
+            [
+              "u_accel/gpu_debug_state_37_s0",
+              "LUT3",
+              "F"
+            ]
+          ],
+          "load_count": 3,
+          "load_pin_counts": {
+            "I0": 1,
+            "I2": 1,
+            "I1": 1
+          },
+          "loads": [
+            [
+              "u_accel/gpu_debug_state_37_s",
+              "LUT3",
+              "I0"
+            ],
+            [
+              "u_accel/n563_s0",
+              "LUT3",
+              "I2"
+            ],
+            [
+              "u_accel/gpu_debug_state_102_s0",
+              "LUT4",
+              "I1"
+            ]
+          ]
+        },
+        "F": {
+          "net": "u_accel/n563_4",
+          "drivers": [
+            [
+              "u_accel/n563_s0",
+              "LUT3",
+              "F"
+            ]
+          ],
+          "load_count": 1,
+          "load_pin_counts": {
+            "D": 1
+          },
+          "loads": [
+            [
+              "u_accel/busy_sync_0_s0",
+              "DFFRE",
+              "D"
+            ]
+          ]
+        }
+      }
+    },
+    "u_accel/u_blitter/gpu_debug_state_96_s0": {
+      "cell": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "u_accel/u_blitter/fill[7]",
+          "I1": "u_accel/u_blitter/gpu_debug_state_100_5",
+          "I2": "gpu_debug_state_178[128]",
+          "F": "gpu_debug_state_178[96]"
+        }
+      },
+      "params": {
+        "INIT": "8'hBF"
+      },
+      "locations": [
+        "R22C142[2][A]"
+      ],
+      "anchor": null,
+      "pins": {
+        "I0": {
+          "net": "u_accel/u_blitter/fill[7]",
+          "drivers": [
+            [
+              "u_accel/u_blitter/fill_7_s",
+              "ALU",
+              "SUM"
+            ]
+          ],
+          "load_count": 6,
+          "load_pin_counts": {
+            "I2": 1,
+            "I0": 4,
+            "I1": 1
+          },
+          "loads": [
+            [
+              "u_accel/u_blitter/gpu_debug_state_101_s",
+              "LUT3",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/gpu_debug_state_100_s",
+              "LUT2",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n23598_s1",
+              "LUT3",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/wp_6_s3",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n23598_s2",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/gpu_debug_state_96_s0",
+              "LUT3",
+              "I0"
+            ]
+          ]
+        },
+        "I1": {
+          "net": "u_accel/u_blitter/gpu_debug_state_100_5",
+          "drivers": [
+            [
+              "u_accel/u_blitter/gpu_debug_state_100_s0",
+              "LUT4",
+              "F"
+            ]
+          ],
+          "load_count": 5,
+          "load_pin_counts": {
+            "I1": 2,
+            "I2": 2,
+            "I3": 1
+          },
+          "loads": [
+            [
+              "u_accel/u_blitter/gpu_debug_state_100_s",
+              "LUT2",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n23598_s1",
+              "LUT3",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/wp_6_s3",
+              "LUT4",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n23598_s2",
+              "LUT4",
+              "I3"
+            ],
+            [
+              "u_accel/u_blitter/gpu_debug_state_96_s0",
+              "LUT3",
+              "I1"
+            ]
+          ]
+        },
+        "I2": {
+          "net": "gpu_debug_state_178[128]",
+          "drivers": [
+            [
+              "u_accel/u_blitter/st_0_s1",
+              "DFFSE",
+              "Q"
+            ]
+          ],
+          "load_count": 19,
+          "load_pin_counts": {
+            "D": 1,
+            "I0": 4,
+            "I2": 9,
+            "I1": 5
+          },
+          "loads": [
+            [
+              "u_gpu_debug/held_128_s0",
+              "DFFRE",
+              "D"
+            ],
+            [
+              "u_accel/u_blitter/n2500_s2",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2501_s3",
+              "LUT3",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2501_s4",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2500_s5",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2499_s4",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2498_s4",
+              "LUT4",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2497_s3",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2473_s3",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2472_s3",
+              "LUT4",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2471_s3",
+              "LUT4",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2470_s3",
+              "LUT4",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2476_s7",
+              "LUT4",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2501_s10",
+              "LUT2",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2501_s11",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2501_s16",
+              "LUT4",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2501_s17",
+              "LUT4",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2501_s24",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/gpu_debug_state_96_s0",
+              "LUT3",
+              "I2"
+            ]
+          ]
+        },
+        "F": {
+          "net": "gpu_debug_state_178[96]",
+          "drivers": [
+            [
+              "u_accel/u_blitter/gpu_debug_state_96_s0",
+              "LUT3",
+              "F"
+            ]
+          ],
+          "load_count": 10,
+          "load_pin_counts": {
+            "D": 1,
+            "I1": 3,
+            "I0": 3,
+            "I2": 2,
+            "I3": 1
+          },
+          "loads": [
+            [
+              "u_gpu_debug/held_96_s0",
+              "DFFRE",
+              "D"
+            ],
+            [
+              "u_accel/n563_s0",
+              "LUT3",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2496_s3",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2484_s4",
+              "LUT4",
+              "I1"
+            ],
+            [
+              "u_accel/u_blitter/n2469_s4",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2462_s3",
+              "LUT4",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2458_s3",
+              "LUT3",
+              "I0"
+            ],
+            [
+              "u_accel/u_blitter/n2490_s12",
+              "LUT3",
+              "I2"
+            ],
+            [
+              "u_accel/u_blitter/n2482_s7",
+              "LUT4",
+              "I3"
+            ],
+            [
+              "u_accel/u_blitter/n2448_s9",
+              "LUT4",
+              "I2"
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "sdf_arcs": [
+    {
+      "source": "u_video_pll/PLL_inst/CLKOUT2",
+      "destination": "u_gpu/prst_0_s0/CLK",
+      "min_ns": 1.253,
+      "typ_ns": 2.232,
+      "max_ns": 3.212
+    },
+    {
+      "source": "u_video_pll/PLL_inst/CLKOUT2",
+      "destination": "u_gpu/prst_1_s0/CLK",
+      "min_ns": 1.253,
+      "typ_ns": 2.232,
+      "max_ns": 3.212
+    },
+    {
+      "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+      "destination": "u_accel/busy_sync_1_s0/CLK",
+      "min_ns": 1.33,
+      "typ_ns": 2.425,
+      "max_ns": 3.521
+    },
+    {
+      "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+      "destination": "u_accel/busy_sync_0_s0/CLK",
+      "min_ns": 1.334,
+      "typ_ns": 2.431,
+      "max_ns": 3.529
+    },
+    {
+      "source": "u_accel/u_commands/head_valid_s5/Q",
+      "destination": "u_accel/n563_s0/I0",
+      "min_ns": 2.435,
+      "typ_ns": 4.109,
+      "max_ns": 5.783
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_gpu_debug/held_96_s0/D",
+      "min_ns": 1.263,
+      "typ_ns": 2.222,
+      "max_ns": 3.182
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/n563_s0/I1",
+      "min_ns": 1.812,
+      "typ_ns": 3.087,
+      "max_ns": 4.363
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/u_blitter/n2496_s3/I1",
+      "min_ns": 0.605,
+      "typ_ns": 1.047,
+      "max_ns": 1.49
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/u_blitter/n2484_s4/I1",
+      "min_ns": 0.465,
+      "typ_ns": 0.722,
+      "max_ns": 0.979
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/u_blitter/n2469_s4/I0",
+      "min_ns": 0.525,
+      "typ_ns": 0.896,
+      "max_ns": 1.267
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/u_blitter/n2462_s3/I0",
+      "min_ns": 0.465,
+      "typ_ns": 0.722,
+      "max_ns": 0.979
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/u_blitter/n2458_s3/I0",
+      "min_ns": 0.276,
+      "typ_ns": 0.542,
+      "max_ns": 0.808
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/u_blitter/n2490_s12/I2",
+      "min_ns": 0.465,
+      "typ_ns": 0.722,
+      "max_ns": 0.979
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/u_blitter/n2482_s7/I3",
+      "min_ns": 0.324,
+      "typ_ns": 0.507,
+      "max_ns": 0.69
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_96_s0/F",
+      "destination": "u_accel/u_blitter/n2448_s9/I2",
+      "min_ns": 0.619,
+      "typ_ns": 0.949,
+      "max_ns": 1.279
+    },
+    {
+      "source": "u_accel/u_blitter/st_0_s1/Q",
+      "destination": "u_accel/u_blitter/gpu_debug_state_96_s0/I2",
+      "min_ns": 0.239,
+      "typ_ns": 0.356,
+      "max_ns": 0.474
+    },
+    {
+      "source": "VCC_cZ/V",
+      "destination": "u_gpu/prst_0_s0/D",
+      "min_ns": 0.133,
+      "typ_ns": 0.21,
+      "max_ns": 0.287
+    },
+    {
+      "source": "VCC_cZ/V",
+      "destination": "u_gpu/prst_0_s0/CE",
+      "min_ns": 0.0,
+      "typ_ns": 0.0,
+      "max_ns": 0.0
+    },
+    {
+      "source": "VCC_cZ/V",
+      "destination": "u_gpu/prst_1_s0/CE",
+      "min_ns": 0.0,
+      "typ_ns": 0.0,
+      "max_ns": 0.0
+    },
+    {
+      "source": "VCC_cZ/V",
+      "destination": "u_accel/busy_sync_1_s0/CE",
+      "min_ns": 0.0,
+      "typ_ns": 0.0,
+      "max_ns": 0.0
+    },
+    {
+      "source": "VCC_cZ/V",
+      "destination": "u_accel/busy_sync_0_s0/CE",
+      "min_ns": 0.0,
+      "typ_ns": 0.0,
+      "max_ns": 0.0
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_9_s0/RESET",
+      "min_ns": 0.217,
+      "typ_ns": 0.342,
+      "max_ns": 0.467
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_8_s0/RESET",
+      "min_ns": 0.217,
+      "typ_ns": 0.342,
+      "max_ns": 0.467
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_7_s0/RESET",
+      "min_ns": 0.906,
+      "typ_ns": 1.54,
+      "max_ns": 2.173
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_6_s0/RESET",
+      "min_ns": 0.435,
+      "typ_ns": 0.754,
+      "max_ns": 1.073
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_5_s0/RESET",
+      "min_ns": 0.532,
+      "typ_ns": 0.921,
+      "max_ns": 1.309
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_4_s0/RESET",
+      "min_ns": 0.309,
+      "typ_ns": 0.49,
+      "max_ns": 0.672
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_3_s0/RESET",
+      "min_ns": 0.4,
+      "typ_ns": 0.638,
+      "max_ns": 0.876
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_2_s0/RESET",
+      "min_ns": 0.275,
+      "typ_ns": 0.422,
+      "max_ns": 0.569
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_1_s0/RESET",
+      "min_ns": 0.275,
+      "typ_ns": 0.422,
+      "max_ns": 0.569
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/vy_0_s0/RESET",
+      "min_ns": 0.309,
+      "typ_ns": 0.49,
+      "max_ns": 0.672
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_31_s0/RESET",
+      "min_ns": 0.624,
+      "typ_ns": 1.069,
+      "max_ns": 1.514
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_30_s0/RESET",
+      "min_ns": 0.618,
+      "typ_ns": 1.054,
+      "max_ns": 1.491
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_29_s0/RESET",
+      "min_ns": 0.618,
+      "typ_ns": 1.054,
+      "max_ns": 1.491
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_28_s0/RESET",
+      "min_ns": 0.625,
+      "typ_ns": 1.077,
+      "max_ns": 1.528
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_27_s0/RESET",
+      "min_ns": 0.625,
+      "typ_ns": 1.077,
+      "max_ns": 1.528
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_26_s0/RESET",
+      "min_ns": 0.625,
+      "typ_ns": 1.077,
+      "max_ns": 1.528
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_25_s0/RESET",
+      "min_ns": 0.813,
+      "typ_ns": 1.386,
+      "max_ns": 1.96
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_24_s0/RESET",
+      "min_ns": 0.813,
+      "typ_ns": 1.386,
+      "max_ns": 1.96
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_23_s0/RESET",
+      "min_ns": 0.532,
+      "typ_ns": 0.921,
+      "max_ns": 1.309
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_22_s0/RESET",
+      "min_ns": 0.532,
+      "typ_ns": 0.921,
+      "max_ns": 1.309
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_21_s0/RESET",
+      "min_ns": 0.625,
+      "typ_ns": 1.077,
+      "max_ns": 1.528
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_20_s0/RESET",
+      "min_ns": 0.625,
+      "typ_ns": 1.077,
+      "max_ns": 1.528
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_19_s0/RESET",
+      "min_ns": 0.625,
+      "typ_ns": 1.077,
+      "max_ns": 1.528
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_18_s0/RESET",
+      "min_ns": 0.714,
+      "typ_ns": 1.212,
+      "max_ns": 1.711
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_17_s0/RESET",
+      "min_ns": 0.714,
+      "typ_ns": 1.212,
+      "max_ns": 1.711
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_16_s0/RESET",
+      "min_ns": 0.714,
+      "typ_ns": 1.212,
+      "max_ns": 1.711
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_15_s0/RESET",
+      "min_ns": 0.624,
+      "typ_ns": 1.069,
+      "max_ns": 1.514
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_14_s0/RESET",
+      "min_ns": 0.624,
+      "typ_ns": 1.069,
+      "max_ns": 1.514
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_13_s0/RESET",
+      "min_ns": 0.906,
+      "typ_ns": 1.54,
+      "max_ns": 2.173
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_12_s0/RESET",
+      "min_ns": 0.936,
+      "typ_ns": 1.562,
+      "max_ns": 2.188
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_11_s0/RESET",
+      "min_ns": 0.936,
+      "typ_ns": 1.562,
+      "max_ns": 2.188
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_10_s0/RESET",
+      "min_ns": 0.936,
+      "typ_ns": 1.562,
+      "max_ns": 2.188
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_9_s0/RESET",
+      "min_ns": 0.532,
+      "typ_ns": 0.921,
+      "max_ns": 1.309
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_8_s0/RESET",
+      "min_ns": 0.532,
+      "typ_ns": 0.921,
+      "max_ns": 1.309
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_7_s0/RESET",
+      "min_ns": 0.532,
+      "typ_ns": 0.921,
+      "max_ns": 1.309
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_6_s0/RESET",
+      "min_ns": 0.4,
+      "typ_ns": 0.638,
+      "max_ns": 0.876
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_5_s0/RESET",
+      "min_ns": 0.4,
+      "typ_ns": 0.638,
+      "max_ns": 0.876
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_4_s0/RESET",
+      "min_ns": 0.275,
+      "typ_ns": 0.422,
+      "max_ns": 0.569
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_3_s0/RESET",
+      "min_ns": 0.665,
+      "typ_ns": 1.054,
+      "max_ns": 1.443
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_2_s0/RESET",
+      "min_ns": 0.998,
+      "typ_ns": 1.688,
+      "max_ns": 2.378
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_1_s0/RESET",
+      "min_ns": 0.998,
+      "typ_ns": 1.688,
+      "max_ns": 2.378
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/frames_0_s0/RESET",
+      "min_ns": 0.665,
+      "typ_ns": 1.054,
+      "max_ns": 1.443
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_31_s0/RESET",
+      "min_ns": 1.187,
+      "typ_ns": 1.902,
+      "max_ns": 2.617
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_30_s0/RESET",
+      "min_ns": 1.187,
+      "typ_ns": 1.902,
+      "max_ns": 2.617
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_29_s0/RESET",
+      "min_ns": 1.187,
+      "typ_ns": 1.902,
+      "max_ns": 2.617
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_28_s0/RESET",
+      "min_ns": 1.187,
+      "typ_ns": 1.902,
+      "max_ns": 2.617
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_27_s0/RESET",
+      "min_ns": 1.187,
+      "typ_ns": 1.902,
+      "max_ns": 2.617
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_26_s0/RESET",
+      "min_ns": 1.187,
+      "typ_ns": 1.902,
+      "max_ns": 2.617
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_25_s0/RESET",
+      "min_ns": 1.187,
+      "typ_ns": 1.902,
+      "max_ns": 2.617
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_24_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_23_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_22_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_21_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_20_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_19_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_18_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_17_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_16_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_15_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_14_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_13_s0/RESET",
+      "min_ns": 1.295,
+      "typ_ns": 2.09,
+      "max_ns": 2.884
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_12_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_11_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_10_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_9_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_8_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_7_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_6_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_5_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_4_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_3_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_2_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_1_s0/RESET",
+      "min_ns": 1.39,
+      "typ_ns": 2.251,
+      "max_ns": 3.112
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/underflows_0_s0/RESET",
+      "min_ns": 1.554,
+      "typ_ns": 2.491,
+      "max_ns": 3.428
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/commit_sync_1_s0/RESET",
+      "min_ns": 0.379,
+      "typ_ns": 0.589,
+      "max_ns": 0.8
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/commit_sync_0_s0/RESET",
+      "min_ns": 0.379,
+      "typ_ns": 0.589,
+      "max_ns": 0.8
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/applied_toggle_s0/RESET",
+      "min_ns": 0.377,
+      "typ_ns": 0.585,
+      "max_ns": 0.792
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_29_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_28_s0/RESET",
+      "min_ns": 0.379,
+      "typ_ns": 0.589,
+      "max_ns": 0.8
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_27_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_26_s0/RESET",
+      "min_ns": 0.377,
+      "typ_ns": 0.585,
+      "max_ns": 0.792
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_25_s0/RESET",
+      "min_ns": 0.375,
+      "typ_ns": 0.58,
+      "max_ns": 0.784
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_24_s0/RESET",
+      "min_ns": 0.287,
+      "typ_ns": 0.441,
+      "max_ns": 0.595
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_23_s0/RESET",
+      "min_ns": 0.287,
+      "typ_ns": 0.441,
+      "max_ns": 0.595
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_22_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_21_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_20_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_19_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_18_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_17_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_16_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_15_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_14_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_13_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_12_s0/RESET",
+      "min_ns": 0.559,
+      "typ_ns": 0.879,
+      "max_ns": 1.199
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_11_s0/RESET",
+      "min_ns": 0.377,
+      "typ_ns": 0.585,
+      "max_ns": 0.792
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_10_s0/RESET",
+      "min_ns": 0.377,
+      "typ_ns": 0.585,
+      "max_ns": 0.792
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_9_s0/RESET",
+      "min_ns": 0.377,
+      "typ_ns": 0.585,
+      "max_ns": 0.792
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_8_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_7_s0/RESET",
+      "min_ns": 0.379,
+      "typ_ns": 0.589,
+      "max_ns": 0.8
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_6_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_base_5_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_enable_s0/RESET",
+      "min_ns": 0.379,
+      "typ_ns": 0.589,
+      "max_ns": 0.8
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_rgb565_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_half_s0/RESET",
+      "min_ns": 0.217,
+      "typ_ns": 0.342,
+      "max_ns": 0.467
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_15_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_14_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_13_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_12_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_11_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_10_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_9_s0/RESET",
+      "min_ns": 0.287,
+      "typ_ns": 0.441,
+      "max_ns": 0.595
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_8_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_7_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_6_s0/RESET",
+      "min_ns": 0.199,
+      "typ_ns": 0.303,
+      "max_ns": 0.406
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_stride_5_s0/RESET",
+      "min_ns": 0.287,
+      "typ_ns": 0.441,
+      "max_ns": 0.595
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_layers_s0/RESET",
+      "min_ns": 0.379,
+      "typ_ns": 0.589,
+      "max_ns": 0.8
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_bank_s0/RESET",
+      "min_ns": 0.414,
+      "typ_ns": 0.662,
+      "max_ns": 0.91
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/active_sprites_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/ack_sync_1_s0/RESET",
+      "min_ns": 0.796,
+      "typ_ns": 1.336,
+      "max_ns": 1.876
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/ack_sync_0_s0/RESET",
+      "min_ns": 0.796,
+      "typ_ns": 1.336,
+      "max_ns": 1.876
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/ack_seen_s0/RESET",
+      "min_ns": 1.09,
+      "typ_ns": 1.836,
+      "max_ns": 2.583
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/line_good_s0/RESET",
+      "min_ns": 0.575,
+      "typ_ns": 0.911,
+      "max_ns": 1.247
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/de1_s0/RESET",
+      "min_ns": 0.4,
+      "typ_ns": 0.638,
+      "max_ns": 0.876
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_31_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_30_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_29_s0/RESET",
+      "min_ns": 0.815,
+      "typ_ns": 1.377,
+      "max_ns": 1.939
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_28_s0/RESET",
+      "min_ns": 0.815,
+      "typ_ns": 1.377,
+      "max_ns": 1.939
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_27_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_26_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_25_s0/RESET",
+      "min_ns": 0.375,
+      "typ_ns": 0.58,
+      "max_ns": 0.784
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_24_s0/RESET",
+      "min_ns": 0.375,
+      "typ_ns": 0.58,
+      "max_ns": 0.784
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_23_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_22_s0/RESET",
+      "min_ns": 0.815,
+      "typ_ns": 1.377,
+      "max_ns": 1.939
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_21_s0/RESET",
+      "min_ns": 0.815,
+      "typ_ns": 1.377,
+      "max_ns": 1.939
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_20_s0/RESET",
+      "min_ns": 0.815,
+      "typ_ns": 1.377,
+      "max_ns": 1.939
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_19_s0/RESET",
+      "min_ns": 0.583,
+      "typ_ns": 0.906,
+      "max_ns": 1.23
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_18_s0/RESET",
+      "min_ns": 0.815,
+      "typ_ns": 1.377,
+      "max_ns": 1.939
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_17_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_16_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_15_s0/RESET",
+      "min_ns": 0.815,
+      "typ_ns": 1.377,
+      "max_ns": 1.939
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_14_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_13_s0/RESET",
+      "min_ns": 0.815,
+      "typ_ns": 1.377,
+      "max_ns": 1.939
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_12_s0/RESET",
+      "min_ns": 0.583,
+      "typ_ns": 0.906,
+      "max_ns": 1.23
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_11_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_10_s0/RESET",
+      "min_ns": 0.208,
+      "typ_ns": 0.314,
+      "max_ns": 0.42
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_9_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_8_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_7_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_6_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_5_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_4_s0/RESET",
+      "min_ns": 0.412,
+      "typ_ns": 0.657,
+      "max_ns": 0.902
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_3_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_2_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_1_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/display_checksum_0_s0/RESET",
+      "min_ns": 0.543,
+      "typ_ns": 0.855,
+      "max_ns": 1.167
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/was_vs_s0/SET",
+      "min_ns": 0.208,
+      "typ_ns": 0.314,
+      "max_ns": 0.42
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_rgb565_s1/RESET",
+      "min_ns": 0.215,
+      "typ_ns": 0.336,
+      "max_ns": 0.458
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_half_s1/RESET",
+      "min_ns": 0.217,
+      "typ_ns": 0.342,
+      "max_ns": 0.467
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_29_s1/RESET",
+      "min_ns": 0.274,
+      "typ_ns": 0.415,
+      "max_ns": 0.556
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_28_s1/RESET",
+      "min_ns": 0.397,
+      "typ_ns": 0.628,
+      "max_ns": 0.859
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_27_s1/RESET",
+      "min_ns": 0.305,
+      "typ_ns": 0.48,
+      "max_ns": 0.655
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_26_s1/RESET",
+      "min_ns": 0.395,
+      "typ_ns": 0.623,
+      "max_ns": 0.852
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_25_s1/RESET",
+      "min_ns": 0.395,
+      "typ_ns": 0.623,
+      "max_ns": 0.852
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_24_s1/RESET",
+      "min_ns": 0.395,
+      "typ_ns": 0.623,
+      "max_ns": 0.852
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_23_s1/RESET",
+      "min_ns": 0.397,
+      "typ_ns": 0.628,
+      "max_ns": 0.859
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_22_s1/RESET",
+      "min_ns": 0.397,
+      "typ_ns": 0.628,
+      "max_ns": 0.859
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_21_s1/RESET",
+      "min_ns": 0.483,
+      "typ_ns": 0.762,
+      "max_ns": 1.041
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_20_s1/RESET",
+      "min_ns": 0.483,
+      "typ_ns": 0.762,
+      "max_ns": 1.041
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_19_s1/RESET",
+      "min_ns": 0.397,
+      "typ_ns": 0.628,
+      "max_ns": 0.859
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_18_s1/RESET",
+      "min_ns": 0.397,
+      "typ_ns": 0.628,
+      "max_ns": 0.859
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_17_s1/RESET",
+      "min_ns": 0.395,
+      "typ_ns": 0.623,
+      "max_ns": 0.852
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_16_s1/RESET",
+      "min_ns": 0.485,
+      "typ_ns": 0.767,
+      "max_ns": 1.048
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_15_s1/RESET",
+      "min_ns": 0.215,
+      "typ_ns": 0.336,
+      "max_ns": 0.458
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_14_s1/RESET",
+      "min_ns": 0.215,
+      "typ_ns": 0.336,
+      "max_ns": 0.458
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_13_s1/RESET",
+      "min_ns": 0.305,
+      "typ_ns": 0.48,
+      "max_ns": 0.655
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_12_s1/RESET",
+      "min_ns": 0.305,
+      "typ_ns": 0.48,
+      "max_ns": 0.655
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_11_s1/RESET",
+      "min_ns": 0.305,
+      "typ_ns": 0.48,
+      "max_ns": 0.655
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_10_s1/RESET",
+      "min_ns": 0.305,
+      "typ_ns": 0.48,
+      "max_ns": 0.655
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_9_s1/RESET",
+      "min_ns": 0.504,
+      "typ_ns": 0.806,
+      "max_ns": 1.107
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_8_s1/RESET",
+      "min_ns": 0.504,
+      "typ_ns": 0.806,
+      "max_ns": 1.107
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_7_s1/RESET",
+      "min_ns": 0.504,
+      "typ_ns": 0.806,
+      "max_ns": 1.107
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_6_s1/RESET",
+      "min_ns": 0.504,
+      "typ_ns": 0.806,
+      "max_ns": 1.107
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_5_s1/RESET",
+      "min_ns": 0.206,
+      "typ_ns": 0.309,
+      "max_ns": 0.412
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_layers_s1/RESET",
+      "min_ns": 0.414,
+      "typ_ns": 0.662,
+      "max_ns": 0.91
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_bank_s1/RESET",
+      "min_ns": 0.414,
+      "typ_ns": 0.662,
+      "max_ns": 0.91
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_sprites_s1/RESET",
+      "min_ns": 0.414,
+      "typ_ns": 0.662,
+      "max_ns": 0.91
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_31_s1/RESET",
+      "min_ns": 0.182,
+      "typ_ns": 0.268,
+      "max_ns": 0.354
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_30_s1/RESET",
+      "min_ns": 0.448,
+      "typ_ns": 0.688,
+      "max_ns": 0.927
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_29_s1/RESET",
+      "min_ns": 0.274,
+      "typ_ns": 0.415,
+      "max_ns": 0.556
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_28_s1/RESET",
+      "min_ns": 0.303,
+      "typ_ns": 0.475,
+      "max_ns": 0.647
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_27_s1/RESET",
+      "min_ns": 0.274,
+      "typ_ns": 0.415,
+      "max_ns": 0.556
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_26_s1/RESET",
+      "min_ns": 0.362,
+      "typ_ns": 0.553,
+      "max_ns": 0.745
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_25_s1/RESET",
+      "min_ns": 0.395,
+      "typ_ns": 0.623,
+      "max_ns": 0.852
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_24_s1/RESET",
+      "min_ns": 0.395,
+      "typ_ns": 0.623,
+      "max_ns": 0.852
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_23_s1/RESET",
+      "min_ns": 0.397,
+      "typ_ns": 0.628,
+      "max_ns": 0.859
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_22_s1/RESET",
+      "min_ns": 0.397,
+      "typ_ns": 0.628,
+      "max_ns": 0.859
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_21_s1/RESET",
+      "min_ns": 0.483,
+      "typ_ns": 0.762,
+      "max_ns": 1.041
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_20_s1/RESET",
+      "min_ns": 0.483,
+      "typ_ns": 0.762,
+      "max_ns": 1.041
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_19_s1/RESET",
+      "min_ns": 0.483,
+      "typ_ns": 0.762,
+      "max_ns": 1.041
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_18_s1/RESET",
+      "min_ns": 0.483,
+      "typ_ns": 0.762,
+      "max_ns": 1.041
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_17_s1/RESET",
+      "min_ns": 0.485,
+      "typ_ns": 0.767,
+      "max_ns": 1.048
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_16_s1/RESET",
+      "min_ns": 0.485,
+      "typ_ns": 0.767,
+      "max_ns": 1.048
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_15_s1/RESET",
+      "min_ns": 0.393,
+      "typ_ns": 0.619,
+      "max_ns": 0.844
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_14_s1/RESET",
+      "min_ns": 0.305,
+      "typ_ns": 0.48,
+      "max_ns": 0.655
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_13_s1/RESET",
+      "min_ns": 0.504,
+      "typ_ns": 0.806,
+      "max_ns": 1.107
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_12_s1/RESET",
+      "min_ns": 0.504,
+      "typ_ns": 0.806,
+      "max_ns": 1.107
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_11_s1/RESET",
+      "min_ns": 0.305,
+      "typ_ns": 0.48,
+      "max_ns": 0.655
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_10_s1/RESET",
+      "min_ns": 0.305,
+      "typ_ns": 0.48,
+      "max_ns": 0.655
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_9_s1/RESET",
+      "min_ns": 0.393,
+      "typ_ns": 0.619,
+      "max_ns": 0.844
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_8_s1/RESET",
+      "min_ns": 0.215,
+      "typ_ns": 0.336,
+      "max_ns": 0.458
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_7_s1/RESET",
+      "min_ns": 0.215,
+      "typ_ns": 0.336,
+      "max_ns": 0.458
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_6_s1/RESET",
+      "min_ns": 0.504,
+      "typ_ns": 0.806,
+      "max_ns": 1.107
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_base_5_s1/RESET",
+      "min_ns": 0.414,
+      "typ_ns": 0.662,
+      "max_ns": 0.91
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_41_s1/RESET",
+      "min_ns": 0.813,
+      "typ_ns": 1.386,
+      "max_ns": 1.96
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_40_s1/RESET",
+      "min_ns": 0.813,
+      "typ_ns": 1.386,
+      "max_ns": 1.96
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_39_s1/RESET",
+      "min_ns": 0.624,
+      "typ_ns": 1.069,
+      "max_ns": 1.514
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_38_s1/RESET",
+      "min_ns": 0.717,
+      "typ_ns": 1.225,
+      "max_ns": 1.732
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_37_s1/RESET",
+      "min_ns": 0.809,
+      "typ_ns": 1.373,
+      "max_ns": 1.937
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_36_s1/RESET",
+      "min_ns": 0.532,
+      "typ_ns": 0.921,
+      "max_ns": 1.309
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_35_s1/RESET",
+      "min_ns": 0.813,
+      "typ_ns": 1.386,
+      "max_ns": 1.96
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_34_s1/RESET",
+      "min_ns": 0.813,
+      "typ_ns": 1.386,
+      "max_ns": 1.96
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_33_s1/RESET",
+      "min_ns": 0.717,
+      "typ_ns": 1.225,
+      "max_ns": 1.732
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_32_s1/RESET",
+      "min_ns": 0.813,
+      "typ_ns": 1.386,
+      "max_ns": 1.96
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_31_s1/RESET",
+      "min_ns": 0.809,
+      "typ_ns": 1.373,
+      "max_ns": 1.937
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_30_s1/RESET",
+      "min_ns": 0.906,
+      "typ_ns": 1.54,
+      "max_ns": 2.173
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_29_s1/RESET",
+      "min_ns": 0.906,
+      "typ_ns": 1.54,
+      "max_ns": 2.173
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_28_s1/RESET",
+      "min_ns": 0.906,
+      "typ_ns": 1.54,
+      "max_ns": 2.173
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_27_s1/RESET",
+      "min_ns": 0.809,
+      "typ_ns": 1.373,
+      "max_ns": 1.937
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_26_s1/RESET",
+      "min_ns": 0.809,
+      "typ_ns": 1.373,
+      "max_ns": 1.937
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_25_s1/RESET",
+      "min_ns": 0.809,
+      "typ_ns": 1.373,
+      "max_ns": 1.937
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_24_s1/RESET",
+      "min_ns": 0.809,
+      "typ_ns": 1.373,
+      "max_ns": 1.937
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_23_s1/RESET",
+      "min_ns": 0.714,
+      "typ_ns": 1.212,
+      "max_ns": 1.711
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_22_s1/RESET",
+      "min_ns": 0.936,
+      "typ_ns": 1.562,
+      "max_ns": 2.188
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_21_s1/RESET",
+      "min_ns": 0.906,
+      "typ_ns": 1.54,
+      "max_ns": 2.173
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_20_s1/RESET",
+      "min_ns": 0.994,
+      "typ_ns": 1.678,
+      "max_ns": 2.362
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_19_s1/RESET",
+      "min_ns": 0.994,
+      "typ_ns": 1.678,
+      "max_ns": 2.362
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_18_s1/RESET",
+      "min_ns": 0.994,
+      "typ_ns": 1.678,
+      "max_ns": 2.362
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_17_s1/RESET",
+      "min_ns": 0.994,
+      "typ_ns": 1.678,
+      "max_ns": 2.362
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_16_s1/RESET",
+      "min_ns": 1.09,
+      "typ_ns": 1.836,
+      "max_ns": 2.583
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_15_s1/RESET",
+      "min_ns": 0.665,
+      "typ_ns": 1.054,
+      "max_ns": 1.443
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_14_s1/RESET",
+      "min_ns": 0.665,
+      "typ_ns": 1.054,
+      "max_ns": 1.443
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_13_s1/RESET",
+      "min_ns": 1.178,
+      "typ_ns": 1.975,
+      "max_ns": 2.772
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_12_s1/RESET",
+      "min_ns": 0.665,
+      "typ_ns": 1.054,
+      "max_ns": 1.443
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_11_s1/RESET",
+      "min_ns": 0.813,
+      "typ_ns": 1.386,
+      "max_ns": 1.96
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_8_s1/RESET",
+      "min_ns": 0.275,
+      "typ_ns": 0.422,
+      "max_ns": 0.569
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_7_s1/RESET",
+      "min_ns": 0.309,
+      "typ_ns": 0.49,
+      "max_ns": 0.672
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_31_s4/RESET",
+      "min_ns": 0.274,
+      "typ_ns": 0.415,
+      "max_ns": 0.556
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/row_pointer_30_s3/RESET",
+      "min_ns": 0.483,
+      "typ_ns": 0.762,
+      "max_ns": 1.041
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_toggle_s2/RESET",
+      "min_ns": 0.275,
+      "typ_ns": 0.422,
+      "max_ns": 0.569
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_10_s3/RESET",
+      "min_ns": 1.178,
+      "typ_ns": 1.975,
+      "max_ns": 2.772
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_9_s3/RESET",
+      "min_ns": 0.275,
+      "typ_ns": 0.422,
+      "max_ns": 0.569
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_6_s3/RESET",
+      "min_ns": 0.217,
+      "typ_ns": 0.342,
+      "max_ns": 0.467
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_5_s3/RESET",
+      "min_ns": 0.217,
+      "typ_ns": 0.342,
+      "max_ns": 0.467
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_4_s3/RESET",
+      "min_ns": 0.435,
+      "typ_ns": 0.754,
+      "max_ns": 1.073
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_3_s3/RESET",
+      "min_ns": 0.309,
+      "typ_ns": 0.49,
+      "max_ns": 0.672
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_2_s3/RESET",
+      "min_ns": 0.217,
+      "typ_ns": 0.342,
+      "max_ns": 0.467
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_1_s3/RESET",
+      "min_ns": 0.217,
+      "typ_ns": 0.342,
+      "max_ns": 0.467
+    },
+    {
+      "source": "u_gpu/n4065_s2/O",
+      "destination": "u_gpu/request_tag_0_s4/RESET",
+      "min_ns": 0.998,
+      "typ_ns": 1.688,
+      "max_ns": 2.378
+    },
+    {
+      "source": "u_gpu/prst_0_s0/Q",
+      "destination": "u_gpu/prst_1_s0/D",
+      "min_ns": 0.197,
+      "typ_ns": 0.297,
+      "max_ns": 0.396
+    },
+    {
+      "source": "u_gpu/prst_1_s0/Q",
+      "destination": "u_gpu/n13847_s1/I1",
+      "min_ns": 0.906,
+      "typ_ns": 1.54,
+      "max_ns": 2.173
+    },
+    {
+      "source": "u_gpu/prst_1_s0/Q",
+      "destination": "u_gpu/n13860_s1/I1",
+      "min_ns": 0.998,
+      "typ_ns": 1.688,
+      "max_ns": 2.378
+    },
+    {
+      "source": "u_gpu/prst_1_s0/Q",
+      "destination": "u_gpu/n4139_s1/I0",
+      "min_ns": 0.12,
+      "typ_ns": 0.175,
+      "max_ns": 0.231
+    },
+    {
+      "source": "u_gpu/prst_1_s0/Q",
+      "destination": "u_gpu/n3186_s2/I0",
+      "min_ns": 1.09,
+      "typ_ns": 1.836,
+      "max_ns": 2.583
+    },
+    {
+      "source": "u_gpu/prst_1_s0/Q",
+      "destination": "u_gpu/n14070_s2/I2",
+      "min_ns": 0.322,
+      "typ_ns": 0.514,
+      "max_ns": 0.705
+    },
+    {
+      "source": "u_gpu/prst_1_s0/Q",
+      "destination": "u_gpu/n4065_s2/I",
+      "min_ns": 0.0,
+      "typ_ns": 0.0,
+      "max_ns": 0.0
+    },
+    {
+      "source": "u_accel/n563_s0/F",
+      "destination": "u_accel/busy_sync_0_s0/D",
+      "min_ns": 0.0,
+      "typ_ns": 0.0,
+      "max_ns": 0.0
+    },
+    {
+      "source": "u_accel/gpu_debug_state_37_s0/F",
+      "destination": "u_accel/n563_s0/I2",
+      "min_ns": 1.263,
+      "typ_ns": 2.21,
+      "max_ns": 3.157
+    },
+    {
+      "source": "u_accel/busy_sync_0_s0/Q",
+      "destination": "u_accel/busy_sync_1_s0/D",
+      "min_ns": 0.338,
+      "typ_ns": 0.581,
+      "max_ns": 0.824
+    },
+    {
+      "source": "u_accel/busy_sync_1_s0/Q",
+      "destination": "u_accel/response_data_0_s12/I3",
+      "min_ns": 0.713,
+      "typ_ns": 1.108,
+      "max_ns": 1.503
+    },
+    {
+      "source": "u_accel/u_blitter/gpu_debug_state_100_s0/F",
+      "destination": "u_accel/u_blitter/gpu_debug_state_96_s0/I1",
+      "min_ns": 0.37,
+      "typ_ns": 0.682,
+      "max_ns": 0.995
+    },
+    {
+      "source": "u_accel/u_blitter/fill_7_s/SUM",
+      "destination": "u_accel/u_blitter/gpu_debug_state_96_s0/I0",
+      "min_ns": 0.466,
+      "typ_ns": 0.868,
+      "max_ns": 1.269
+    }
+  ],
+  "printed_setup_paths": [
+    {
+      "slack_ns": -0.849,
+      "source": "u_accel/u_blitter/rp_0_s4",
+      "destination": "u_accel/busy_sync_0_s0",
+      "launch_clock": "ddr3_sys_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "arrival_ns": 12.286,
+      "required_ns": 11.437,
+      "data_rows": [
+        {
+          "arrival_ns": 3.674,
+          "delay_ns": 0.344,
+          "kind": "tC2Q",
+          "fanout": 8,
+          "location": "R3C141[3][A]",
+          "node": "u_accel/u_blitter/rp_0_s4/Q"
+        },
+        {
+          "arrival_ns": 4.376,
+          "delay_ns": 0.702,
+          "kind": "tNET",
+          "fanout": 2,
+          "location": "R2C140[1][B]",
+          "node": "u_accel/u_blitter/fill_0_s/I1"
+        },
+        {
+          "arrival_ns": 4.866,
+          "delay_ns": 0.49,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R2C140[1][B]",
+          "node": "u_accel/u_blitter/fill_0_s/COUT"
+        },
+        {
+          "arrival_ns": 4.866,
+          "delay_ns": 0.0,
+          "kind": "tNET",
+          "fanout": 2,
+          "location": "R2C140[2][A]",
+          "node": "u_accel/u_blitter/fill_1_s/CIN"
+        },
+        {
+          "arrival_ns": 4.911,
+          "delay_ns": 0.045,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R2C140[2][A]",
+          "node": "u_accel/u_blitter/fill_1_s/COUT"
+        },
+        {
+          "arrival_ns": 4.911,
+          "delay_ns": 0.0,
+          "kind": "tNET",
+          "fanout": 2,
+          "location": "R2C140[2][B]",
+          "node": "u_accel/u_blitter/fill_2_s/CIN"
+        },
+        {
+          "arrival_ns": 4.956,
+          "delay_ns": 0.045,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R2C140[2][B]",
+          "node": "u_accel/u_blitter/fill_2_s/COUT"
+        },
+        {
+          "arrival_ns": 4.956,
+          "delay_ns": 0.0,
+          "kind": "tNET",
+          "fanout": 2,
+          "location": "R2C141[0][A]",
+          "node": "u_accel/u_blitter/fill_3_s/CIN"
+        },
+        {
+          "arrival_ns": 5.001,
+          "delay_ns": 0.045,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R2C141[0][A]",
+          "node": "u_accel/u_blitter/fill_3_s/COUT"
+        },
+        {
+          "arrival_ns": 5.001,
+          "delay_ns": 0.0,
+          "kind": "tNET",
+          "fanout": 2,
+          "location": "R2C141[0][B]",
+          "node": "u_accel/u_blitter/fill_4_s/CIN"
+        },
+        {
+          "arrival_ns": 5.046,
+          "delay_ns": 0.045,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R2C141[0][B]",
+          "node": "u_accel/u_blitter/fill_4_s/COUT"
+        },
+        {
+          "arrival_ns": 5.046,
+          "delay_ns": 0.0,
+          "kind": "tNET",
+          "fanout": 2,
+          "location": "R2C141[1][A]",
+          "node": "u_accel/u_blitter/fill_5_s/CIN"
+        },
+        {
+          "arrival_ns": 5.091,
+          "delay_ns": 0.045,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R2C141[1][A]",
+          "node": "u_accel/u_blitter/fill_5_s/COUT"
+        },
+        {
+          "arrival_ns": 5.091,
+          "delay_ns": 0.0,
+          "kind": "tNET",
+          "fanout": 2,
+          "location": "R2C141[1][B]",
+          "node": "u_accel/u_blitter/fill_6_s/CIN"
+        },
+        {
+          "arrival_ns": 5.358,
+          "delay_ns": 0.267,
+          "kind": "tINS",
+          "fanout": 2,
+          "location": "R2C141[1][B]",
+          "node": "u_accel/u_blitter/fill_6_s/SUM"
+        },
+        {
+          "arrival_ns": 5.496,
+          "delay_ns": 0.138,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R2C141[3][B]",
+          "node": "u_accel/u_blitter/gpu_debug_state_100_s0/I3"
+        },
+        {
+          "arrival_ns": 5.907,
+          "delay_ns": 0.411,
+          "kind": "tINS",
+          "fanout": 5,
+          "location": "R2C141[3][B]",
+          "node": "u_accel/u_blitter/gpu_debug_state_100_s0/F"
+        },
+        {
+          "arrival_ns": 6.901,
+          "delay_ns": 0.995,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R22C142[2][A]",
+          "node": "u_accel/u_blitter/gpu_debug_state_96_s0/I1"
+        },
+        {
+          "arrival_ns": 7.412,
+          "delay_ns": 0.511,
+          "kind": "tINS",
+          "fanout": 10,
+          "location": "R22C142[2][A]",
+          "node": "u_accel/u_blitter/gpu_debug_state_96_s0/F"
+        },
+        {
+          "arrival_ns": 11.775,
+          "delay_ns": 4.363,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R45C60[0][A]",
+          "node": "u_accel/n563_s0/I1"
+        },
+        {
+          "arrival_ns": 12.286,
+          "delay_ns": 0.511,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R45C60[0][A]",
+          "node": "u_accel/n563_s0/F"
+        },
+        {
+          "arrival_ns": 12.286,
+          "delay_ns": 0.0,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R45C60[0][A]",
+          "node": "u_accel/busy_sync_0_s0/D"
+        }
+      ],
+      "route_ns": 6.198,
+      "cell_ns": 2.414,
+      "clock_to_q_ns": 0.344,
+      "longest_routes": [
+        {
+          "arrival_ns": 11.775,
+          "delay_ns": 4.363,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R45C60[0][A]",
+          "node": "u_accel/n563_s0/I1"
+        },
+        {
+          "arrival_ns": 6.901,
+          "delay_ns": 0.995,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R22C142[2][A]",
+          "node": "u_accel/u_blitter/gpu_debug_state_96_s0/I1"
+        },
+        {
+          "arrival_ns": 4.376,
+          "delay_ns": 0.702,
+          "kind": "tNET",
+          "fanout": 2,
+          "location": "R2C140[1][B]",
+          "node": "u_accel/u_blitter/fill_0_s/I1"
+        }
+      ]
+    }
+  ],
+  "printed_recovery_paths": [
+    {
+      "slack_ns": -0.36,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_gpu/prst_1_s0",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "vid_pclk:[R]",
+      "arrival_ns": 11.224,
+      "required_ns": 10.864,
+      "data_rows": [
+        {
+          "arrival_ns": 3.799,
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 1728,
+          "location": "R50C120[0][A]",
+          "node": "u_soc/vid_hrstn_r_s0/Q"
+        },
+        {
+          "arrival_ns": 11.224,
+          "delay_ns": 7.425,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R103C173[2][A]",
+          "node": "u_gpu/prst_1_s0/CLEAR"
+        }
+      ],
+      "route_ns": 7.425,
+      "cell_ns": 0.0,
+      "clock_to_q_ns": 0.331,
+      "longest_routes": [
+        {
+          "arrival_ns": 11.224,
+          "delay_ns": 7.425,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R103C173[2][A]",
+          "node": "u_gpu/prst_1_s0/CLEAR"
+        }
+      ]
+    },
+    {
+      "slack_ns": -0.36,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_gpu/prst_0_s0",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "vid_pclk:[R]",
+      "arrival_ns": 11.224,
+      "required_ns": 10.864,
+      "data_rows": [
+        {
+          "arrival_ns": 3.799,
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 1728,
+          "location": "R50C120[0][A]",
+          "node": "u_soc/vid_hrstn_r_s0/Q"
+        },
+        {
+          "arrival_ns": 11.224,
+          "delay_ns": 7.425,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R103C173[3][A]",
+          "node": "u_gpu/prst_0_s0/CLEAR"
+        }
+      ],
+      "route_ns": 7.425,
+      "cell_ns": 0.0,
+      "clock_to_q_ns": 0.331,
+      "longest_routes": [
+        {
+          "arrival_ns": 11.224,
+          "delay_ns": 7.425,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R103C173[3][A]",
+          "node": "u_gpu/prst_0_s0/CLEAR"
+        }
+      ]
+    }
+  ],
+  "input_sha256": {
+    "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/impl/pnr/console_neo.tr": "8615fb10bf487512a859e2bfa0566d636644d5ce3b40025f46df5bb52af92b72",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/impl/pnr/console_neo.vo": "d3888d979ae0195b6e0f806e4baa0c255fa5ce288953541090f85d0dc4736b77",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/impl/pnr/console_neo.sdf": "54ab5b382152748480c915a356ee0f7e685e4877ef6a8423df03a072a87b5723",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/source/tang/boards/neo/neo.cst": "e08dd2bd88b2074a758a828a91393cbbbd5a870e77f99c7bc34071cf41a82c89",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/source/tang/rtl/video/gpu_scanout.v": "a6bb0c8f96bffb24855924b85935c93c5a6b78607778869f3676699c0b7bec0f",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/source/tang/rtl/video/gpu_accel.v": "0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e"
+  },
+  "limit": "Static evidence only; hardware DMI failure and fallback initialization are separate unresolved observations. No placement benefit predicted."
+}

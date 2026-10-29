@@ -1,0 +1,34 @@
+LUMA laissée en marche sur Pro Dock — demande utilisateur du 24 octobre 2026
+
+État final confirmé : LUMA, PID 1343, extérieur 2 « Marées », --demo --no-save.
+Le mode existant produit des déplacements/tirs automatiques ; il n'est pas
+une visite de campagne et n'injecte aucun déblocage ou prérequis.
+LUMA_START est confirmé, puis le processus et cinq compteurs GPU sont vérifiés
+après cinq secondes supplémentaires. Tous errors/uf/invalid/sprites/fault=0.
+CDC et verrou libérés après contrôle. Aucun observateur ni agent série actif.
+
+Préférence utilisateur désormais explicite : laisser LUMA visible et en marche
+après une démonstration réussie ; aucun retour automatique à NEBULA.
+Les restaurations historiques R5–R9b restent consignées telles qu'effectuées.
+
+ELF exact R9b/local reflections, SHA
+23f096f081d81d958a81f911a9b30441d51f27f0e377f10682f0bd7024ad7218.
+Fichiers inchangés depuis le transfert CRC vérifié R9b ; packs contrôlés par
+le jeu au chargement. Pas de nouvelle lecture SHA sur la cible. Les régions
+2/22/26/27/35 sont présentes, le monde 0 n'a pas été transféré. Cet aperçu ne
+constitue pas une installation complète de la campagne sur carte.
+G22r0/R17 conservés ; aucun FPGA, noyau, flash ou SD écrit. Aucune sauvegarde.
+
+Deux premiers lancements ont été refusés avant arrêt de NEBULA : wc absent,
+puis arithmétique shell désactivée. La dernière tentative reprend l'arrêt
+borné déjà utilisé dans R5 : vérification PID/comm, TERM, sleep 1, absence PID.
+La confirmation réussie et ses logs figurent dans confirmed/ ; les deux
+refus sont conservés dans attempt_wc/ et attempt_shell/.
+
+Console Linux, pour jouer dans cette zone :
+kill -TERM `cat /tmp/luma-live.pid`
+sleep 1
+/tmp/luma-riscv --world 2 --no-save
+
+Pour voir la première salle optique : même commande avec --world 26.
+La confirmation visuelle humaine est laissée à l'utilisateur devant la carte.

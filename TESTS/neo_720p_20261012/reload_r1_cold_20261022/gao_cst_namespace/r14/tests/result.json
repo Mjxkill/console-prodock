@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "scope": "Host ASan/UBSan with inert engine and Tcl stubs; Python command/seed consistency refusals. No vendor binary execution, FPGA build or hardware.",
+  "leak_sanitizer": "Disabled: unsupported in this ptrace sandbox; no leak-check claim.",
+  "proxy_mode": false,
+  "missing_seeds_refused": 7,
+  "altered_seeds_refused": 7,
+  "command_mutation_refusals": 10,
+  "compile_command": [
+    "g++",
+    "-std=c++17",
+    "-O1",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-DLUMA_GAO_OUT=\"/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/gao_cst_namespace/r14/tests/fixture\"",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/gao_cst_namespace/r14/test_backend_tcl.cpp",
+    "-o",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/gao_cst_namespace/r14/tests/test_backend"
+  ],
+  "environment": {
+    "ASAN_OPTIONS": "detect_leaks=0"
+  },
+  "source_sha256": {
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/prepare_gao_backend_seeded.py": "8ad0203355c5494a53035113564253d525eff612aadfddc87abb403f4d37a907",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/gao_cst_namespace/r14/test_backend_tcl.cpp": "dfd7d4039c761f6994e1bc92e49050eef7cf05bbeb88ef241cb5d7e16232cd11",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/gao_cst_namespace/r14/gao_backend_tcl.cpp": "8ed4b863bde908345f849f9414455dbf7220eab7d3a47502ebf58eba049cf695"
+  },
+  "binary_sha256": "b3ee53fd64ff74acc1ff7e05aa1d87ef88ab9bf65f483ce10a31226cf333d7f1",
+  "log_sha256": {
+    "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "run_asan_ubsan.log": "9592e49b730b866571740fd5aa4689ec961137dad661015b4b34afe753e22f55"
+  }
+}

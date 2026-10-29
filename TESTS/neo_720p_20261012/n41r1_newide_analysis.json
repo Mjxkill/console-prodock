@@ -1,0 +1,110 @@
+{
+  "build": "tang/impl/console_neo_n41r1_newide",
+  "bitstream_sha256": "6f6c4d66e0c294d3075437ad88c3f1f537e0b50a7bfadb33a247ec4d3177c360",
+  "tool_version": "V1.9.12.03",
+  "loaded": false,
+  "status": "FAIL",
+  "timing_checks_ns": {
+    "setup": -2.73,
+    "hold": 0.124,
+    "recovery": -5.996,
+    "removal": 0.354
+  },
+  "minimum_pulse_slack_ns": 0.474,
+  "violated_endpoints": {
+    "setup": 89,
+    "hold": 0
+  },
+  "negative_reported_paths_by_clock": {
+    "setup": [
+      {
+        "clock_pair": [
+          "PHY_CLKOUT:[R]",
+          "bus80_clk:[R]"
+        ],
+        "negative_reported_rows": 57,
+        "worst_slack_ns": -2.73,
+        "source": "u_usb_device_controller_top/u_usb_device_controller/u_usb_device_controller_utmi/usb_control_inst/s_confd_s0/Q",
+        "destination": "u_usb_msc_port/online_s_0_s0/D"
+      },
+      {
+        "clock_pair": [
+          "bus80_clk:[R]",
+          "bus80_clk:[R]"
+        ],
+        "negative_reported_rows": 11,
+        "worst_slack_ns": -1.136,
+        "source": "u_soc/u_bridge/st_0_s1/Q",
+        "destination": "u_soc/u_bridge/m_hrdata_11_s0/CE"
+      },
+      {
+        "clock_pair": [
+          "ddr3_sys_clk:[R]",
+          "ddr3_sys_clk:[R]"
+        ],
+        "negative_reported_rows": 6,
+        "worst_slack_ns": -1.139,
+        "source": "u_accel/engine_resetn_6_s0/Q",
+        "destination": "u_accel/u_v1/u_pixels/u_copy/packet_1_s0/CE"
+      },
+      {
+        "clock_pair": [
+          "vid_pclk:[R]",
+          "ddr3_sys_clk:[R]"
+        ],
+        "negative_reported_rows": 2,
+        "worst_slack_ns": -0.518,
+        "source": "u_gpu/request_tag_0_s4/Q",
+        "destination": "u_gpu/g_line_mailbox.row_0_s0/D"
+      }
+    ],
+    "recovery": [
+      {
+        "clock_pair": [
+          "PHY_CLKOUT:[R]",
+          "bus80_clk:[R]"
+        ],
+        "negative_reported_rows": 10,
+        "worst_slack_ns": -5.996,
+        "source": "u_usb_controller_start/reset_s4/Q",
+        "destination": "u_usb_idle_trace/hr_2_s0/CLEAR"
+      },
+      {
+        "clock_pair": [
+          "vid_pclk:[F]",
+          "vid_clk5x:[F]"
+        ],
+        "negative_reported_rows": 3,
+        "worst_slack_ns": -0.997,
+        "source": "u_hdmi/g_reset[2].reset_sync_fall_s1/Q",
+        "destination": "u_hdmi/g_ser[2].u_ser/RESET"
+      },
+      {
+        "clock_pair": [
+          "vid_pclk:[F]",
+          "vid_clk5x:[R]"
+        ],
+        "negative_reported_rows": 3,
+        "worst_slack_ns": -2.349,
+        "source": "u_hdmi/g_reset[2].reset_sync_fall_s1/Q",
+        "destination": "u_hdmi/g_ser[2].u_ser/RESET"
+      }
+    ]
+  },
+  "failed_audits": {
+    "gpu_reset_tree": [
+      "Reset 0 still uses a global routing resource",
+      "Reset 1 still uses a global routing resource",
+      "Reset 4 still uses a global routing resource",
+      "Reset 11 still uses a global routing resource"
+    ],
+    "gpu_wide_controls": [
+      "gpu_debug_state[44] still uses LW",
+      "gpu_debug_state[45] still uses LW",
+      "gpu_debug_state[48] still uses LW",
+      "gpu_debug_state[55] still uses LW",
+      "u_gpu/mrst[1] still uses LW"
+    ]
+  },
+  "caveat": "Reported path rows are not all endpoints. USB cross-clock paths include 9.066 ns source clock latency; no timing exceptions have been changed, and no hardware failure is inferred from this report alone."
+}

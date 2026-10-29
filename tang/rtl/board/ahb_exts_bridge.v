@@ -27,20 +27,26 @@ module ahb_exts_bridge (
     input  wire [31:0] s1_hrdata,
     input  wire        s1_hready
 );
-    localparam [1:0] I = 2'd0, DATA = 2'd1, ADDR = 2'd2, WAIT = 2'd3;
-    reg [1:0] st; reg wr, tgt; reg [31:0] addr;
+    localparam I = 0, DATA = 1, ADDR = 2, WAIT = 3;
+    reg [3:0] st; reg wr, tgt; reg [31:0] addr;
     wire        t_hready = tgt ? s1_hready : s0_hready;
     wire [31:0] t_hrdata = tgt ? s1_hrdata : s0_hrdata;
     always @(posedge hclk) begin
-        if (!hresetn) begin st <= I; wr <= 1'b0; tgt <= 1'b0; addr <= 32'd0; s_hsel <= 2'b00; s_htrans <= 2'b00; s_hwrite <= 1'b0; s_haddr <= 32'd0; s_hwdata <= 32'd0; m_hrdata <= 32'd0; m_hready <= 1'b1; end
+        if (!hresetn) begin st <= 4'b0001; wr <= 1'b0; tgt <= 1'b0; addr <= 32'd0; s_hsel <= 2'b00; s_htrans <= 2'b00; s_hwrite <= 1'b0; s_haddr <= 32'd0; s_hwdata <= 32'd0; m_hrdata <= 32'd0; m_hready <= 1'b1; end
         else begin
             s_hsel <= 2'b00; s_htrans <= 2'b00;
             // All reachable IDLE cycles have HREADY=1. Assign its complete
             // next value every cycle: avoid a second, long slave-ready
             // decode through the clock enable of the hard-core return FF.
-            m_hready <= (st==I && !(m_hsel && m_htrans[1])) || (st==WAIT && t_hready);
-            case (st)
-                I: begin
+            m_hready <= (st[I] && !(m_hsel && m_htrans[1])) || (st[WAIT] && t_hready);
+            // One-hot transitions keep the hard macro's HREADY -> HSEL
+            // round trip off a binary next-state decoder.
+            st[I] <= (st[I] && !(m_hsel && m_htrans[1])) || (st[WAIT] && t_hready);
+            st[DATA] <= st[I] && m_hsel && m_htrans[1];
+            st[ADDR] <= st[DATA];
+            st[WAIT] <= st[ADDR] || (st[WAIT] && !t_hready);
+            case (1'b1)
+                st[I]: begin
                     // Sample private payload while idle. Only acceptance
                     // advances to DATA; unselected samples are never issued.
                     // Keep the hard-core HREADYIN -> HSEL path off the
@@ -48,12 +54,12 @@ module ahb_exts_bridge (
                     wr <= m_hwrite; addr <= m_haddr; tgt <= m_haddr[24];
                     // HREADY is always high in reachable IDLE, including
                     // immediately after reset or completion of WAIT.
-                    if (m_hsel && m_htrans[1]) st <= DATA;
                 end
-                DATA: begin s_hwdata <= m_hwdata; s_hsel <= tgt ? 2'b10 : 2'b01; s_htrans <= 2'b10; s_hwrite <= wr; s_haddr <= addr; st <= ADDR; end
-                ADDR: st <= WAIT;                                              // l'esclave (libre) a accepté sa phase d'adresse
-                WAIT: if (t_hready) begin m_hrdata <= t_hrdata; st <= I; end
-                default: st <= I;
+                st[DATA]: begin s_hwdata <= m_hwdata; s_hsel <= tgt ? 2'b10 : 2'b01; s_htrans <= 2'b10; s_hwrite <= wr; s_haddr <= addr; end
+                // The SoC only consumes HRDATA when registered HREADY rises.
+                // Sampling during stalls removes ready from 32 data enables.
+                st[WAIT]: m_hrdata <= t_hrdata;
+                default: ;
             endcase
         end
     end

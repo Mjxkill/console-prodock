@@ -1,0 +1,122 @@
+{
+  "status": "PASS",
+  "stage": "neo_reset_jtag_local_r1",
+  "timing_sha256": "addea004d9536b415cb31d360d22b08bedec51f782bf63471692322efeda8723",
+  "minimum_slack_ns": 0.275,
+  "minimum_pulse_slack_ns": 6.953,
+  "violated_endpoints": {
+    "setup": 0,
+    "hold": 0
+  },
+  "groups": [
+    {
+      "clock": "clk50",
+      "analysis": "setup",
+      "tns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "clk50",
+      "analysis": "hold",
+      "tns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "tck",
+      "analysis": "setup",
+      "tns": 0.0,
+      "endpoints": 0
+    },
+    {
+      "clock": "tck",
+      "analysis": "hold",
+      "tns": 0.0,
+      "endpoints": 0
+    }
+  ],
+  "worst_families": [],
+  "resources": {
+    "Logic": {
+      "used": 341,
+      "available": 138240
+    },
+    "Register": {
+      "used": 8101,
+      "available": 139095
+    },
+    "CLS": {
+      "used": 4728,
+      "available": 69120
+    }
+  },
+  "routing_table": "-------------------------------------------\n  Signal         | Global Clock   | Location\n  -------------------------------------------\n  clk_d          | PRIMARY        |  PTR1 PTR2 PTR3 PBR1 PBR2 PBR3\n  tck_d          | PRIMARY        |  PBR2\n  reset_copies[3]| PRIMARY        |  PTR2 PTR3 PBR2 PBR3\n  ===========================================",
+  "mailbox": {
+    "request_sync_0_s0": {
+      "Q": "request_sync[0]",
+      "D": "request_toggle",
+      "CLK": "clk_d",
+      "CLEAR": "GND",
+      "CE": "VCC"
+    },
+    "request_sync_1_s0": {
+      "Q": "request_sync[1]",
+      "D": "request_sync[0]",
+      "CLK": "clk_d",
+      "CLEAR": "GND",
+      "CE": "VCC"
+    },
+    "response_sync_0_s0": {
+      "Q": "response_sync[0]",
+      "D": "response_toggle",
+      "CLK": "tck_d",
+      "RESET": "GND",
+      "CE": "VCC"
+    },
+    "response_sync_1_s0": {
+      "Q": "response_sync[1]",
+      "D": "response_sync[0]",
+      "CLK": "tck_d",
+      "RESET": "GND",
+      "CE": "VCC"
+    }
+  },
+  "drivers": [
+    {
+      "Q": "reference_reset[1]",
+      "D": "reference_reset[0]",
+      "CLK": "clk_d",
+      "CLEAR": "n51_5",
+      "CE": "VCC"
+    },
+    {
+      "Q": "reset_copies[0]",
+      "D": "reference_reset[0]",
+      "CLK": "clk_d",
+      "CLEAR": "n51_5",
+      "CE": "VCC"
+    },
+    {
+      "Q": "reset_copies[1]",
+      "D": "reference_reset[0]",
+      "CLK": "clk_d",
+      "CLEAR": "n51_5",
+      "CE": "VCC"
+    },
+    {
+      "Q": "reset_copies[2]",
+      "D": "reference_reset[0]",
+      "CLK": "clk_d",
+      "CLEAR": "n51_5",
+      "CE": "VCC"
+    },
+    {
+      "Q": "reset_copies[3]",
+      "D": "reference_reset[0]",
+      "CLK": "clk_d",
+      "CLEAR": "n51_5",
+      "CE": "VCC"
+    }
+  ],
+  "telemetry": "jtag",
+  "bitstream_sha256": "01ac0eb6467805dfa1fc6d4b023a0bdedf78dcb5c619d7e1fb6b7ffec4635c6b"
+}

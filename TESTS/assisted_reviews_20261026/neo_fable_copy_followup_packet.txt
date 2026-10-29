@@ -1,0 +1,763 @@
+Review an actually executed COPY experiment to discriminate the R19 native CLEAR hardware stall. Fable02 validated the CLEAR bench, and its native_wait patch was rejected because it duplicates reads. New hardware facts (parent-only): depth-only CLEAR16x1 ALSO stalls; three uncached CPU writes32B + guards passed during stall; no GPU error increments. No inference that b_valid was never1: incorrect address/masks or lost ACK could remain. Parent plans exact R19 COPY after reload, but no result yet. Our local COPY bench passed 2reads/2writes under separate write-ready backpressure; same real slot/arbitration. Task: verify COPY really bypasses native_issue/native_valid and explain rigorously what physical PASS/FAIL could distinguish; identify one concrete testbench flaw if any. No full bench regeneration, no hardware action.
+
+FILE TESTS/assisted_reviews_20261026/neo_fable_sim_01/tb_copy.sv SHA256 734b51c884069637b715a159a84df6f1540e3c759ec0de61e5e2f43b0ee0f0e5
+
+`timescale 1ns/1ps
+// Real frozen R19 gpu_accel + ddr_gpu_arb. Only the external DDR endpoint
+// is modeled here. No force/deposit, no replacement pending/accepted logic.
+module tb;
+    reg hc=0, mc=0, rst=0, hc_run=1, mc_run=1;
+    realtime mem_half=6.666;
+    always #6.25 if(hc_run) hc=~hc;
+    always #(mem_half) if(mc_run) mc=~mc;
+    reg sel=0, wr=0;
+    reg [31:0] address=0, data=0;
+    reg [1:0] trans=0;
+    wire hready;
+    wire [31:0] result;
+    wire bv,bw,br,brv;
+    wire [28:0] ba;
+    wire [255:0] bwd,brd;
+    wire [31:0] bm;
+    gpu_accel #(.FONT_FILE("font8x16.hex")) dut (
+        .hclk(hc),.hresetn(rst),.hsel(sel),.hwrite(wr),.haddr(address),.hwdata(data),.htrans(trans),
+        .hrdata(result),.hready(hready),.mem_clk(mc),.valid(bv),.write(bw),.addr(ba),
+        .wr_data(bwd),.wr_mask(bm),.ready(br),.rd_data(brd),.rd_valid(brv),
+        .debug_state(),.debug_accept(),.observe_packet_words());
+    wire me,mwe,mend;
+    wire [2:0] cmd;
+    wire [28:0] ma;
+    wire [255:0] md;
+    wire [31:0] mm;
+    reg mready=0, mwready=0;
+    integer tick=0, mode=0;
+    reg model_rv=0;reg [255:0] model_rd=0;
+    integer read_due=-1,read_address=0,reads=0;
+    // mode1 independently blocks command acceptance, mode2 write-data
+    // acceptance, mode3 both. Mode0 has bounded, distinct periodic stalls.
+    always @(negedge mc)begin
+        tick++;
+        model_rv=0;
+        if(read_due==tick)begin
+            model_rv=1;read_due=-1;
+            for(integer k=0;k<32;k++)model_rd[k*8+:8]=memory[read_address+k];
+        end
+        mready=rst && mode!=1 && mode!=3 && tick%7!=0;
+        mwready=rst && mode!=2 && mode!=3 && tick%11>2;
+    end
+    ddr_gpu_arb arb (
+        .clk(mc),.rst_n(rst),.c_en(1'b0),.c_cmd(3'b001),.c_addr(29'd0),.c_ready(),
+        .c_wr_en(1'b0),.c_wr_end(1'b0),.c_wr_data(256'd0),.c_wr_mask(32'hffffffff),
+        .c_wr_ready(),.c_rd_data(),.c_rd_valid(),.c_rd_end(),
+        .g_valid(1'b0),.g_addr(29'd0),.g_ready(),.g_data(),.g_data_valid(),
+        .b_valid(bv),.b_write(bw),.b_addr(ba),.b_wr_data(bwd),.b_wr_mask(bm),
+        .b_ready(br),.b_rd_data(brd),.b_rd_valid(brv),
+        .m_en(me),.m_cmd(cmd),.m_addr(ma),.m_ready(mready),.m_wr_en(mwe),.m_wr_end(mend),
+        .m_wr_data(md),.m_wr_mask(mm),.m_wr_ready(mwready),.m_rd_data(model_rd),
+        .m_rd_valid(model_rv),.m_rd_end(model_rv));
+    localparam BASE=32'h00800000, COLOR=32'h00800020, DEPTH=32'h00810000, BYTES=32'h12000;
+    reg [7:0] memory[0:BYTES-1],expected[0:BYTES-1];
+    integer writes=0, native_grants=0, returned_acks=0, slot_loads=0;
+    integer held_checks=0, command_only_blocked=0, data_only_blocked=0;
+    integer aborted_slots=0,canceled_acks=0;
+    reg previous_rst=0,old_pixel_ack,old_native_valid;
+    integer negative=0;
+    integer address_byte, completed_tests=0;
+    reg old_pending,old_grant,old_active;
+    reg [317:0] old_payload;
+    always @(posedge mc) begin
+        old_pending=dut.v1_pending;
+        old_pixel_ack=dut.v1_accepted && dut.v1_select && !dut.u_v1.fetch_valid;
+        old_native_valid=dut.u_v1.u_pixels.native_valid;
+        if(!rst && previous_rst)begin
+            if(dut.v1_pending)aborted_slots++;
+            if(dut.v1_accepted)canceled_acks++;
+        end
+        previous_rst=rst;
+        old_grant=dut.v1_pending && br;
+        old_active=rst && dut.mrst[1];
+        old_payload={dut.v1_tx_write,dut.v1_tx_addr,dut.v1_tx_data,dut.v1_tx_mask};
+        if(negative==2 && old_pending && mode!=0)old_payload[0]=!old_payload[0];
+        if(rst)begin
+            if(me)begin
+                if(!mready || (cmd!==0 && cmd!==1) || (cmd==0 && (!mwe || !mend || !mwready)) || (cmd==1 && mwe))
+                    $fatal(1,"Unexpected/ungated DDR command: cmd=%h ready=%b/%b",cmd,mready,mwready);
+                if(ma[2:0]!==0)$fatal(1,"DDR address alignment");
+                address_byte=int'(ma)*4-BASE;
+                if(address_byte<0 || address_byte+32>BYTES)$fatal(1,"Out of guarded region: %h",ma);
+                if(cmd==0)begin
+                    for(integer b=0;b<32;b++)if(!mm[b])memory[address_byte+b]=md[b*8+:8];
+                    writes++;
+                end else begin
+                    if(read_due!=-1)$fatal(1,"Read model queue overrun");
+                    read_address=address_byte;read_due=tick+5;reads++;
+                end
+            end
+            if(dut.mrst[1])begin
+                if(!dut.v1_pending && dut.extended_request && !dut.v1_accepted)slot_loads++;
+                if(old_grant)native_grants++;
+                if(dut.v1_accepted)returned_acks++;
+                if(dut.v1_pending && !mready && mwready)command_only_blocked++;
+                if(dut.v1_pending && mready && !mwready)data_only_blocked++;
+                if(dut.v1_pending && dut.legacy_valid)$fatal(1,"Simultaneous legacy/native owner");
+                if(dut.v1_pending && (!dut.ext_active || !dut.v1_select))$fatal(1,"Pending native transaction lost owner");
+            end
+        end
+        #1;
+        if(rst && dut.mrst[1])begin
+            if(slot_loads-native_grants-aborted_slots!=int'(dut.v1_pending))$fatal(1,"Slot conservation per cycle");
+            if(native_grants-returned_acks-canceled_acks!=int'(dut.v1_accepted))$fatal(1,"ACK conservation per cycle");
+        end
+        if(old_active && rst && dut.mrst[1])begin
+            if(old_pixel_ack && old_native_valid && dut.u_v1.u_pixels.native_valid)$fatal(1,"Native producer retained VALID after ACK");
+            if(dut.v1_accepted!==old_grant)$fatal(1,"Acceptance pulse is not delayed DDR grant");
+            if(old_pending)begin
+                held_checks++;
+                if({dut.v1_tx_write,dut.v1_tx_addr,dut.v1_tx_data,dut.v1_tx_mask}!==old_payload)
+                    $fatal(1,"Payload changed while slot held");
+            end
+        end
+    end
+    task automatic write_reg(input [31:0] a,input [31:0] d);
+        integer deadline;
+        @(negedge hc);sel=1;wr=1;trans=2;address=a;deadline=0;
+        do begin @(posedge hc);deadline++;if(deadline>20000)$fatal(1,"AHB address timeout");end while(!hready);
+        @(negedge hc);sel=0;trans=0;data=d;deadline=0;
+        do begin @(posedge hc);deadline++;if(deadline>20000)$fatal(1,"AHB data timeout");end while(!hready);
+        @(negedge hc);wr=0;
+    endtask
+    task automatic packet(input [255:0] words,input integer gap);
+        for(integer k=0;k<8;k++)begin
+            write_reg('h10,words[k*32+:32]);
+            repeat(gap+(k%3))@(negedge hc);
+        end
+    endtask
+    task automatic fence(input integer count);
+        integer deadline,fenced_writes;
+        deadline=0;
+        while(dut.done_count!=count && deadline<30000)begin @(negedge mc);deadline++;end
+        if(dut.done_count!=count)$fatal(1,"Fence timeout done=%0d expected=%0d pixel=%h pending=%b valid=%b ready=%b take=%b",
+            dut.done_count,count,dut.u_v1.u_pixels.state,dut.v1_pending,dut.u_v1.u_pixels.native_valid,br,arb.take_blitter);
+        fenced_writes=writes;
+        repeat(24)@(negedge mc);
+        if(writes!=fenced_writes)$fatal(1,"Late write after completion fence");
+        if(dut.v1_pending || dut.v1_accepted || dut.u_v1.u_pixels.native_valid || bv)
+            $fatal(1,"Transaction survived completion");
+        if(dut.v1_rejected || dut.command_bad || dut.command_lost || dut.queue_lost)
+            $fatal(1,"Unexpected error/rejection");
+    endtask
+    task automatic compare_memory;
+        for(integer k=0;k<BYTES;k++)if(memory[k]!==expected[k])
+            $fatal(1,"Memory/guard mismatch @%h got=%h expected=%h",BASE+k,memory[k],expected[k]);
+        completed_tests++;
+    endtask
+    task automatic target;
+        packet({96'd0,32'h01000100,32'h00800010,32'(DEPTH),32'(COLOR),32'h16000000},1);
+    endtask
+    task automatic clear(input integer flags,x,y,w,h,input [15:0] color,depth);
+        packet({64'd0,32'((w<<16)|h),32'((x<<16)|y),16'd0,depth,16'd0,color,32'(flags),32'h1c000000},2);
+    endtask
+    task automatic expected_clear(input integer flags,x,y,w,h,input [15:0] color,depth);
+        integer p;
+        for(integer yy=y;yy<y+h;yy++)for(integer xx=x;xx<x+w;xx++)begin
+            if(flags&1)begin p=COLOR-BASE+yy*256+xx*2;expected[p]=color[7:0];expected[p+1]=color[15:8];end
+            if(flags&2)begin p=DEPTH-BASE+yy*256+xx*2;expected[p]=depth[7:0];expected[p+1]=depth[15:8];end
+        end
+    endtask
+    task automatic wait_pending;
+        integer deadline;
+        deadline=0;
+        while(!dut.v1_pending && deadline<10000)begin @(negedge mc);deadline++;end
+        if(!dut.v1_pending)$fatal(1,"No pending request to exercise backpressure/reset");
+    endtask
+    task automatic reset_all;
+        @(negedge hc);rst=0;sel=0;wr=0;trans=0;
+        repeat(12)@(negedge mc);
+        if(dut.v1_pending || dut.v1_accepted || bv)$fatal(1,"Reset did not flush native request");
+        @(negedge hc);rst=1;
+        repeat(40)@(negedge mc);
+    endtask
+    task automatic copy(input integer sx,dx,w);
+        packet({32'd0,32'((w<<16)|1),32'(dx<<16),32'(sx<<16),32'h00000020,32'h00100001,32'h00808000,32'h1d000000},1);
+    endtask
+    task automatic expect_copy(input integer sx,dx,w);
+        for(integer k=0;k<w*2;k++)expected[COLOR-BASE+dx*2+k]=memory['h8000+sx*2+k];
+    endtask
+    integer limit;
+    initial begin
+        for(integer k=0;k<BYTES;k++)begin memory[k]=8'(k*37+19);expected[k]=memory[k];end
+        reset_all();target();fence(1);compare_memory();
+        copy(0,0,16);fence(2);expect_copy(0,0,16);compare_memory();
+        if(reads!=1 || writes!=1 || native_grants!=2)$fatal(1,"COPY16 expected one read and one write");
+        // Data-only backpressure must allow the source read, then hold write.
+        for(integer k=0;k<32;k++)begin memory['h8000+k]=8'(k*53+41);expected['h8000+k]=memory['h8000+k];end
+        mode=2;repeat(4)@(negedge mc);copy(5,3,7);limit=0;
+        while(!(dut.v1_pending && dut.v1_tx_write) && limit<10000)begin @(negedge mc);limit++;end
+        if(limit==10000)$fatal(1,"COPY never reached held write after read");
+        repeat(60)@(negedge mc);compare_memory();
+        if(reads!=2 || writes!=1)$fatal(1,"Read/write independent backpressure");
+        mode=0;fence(3);expect_copy(5,3,7);compare_memory();
+        if(reads!=2 || writes!=2 || slot_loads!=4 || native_grants!=4 || returned_acks!=4)$fatal(1,"COPY conservation");
+        if(dut.u_v1.u_pixels.native_valid)$fatal(1,"COPY accidentally uses native_valid");
+        $display("PASS R19 REAL SLOT COPY reads=%0d writes=%0d loads=%0d acks=%0d bytes_per_check=%0d data_stall=%0d",reads,writes,slot_loads,returned_acks,BYTES,data_only_blocked);
+        $finish;
+    end
+    initial begin #10000000;$fatal(1,"Global bounded timeout");end
+endmodule
+
+FILE TESTS/assisted_reviews_20261026/neo_fable_sim_01/copy_run_01/result.json SHA256 bf8490f90cf4f442d97b7a722deec00abd6fc3bbed9bb7ef319794a15cdff0c4
+
+{
+  "passed": true,
+  "hardware_access": false,
+  "started_unix": 1793055154.238507,
+  "scope": "Frozen R19 application RTL, real gpu_accel slot and ddr_gpu_arb; external DDR endpoint model only",
+  "limits": [
+    "No DDR PHY or physical routing/timing qualification.",
+    "No mapped NCP instrumentation is present in this application RTL simulation."
+  ],
+  "inputs": {
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_accel.v": "0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geometry.v": "9f0b3183fdb6a856ccf15ff17dc87c7f008e3906edc7ece0c64f615beb4b5ca8",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geom_div.v": "d1c6206a9c32e0315263739a6ece4dc76398fe533ef5524799745d82c9499b7b",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/blitter.v": "c2f17b9944b83b667c2e06e59b5d2c4244b606c42fce46a769ca99da64f5833c",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_raster.v": "d54f68ec19b92cdde9364651b5c1c0e7ed6113549aa485124b89dbc669542bab",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v": "2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_texture_cache.v": "1b6e2c46f0335f5741e321327881770d4690b4956641beaea1be6a6e031292b6",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_copy565.v": "c0cbb102eb701ae861cc389b30827b7ac856e3b4b3ff341cda092fd61ecd0741",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_perspective.v": "a3c98ba32adc408a1c855d47a802d7ffb0c105744746a018cdafe30f0504681c",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_triangle.v": "992dda01586192f7bd8c031f897e5a0810f61d4500879a807b7c6953f49126a1",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_blit_dma.v": "2118e643422cc732d3e8f52afb6115baeb81683f999df0affbc482a09113f20d",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/font_ram.v": "46bc4a89e4fb1321d3e1357b481d33beb303e21a74e57ad8b09cac1adec82edc",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_dcfifo.v": "449b5d7e65d3290f0b9cc1d5e574e09191d40bbfe8960f45374d9690e965103b",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/cdc_word.v": "6f2caebf6680fe1ffbf8bbbbf4e600c25181789cf8269bb5e2e54db23b12c848",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v": "b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5",
+    "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/font8x16.hex": "4846bbd5a627479a58a6fc2f7aec106c7566812f8340d82febd21dd8c63d879f",
+    "TESTS/assisted_reviews_20261026/neo_fable_sim_01/tb_copy.sv": "734b51c884069637b715a159a84df6f1540e3c759ec0de61e5e2f43b0ee0f0e5",
+    "TESTS/assisted_reviews_20261026/neo_fable_sim_01/rtl_inputs.json": "bc456b78233ba4c277231efc18befe6f4defbcd1c6f3f025d3bc6166a6f9e49f",
+    "TESTS/assisted_reviews_20261026/neo_fable_sim_01/run_copy.py": "7a0af0ca5d51e75f8497235bdce930eda79c0217ea362216bbe4540be42f0cf4"
+  },
+  "compile_command": [
+    "/usr/bin/verilator",
+    "--binary",
+    "-j",
+    "4",
+    "--timing",
+    "-Wno-fatal",
+    "--top-module",
+    "tb",
+    "--Mdir",
+    "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/copy_run_01/obj",
+    "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/tb_copy.sv",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_accel.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geometry.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geom_div.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/blitter.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_raster.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_texture_cache.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_copy565.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_perspective.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_triangle.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_blit_dma.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/font_ram.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_dcfifo.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/cdc_word.v",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v"
+  ],
+  "finished_unix": 1793055159.7716675,
+  "logs": {
+    "compile.log": "0923a6adb71610f5555485165ad77548e745809de2d95fcb7e1b6f57a9a92ea1",
+    "simulation.log": "65f918264c24870da9be9b599e16be34ac10313ac80fdaa22ba0d8bc42e8c0ec"
+  }
+}
+
+FILE TESTS/assisted_reviews_20261026/neo_fable_sim_01/copy_run_01/simulation.log SHA256 65f918264c24870da9be9b599e16be34ac10313ac80fdaa22ba0d8bc42e8c0ec
+
+PASS R19 REAL SLOT COPY reads=2 writes=2 loads=4 acks=4 bytes_per_check=73728 data_stall=53
+- /home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/tb_copy.sv:199: Verilog $finish
+
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_copy565.v SHA256 c0cbb102eb701ae861cc389b30827b7ac856e3b4b3ff341cda092fd61ecd0741
+
+// RGB565 rectangular memmove, native 32-byte blocks, arbitrary halfword alignment.
+// Source and destination may overlap only with an identical base/stride layout.
+`default_nettype none
+module gpu_copy565(
+    input wire clk,rst,start,
+    input wire [255:0] command,
+    input wire [29:0] dst_base,
+    input wire [15:0] dst_stride,dst_height,clip_l,clip_t,clip_r,clip_b,
+    output reg done,bad,
+    output reg valid,write,
+    output reg [28:0] addr,
+    output reg [255:0] wr_data,
+    output reg [31:0] wr_mask,
+    input wire ready,rd_valid,
+    input wire [255:0] rd_data
+);
+    localparam IDLE=0,CHECK=1,CLIP=2,ROW=3,CHUNK=4,ADDRESS=5,READ0=6,WAIT0=7,
+      READ1=8,WAIT1=9,ALIGN=10,WRITE=11,SENT=12,NEXT=13,FINISH=14,
+      BOUNDS=15,SOURCE_CLIP=16,VALIDATE=17,CAPTURE_WAIT=18;
+    reg [4:0] state;
+    // Keep COPY's descriptor near its arithmetic rather than driving its DSPs
+    // from the shared shader packet. Preserve this fabric boundary: absorbing
+    // independently enabled command registers into a DSP can reorder enables.
+    // Only IDLE/start writes it; reset clears control, so an old payload cannot
+    // issue a transaction. CAPTURE_WAIT lets the registered range settle.
+    reg [255:0] packet /* synthesis syn_preserve=1 */;
+    wire [31:0] w1=packet[63:32],w2=packet[95:64],w3=packet[127:96],
+        w4=packet[159:128],w5=packet[191:160],w6=packet[223:192],w7=packet[255:224];
+    wire signed [31:0] sx={{16{w4[31]}},w4[31:16]},sy={{16{w4[15]}},w4[15:0]},
+        dx={{16{w5[31]}},w5[31:16]},dy={{16{w5[15]}},w5[15:0]};
+    reg [32:0] src_end,dst_end;
+    always @(posedge clk)begin
+        src_end<={1'b0,w1}+{17'd0,w3[15:0]}*{17'd0,w2[15:0]};
+        dst_end<={3'b0,dst_base}+{17'd0,dst_stride}*{17'd0,dst_height};
+    end
+    wire overlap=w1<dst_end && dst_base<src_end;
+    reg [2:0] descriptor_bad;
+    reg reverse;
+    reg signed [31:0] l,t,r,b;
+    reg signed [31:0] source_l,source_t,source_r,source_b;
+    function signed [31:0] max2;
+        input signed [31:0] a,b;begin max2=a>b?a:b;end
+    endfunction
+    function signed [31:0] min2;
+        input signed [31:0] a,b;begin min2=a<b?a:b;end
+    endfunction
+    reg [15:0] row_y,cursor,px,count;
+    // row_y and the clipped bounds are stable throughout the chunk transfer.
+    // Decide whether another row exists before NEXT, so the 32-bit comparison
+    // is not in the row counter's clock-enable path.
+    reg row_has_next;
+    always @(posedge clk)
+        if(rst)row_has_next<=0;
+        else row_has_next<=reverse ? row_y>t:row_y+1<b;
+    reg [31:0] source_row,destination_row,source_address,destination_address;
+    reg [255:0] first,second;
+    reg [255:0] aligned;
+    wire [4:0] source_lane={1'b0,source_address[4:1]};
+    wire [4:0] dst_lane={1'b0,destination_address[4:1]};
+    wire [511:0] shifted={second,first}>>(source_lane*16);
+    // During WRITE/SENT, aligned and destination_address are stable. Computing
+    // this register every cycle removes the wide state-dependent clock enable
+    // without adding a cycle or changing any accepted DDR payload.
+    always @(posedge clk)
+        if(rst)wr_data<=0;else wr_data<=aligned<<(dst_lane*16);
+    always @(posedge clk)begin
+        if(rst)begin
+            state<=IDLE;done<=0;bad<=0;valid<=0;write<=0;addr<=0;wr_mask<=-1;
+            reverse<=0;l<=0;t<=0;r<=0;b<=0;row_y<=0;cursor<=0;px<=0;count<=0;descriptor_bad<=0;
+            source_l<=0;source_t<=0;source_r<=0;source_b<=0;
+            source_row<=0;destination_row<=0;source_address<=0;destination_address<=0;
+            first<=0;second<=0;aligned<=0;
+        end else begin
+            done<=0;
+            case(state)
+            IDLE:if(start)begin packet<=command;bad<=0;state<=CAPTURE_WAIT;end
+            CAPTURE_WAIT:state<=CHECK;
+            CHECK:begin
+                // Validation only chooses the next state. Invalid descriptors
+                // never reach ROW, so private bounds can be captured regardless
+                // of validity without a long comparator driving all enables.
+                l<=dx;t<=dy;r<=dx+$signed({16'd0,w6[31:16]});b<=dy+$signed({16'd0,w6[15:0]});
+                source_l<=dx-sx;source_t<=dy-sy;
+                reverse<=overlap && (dy>sy || (dy==sy && dx>sx));
+                descriptor_bad[0]<=w1[31:30]!=0 || w1[4:0]!=0 || w2[31:16]==0 || w2[31:16]>1024;
+                descriptor_bad[1]<=w2[15:0]==0 || w2[15:0]>512 || w3[31:16]!=0 || w3[4:0]!=0 ||
+                   w3[15:0]<({1'b0,w2[31:16]}<<1);
+                descriptor_bad[2]<=src_end>33'h040000000 || w7!=0 ||
+                   (overlap && (w1!={2'b0,dst_base} || w3[15:0]!=dst_stride));
+                state<=VALIDATE;
+            end
+            VALIDATE:begin
+                if(|descriptor_bad)begin bad<=1;state<=FINISH;end
+                else state<=BOUNDS;
+            end
+            BOUNDS:begin
+                l<=max2(l,$signed({16'd0,clip_l}));t<=max2(t,$signed({16'd0,clip_t}));
+                r<=min2(r,$signed({16'd0,clip_r}));b<=min2(b,$signed({16'd0,clip_b}));
+                source_r<=source_l+$signed({16'd0,w2[31:16]});
+                source_b<=source_t+$signed({16'd0,w2[15:0]});state<=SOURCE_CLIP;
+            end
+            SOURCE_CLIP:begin
+                l<=max2(l,source_l);t<=max2(t,source_t);
+                r<=min2(r,source_r);b<=min2(b,source_b);state<=CLIP;
+            end
+            CLIP:if(l>=r || t>=b)state<=FINISH;
+                 else begin row_y<=reverse ? b[15:0]-1'b1:t[15:0];state<=ROW;end
+            ROW:begin
+                // source_t/l already hold dy-sy/dx-sx. Reuse these local
+                // differences instead of routing packet coordinates into DSPs.
+                source_row<=w1+($signed({16'd0,row_y})-source_t)*$signed({16'd0,w3[15:0]});
+                destination_row<={2'b0,dst_base}+row_y*dst_stride;
+                cursor<=reverse ? r[15:0]:l[15:0];state<=CHUNK;
+            end
+            CHUNK:begin
+                if(reverse)begin
+                    count<=cursor-l < (cursor[3:0]==0 ? 16:cursor[3:0]) ? cursor-l:(cursor[3:0]==0 ? 16:cursor[3:0]);
+                    px<=cursor-l < (cursor[3:0]==0 ? 16:cursor[3:0]) ? l[15:0]:(cursor-1'b1)&16'hfff0;
+                end else begin
+                    count<=r-cursor < 16-cursor[3:0] ? r-cursor:16-cursor[3:0];px<=cursor;
+                end
+                state<=ADDRESS;
+            end
+            ADDRESS:begin
+                source_address<=source_row+(($signed({16'd0,px})-source_l)<<1);
+                destination_address<=destination_row+{15'd0,px,1'b0};second<=0;state<=READ0;
+            end
+            READ0:begin addr<={source_address[30:5],3'b0};valid<=1;write<=0;state<=WAIT0;end
+            WAIT0:begin
+                if(valid && ready)valid<=0;
+                if(rd_valid)begin first<=rd_data;state<=source_lane+count>16 ? READ1:ALIGN;end
+            end
+            READ1:begin addr<=addr+29'd8;valid<=1;state<=WAIT1;end
+            WAIT1:begin
+                if(valid && ready)valid<=0;
+                if(rd_valid)begin second<=rd_data;state<=ALIGN;end
+            end
+            ALIGN:begin aligned<=shifted[255:0];state<=WRITE;end
+            WRITE:begin
+                addr<={destination_address[30:5],3'b0};
+                for(integer p=0;p<16;p=p+1)wr_mask[p*2+:2]<=(p>=dst_lane && p<dst_lane+count) ? 2'b00:2'b11;
+                valid<=1;write<=1;state<=SENT;
+            end
+            SENT:if(ready)begin valid<=0;state<=NEXT;end
+            NEXT:begin
+                if(reverse ? px>l:px+count<r)begin cursor<=reverse ? px:px+count;state<=CHUNK;end
+                else if(row_has_next)begin row_y<=reverse ? row_y-1'b1:row_y+1'b1;state<=ROW;end
+                else state<=FINISH;
+            end
+            FINISH:begin done<=1;state<=IDLE;end
+            default:begin valid<=0;bad<=1;state<=FINISH;end
+            endcase
+        end
+    end
+endmodule
+`default_nettype wire
+
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v SHA256 2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71 lines82-142
+
+    // 32-bit byte mask in the wide native-request enable path.
+    reg chunk_dirty;
+    reg native_valid,native_write;
+    reg [28:0] native_addr;
+    reg [255:0] native_data;
+    reg [31:0] native_mask;
+    reg cache_start,cache_invalidate;
+    reg [29:0] cache_address;
+    wire cache_busy,cache_done,cache_valid;
+    wire [28:0] cache_addr;
+    wire [15:0] cached_texel;
+    // Only the pixel texture state owns this client, after color/Z replies drain.
+    wire copy_done,copy_bad,copy_valid,copy_write;
+    wire [28:0] copy_addr;
+    wire [255:0] copy_data;
+    wire [31:0] copy_mask;
+    gpu_copy565 u_copy(.clk(clk),.rst(!child_resetn[0]),.start(state[COPY_START]),.command(packet),
+        .dst_base(color_base),.dst_stride(color_stride),.dst_height(height),
+        .clip_l(left),.clip_t(top),.clip_r(right),.clip_b(bottom),
+        .done(copy_done),.bad(copy_bad),.valid(copy_valid),.write(copy_write),
+        .addr(copy_addr),.wr_data(copy_data),.wr_mask(copy_mask),
+        .ready(ready && state[COPY_WAIT]),.rd_valid(rd_valid && state[COPY_WAIT]),.rd_data(rd_data));
+    assign valid=native_valid || cache_valid || copy_valid;
+    // Les multiplexeurs de sortie (adresse, 256 bits de données, masque : plus de 300 entrées) sont
+    // commandés par copy_sel, quatre copies d'un bit de phase (COPY_START/COPY_WAIT) qui couvre tous
+    // les cycles où copy_valid peut valoir 1, plutôt que par copy_valid lui-même : ce registre du
+    // moteur de copie, à 305 destinations, faisait un fil de 5,7 ns (r621). Hors de ces cycles, valid
+    // vaut 0 et la valeur des bus est sans effet ; les transactions DDR sont identiques.
+    reg [3:0] copy_sel /* synthesis syn_preserve=1 */;
+    always @(posedge clk) copy_sel<={4{state[COPY_START] || state[COPY_WAIT]}};
+    assign write=copy_sel[0] ? copy_write:native_valid && native_write;
+    assign addr=copy_sel[0] ? copy_addr:cache_valid ? cache_addr:native_addr;
+    assign wr_data={copy_sel[2] ? copy_data[255:128]:native_data[255:128],copy_sel[1] ? copy_data[127:0]:native_data[127:0]};
+    assign wr_mask=copy_sel[3] ? copy_mask:native_mask;
+    gpu_texture_cache u_cache(.clk(clk),.rst(!child_resetn[1]),.invalidate(cache_invalidate),.start(cache_start),
+        .byte_address(cache_address),.busy(cache_busy),.done(cache_done),.texel(cached_texel),
+        .hits(texture_hits),.misses(texture_misses),.valid(cache_valid),.addr(cache_addr),
+        .ready(ready && !native_valid),.rd_data(rd_data),.rd_valid(rd_valid && state[PIX_TEX]));
+    reg [32:0] color_end,z_end,texture_end;
+    always @(posedge clk)begin
+        color_end<={3'b0,color_base}+color_stride*height;
+        z_end<={3'b0,z_base}+z_stride*height;
+        texture_end<={3'b0,texture_base}+tex_stride*tex_height;
+    end
+    wire texture_alias=(texture_base<color_end && color_base<texture_end) ||
+                       ((flags[1] || flags[2]) && texture_base<z_end && z_base<texture_end);
+    wire need_background=alpha!=256 || flags[5] || (flags[0] && tex_argb);
+    // Explicit set/hold removes the wide FSM clock-enable priority cone.
+    // All native requests hold VALID until their registered DDR acceptance.
+    // These issue/wait states are mutually exclusive in the one-hot machine.
+    wire native_issue=(state[COLOR_REQ] && need_background) ||
+        (state[Z_REQ] && flags[1]) ||
+        (state[COLOR_WRITE] && chunk_dirty) || state[Z_WRITE] ||
+        (state[RECT_COLOR] && clear_flags[0]) || (state[RECT_Z] && clear_flags[1]);
+    wire native_wait=state[COLOR_WAIT] || state[Z_WAIT] || state[COLOR_SENT] ||
+        state[Z_SENT] || state[RECT_CSENT] || state[RECT_ZSENT];
+    always @(posedge clk)begin
+        if(rst)native_valid<=0;
+        else native_valid<=native_issue || (native_valid && native_wait && !ready);
+    end
+    wire [4:0] room=5'd16-{1'b0,px[3:0]};
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v SHA256 2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71 lines425-440
+
+                    if(bad_clear)state<=58'b1<<BAD;
+                    else begin clear_flags<=w1[1:0];clear_color<=w2[15:0];clear_depth<=w3[15:0];state<=58'b1<<RECT_BOUNDS;end
+                end
+                29:state<=58'b1<<(target_valid ? COPY_START:BAD);
+                30:begin
+                    if(bad_invalidate)state<=58'b1<<BAD;
+                    else begin cache_invalidate<=1;state<=58'b1<<FINISH;end
+                end
+                default:state<=58'b1<<BAD;
+                endcase
+            end
+            state[COPY_START]:state<=58'b1<<COPY_WAIT;
+            state[COPY_WAIT]:if(copy_done)begin cache_invalidate<=1;state<=58'b1<<(copy_bad ? BAD:FINISH);end
+            state[BAD]:begin rejected<=rejected+1'b1;state<=58'b1<<FINISH;end
+            state[FINISH]:begin done<=1;state<=58'b1<<IDLE;end
+            state[TARGET_VALIDATE]:begin
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geometry.v SHA256 9f0b3183fdb6a856ccf15ff17dc87c7f008e3906edc7ece0c64f615beb4b5ca8 lines40-62
+
+ reg shader_start;reg [255:0] shader_command;
+ wire shader_done,shader_valid,shader_write,shader_target_valid,shader_material_valid;wire [28:0] shader_addr;
+ wire [255:0] shader_data;wire [31:0] shader_mask,shader_rejected;
+ reg fetch_valid;reg [28:0] fetch_addr;
+ reg shader_read_phase;
+ always @(posedge clk)
+  if(rst)shader_read_phase<=0;
+  else if(shader_start)shader_read_phase<=1;
+  else if(shader_done)shader_read_phase<=0;
+ // START already marks the first wait-state cycle, before the retained bit.
+ wire shader_read_enable=shader_start || shader_read_phase;
+ assign busy=!state[IDLE];
+ assign valid=fetch_valid||shader_valid;assign write=shader_valid&&shader_write;
+ assign addr=fetch_valid ? fetch_addr:shader_addr;
+ assign wr_data=shader_data;assign wr_mask=shader_mask;
+ assign rejected=geom_errors+shader_rejected;
+ gpu_v1 u_pixels(.child_resetn(child_resetn[5:2]),.clk(clk),.rst(!child_resetn[0]),.start(shader_start),.command(shader_command),.done(shader_done),.busy(),
+  .observe_packet_word0(observe_pixel_word0),.target_config_valid(shader_target_valid),.material_config_valid(shader_material_valid),
+  .rejected(shader_rejected),.fragments(fragments),.passed(passed),.texture_hits(texture_hits),.texture_misses(texture_misses),
+  .valid(shader_valid),.write(shader_write),.addr(shader_addr),.wr_data(shader_data),.wr_mask(shader_mask),
+  .ready(ready&&!fetch_valid),.rd_valid(rd_valid&&shader_read_enable),.rd_data(rd_data));
+ reg signed [31:0] matrix[0:11],coefficient[0:3];reg [2:0] matrix_valid;
+ reg camera_valid,material_valid,draw_active;reg [15:0] target_w,target_h,width,height,cx,cy;
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_accel.v SHA256 0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e lines190-262
+
+    reg raster_selected /* synthesis syn_preserve=1 */;
+    always @(posedge mem_clk)begin
+        if(!mrst[1])begin v1_select<=0;raster_selected<=1;end
+        else if(!ext_active)begin
+            v1_select<=ext_command[31:24]>=22;
+            raster_selected<=ext_command[31:24]<22;
+        end
+    end
+    wire old_done,v1_done,v1_valid,v1_write,v1_request;
+    reg v1_accepted,v1_pending,v1_tx_write,v1_rx_valid;
+    reg [28:0] v1_tx_addr;
+    reg [255:0] v1_tx_data;
+    // (syn_preserve : voir gpu_raster.v, copie locale du bus de lecture DDR)
+    reg [255:0] v1_rx_data /* synthesis syn_preserve=1 */;
+    reg [31:0] v1_tx_mask;
+    wire [28:0] v1_addr;
+    wire [255:0] v1_data;
+    wire [31:0] v1_mask;
+    // Both extended raster engines share one registered DDR transaction stage.
+    // This also cuts scanout arbitration -> legacy raster next-state paths.
+    wire extended_request=v1_select ? v1_request:raster_valid;
+    // Isolate the extended shaders' request multiplexers and wide reply loads
+    // from the shared DDR arbiter. Hold one complete transaction until accepted.
+    // The acknowledgement guard prevents recapturing the engine's old VALID
+    // on the cycle in which it observes the registered acceptance pulse.
+    always @(posedge mem_clk)begin
+        v1_rx_data<=rd_data;
+        if(!mrst[1])begin
+            v1_accepted<=0;v1_pending<=0;v1_rx_valid<=0;
+        end else begin
+            v1_accepted<=v1_pending && ready;
+            v1_rx_valid<=rd_valid && ext_active;
+            if(v1_pending)begin
+                if(ready)v1_pending<=0;
+            end else if(extended_request && !v1_accepted)begin
+                v1_pending<=1;
+            end
+        end
+    end
+    // Prefetch only while the transaction slot is empty. REQUEST drives
+    // PENDING alone; held payload and accepted DDR cycles remain unchanged.
+    always @(posedge mem_clk)begin
+        if(!v1_pending)begin
+            v1_tx_addr<=v1_select ? v1_addr:raster_addr;
+            v1_tx_data<=v1_select ? v1_data:raster_data;
+            v1_tx_mask<=v1_select ? v1_mask:raster_mask;
+            v1_tx_write<=v1_select ? v1_write:raster_write;
+        end
+    end
+    assign v1_valid=v1_pending;
+    assign ext_done=v1_select ? v1_done:old_done;
+    gpu_geometry u_v1(.child_resetn(engine_resetn[9:4]),.clk(mem_clk),.rst(!engine_resetn[2]),.start(ext_start && v1_select),.command(ext_command),
+        .observe_packet_words(observe_packet_words),.busy(),.done(v1_done),
+        .geom_errors(geometry_stat[0]),.vertices(geometry_stat[1]),.triangles(geometry_stat[2]),
+        .culled(geometry_stat[3]),.clipped(geometry_stat[4]),.slivers(geometry_stat[5]),.geom_cycles(geometry_stat[6]),.rejected(v1_rejected),.fragments(v1_fragments),.passed(v1_passed),
+        .texture_hits(v1_hits),.texture_misses(v1_misses),.valid(v1_request),.write(v1_write),
+        .addr(v1_addr),.wr_data(v1_data),.wr_mask(v1_mask),
+        .ready(v1_accepted && v1_select),.rd_valid(v1_rx_valid && v1_select),.rd_data(v1_rx_data));
+    // The ordered command queue starts only one engine at a time; each engine
+    // drops VALID before completion. Use those registered request flags for
+    // transaction control. The wide payload's owner mux must not feed WRITE
+    // and then loop through arbiter READY into the engine state machines.
+    assign valid=legacy_valid || v1_valid;
+    assign write=(legacy_valid && legacy_write) || (v1_valid && v1_tx_write);
+    assign addr=ext_active ? v1_tx_addr:legacy_addr;
+    assign wr_data=ext_active ? v1_tx_data:legacy_data;
+    assign wr_mask=ext_active ? v1_tx_mask:legacy_mask;
+    gpu_raster u_raster (.child_resetn(engine_resetn[11:10]),
+        .clk(mem_clk),.rst(!engine_resetn[1]),.start(ext_start && raster_selected),.command(ext_command),.busy(),.done(old_done),
+        .rejected(raster_rejected),.fragments(raster_fragments),.passed(raster_passed),
+        .valid(raster_valid),.write(raster_write),.addr(raster_addr),.wr_data(raster_data),.wr_mask(raster_mask),
+        .ready(v1_accepted && raster_selected),.rd_data(v1_rx_data),.rd_valid(v1_rx_valid && raster_selected));
+    blitter u_blitter (
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v SHA256 b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5 lines1-143
+
+// Shared native DDR3 UI: CPU adapter, scanout reads and blitter reads/writes.
+// Addresses are 32-bit words, aligned to eight words (32 bytes).
+// CPU upstream issues command+data pulses only when ready; capture them in a
+// one-entry buffer to break the ready chain through the legacy CPU adapter.
+// Scanout has priority for bounded line fetches; CPU/blitter alternate otherwise.
+// Their grant is registered, so changing clients may insert an idle cycle.
+`default_nettype none
+module ddr_gpu_arb (
+    input wire clk, rst_n,
+    input wire c_en,
+    input wire [2:0] c_cmd,
+    input wire [28:0] c_addr,
+    output wire c_ready,
+    input wire c_wr_en, c_wr_end,
+    input wire [255:0] c_wr_data,
+    input wire [31:0] c_wr_mask,
+    output wire c_wr_ready,
+    output wire [255:0] c_rd_data,
+    output wire c_rd_valid, c_rd_end,
+    input wire g_valid,
+    input wire [28:0] g_addr,
+    output wire g_ready,
+    output wire [255:0] g_data,
+    output wire g_data_valid,
+    input wire b_valid, b_write,
+    input wire [28:0] b_addr,
+    input wire [255:0] b_wr_data,
+    input wire [31:0] b_wr_mask,
+    output wire b_ready,
+    output wire [255:0] b_rd_data,
+    output wire b_rd_valid,
+    output wire m_en,
+    output wire [2:0] m_cmd,
+    output wire [28:0] m_addr,
+    input wire m_ready,
+    output wire m_wr_en, m_wr_end,
+    output wire [255:0] m_wr_data,
+    output wire [31:0] m_wr_mask,
+    input wire m_wr_ready,
+    input wire [255:0] m_rd_data,
+    input wire m_rd_valid, m_rd_end
+);
+    reg [1:0] tags [0:15]; // 0 CPU, 1 scanout, 2 blitter
+    reg [4:0] wp = 0, rp = 0;
+    reg full = 0;
+    wire empty = wp == rp;
+    wire issue = rst_n && !full;
+    reg cpu_pending = 0;
+    reg [2:0] cpu_cmd;
+    reg [28:0] cpu_addr;
+    reg [255:0] cpu_data;
+    reg [31:0] cpu_mask;
+    reg prefer_blitter = 1;
+    reg take_blitter = 0;
+    // Two scanout request slots isolate its distant owner/request decode
+    // from DDR arbitration. READY acknowledges enqueueing; responses still
+    // follow DDR issue order. The FIFO sustains one request per cycle when
+    // DDR accepts continuously, and never depends on DDR READY at its input.
+    reg [28:0] scan_addresses [0:1];
+    reg scan_wp=0,scan_rp=0;
+    reg [1:0] scan_count=0;
+    wire scan_valid=scan_count!=0;
+    wire [28:0] scan_addr=scan_addresses[scan_rp];
+    assign g_ready = rst_n && scan_count!=2;
+    wire scan_enqueue=g_valid && g_ready;
+    wire scan_issue=scan_valid && issue && m_ready;
+    always @(posedge clk)begin
+        if(!rst_n)begin scan_wp<=0;scan_rp<=0;scan_count<=0;end
+        else begin
+            if(scan_enqueue)begin scan_addresses[scan_wp]<=g_addr;scan_wp<=!scan_wp;end
+            if(scan_issue)scan_rp<=!scan_rp;
+            case({scan_enqueue,scan_issue})
+                2'b10:scan_count<=scan_count+1'b1;
+                2'b01:scan_count<=scan_count-1'b1;
+                default:;
+            endcase
+        end
+    end
+    // b_grant est gardé tel quel par la synthèse (syn_keep) : sans cela, la LUT de b_ready était partagée
+    // avec m_wr_en, qui dépend de b_valid, et l'analyse de timing comptait une boucle combinatoire
+    // b_valid -> arbitre -> b_ready -> blitter/V1 qui n'existe pas logiquement (r600, -0,47 ns).
+    wire b_grant /* synthesis syn_keep=1 */ = issue && !scan_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
+    assign b_ready = b_grant;
+    assign c_ready = rst_n && !cpu_pending;
+    assign c_wr_ready = c_ready;
+    wire cpu_fire = issue && !scan_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);
+    assign m_en = scan_issue || (b_valid && b_ready) || cpu_fire;
+    assign m_cmd = scan_valid ? 3'b001 : take_blitter ? {2'b0,!b_write} : cpu_cmd;
+    assign m_addr = scan_valid ? scan_addr : take_blitter ? b_addr : cpu_addr;
+    assign m_wr_en = (b_valid && b_ready && b_write) || (cpu_fire && cpu_cmd == 0);
+    assign m_wr_end = m_wr_en;
+    assign m_wr_data = take_blitter ? b_wr_data : cpu_data;
+    assign m_wr_mask = take_blitter ? b_wr_mask : cpu_mask;
+    wire push = scan_issue || (b_valid && b_ready && !b_write) || (cpu_fire && cpu_cmd == 1);
+    wire pop = m_rd_valid && !empty;
+    wire [4:0] next_wp = wp + {4'b0, push};
+    wire [4:0] next_rp = rp + {4'b0, pop};
+    wire [4:0] incremented_wp = wp + 5'd1;
+    wire one_slot_left = incremented_wp == {~rp[4],rp[3:0]};
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            wp <= 0; rp <= 0; full <= 0; prefer_blitter <= 1;
+            take_blitter<=0;
+            cpu_pending <= 0; cpu_cmd <= 0; cpu_addr <= 0; cpu_data <= 0; cpu_mask <= 32'hffffffff;
+        end
+        else begin
+            // Cut the valid -> arbitration -> ready round trip. A stale grant
+            // can only insert a bubble: native commands still require valid.
+            // Acknowledgement remains the actual DDR command/data acceptance.
+            if(b_valid && b_ready) take_blitter<=0;
+            else take_blitter<=b_valid && (prefer_blitter || !cpu_pending);
+            // While empty, sample the payload independently of the late
+            // upstream request. The acceptance cycle captures the same words;
+            // once pending, every word remains held until DDR accepts it.
+            // This leaves c_en driving only the valid bit, not 320 payload CEs.
+            if (!cpu_pending) begin
+                cpu_cmd <= c_cmd; cpu_addr <= c_addr;
+                cpu_data <= c_wr_data; cpu_mask <= c_wr_mask;
+            end
+            if (c_en && c_ready) cpu_pending <= 1;
+            else if (cpu_fire) cpu_pending <= 0;
+            if (!scan_valid) begin
+                if (b_valid && b_ready) prefer_blitter <= 0;
+                else if (cpu_fire) prefer_blitter <= 1;
+            end
+            if (push) tags[wp[3:0]] <= scan_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;
+            wp <= next_wp; rp <= next_rp;
+            // Compare stable pointers before the late command acceptance.
+            // Simultaneous push/pop leaves occupancy unchanged.
+            if(push && !pop)full<=one_slot_left;
+            else if(pop && !push)full<=0;
+        end
+    end
+    assign c_rd_data = m_rd_data;
+    assign g_data = m_rd_data;
+    assign c_rd_valid = pop && tags[rp[3:0]] == 0;
+    assign c_rd_end = c_rd_valid && m_rd_end;
+    assign g_data_valid = pop && tags[rp[3:0]] == 1;
+    assign b_rd_data = m_rd_data;
+    assign b_rd_valid = pop && tags[rp[3:0]] == 2;
+endmodule
+`default_nettype wire

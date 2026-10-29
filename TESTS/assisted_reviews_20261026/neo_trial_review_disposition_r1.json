@@ -1,0 +1,24 @@
+{
+  "hardware": false,
+  "inputs": {
+    "TESTS/assisted_reviews_20261026/neo_fable_board_trial_r21_r1/answer.txt": "6aeb16f52b707ca30c27496a74874a479c0466796092f35d71f6cb173e01dcc1",
+    "TESTS/assisted_reviews_20261026/neo_deepseek_board_trial_r21_r1/answer.txt": "457efa7b0b8bdb4a481ab7bc1a63ff1e547114b0e514b4e3c078903095b731f5",
+    "TESTS/neo_720p_20261012/capture_memory_20261027/board_controller_test_01.json": "88920dc709b18fefd28e4ce671d5cdb86430974f684c9f7044b9dd60177d8a60"
+  },
+  "applied": [
+    "Bind contract SHA and exact helper source to reviewed candidate and decoder controller.",
+    "Retain structured TARGET observations before checks; preserve malformed D* raw trace and decode error.",
+    "Explicit status for completed/wrong/rejected/timeout and memory changed/unchanged, separate capture completeness.",
+    "Verify all seeds after TARGET, before COPY/CLEAR, and strengthen fallback marker plus live identity.",
+    "Make imports explicit and preserve separate C1/D* decoders.",
+    "Record candidate/R19 left bitstream and consumed live counter anchor."
+  ],
+  "rejected_or_limited": [
+    "DeepSeek treating diagnostic_complete as GPU PASS: controller keeps gpu_qualified false; completed diagnostic steps can contain the hardware failure sought.",
+    "Do not assert COPY capture is nominal: missing CE/trigger or width mismatch is precisely a sought observation, recorded rather than rejected.",
+    "The raw logs already preserve failed decode/target; structured JSON fields improve usability rather than recovering otherwise lost data.",
+    "Fable proposed build source filename neo_capture_memory.v is wrong: generated snapshot uses neo_capture_local.v, checked accordingly.",
+    "No need for tautological asserts on offsets defined directly from same constants; tests instead verify exact source/destination bytes and guarded extent."
+  ],
+  "tests": "27 controller checks PASS and separate 4 mapped capture/32 event combinations/7 invalid decoder inputs PASS. No hardware before route/path review."
+}

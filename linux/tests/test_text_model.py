@@ -55,7 +55,32 @@ int main(void) {
             }
         }
     }
+    /* Neo: 160x45 characters, 256x128 maps and the final high-address cell. */
+    free(b);free(f);b=malloc(65536);f=malloc(65536);
+    uint16_t *wide=malloc(160*45*2);
+    for(unsigned i=0;i<160*45;++i)wide[i]=0x1f41;
+    pd_text_map_sized(b,f,wide,160,45,7199,160,256,128);
+    assert(f[89*256+159]==1*512+65*2+1);
+    assert(b[89*256+159]==15*512+1);
+    assert(f[90*256]==32*2 && f[127*256+255]==32*2);
+    pd_text_map_sized(b,f,wide,80,22,-1,160,256,128);
+    assert(f[43*256+79]==15*512+65*2+1 && f[43*256+80]==32*2);
+    free(wide);
     uint32_t l[8];
+    for(unsigned bank=0;bank<2;++bank)for(unsigned plane=0;plane<4;++plane){
+        pd_text_layer_sized(l,bank,plane,1,0,360,1280,360,8,7);
+        assert(l[0]>=PD_TEXT_BASE+PD_MAP_OFFSET && l[0]+65536<=PD_TEXT_BASE+0x200000);
+        assert(l[2]==(360U<<16) && l[3]==(360U<<16|1280));
+        assert(l[5]==0x78);
+    }
+    struct prodock_scene scene={.base=0x800000,.stride=2560,.format=7};
+    assert(!prodock_scene_valid_for(&scene,1280,720));
+    scene.stride=1280;assert(!prodock_scene_valid_for(&scene,1280,720));
+    scene.format=3;assert(prodock_scene_valid_for(&scene,1280,720)==-ERANGE);
+    scene.stride=2560;assert(!prodock_scene_valid_for(&scene,1280,720));
+    scene.base=PRODOCK_GPU_BASE+PRODOCK_GPU_BYTES-32;
+    assert(prodock_scene_valid_for(&scene,1280,720)==-ERANGE);
+
     for(unsigned bank=0;bank<2;++bank)for(unsigned plane=0;plane<4;++plane)for(unsigned a=0;a<2;++a){
         pd_text_layer(l,bank,plane,a,400,0,400,240);
         assert(l[0]>=PD_TEXT_BASE+PD_MAP_OFFSET);

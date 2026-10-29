@@ -1,0 +1,58 @@
+R7 — revue des chemins, 24 octobre 2026
+
+Routage terminé à 13:18:08 locale. Aucun processus arrêté ou relancé,
+aucun accès carte. N56r8 reste la référence matérielle courante sur Neo.
+R7 est FAIL et n’a pas été chargé.
+
+Bitstream R7 : 941305b0e2df43cfc8eb9acd06ff220a807ad9af068f964e6e964459d62eda79
+Setup -3,447 ns / 231 endpoints ; hold données +0,124 ns / aucun endpoint.
+Recovery globale -0,759 ns ; removal globale +0,277 ns.
+Les huit horloges PRIMARY sont conservées et aucune allocation globale
+additionnelle n’est détectée par rapport à route3. Cela ne garantit pas
+la conservation des latences d’horloge.
+
+HDMI, recovery / removal par canal :
+  canal 0 : -0,108 / +0,757 ns
+  canal 1 : -0,395 / +0,757 ns
+  canal 2 : -0,115 / +0,786 ns
+C140 corrige le défaut de délai minimum mais dépasse le délai maximum.
+Canal 1 : route min 0,960 ns, route max 2,288 ns. En R6 C155 : 0,596 /
+1,358 ns. L’exigence de capture change aussi : max 11,993 vs 12,414 ns,
+min 8,572 vs 9,100 ns. Ne pas interpoler la colonne en supposant une
+fenêtre d’horloge identique.
+
+Recovery hors HDMI : vid_hrstn_r -> engine_resetn_2 = -0,759 ns,
+trajet 7,946 ns ; vid_hrstn_r -> prst0/prst1 = -0,641 ns, trajet 7,750 ns.
+Le signal source a un fanout STA de 1728. Ce sont des chemins de reset
+internes mesurés, pas une preuve de panne de DDR externe.
+
+Pires cônes setup :
+- engine_resetn_3 -> DMA c_ack : -3,447 ns, route 15,435 ns, logique
+  0,671 ns. La première branche vers n66_s4 coûte 10,810 ns puis la
+  branche c_ack_s2 -> c_ack_s0 coûte 4,467 ns. Source R60C90,
+  LUT R65C38/39, destination R16C88 ; fanout source 663.
+- scan_queue/up_1 -> scan_observe/accepted_by_arbiter[25..] : -3,424 ns,
+  route 15,593 ns, logique 0,457 ns. Détour via arb/n50_s2 en R74C31,
+  depuis R40C100 vers R89C175. Cette LUT distribue 69 charges.
+Les chemins setup comprennent aussi géométrie, bus/manettes et caches ;
+réduire un seul détour ne suffit pas à qualifier la console complète.
+
+Prochaine expérience proposée et préparée : R8 C150, base route3,
+exactement trois FF HDMI C160->C150 et la métadonnée correspondante.
+Pas de reprise des 62 regroupements ni de la contrainte CE R4/R5.
+R4 C150 avait recovery HDMI >=0,385 ns et removal >=0,100 ns, mais ses
+modifications supplémentaires empêchent d’en déduire le résultat R8.
+Toutes les contraintes SDC et tous les contrôles complets sont maintenus.
+Après R8 seulement, choisir un unique cône de données encore critique
+et regrouper ses quelques cellules ; ne pas cumuler ce changement avec
+la recherche de la fenêtre HDMI.
+
+route8_hdmi_reset_only.py --check-only : PASS. Audit indépendant du delta :
+3 lignes CST uniquement, aucun changement de SDC/netlist/clock/DDR/options.
+La préparation référence TESTS/dual_board/20261024_linux_g3d1_r1/result.json.
+Le routage R8 n’a pas été lancé par cette revue, son dossier était absent
+au moment de l’audit. Le parent coordonne la suite.
+
+Les chemins, SHA et contrôles complets sont dans comparison.json et
+global_recovery.json. Les rapports R3/R6 et les témoins R4/R5 restent
+archivés dans les dossiers voisins. Aucun résultat historique écrasé.

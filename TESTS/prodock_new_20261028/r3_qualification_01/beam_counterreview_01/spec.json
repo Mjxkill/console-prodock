@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "prodock_rom_verifier_counterreview_01",
+  "parent_task_id": "prodock_sd_boot_r4",
+  "domain": "fpga",
+  "task_type": "test_design",
+  "difficulty": "medium",
+  "task_family": "rom_initialization_verification",
+  "inputs": [
+    "CONTRACT.md",
+    "INPUTS.json",
+    "context/SP_official.v",
+    "context/expected.bin",
+    "context/itcm0",
+    "context/itcm1",
+    "context/itcm2",
+    "context/itcm3",
+    "context/r3_rom_cells.vo",
+    "owned/REPORT.md",
+    "owned/test_adversarial.py",
+    "rom_check.py",
+    "validate.py"
+  ],
+  "owned": [
+    "owned/test_adversarial.py",
+    "owned/REPORT.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "validate.py"
+    ]
+  ],
+  "timeout_seconds": 60,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "acceptance_criteria": "Independent actual tests of protected ROM checker using official SP semantics and real rejected R3; accept expected lanes through supported fixture, reject mapping/init mutations; precise limits and protected inputs unchanged.",
+  "prompt": "Read CONTRACT.md, rom_check.py and official SP context. Implement the independent tests and evidence report only in your owned files. Run official taskbox_run_tests before editing and after your last edit. Use tools and actual assertions; do not modify protected decoder, fabricate outcomes, or perform hardware/network operations. Preserve a precise failing counterexample if the decoder is wrong rather than changing expectations."
+}

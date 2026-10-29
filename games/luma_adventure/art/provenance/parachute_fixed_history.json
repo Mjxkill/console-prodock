@@ -1,0 +1,196 @@
+{
+  "prompt": [
+    31,
+    "6d80a0e8-00f6-4499-9550-5e9ddd1becfc",
+    {
+      "unet": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "clip": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        }
+      },
+      "vae": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "qwen_image_vae.safetensors"
+        }
+      },
+      "shift": {
+        "class_type": "ModelSamplingAuraFlow",
+        "inputs": {
+          "model": [
+            "lora",
+            0
+          ],
+          "shift": 3.0
+        }
+      },
+      "latent": {
+        "class_type": "EmptySD3LatentImage",
+        "inputs": {
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1
+        }
+      },
+      "positive": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "text": "One original curly-haired young human adventurer wearing an orange coat, teal scarf and cream boots, descending beneath a round cream-and-copper PARACHUTE. Two human legs and cream boots hang freely from a small blue body harness. Both hands hold the suspension straps. Full person and complete round fabric canopy visible. Three-quarter slightly overhead view, beautiful hand-painted storybook game illustration, warm light upper left, teal shadows, crisp readable silhouette. Plain neutral grey studio background. Single isolated subject."
+        }
+      },
+      "negative": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "text": ""
+        }
+      },
+      "sample": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": [
+            "shift",
+            0
+          ],
+          "seed": 2310261202,
+          "steps": 4,
+          "cfg": 1.0,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "positive": [
+            "positive",
+            0
+          ],
+          "negative": [
+            "negative",
+            0
+          ],
+          "latent_image": [
+            "latent",
+            0
+          ],
+          "denoise": 1.0
+        }
+      },
+      "decode": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "sample",
+            0
+          ],
+          "vae": [
+            "vae",
+            0
+          ]
+        }
+      },
+      "save": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "decode",
+            0
+          ],
+          "filename_prefix": "luma_parachute_fixed"
+        }
+      },
+      "lora": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "model": [
+            "unet",
+            0
+          ],
+          "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+          "strength_model": 1.0
+        }
+      }
+    },
+    {
+      "client_id": "luma-art-20261023",
+      "create_time": 1792795379530
+    },
+    [
+      "save"
+    ]
+  ],
+  "outputs": {
+    "save": {
+      "images": [
+        {
+          "filename": "luma_parachute_fixed_00001_.png",
+          "subfolder": "",
+          "type": "output",
+          "metadata": {
+            "kind": "image",
+            "width": 1024,
+            "height": 1024
+          },
+          "id": "e84783c6-423e-4cbe-83e9-0cbe5578c10f"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "6d80a0e8-00f6-4499-9550-5e9ddd1becfc",
+          "timestamp": 1792795379531
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "unet",
+            "clip",
+            "vae",
+            "shift",
+            "latent",
+            "negative",
+            "lora"
+          ],
+          "prompt_id": "6d80a0e8-00f6-4499-9550-5e9ddd1becfc",
+          "timestamp": 1792795379531
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "6d80a0e8-00f6-4499-9550-5e9ddd1becfc",
+          "timestamp": 1792795387079
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "save": {
+      "node_id": "save",
+      "display_node": "save",
+      "parent_node": null,
+      "real_node_id": "save"
+    }
+  }
+}

@@ -18,7 +18,9 @@ ROOT=Path(__file__).resolve().parents[2]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',type=Path,required=True)
+    p.add_argument('--720p',dest='neo',action='store_true')
     a=p.parse_args();out=a.out.resolve();out.mkdir(parents=True,exist_ok=False)
+    size=1280*720 if a.neo else 800*480
     sources=['TESTS/rtl/nebula_scanout_tb.sv','tang/rtl/video/gpu_scanout.v',
              'tang/rtl/video/gpu_line_reader.v','tang/rtl/video/gpu_tile_row.v',
              'tang/rtl/video/gpu_sprite_cache.v','tang/rtl/video/gpu_rgb_reader.v',
@@ -32,20 +34,20 @@ def main():
         run('host_build',['cc','-std=c11','-O2','-Wall','-Wextra','-Werror','-DNEBULA_HOST',
                          '-I',ROOT/'linux/drivers',ROOT/'linux/userspace/nebula.c','-lm','-o',work/'game'])
         run('rtl_build',['verilator','--binary','-j','4','--timing','-Wno-fatal','--top-module',
-                        'nebula_scanout_tb','--Mdir',work/'obj',*[ROOT/s for s in sources]])
+                        'nebula_scanout_tb','--Mdir',work/'obj',*(['-GWIDTH=1280','-GHEIGHT=720','-GH_TOTAL=1650','-GV_TOTAL=750','-GH_START=260','-GV_START=25','-GH_SYNC=40','-GV_SYNC=5','-GHALF_PIXEL=6.722689'] if a.neo else []),*[ROOT/s for s in sources]])
         for name,pose,boss in [('wave700',700,False),('boss310',310,True),('nova5740',5740,False)]:
             capture=work/name
-            run(name+'_game',[work/'game','--pose',pose,'--frames',1,'--assets',ROOT/'assets/nebula/packed/nebula.bin',
+            run(name+'_game',[work/'game',*(['--720p'] if a.neo else []),'--pose',pose,'--frames',1,'--assets',ROOT/'assets/nebula/packed/nebula.bin',
                              '--capture',capture,*(['--boss'] if boss else [])])
             run(name+'_reference',['python3',ROOT/'tools/preview_nebula.py',capture,'--scanout-inputs',work/'inputs'])
             run(name+'_rtl',[work/'obj/Vnebula_scanout_tb','+inputs='+str(work/'inputs')])
             log=(out/(name+'_rtl.log')).read_text()
-            assert 'pixels=384000 mismatches=0' in log and 'underflows=0' in log,log
+            assert f'pixels={size} mismatches=0' in log and 'underflows=0' in log,log
             reference=json.loads(capture.with_suffix('.reference.json').read_text())
             reference['preview']=str(out/(name+'.png'));result['scenes'].append(reference)
             for suffix in ['png','json']:shutil.copy2(capture.with_suffix('.'+suffix),out/(name+'.'+suffix))
             (out/(name+'.reference.json')).write_text(json.dumps(reference,indent=2)+'\n')
-            print(name,reference['frame_crc32'],reference['lcd_rgb666_sum'],'384000 pixels match RTL',flush=True)
+            print(name,reference['frame_crc32'],reference['lcd_rgb666_sum'],f'{size} pixels match RTL',flush=True)
     result['passed']=True;(out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
 
 

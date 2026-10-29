@@ -1,0 +1,53 @@
+LUMA3D vallée R2 — rendu exact, nouvelle mesure instrumentée
+
+État final : R2 en parcours automatique, plein écran, PID 167 vérifié
+vivant et présentant de nouvelles images. R1 conservé dans /tmp/luma3d-r1.
+CDC et verrou libérés ; aucun retour à NEBULA.
+
+ELF R2 : 05b64630c267e364fa2bda14b64406cfa2eb1ae8c78ba58bc2b9ed4e053053f5.
+Noyau G3D1 r1 et FPGA G22r0 inchangés. Même monde, mêmes textures, même
+logique et même référence RGB565 que R1. Optimisations : ciel calculé une
+fois puis COPY565 matériel, effacement Z seul, chemin opaque sans fog pour
+les objets garantis avant la brume. Sources exactes archivées.
+
+R1 est resté actif durant le transfert et la reconstruction R2. Delta
+37232 octets, helper 62540 octets ; transferts respectivement 11,36 s et
+17,47 s, 5 et 4 retransmissions récupérées. Ancien fichier vérifié par CRC,
+R2 reconstruit : 2082348 octets, CRC 28958e06. Sa reconstruction locale
+est également identique octet par octet au SHA attendu. Le fichier de
+référence présent sur la carte a été décodé/vérifié, sans retransfert.
+
+Première image native : 96000 pixels identiques, CRC b43a5e60.
+Temps 0,260 s ; 1171 commandes, 19 batches ; SUBMIT 0,209 s, PRESENT 0,024 s.
+6687 triangles soumis, 2541 transmis au rasteriseur ; aucun sliver/erreur.
+R1 avait pris 0,284 s sur sa première image. Ce sont deux échantillons
+uniques, avec la création initiale du ciel : pas un gain stable démontré.
+
+Parcours : 30 secondes sans UART après progression observée. Journal total
+avec warmup et contrôles aux extrémités : 279 images sur 79,168 s, 3,52 FPS.
+Les durées et les vues diffèrent des 147,414 s de R1 ; ces moyennes ne sont
+pas un A/B contrôlé. Quatre lettres collectées. Compteurs : 858213 sommets,
+416381 triangles rasterisés ; erreurs GPU/G3D, underflows, couches/sprites
+invalides, fault et slivers tous zéro.
+
+15 fenêtres G3D : 2147704800 cycles cumulés modulo 2^32, soit 28,636 s
+d'activité à 75 MHz, hors fraction finale non journalisée. Ces cycles
+incluent l'attente du rasteriseur. Exemple de fenêtre centrale :
+222581191 cycles (2,968 s), feed 1,439 s, wait 1,825 s, cache SUBMIT 0,120 s,
+present 0,559 s ; fenêtre affichée à 6,53 FPS. Les caches seuls n'expliquent
+pas le débit. Les fenêtres ne donnent pas leur nombre exact d'images ni
+leur durée exacte ; aucune normalisation artificielle à 5,000 s, ni p95/p99.
+Les fenêtres aux extrémités recouvrent les contrôles UART.
+
+La fluidité reste insuffisante. Le prochain gain doit être mesuré sur une
+pose/temps figés, avec nombre d'images identique et fin reçue sans commande
+série pendant la mesure. Les mesures brutes sont dans performance.json.
+
+Pour jouer sur le terminal Linux Pro Dock :
+p=`cat /tmp/luma3d-live.pid`; kill -TERM "$p"
+/tmp/luma3d-r2 --manual
+WASD : marcher, majuscules : courir, ijkl : caméra, espace : saut,
+E : interaction, T : automatique, Q : quitter. Pas de manette USB revendiquée.
+
+Aucune écriture FPGA/SD/flash. Aucun essai Neo déduit. Prototype de vallée,
+pas une campagne de plusieurs heures ni une qualification de fluidité.

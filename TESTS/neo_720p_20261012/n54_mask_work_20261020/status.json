@@ -1,0 +1,237 @@
+{
+  "updated_utc": "2026-10-21T07:42:07.758767+00:00",
+  "reference": "console_neo_n38r0",
+  "board_anchor": "TESTS/neo_720p_20261012/board_n55r2_reload_20261021",
+  "board_unchanged": false,
+  "scope": "DDR5.9/300 and FIFO baseline unchanged; isolate triangle pixel validity",
+  "source_candidate": "console_neo_n55_selector",
+  "route_candidate": "console_neo_n55r2",
+  "route_session": null,
+  "source_changes": [
+    "tang/rtl/video/gpu_v1.v",
+    "tang/boards/neo/console_neo.v",
+    "tang/boards/neo/neo.cst",
+    "tang/boards/neo/neo.sdc"
+  ],
+  "tool_changes_from_historical_n38": "latest Gowin 1.9.12.03, PNR automatic replication disabled; not a same-route patch",
+  "board_results": {
+    "masked_rectangles": {
+      "passed": true,
+      "commands": 8,
+      "counter_mismatches": {},
+      "window_bytes": 1048576,
+      "mismatch_bytes": [
+        0,
+        0,
+        0
+      ],
+      "result": "TESTS/neo_720p_20261012/n38_pixel_board_20261020/masked_rectangles/result.json",
+      "sha256": "385a6152e73b4dac4372fdba4b21d1d06504ab39663776269126bec59a27c8e2"
+    },
+    "solid": {
+      "passed": false,
+      "commands": 4,
+      "counter_mismatches": {},
+      "window_bytes": 16384,
+      "mismatch_bytes": [
+        722,
+        0,
+        0
+      ],
+      "result": "TESTS/neo_720p_20261012/n38_pixel_board_20261020/solid/result.json",
+      "sha256": "f5a866bbf0c7ea6dd931656622a4cbb61b8060303feec1e8e85a2cfcf4e2c024"
+    },
+    "alpha": {
+      "passed": true,
+      "commands": 4,
+      "counter_mismatches": {},
+      "window_bytes": 16384,
+      "mismatch_bytes": [
+        0,
+        0,
+        0
+      ],
+      "result": "TESTS/neo_720p_20261012/n38_pixel_board_20261020/alpha/result.json",
+      "sha256": "85a0d937e52b193e7c29ad1a215b97d88b80b0e315d24ec3bb6cfdacc93079bc"
+    },
+    "depth": {
+      "passed": false,
+      "commands": 5,
+      "counter_mismatches": {},
+      "window_bytes": 16384,
+      "mismatch_bytes": [
+        722,
+        0,
+        0
+      ],
+      "result": "TESTS/neo_720p_20261012/n38_pixel_board_20261020/depth/result.json",
+      "sha256": "847bb94231acfb1c4d067af9c986a82c0676cf6a69c71030183f3863167b619e"
+    },
+    "textured": {
+      "passed": false,
+      "commands": 7,
+      "counter_mismatches": {},
+      "window_bytes": 16384,
+      "mismatch_bytes": [
+        749,
+        0,
+        0
+      ],
+      "result": "TESTS/neo_720p_20261012/n38_pixel_board_20261020/textured/result.json",
+      "sha256": "dbc5ddfc8b2a904a380aaa60401849f64168871834226498956ea608f7b9759b"
+    },
+    "perspective": {
+      "passed": false,
+      "commands": 8,
+      "counter_mismatches": {},
+      "window_bytes": 16384,
+      "mismatch_bytes": [
+        917,
+        0,
+        0
+      ],
+      "result": "TESTS/neo_720p_20261012/n38_pixel_board_20261020/perspective/result.json",
+      "sha256": "08d654d7fc5c03ff7bf23521cb140b891d7884011cae78c62d1471de264a8296"
+    }
+  },
+  "model_evidence": "TESTS/neo_720p_20261012/n38_pixel_board_20261020/carry_and_selector_hypotheses.json",
+  "model_conclusion": "Omitting CHUNK clear of mask, color buffer and perspective selector predicts every color byte in all five triangle captures, including perspective. 84 inside pixels are first-pair swaps from a carried selector.",
+  "limitations": [
+    "CHUNK physical cause not measured directly.",
+    "Geometric clipping remains unisolated; CHUNK physical cause is not measured directly.",
+    "Small raw-triangle board cases capture 3 x 16 KiB, not all DDR; rectangle case compares 3 MiB."
+  ],
+  "validation": {
+    "pixel_cases": "TESTS/neo_720p_20261012/n54_mask_pixel_cases_20261020/result.json",
+    "geometry": "TESTS/neo_720p_20261012/n54_mask_geometry_20261020/result.json",
+    "mapped": "TESTS/neo_720p_20261012/n54_mask_mapped_r1_20261020/result.json",
+    "synthesis": "TESTS/neo_720p_20261012/n54_pre_route_20261020.json",
+    "unit_tests": 64
+  },
+  "next": "Observe descriptor values/validation predicates in GPU v1 and debug request/ack; DDR physical cause not established. No new route launched.",
+  "shared_chunk_control": "TESTS/neo_720p_20261012/n38_pixel_board_20261020/shared_chunk_control.json",
+  "route_result": {
+    "status": "FAIL",
+    "timing_checks_ns": {
+      "setup": -3.725,
+      "hold": 0.164,
+      "recovery": -3.882,
+      "removal": 0.274
+    },
+    "minimum_pulse_slack_ns": 0.521,
+    "bitstream_sha256": "13a77a951463433e3d3a2d505b1a7bd199db4d8b9c80e5432fa91b78b817dd40",
+    "loaded": false
+  },
+  "active_synthesis_session": null,
+  "prediction_before_capture": "TESTS/neo_720p_20261012/n54_mask_work_20261020/next_perspective_prediction.json",
+  "prediction_verification": "TESTS/neo_720p_20261012/n54_mask_work_20261020/prediction_verification.json",
+  "board_current": "N55r2 loaded twice; parked diagnostic, scanout disabled; TARGET rejected on each load, no Linux.",
+  "r1_result": {
+    "status": "FAIL",
+    "timing_checks_ns": {
+      "setup": -3.609,
+      "hold": 0.124,
+      "recovery": -2.673,
+      "removal": 0.367
+    },
+    "minimum_pulse_slack_ns": 1.417,
+    "bitstream_sha256": "6b7197c88b6d4dc720b62221e1202b3b7cffd34e5e63d4650ac5c32f2da9c69f",
+    "loaded": false,
+    "all_logic_and_clock_audits_passed": true
+  },
+  "route_method": "Same N55r0 netlist/SDC; 44 targeted reset placements only; fresh route, HDMI SG0/C160 unchanged",
+  "validator_session": null,
+  "validator_status": "TESTS/neo_720p_20261012/n55r2_validation_20261021/status.json",
+  "reference_preserved": "N38r0 and all frozen N38 files retained; neither N54r0 nor N54r1 loaded",
+  "r1_fixed_gpu_reset_recovery_ns": [
+    3.332,
+    4.645
+  ],
+  "r2_result": {
+    "state": "routing_failed",
+    "unrouted_nets": 114413,
+    "hardware_loaded": false,
+    "log": "tang/impl/console_neo_n54r2/build.log",
+    "validator_status": "TESTS/neo_720p_20261012/n54r2_validation_20261020/status.json"
+  },
+  "conditional_mask_predictions": "TESTS/neo_720p_20261012/n54_mask_work_20261020/conditional_mask_predictions.json",
+  "mask_only_limitation": "If the perspective selector still misses CHUNK clear, the original ordered five-case series predicts 168 erroneous perspective bytes after fixing only the mask; this is a conditional model, not measured N54 behavior.",
+  "r3_result": {
+    "state": "interrupted_during_placement",
+    "last_phase": 0,
+    "progress_percent": 10,
+    "wrapper_exit_code": 143,
+    "host_process_check": "No route/validator Python or gw_sh process observed in escalated ps after user resume",
+    "cause": "Unknown; no final Gowin error or timing report",
+    "hardware_loaded": false
+  },
+  "selector_preparation": "console_neo_n55_selector",
+  "selector_routed": "completed; static qualification PASS",
+  "selector_loaded": true,
+  "selector_tests": {
+    "geometry": "TESTS/neo_720p_20261012/n55_selector_geometry_20261020/result.json",
+    "equivalence": "TESTS/neo_720p_20261012/n55_selector_equivalence_20261020/result.json",
+    "pixels": "TESTS/neo_720p_20261012/n55_selector_pixel_cases_20261020/result.json"
+  },
+  "r4_result": {
+    "status": "FAIL",
+    "timing_checks_ns": {
+      "setup": 0.179,
+      "hold": 0.124,
+      "recovery": -2.549,
+      "removal": -0.07
+    },
+    "minimum_pulse_slack_ns": 2.029,
+    "bitstream_sha256": "cd71f51681300466fb056e71e9f298460c462ec151b159afb157bc3b2025f963",
+    "loaded": false,
+    "routing_complete": true,
+    "ddr_phy_minimum_recovery_ns": 0.246,
+    "rejected_checks": [
+      "GPU recovery",
+      "HDMI removal"
+    ],
+    "data_setup_passed": true,
+    "reported_violated_endpoints": {
+      "setup": 8,
+      "hold": 3
+    }
+  },
+  "selector_synthesis_audits": "TESTS/neo_720p_20261012/n54_mask_work_20261020/n55_synthesis_audits.json",
+  "selector_mapped_tests": "TESTS/neo_720p_20261012/n55_selector_mapped_r2_20261020/result.json",
+  "mask_mapped_tests": "TESTS/neo_720p_20261012/n55_mask_mapped_r2_20261020/result.json",
+  "python_tests_passed": 37,
+  "pixel_follower_session": null,
+  "pixel_follower_status": "TESTS/neo_720p_20261012/n55r2_pixels_20261021/status.json",
+  "n55r0_result": {
+    "status": "FAIL",
+    "timing_checks_ns": {
+      "setup": 0.003,
+      "hold": 0.124,
+      "recovery": -1.1,
+      "removal": 0.352
+    },
+    "minimum_pulse_slack_ns": 1.417,
+    "bitstream_sha256": "225cde86c6e2d368913ede9528373e7247952b8833b2b9887a27c4ff9a5ec114",
+    "violated_endpoints": {
+      "setup": 43,
+      "hold": 0
+    },
+    "routing_complete": true,
+    "hardware_loaded": false,
+    "all_structure_and_clock_audits_passed": true,
+    "negative_recovery_paths": 43,
+    "negative_ddr_recovery_paths": 32,
+    "negative_video_reset_paths": 11,
+    "observed_utc": "2026-10-21T06:58:19.671524+00:00",
+    "summary": "TESTS/neo_720p_20261012/n54_mask_work_20261020/n55r0_timing_summary.json"
+  },
+  "n55r1_result": {
+    "state": "preparation_failed",
+    "compiler_started": false,
+    "hardware_loaded": false,
+    "reason": "Staged CST was already C160 but synthesis parent HDMI profile was C150; move_hdmi_resets rejected it before invoking Gowin.",
+    "retry": "console_neo_n55r2"
+  },
+  "n55r2_input_identity": "TESTS/neo_720p_20261012/n54_mask_work_20261020/n55r2_input_identity.json",
+  "n55r2_result": "TESTS/neo_720p_20261012/n54_mask_work_20261020/n55r2_board_result.json"
+}

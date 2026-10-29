@@ -24,9 +24,9 @@ module gpu_raster #(
         COLOR_REQ=15, COLOR_WAIT=16, Z_PREP=17, Z_REQ=18, Z_WAIT=19,
         PIX_PRIME=20, PIX_SAMPLE=21, PIX_TEST=22, PIX_BLEND=23, PIX_STORE=24,
         COLOR_WRITE=25, COLOR_SENT=26, Z_WRITE=27, Z_SENT=28, ADVANCE=29,
-        CLEAR_PREP=30, CLEAR_SEND=31, CLEAR_NEXT=32;
+        CLEAR_PREP=30, CLEAR_SEND=31, CLEAR_NEXT=32,TEX_OFFSET=33,TEX_BASE=34;
     // One-hot state bits keep DDR READY/VALID off a deep binary decode.
-    reg [32:0] state;
+    reg [34:0] state;
     assign busy=!state[IDLE];
     // Copie locale du mot de commande. Le blitter écrit son dernier mot (txt[127:96]) un cycle avant de lever
     // start : la copie prise à chaque cycle est donc égale au mot au moment du départ, sans cycle ajouté.
@@ -56,6 +56,9 @@ module gpu_raster #(
     reg [3:0] lane;
     reg [255:0] color_buf,z_buf;
     reg [31:0] pixel_mask;
+    // Track the mask reduction at the same edges that update the mask.
+    // Avoid a 32-bit comparator on the 256-bit write-data enable path.
+    reg chunk_dirty;
     reg [15:0] source_pixel,background,depth;
     reg [63:0] background_groups,depth_groups;
     wire [15:0] sampled_background=background_groups[lane[3:2]*16+:16];
@@ -72,7 +75,8 @@ module gpu_raster #(
     reg [6:0] load_x,load_y;
     reg [7:0] load_left;
     reg [3:0] load_lane;
-    reg [24:0] texture_row;
+    reg [24:0] texture_row,texture_offset;
+    reg [10:0] texture_scan_y;
     reg [255:0] texture_buffer;
     reg [15:0] texture [0:16383];
     reg [15:0] texel;
@@ -228,14 +232,14 @@ module gpu_raster #(
     // Predict unconditional state transitions one cycle ahead, so the wide
     // chunk buffers are not enabled through the shared binary-state decode.
     always @(posedge clk)begin
-        if(rst)begin color_buf<=0;z_buf<=0;pixel_mask<=-1;end
-        else if(chunk_init)begin color_buf<=0;z_buf<=0;pixel_mask<=-1;end
+        if(rst)begin color_buf<=0;z_buf<=0;pixel_mask<=-1;chunk_dirty<=0;end
+        else if(chunk_init)begin color_buf<=0;z_buf<=0;pixel_mask<=-1;chunk_dirty<=0;end
         else begin
             if(color_load)color_buf<=returned_data;
             else if(store_pixel && visible)color_buf[lane*16+:16]<=blended;
             if(z_load)z_buf<=returned_data;
             else if(store_pixel && visible)z_buf[lane*16+:16]<=depth;
-            if(store_pixel && visible)pixel_mask[lane*2+:2]<=0;
+            if(store_pixel && visible)begin pixel_mask[lane*2+:2]<=0;chunk_dirty<=1;end
         end
     end
     // Split each 16:1 lane selector across SAMPLE and TEST. The alpha
@@ -257,7 +261,7 @@ module gpu_raster #(
     always @(posedge clk)begin
         if(rst)wr_data<=0;
         else if(state[CLEAR_PREP])wr_data<={16{clearing_depth ? clear_depth:clear_color}};
-        else if(state[COLOR_WRITE] && pixel_mask!=32'hffffffff)wr_data<=color_buf;
+        else if(state[COLOR_WRITE] && chunk_dirty)wr_data<=color_buf;
         else if(state[Z_WRITE])wr_data<=z_buf;
     end
     // The four interpolators only change at span setup and pixel retirement.
@@ -269,7 +273,7 @@ module gpu_raster #(
     end
     always @(posedge clk) begin
         if(rst)begin
-            state<=33'b1 << (IDLE);done<=0;valid<=0;write<=0;addr<=0;wr_mask<=-1;
+            state<=35'b1 << (IDLE);done<=0;valid<=0;write<=0;addr<=0;wr_mask<=-1;
             configured<=0;texture_valid<=0;plane_valid<=0;rejected<=0;fragments<=0;passed<=0;
             color_page<=0;z_page<=0;flags<=0;alpha<=256;solid<=0;
             q0<=0;qx<=0;qy<=0;u0<=0;v0<=0;z0<=0;ux<=0;uy<=0;vx<=0;vy<=0;zx<=0;zy<=0;
@@ -288,90 +292,97 @@ module gpu_raster #(
                 14:begin
                     configured<=state_words_ready;
                     color_page<=w1[3:0];z_page<=w1[7:4];flags<=w2[4:0];alpha<=w3[8:0];solid<=w4[15:0];
-                    state<=33'b1 << (state_words_ready ? FINISH:BAD);
+                    state<=35'b1 << (state_words_ready ? FINISH:BAD);
                 end
                 15:begin
                     texture_valid<=0;tw<=w3[23:16];th<=w3[7:0];mode_u<=w4[1:0];mode_v<=w4[3:2];
                     texture_page<=w1[3:0];texture_x<=w2[25:16];texture_y<=w2[9:0];
-                    load_x<=0;load_y<=0;state<=33'b1 << (tex_words_ready ? TEX_ADDR:BAD);
+                    load_x<=0;load_y<=0;state<=35'b1 << (tex_words_ready ? TEX_ADDR:BAD);
                 end
-                16:begin u0<=signed_plane_origin;ux<=w2;uy<=w3;plane_valid[0]<=plane_words_ready;state<=33'b1 << (plane_words_ready ? FINISH:BAD);end
-                17:begin v0<=signed_plane_origin;vx<=w2;vy<=w3;plane_valid[1]<=plane_words_ready;state<=33'b1 << (plane_words_ready ? FINISH:BAD);end
-                18:begin z0<=depth_plane_origin;zx<=w2;zy<=w3;plane_valid[2]<=plane_words_ready;state<=33'b1 << (plane_words_ready ? FINISH:BAD);end
-                21:begin q0<=signed_plane_origin;qx<=w2;qy<=w3;plane_valid[3]<=plane_words_ready;state<=33'b1 << (plane_words_ready ? FINISH:BAD);end
+                16:begin u0<=signed_plane_origin;ux<=w2;uy<=w3;plane_valid[0]<=plane_words_ready;state<=35'b1 << (plane_words_ready ? FINISH:BAD);end
+                17:begin v0<=signed_plane_origin;vx<=w2;vy<=w3;plane_valid[1]<=plane_words_ready;state<=35'b1 << (plane_words_ready ? FINISH:BAD);end
+                18:begin z0<=depth_plane_origin;zx<=w2;zy<=w3;plane_valid[2]<=plane_words_ready;state<=35'b1 << (plane_words_ready ? FINISH:BAD);end
+                21:begin q0<=signed_plane_origin;qx<=w2;qy<=w3;plane_valid[3]<=plane_words_ready;state<=35'b1 << (plane_words_ready ? FINISH:BAD);end
                 19:begin
                     if(!configured || !triangle_words_ready ||
                        (flags[0] && (!texture_valid || plane_valid[1:0]!=3)) ||
-                       ((flags[1] || flags[2]) && !plane_valid[2]) || (flags[4] && !plane_valid[3]))state<=33'b1 << (BAD);
-                    else state<=33'b1 << (alpha==0 ? FINISH:TRI_START);
+                       ((flags[1] || flags[2]) && !plane_valid[2]) || (flags[4] && !plane_valid[3]))state<=35'b1 << (BAD);
+                    else state<=35'b1 << (alpha==0 ? FINISH:TRI_START);
                 end
                 20:begin
                     clear_flags<=w1[1:0];clear_color<=w2[15:0];clear_depth<=w3[15:0];
                     clear_block<=0;clearing_depth<=!w1[0];
-                    state<=33'b1 << (!configured || !clear_words_ready ? BAD:
+                    state<=35'b1 << (!configured || !clear_words_ready ? BAD:
                         w1[1:0]==0 ? FINISH:CLEAR_PREP);
                 end
-                default:state<=33'b1 << (BAD);
+                default:state<=35'b1 << (BAD);
                 endcase
             end
-            state[BAD]:begin rejected<=rejected+1'b1;state<=33'b1 << (FINISH);end
-            state[FINISH]:begin done<=1;state<=33'b1 << (IDLE);end
+            state[BAD]:begin rejected<=rejected+1'b1;state<=35'b1 << (FINISH);end
+            state[FINISH]:begin done<=1;state<=35'b1 << (IDLE);end
             state[TEX_ADDR]:begin
-                texture_row<=25'h0800000+{1'b0,texture_page,20'b0}+
-                    (texture_y+{3'b0,load_y})*(WIDTH*2)+{14'd0,texture_x,1'b0};
-                load_x<=0;load_left<=tw;state<=33'b1 << (TEX_NEXT);
+                texture_scan_y<={1'b0,texture_y}+{4'b0,load_y};
+                state<=35'b1 << (TEX_OFFSET);
+            end
+            state[TEX_OFFSET]:begin
+                texture_offset<=texture_scan_y*(WIDTH*2);
+                state<=35'b1 << (TEX_BASE);
+            end
+            state[TEX_BASE]:begin
+                texture_row<=25'h0800000+{1'b0,texture_page,20'b0}+texture_offset+{14'd0,texture_x,1'b0};
+                load_x<=0;load_left<=tw;state<=35'b1 << (TEX_NEXT);
             end
             state[TEX_NEXT]:begin
                 addr<={6'b0,texture_row[24:5],3'b0};load_lane<=texture_row[4:1];
-                valid<=1;write<=0;state<=33'b1 << (TEX_REQ);
+                valid<=1;write<=0;state<=35'b1 << (TEX_REQ);
             end
-            state[TEX_REQ]:if(ready)begin valid<=0;state<=33'b1 << (TEX_WAIT);end
-            state[TEX_WAIT]:if(rd_valid)begin state<=33'b1 << (TEX_COPY);end
+            state[TEX_REQ]:if(ready)begin valid<=0;state<=35'b1 << (TEX_WAIT);end
+            state[TEX_WAIT]:if(rd_valid)begin state<=35'b1 << (TEX_COPY);end
             state[TEX_COPY]:begin
                 load_x<=load_x+1'b1;load_left<=load_left-1'b1;load_lane<=load_lane+1'b1;
                 if(load_left==1)begin
-                    if({1'b0,load_y}+8'd1==th)begin texture_valid<=1;state<=33'b1 << (FINISH);end
-                    else begin load_y<=load_y+1'b1;state<=33'b1 << (TEX_ADDR);end
+                    if({1'b0,load_y}+8'd1==th)begin texture_valid<=1;state<=35'b1 << (FINISH);end
+                    else begin load_y<=load_y+1'b1;state<=35'b1 << (TEX_ADDR);end
                 end else if(load_lane==15)begin
-                    texture_row<={texture_row[24:5]+20'd1,5'b0};state<=33'b1 << (TEX_NEXT);
+                    texture_row<={texture_row[24:5]+20'd1,5'b0};state<=35'b1 << (TEX_NEXT);
                 end
             end
-            state[TRI_START]:begin triangle_start<=1;state<=33'b1 << (TRI_BOOT);end
-            state[TRI_BOOT]:state<=33'b1 << (TRI_WAIT);
+            state[TRI_START]:begin triangle_start<=1;state<=35'b1 << (TRI_BOOT);end
+            state[TRI_BOOT]:state<=35'b1 << (TRI_WAIT);
             state[TRI_WAIT]:begin
-                if(triangle_valid)begin px<=triangle_x;py<=triangle_y;span_left<=triangle_width;state<=33'b1 << (SPAN0);end
-                else if(!triangle_busy)state<=33'b1 << (FINISH);
+                if(triangle_valid)begin px<=triangle_x;py<=triangle_y;span_left<=triangle_width;state<=35'b1 << (SPAN0);end
+                else if(!triangle_busy)state<=35'b1 << (FINISH);
             end
-            state[SPAN0]:begin row_offset<=py*(WIDTH*2);state<=33'b1 << (SPAN1);end
-            state[SPAN1]:state<=33'b1 << (SPAN2);
-            state[SPAN2]:state<=33'b1 << (CHUNK);
+            state[SPAN0]:begin row_offset<=py*(WIDTH*2);state<=35'b1 << (SPAN1);end
+            state[SPAN1]:state<=35'b1 << (SPAN2);
+            state[SPAN2]:state<=35'b1 << (CHUNK);
             state[CHUNK]:begin
                 color_addr<=(29'h0800000+{5'd0,color_page,20'd0}+row_offset+({18'd0,px}<<1))>>2;
                 z_addr<=(29'h0800000+{5'd0,z_page,20'd0}+row_offset+({18'd0,px}<<1))>>2;
                 lane<=px[3:0];chunk_count<=span_left>{6'd0,room} ? room:span_left[4:0];
                 chunk_left<=span_left>{6'd0,room} ? room:span_left[4:0];
-                state<=33'b1 << (COLOR_REQ);
+                state<=35'b1 << (COLOR_REQ);
             end
             state[COLOR_REQ]:begin
-                if(alpha!=256)begin addr<={color_addr[28:3],3'b0};valid<=1;write<=0;state<=33'b1 << (COLOR_WAIT);end
-                else state<=33'b1 << (Z_PREP);
+                if(alpha!=256)begin addr<={color_addr[28:3],3'b0};valid<=1;write<=0;state<=35'b1 << (COLOR_WAIT);end
+                else state<=35'b1 << (Z_PREP);
             end
             state[COLOR_WAIT]:begin
                 if(valid && ready)valid<=0;
-                if(rd_valid)begin state<=33'b1 << (Z_PREP);end
+                if(rd_valid)begin state<=35'b1 << (Z_PREP);end
             end
             state[Z_PREP]:begin
-                if(flags[1])begin addr<={z_addr[28:3],3'b0};valid<=1;write<=0;state<=33'b1 << (Z_WAIT);end
-                else state<=33'b1 << (PIX_PRIME);
+                if(flags[1])begin addr<={z_addr[28:3],3'b0};valid<=1;write<=0;state<=35'b1 << (Z_WAIT);end
+                else state<=35'b1 << (PIX_PRIME);
             end
             state[Z_WAIT]:begin
                 if(valid && ready)valid<=0;
-                if(rd_valid)begin state<=33'b1 << (PIX_PRIME);end
+                if(rd_valid)begin state<=35'b1 << (PIX_PRIME);end
             end
-            state[PIX_PRIME]:if(!flags[4] || per_ready[per_select])state<=33'b1 << (PIX_SAMPLE);
+            state[PIX_PRIME]:if(!flags[4] || per_ready[per_select])state<=35'b1 << (PIX_SAMPLE);
             state[PIX_SAMPLE]:begin
                 depth<=z[31:16];sample_depth_ok<=z>=0 && z<48'sh000100000000;
-                sample_inside<=!flags[0] || texture_inside;state<=33'b1 << (PIX_TEST);
+                sample_inside<=!flags[0] || texture_inside;state<=35'b1 << (PIX_TEST);
             end
             state[PIX_TEST]:begin
                 source_pixel<=sampled_source;
@@ -379,52 +390,52 @@ module gpu_raster #(
                 visible<=sample_inside && !(flags[3] && sampled_source==0) &&
                     (!(flags[1] || flags[2]) || sample_depth_ok) &&
                     (!flags[1] || depth<sampled_depth);
-                fragments<=fragments+1'b1;state<=33'b1 << (PIX_BLEND);
+                fragments<=fragments+1'b1;state<=35'b1 << (PIX_BLEND);
             end
             state[PIX_BLEND]:begin
                 mix_r<=source_pixel[15:11]*alpha+background[15:11]*inverse_alpha+15'd128;
                 mix_g<=source_pixel[10:5]*alpha+background[10:5]*inverse_alpha+15'd128;
                 mix_b<=source_pixel[4:0]*alpha+background[4:0]*inverse_alpha+15'd128;
-                state<=33'b1 << (PIX_STORE);
+                state<=35'b1 << (PIX_STORE);
             end
             state[PIX_STORE]:begin
                 if(visible)begin
                     passed<=passed+1'b1;
                 end
                 lane<=lane+1'b1;chunk_left<=chunk_left-1'b1;
-                state<=33'b1 << (chunk_left==1 ? COLOR_WRITE:PIX_PRIME);
+                state<=35'b1 << (chunk_left==1 ? COLOR_WRITE:PIX_PRIME);
             end
             state[COLOR_WRITE]:begin
-                if(pixel_mask==32'hffffffff)state<=33'b1 << (ADVANCE);
+                if(!chunk_dirty)state<=35'b1 << (ADVANCE);
                 else begin
                     addr<={color_addr[28:3],3'b0};wr_mask<=pixel_mask;
-                    valid<=1;write<=1;state<=33'b1 << (COLOR_SENT);
+                    valid<=1;write<=1;state<=35'b1 << (COLOR_SENT);
                 end
             end
-            state[COLOR_SENT]:if(ready)begin valid<=0;state<=33'b1 << (flags[2] ? Z_WRITE:ADVANCE);end
+            state[COLOR_SENT]:if(ready)begin valid<=0;state<=35'b1 << (flags[2] ? Z_WRITE:ADVANCE);end
             state[Z_WRITE]:begin
                 addr<={z_addr[28:3],3'b0};wr_mask<=pixel_mask;
-                valid<=1;write<=1;state<=33'b1 << (Z_SENT);
+                valid<=1;write<=1;state<=35'b1 << (Z_SENT);
             end
-            state[Z_SENT]:if(ready)begin valid<=0;state<=33'b1 << (ADVANCE);end
+            state[Z_SENT]:if(ready)begin valid<=0;state<=35'b1 << (ADVANCE);end
             state[ADVANCE]:begin
                 px<=px+chunk_count;span_left<=span_left-chunk_count;
-                state<=33'b1 << (span_left=={6'd0,chunk_count} ? TRI_WAIT:CHUNK);
+                state<=35'b1 << (span_left=={6'd0,chunk_count} ? TRI_WAIT:CHUNK);
             end
             state[CLEAR_PREP]:begin
                 addr<=29'h0200000+{7'd0,(clearing_depth ? z_page:color_page),18'd0}+{10'd0,clear_block,3'b0};
                 wr_mask<=0;
-                valid<=1;write<=1;state<=33'b1 << (CLEAR_SEND);
+                valid<=1;write<=1;state<=35'b1 << (CLEAR_SEND);
             end
-            state[CLEAR_SEND]:if(ready)begin valid<=0;state<=33'b1 << (CLEAR_NEXT);end
+            state[CLEAR_SEND]:if(ready)begin valid<=0;state<=35'b1 << (CLEAR_NEXT);end
             state[CLEAR_NEXT]:begin
                 clear_block<=clear_block+1'b1;
                 if(clear_block==WIDTH*HEIGHT/16-1)begin
-                    if(!clearing_depth && clear_flags[1])begin clearing_depth<=1;clear_block<=0;state<=33'b1 << (CLEAR_PREP);end
-                    else state<=33'b1 << (FINISH);
-                end else state<=33'b1 << (CLEAR_PREP);
+                    if(!clearing_depth && clear_flags[1])begin clearing_depth<=1;clear_block<=0;state<=35'b1 << (CLEAR_PREP);end
+                    else state<=35'b1 << (FINISH);
+                end else state<=35'b1 << (CLEAR_PREP);
             end
-            default:begin valid<=0;state<=33'b1 << (BAD);end
+            default:begin valid<=0;state<=35'b1 << (BAD);end
             endcase
         end
     end

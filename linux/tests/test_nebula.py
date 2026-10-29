@@ -14,7 +14,25 @@ SOURCE=r'''
 #include "prodock-validate.h"
 int main(int argc,char **argv)
 {
-    assert(argc==2);
+    assert(argc==2 || argc==3);
+    unsigned width=argc==3?1280:800,height=argc==3?720:480;
+    NeoPad pad={.fd=-1},other={.fd=-1};
+    struct input_event ev={.type=EV_ABS,.code=ABS_X,.value=-1};
+    neo_pad_event(&pad,&ev);assert(pad.x==0); /* atomic at SYN_REPORT */
+    ev=(struct input_event){.type=EV_KEY,.code=BTN_SOUTH,.value=1};neo_pad_event(&pad,&ev);
+    ev=(struct input_event){.type=EV_SYN,.code=SYN_REPORT};neo_pad_event(&pad,&ev);
+    assert(pad.x==-1 && pad.pressed==PAD_NOVA && !other.x && !other.keys);
+    pad.pressed=0;neo_pad_event(&pad,&ev);assert(!pad.pressed); /* held != press */
+    ev=(struct input_event){.type=EV_KEY,.code=BTN_SOUTH,.value=0};neo_pad_event(&pad,&ev);
+    ev=(struct input_event){.type=EV_SYN,.code=SYN_REPORT};neo_pad_event(&pad,&ev);
+    assert(!pad.keys && !pad.pressed);
+    ev=(struct input_event){.type=EV_KEY,.code=BTN_START,.value=1};neo_pad_event(&other,&ev);
+    ev=(struct input_event){.type=EV_SYN,.code=SYN_REPORT};neo_pad_event(&other,&ev);
+    assert(other.pressed==PAD_START && !pad.pressed);
+    ev=(struct input_event){.type=EV_SYN,.code=SYN_DROPPED};neo_pad_event(&other,&ev);
+    ev=(struct input_event){.type=EV_KEY,.code=BTN_SELECT,.value=1};neo_pad_event(&other,&ev);
+    ev=(struct input_event){.type=EV_SYN,.code=SYN_REPORT};neo_pad_event(&other,&ev);
+    assert(!other.keys && !other.pressed && !other.x && !other.y);
     Game g;
     reset_game(&g,0,0,0);
     key(&g,27);key(&g,'[');key(&g,'D');assert(g.tx==176 && !g.escape);
@@ -35,6 +53,7 @@ int main(int argc,char **argv)
     g.shots[0]=(Shot){.live=1,.x=100,.y=100};update(&g,.001f);
     assert(g.kills==1 && !g.enemies[0].live && !g.shots[0].live);
     Video v={.fd=-1,.display=-1,.host=1,.scale=1,.used=3*1024*1024};
+    assert(!geometry(&v,width,height));
     v.mem=calloc(1,MAP_BYTES);assert(v.mem);assert(!assets(&v,argv[1]));
     unsigned checks=0,command_count=0,wins=0,losses=0,last_finished=0,highest_sector=0;
     reset_game(&g,1,0,0);
@@ -47,7 +66,7 @@ int main(int argc,char **argv)
         last_finished=g.finished;
         if(tick%5)continue;
         v.scale=(tick/5)&1?1:2;render(&v,&g);assert(!v.failed && v.sprites<=64);
-        assert(!prodock_scene_valid(&v.scene));
+        assert(!prodock_scene_valid_for(&v.scene,width,height));
         for(unsigned i=12;i<16;++i)assert(!v.scene.layers[i][6]);
         for(unsigned i=0;i<64;++i)assert(((v.scene.sprites[i][2]>>20)&15)<12);
         for(unsigned i=0;i<v.capture_count;++i){assert(!prodock_command(v.capture_commands[i]));++command_count;}
@@ -81,3 +100,5 @@ with tempfile.TemporaryDirectory(prefix='nebula-test-') as tmp:
                     '-I',str(ROOT/'linux/userspace'),'-I',str(ROOT/'linux/drivers'),
                     str(work/'test.c'),'-lm','-o',str(work/'test')],check=True)
     subprocess.run([str(work/'test'),str(ROOT/'assets/nebula/packed/nebula.bin')],check=True)
+
+    subprocess.run([str(work/'test'),str(ROOT/'assets/nebula/packed/nebula.bin'),'720p'],check=True)

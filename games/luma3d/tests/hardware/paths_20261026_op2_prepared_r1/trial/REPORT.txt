@@ -1,0 +1,39 @@
+OP2 — essai borné PASS, nouvelle visite laissée visible
+
+ELF utilisateur R5 : 8f7500184ccf9977502243e5ddfbfb3b27f4b5b224dde46c606d8bdcf8f18981
+Manifeste : 67fcb8b0e66bf50aab90c1a0a4ab1eee135cd7773f074f5684304b1ec66c6b9e
+Correction : remise en place immédiate de caméra indépendante de sa position antérieure.
+Le FAIL op1 et ses 28 pixels restent archivés. Aucun seuil pixel assoupli.
+
+Arrivée, 30 images après 3 images de chauffe : am1 7.12 FPS, R5 6.71 FPS, am1 témoin final 6.91 FPS.
+Ralentissement 6.08 %, dérive témoin -2.90 % ; seuils prévus 10 % / 5 % respectés.
+Trois images finales RGB565 de 96 000 pixels et les deux banques HUD exactes.
+Fenêtres à pose fixe, sans commande UART pendant la mesure. Aucun gain de débit ou percentile de fluidité annoncé.
+
+Les sept fixtures passent : jardin, entrée maison et cinq activités.
+Chaque fichier V4 est chargé puis trois images fixes sont présentées. Les images
+RGB565 des scènes 3D et les indices des deux banques sont exacts. Les quatre
+plateaux 2D recouvrent le framebuffer 3D, qui n’est donc pas comparé dans ces modes.
+Descripteurs et palette côté CPU conformes ; cela ne constitue pas une capture
+composite LCD ni une relecture de la palette matérielle.
+
+Replay physique : 16544 pas d’entrée, 426 images rendues ; cinq victoires, cinq reprises, récompenses uniques, raccourcis et sortie secrète.
+Les deux chemins utilisent les mêmes déplacements et collisions que le jeu.
+La simulation est accélérée et échantillonnée. Les reprises ont lieu à l’entrée
+des défis ; certains coups dt=0 n’ont pas d’image intermédiaire. Il ne s’agit
+ni d’un parcours humain chronométré ni d’une preuve de campagne de plusieurs heures.
+Ce replay dure 62.810 s, initialisation/simulation comprises. Le compteur signale 2 approximations de gradients (slivers), sans erreur GPU ; ses 426 images ne font pas chacune l’objet d’une comparaison pixel.
+Reprise d’un défi actif dans le vrai ELF utilisateur : une image, V4 et banque
+indexée exactes. La sauvegarde V3 de repli est restée byte-identique.
+
+État laissé : /tmp/luma3d-op2, PID 2011, startticks 15755109.
+Visite automatique de la mission principale à partir de l’arrivée des Terrasses.
+Les cinq activités facultatives sont disponibles en jeu manuel ; la visite
+automatique ne prétend pas les résoudre. Sauvegarde /tmp/op2-live.save, volatile.
+Am1 et /tmp/op1-am1-recovery.save sont conservés pour retour ; ancien V3 original conservé.
+Compteurs d’erreur GPU/underflow/fault nuls dans les contrôles du protocole.
+FPGA G22r0 et noyau G3D1 inchangés ; aucune écriture FPGA/noyau/SD/flash.
+Le port et le verrou sont libérés à la sortie du contrôleur. Voir release.txt
+pour leur contrôle en lecture sur l’hôte. Les essais Neo restent distincts.
+
+Ce paquet est consommé : les noms op2 et l’identité initiale ne sont pas réutilisables.

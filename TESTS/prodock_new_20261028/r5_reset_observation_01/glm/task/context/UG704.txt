@@ -1,0 +1,822 @@
+=== PDF PAGE 5 ===
+                                                                                                                                              Contents
+
+
+
+        3.8 SERIAL ............................................................................................................................. 41
+        3.8.1 Connection Diagram for SERIAL Configuration Mode .................................................. 42
+        3.9 Daisy Chain ...................................................................................................................... 43
+        3.9.1 Serial Daisy Chain ......................................................................................................... 43
+        3.9.2 Parallel Daisy Chain ...................................................................................................... 44
+
+   4 Configuration Details .................................................................................... 45
+        4.1 Configuration Notes .......................................................................................................... 45
+        4.2 Configuration Sequence ................................................................................................... 47
+        4.2.1 Power-Up Timing ........................................................................................................... 48
+        4.2.2 Initialization .................................................................................................................... 49
+        4.2.3 Configuration ................................................................................................................. 50
+        4.2.4 Wake-up......................................................................................................................... 50
+        4.2.5 User Modes ................................................................................................................... 50
+        4.3 Safety Precautions............................................................................................................ 50
+        4.4 Bitstream File Configuration ............................................................................................. 52
+        4.4.1 Configuration Options .................................................................................................... 52
+        4.4.2 Configure Data Encryption ............................................................................................ 53
+        4.4.3 Configuration File Size .................................................................................................. 62
+        4.4.4 Configuration File Loading Time .................................................................................... 63
+        4.5 SPI Flash Selection .......................................................................................................... 64
+
+   5 Status Register and Efuse Definition ........................................................... 65
+        5.1 Status Register ................................................................................................................. 65
+        5.2 OTP Efuse ........................................................................................................................ 66
+
+   6 Multi Boot and Background Update ............................................................. 68
+        6.1 Multi Boot Process ............................................................................................................ 68
+        6.2 Background Upgrade and Hotboot ................................................................................... 69
+
+
+
+
+UG704-1.0.7E                                                                                                                                           ii
+
+
+=== PDF PAGE 9 ===
+   1 About This Guide                                                                   1.1 Purpose
+
+
+
+
+                                                   1      About This Guide
+
+1.1 Purpose
+                      This guide mainly introduces general features and functions on
+                 programming and configuration of Arora V FPGA products. It helps users
+                 to use Gowin FPGA products to their full potential.
+
+1.2 Related Documents
+                     The latest user guides are available on the GOWINSEMI website. You
+                 can find the related documents at www.gowinsemi.com:
+                       DS981, GW5AT series of FPGA Products Data Sheet
+                       DS1103, GW5A series of FPGA Products Data Sheet
+                       DS1104, GW5AST series of FPGA Products Data Sheet
+                       DS1114, GW5AS-138 Data Sheet
+                       UG982, GW5AT-138 Pinout
+                       UG988, GW5A-138 Pinout
+                       UG986, GW5AST-138 Pinout
+                       UG1107, GW5AS-138 Pinout
+
+1.3 Terminology and Abbreviations
+                      The terminology and abbreviations used in this manual are as shown
+                 in Table 1-1.
+                        Table 1-1 Terminology and Abbreviations
+                  Terminology and Abbreviations     Description
+                                                    Programs the on-chip Flash without affecting
+                  Background Programming
+                                                    the current functions and I/O state.
+                  Bitstream                         The data of configuring the FPGA SRAM
+                  Bscan                             Boundary Scan
+                                                    The process of configuring the FPGA SRAM
+                  Configuration
+                                                    area
+                  CPU                               Central Processing Unit
+                  CRC                               Cyclic Redundancy Check
+
+
+UG704-1.0.7E                                                                                  1(70)
+
+
+=== PDF PAGE 12 ===
+2 Glossary
+
+
+
+
+ Glossary       Meaning
+                FPGA can be programmed and configured in this mode.
+ Edit Mode      All configuration pins cannot be reused as GPIOs. The output of all GPIOs
+                is high-impedance state, except background programming.
+                Identification for the the Gowin FPGA device. Each series of devices has
+ ID CODE
+                an individual number.
+                Used to identify the FPGA device that used. The user code can be written
+ USER CODE      to the FPGA device through Gowin programmer. Up to 32-bit can be
+                supported.
+                A special design for the configuration data security of Gowin FPGA product.
+                After you write the bitstream with security bit to the device SRAM, no one
+ Security Bit
+                will be able to read back the data. Gowin Software sets a security bit for
+                the bitstream data of all FPGA products by default.
+                Arora family of FPGA products support this feature. After the encrypted
+                bitstream is written into FPGA, the device will match the pre-stored key
+ Encryption
+                automatically, and then decrypt and wake up the device after successful
+                matching. The device cannot work if the matching fails.
+
+
+
+
+UG704-1.0.7E                                                                           4(70)
+
+
+=== PDF PAGE 16 ===
+3 Configuration Interfaces                                                               3.2 Configuration Pins
+
+
+
+                     [1]
+                           The Slave SPI x4 mode does not support read back.
+                              The configuration pins are as shown in Table 3-4.
+                             Table 3-4 Pin Definitions
+ Pin Name            Functional Description
+                     Config bank voltage selection signal.
+                     As a configuration pin, it is an input pin. Set the drive strength of the configuration
+                     pins according to the Config bank VCCIO.
+                     When VCCIO > 1.8V, CFGBVS needs to be connected to 1 (VCCIO10); when VCCIO<=
+ CFGBVS              1.8V, CFGBVS needs to be connected to GND.
+                     Note!
+                     Config banks include GW5AT-138/ GW5AST-138 Bank10, Bank3 in FlipChip packages,
+                     and Bank4 in WireBond packages. For details, refer to the related Pinout manuals.
+                     Configuration mode selection pin.
+                     As the selection pin of configuration modes, MODE is an input pin that has internal
+                     weak pull-up. The maximum bit width is 3 bits.
+                     After FPGA powers up or a low pulse triggers RECONFIG_N, the device enters the
+                     corresponding configuration mode in accordance with the MODE value. The same
+                     MODE value of the different Gowin series of FPGA products may have different
+ MODE                configuration MODE. As the number of pins for each package is different, some
+                     MODE pins are not all bonded out, and the unbonded MODE pins are grounded by
+                     default. Please refer to the corresponding PINOUT manual for further details.
+                     When MODE pins are used as GPIOs, they can be used as an input or output type.
+                     Note!
+                     Note that when the MODE value changes, power-on again or providing one low pulse for
+                     triggering RECONFIG_N is required for it to take effect.
+                     As a configuration pin, RECONFIG_N is an input pin that has an internal weak pull-
+                     up. Active low, it is used to reconfigure the FPGA during programming configuration.
+                     FPGA can't be configured if RECONFIG_N is set to low. Keep high-level during
+                     power-on and configuration.
+                     As a configuration pin, a low level signal with pulse width no less than 25ns is required
+                     for GowinCONFIG to reload bitstream data according to the MODE setting value. You
+                     can control the pin by writing logic to trigger the device to reconfigure as required. In
+                     the case of user logic control, ensure that the pin is kept high during power-on and
+ RECONFIG_N          configuration.
+                     Note!
+                            The RECONFIG_N pin cannot be reused as a GPIO.
+                            If you need to trigger RECONFIG_N through internal FPGA logic, you can
+                             connect       a        GPIO        (with        I/O    standard         of
+                             LVCMOS10/LVCMOS12/LVCMOS15/LVCMOS18/LVCMOS25/LVCMOS33) to
+                             RECONFIG_N via external circuitry. During power-up and configuration, this
+                             GPIO must remain in a high-impedance or pull-up state.
+                     Inout pins. Internal weak pull-up, open-drain output. Active-high. FPGA can be
+                     configured only when the READY signal is pulled up.
+                     It indicates that the FPGA can be configured or not. If the FPGA meets the
+                     configuration condition, the READY signal is high. If the power-on or reset process is
+ READY               incomplete, READY signal is low.
+                     Users can delay the active configuration by pulling down the READY signal externally.
+                     As a GPIO, it can be reused as an input or output type. If READY is used as an input
+                     GPIO, ensure that it’s not pulled down during the power-on and configuration process.
+                     Otherwise, The configuration may not work properly.
+
+
+ UG704-1.0.7E                                                                                            8(70)
+
+
+=== PDF PAGE 21 ===
+3 Configuration Interfaces                                                3.3 Configuration Clock for Master Modes
+
+
+
+                             Figure 3-1 Configuring Pin Reuse
+
+
+
+
+3.3 Configuration Clock for Master Modes
+                          There are two options for the configuration clock in master modes
+                     (master CPU mode, master SERIAL mode, and master SPI mode): On-
+                     chip oscillator and external reference clock. On-chip oscillator is used as
+                     the clock source by default. After configured the emc_clk and
+                     EMC_CLK_DIV by the EDA tool, external clock can also be used as
+                     configuration clock source and contains multiple frequency division
+                     options. The configuration clock structure is as shown in the figure below.
+                             Figure 3-2 Configuration Clock Structure in Master Modes
+
+
+
+                                             EMC_CLK_DIV    EMCCLK
+                      EMCCLK
+                                                                                     config_clk
+
+                                                                OSC_CLK
+
+
+
+                                     OSC     OSC_CLK_DIV                        use_emc_clk
+
+
+
+
+3.4 JTAG Configuration Mode
+                          The JTAG configuration mode of Gowin FPGA products conforms to
+                     the IEEE1532 standard and the IEEE1149.1 boundary scan standard.
+
+ UG704-1.0.7E                                                                                              13(70)
+
+
+=== PDF PAGE 24 ===
+3 Configuration Interfaces                                                            3.4 JTAG Configuration Mode
+
+
+
+                     arrow indicates the logic state of the TMS when the TCK goes high, as
+                     shown in Figure 3-6.
+                             Figure 3-6 TAP State Machine
+
+
+
+
+                                 TAP Reset
+                          After TMS keeps high (logic "1") and at least 5 strobes are input
+                     (higher and then low) at the TCK terminal, the TAP logic is reset, the TAP
+                     state machine in other states is converted into the state of test logic reset,
+                     and the JTAG port and the test logic are reset.
+                     Note!
+                     The CPU and peripherals are not reset in this state.
+                     Note!
+                            The data on the TDO is valid from the falling edge of TCK in the Shift_DR or Shift_IR
+                             state;
+                            The data is not shifted in the Shift_DR or Shift_IR state;
+                            The data is shifted when exiting the Shift_DR or Shift_IR state;
+                            The first to be shifted is the least significant bit (LSB) of the data;
+                            Once reset, all instructions will be reset or disabled.
+
+                                 Instruction Register and Data register
+                         In addition to the test logic reset, the state machine can also control
+                     two basic operations:
+                            Instruction register (IR) scan;
+                            Data Register (DR) scan.
+                           During the IR scanning operation, in Shift_IR state, the data or
+                     instructions are sent to the IR in the LSB way. The lower data bits are sent
+                     first. The instructions will be all sent when the sate machine returns to
+                     Run-Test-Idle, as shown in Figure 3-7
+
+
+ UG704-1.0.7E                                                                                              16(70)
+
+
+=== PDF PAGE 26 ===
+3 Configuration Interfaces                                                3.4 JTAG Configuration Mode
+
+
+
+                     as an example to illustrate the working mode of JTAG, please refer to the
+                     following steps:
+                     1. TAP reset: TMS is set to high level and at least 5 clock cycles are
+                        continuously transmitted;
+                     2. Move the state machine from Test-Logic-Reset to Run-Test-Idle;
+                     3. Move the state machine to Shift-IR. Send the Read ID instruction
+                        (0x11) beginning with LSB. When MSB (the last bit) is being sent,
+                        move state machine to Exit1-IR at the same time, i.e., TMS should be
+                        set high before sending MSB. Table 3-8 lists the change of TDI and
+                        TMS value during sending 0x11 in 8 clock cycles, as shown in Figure
+                        3-10.
+                          Table 3-8 Change of TDI and TMS Value in The Process of Sending
+                     Instructions
+ Value      TCK      TCK 1    TCK 2     TCK 3     TCK 4     TCK 5     TCK 6     TCK 7       TCK 8
+ TDI value
+                     1        0         0         0         1         0         0           0
+ (0x11)
+ TMS value           0        0         0         0         0         0         0           1
+
+
+                     4. Move the state machine, back to Run-Test-Idle after going from Exit1-
+                        IR to Update-IR, and then run the state machine at least 3 clock cycles
+                        in Run-Test-Idle.
+                     5. Move the state machine to Shift-DR, send 32 clock cycles, and set
+                        TMS to high level before the 32nd clock is sent. When the 32 clock
+                        cycles are completed, jump from Shift-DR to Exit1-DR. During this
+                        period, sending 32 clocks can read 32 bits data, that is, 0x0001181B,
+                        as shown in Figure 3-11.
+                     6. Move the state machine back to Run-Test-Idle.
+
+
+
+
+ UG704-1.0.7E                                                                                   18(70)
+
+
+=== PDF PAGE 29 ===
+3 Configuration Interfaces                                                           3.4 JTAG Configuration Mode
+
+
+
+                     Enough time is required for the device to finish erasing after the instructions of
+                     EraseSram(0x05) and Noop(0x02) are sent.
+
+                             SRAM Configuration
+                         The FPGA SRAM is configured using an external Host to enable the
+                     FPGA functions. SRAM is configured via JTAG to avoid the influence of
+                     Configuration Mode Pins.
+                          Generate the FS file using Gowin software. Configure SRAM using
+                     JTAG. The process of SRAM configuration using the external Host is as
+                     follows, as shown in Figure 3-12.
+                     1. Establish a JTAG link and reset TAP;
+                     2. Read the device ID CODE and check if it matches.
+                     3. Erase the SRAM if it has been configured. Please refer to “Erase
+                        SRAM” for the detailed flow.
+                     4. Send the "0x15" instruction of ConfigDisble;
+                     5. Send the "0x12" instruction of Address Initialize;
+                     6. Send the "0x17" instruction of Transfer Configuration Data.
+                     7. Move the state to Shift-DR (Data Register). Send Bitstream Data from
+                        the MSB bit by bit till all the bitstream file content is sent, and then
+                        return to run-test-idle state;
+                     8. Send the "0x3A" instruction of ConfigDisabled;
+                     9. Send the "0x02 " instruction of Noop to end the configuration process.
+
+
+
+
+ UG704-1.0.7E                                                                                             21(70)
+
+
+=== PDF PAGE 36 ===
+3 Configuration Interfaces                                                                                     3.5 SSPI
+
+
+
+                     then the MSPI loading can be triggered by powering on again or triggering
+                     RECONFIG_N.
+                          The connection diagram for programming an external Flash via SSPI
+                     is shown in Figure 3-20.
+                             Figure 3-20 Connection Diagram of Programming External Flash via SSPI
+
+                             Host                                         FPGA                                  Flash
+                                    CLK                      SSPI_CLK                 CCLK               CLK
+
+                                    DIN                      SSPI_SO                        DIN          DOUT
+
+                               DOUT                          SSPI_SI                  MOSI               DIN
+
+                               CS_N                          SSPI_CSN                 MCSN               CS_N
+
+                                CTRL                         SSPI_HOLDN
+                                            (option)
+
+
+       3.5.2 SSPI Configuration Timing
+                          After power-up, when the MODE value selects MSPI configuration
+                     mode, the FPGA issues commands to load via MSPI. If the loading fails, it
+                     switches to SSPI mode.
+                        It is recommended to use a 4.7k pull-up resistor to the corresponding
+                     Bank VCCIO on the SSPI_CLK and SSPI_CS_N pins.
+                             Figure 3-21 SSPI Configuration Process Timing
+
+                                                                                 Tc
+
+
+
+
+                       Power on
+                                                       ...                            ...
+                               mclk
+
+                               mcs
+
+                              ready
+
+
+                      Name                Description                                             Typ.   Unit
+                      Tc                  SSPI mode process time                                  32     ms
+
+
+
+
+ UG704-1.0.7E                                                                                                    28(70)
+
+
+=== PDF PAGE 54 ===
+   4 Configuration Details                                                           4.1 Configuration Notes
+
+
+
+                       Power supply voltage needs to be stable in the process of FPGA
+                  start-up. RECONFIG_N needs to keep high after being powered up until
+                  the voltage is stable for 1ms and also in the process of FPGA initialization.
+                  RECONFIG_N can be vacant or external pulled up. All GPIOs output high
+                  resistance state before FPGA is waken up.
+
+                        Configuration Pin Multiplexing
+                       In different configuration modes, users need to ensure that FPGA
+                  works in the selected configuration mode according to the pin functions. If
+                  user pins are insufficient, these pins can be configured and used as
+                  GPIOs, but pins associated with data transmission need to be kept. MODE
+                  [2:0] is used to select programming configuration MODE. MODE can be
+                  fixed through the pull-up or pull-down resister. It is recommended to use
+                  4.7K pull-up resister and 1K pull-down resistor.
+                  Note!
+                  The RECONFIG_N, READY, and DONE pins are associated with each configuration
+                  mode. Whether they are set as GPIO or not, users should ensure that their initial value or
+                  pin connection state meets programming and configuration conditions before completing
+                  the configuration process.
+
+                        Recommended Pin Connection
+                      For the recommended pin connection, please refer to the related
+                  schematic manuals.
+
+                      Timing for Power-on Again and Triggering RECONFIG_N at Low
+                  Pulse
+                       Figure 4-2 and Figure 4-3 show the timing for power-on again or
+                  triggering RECONFIG_N at low pulse.
+                       Figure 4-2 Power Recycle Timing
+
+
+
+
+UG704-1.0.7E                                                                                         46(70)
+
+
+=== PDF PAGE 55 ===
+   4 Configuration Details                                                        4.2 Configuration Sequence
+
+
+
+                         Figure 4-3 Trigger Timing
+
+
+
+
+                          Table 4-1 shows the timing parameters of Arora Ⅴ FPGA products.
+                          Table 4-1 Timing Parameters of Power on Again and RECONFIG_N
+                     triggering for Arora Ⅴ FPGA Products
+      Name            Description                                             Min.     Tpy.        Max.
+                      Time from application of VCC, VCCX and VCCO to the
+      Tportready                                                              -        10ms        23ms
+                      rising edge of READY
+      Trecfglw        RECONFIG_N low pulse width                              25ns     -           -
+      Trecfgtrdyn     Time from RECONFIG_N falling edge to READY low          -        -           70ns
+      Treadylw        READY low pulse width                                   TBD      -           -
+      Trecfgtdonel    Time from RECONFIG_N falling edge to READY low          -        -           80ns
+
+4.2 Configuration Sequence
+                         GOWINSEMI FPGA products will go through initialization, SRAM
+                     configuration after power-up. Table 4-5 shows the configuration process.
+                     Note！
+                     The RECONFIG_N pin needs to be held high from power-up to full loading of the device.
+
+
+
+
+UG704-1.0.7E                                                                                           47(70)
+
+
+=== PDF PAGE 56 ===
+   4 Configuration Details                                                                                               4.2 Configuration Sequence
+
+
+
+                       Figure 4-4 GOWINSEMI FPGA Configuration Process
+
+
+                                                        Power Up
+
+
+
+
+                                                     POR Release
+                                                   (VCC/VCCIO/VCCX
+                                                 meets POR requirements)
+
+
+
+
+                                                     Initialization
+                                                READY internally driven Low
+                                                DONE internally driven Low
+
+
+
+
+                                                                              READY Pin = Low
+
+                                                                                         User forces
+                                                Strobe READY Pin                        READY pin Low
+                                                READY internally pulled up
+                                                DONE internally driven Low
+
+
+
+
+                                                     READY Pin = High
+
+
+
+
+                                                MODE Pins Sampled
+
+
+
+
+                                                     Write SRAM                   ERROR
+                                                                                               READY Internally
+                                                     Memory and
+                                                                                                   Driven Low
+                                                        Verify
+                                                                                            DONE Internally Driven Low
+
+
+                                                          Succeed
+
+
+
+
+                                                                                DONE Pin = Low
+
+                                                                                            User forces
+                                                 Strobe DONE Pin                           DONE pin Low
+                                                 READY internally pulled up
+                                                 DONE internally pulled up
+
+
+
+
+                                                      Done Pin = High
+
+
+
+
+                                                  FPGA Waken Up
+
+
+
+
+                        User forces RECONFIG_N Low
+                           or reprogram command
+                                   received
+                                                       User Mode
+
+
+
+
+                  Note!
+                      READY, DONE, and RECONFIG_N are bidirectional IOs with open drain output and
+                       internal weak pull-up (the pull-up current is about 100uA).
+                      You can control the timing of the device starting to load by forcing the READY pin
+                       low.
+                      You can control the timing of the device waking up by forcing the DONE pin low.
+
+4.2.1 Power-Up Timing
+                      During power-up, the Power On Reset (POR) circuit starts to work.
+                  The POR circuit ensures that the external I/O pins are in a high-resistance
+
+UG704-1.0.7E                                                                                                                                48(70)
+
+
+=== PDF PAGE 57 ===
+   4 Configuration Details                                               4.2 Configuration Sequence
+
+
+
+                  state and monitors the VCC/VCCX/VCCIOn power rail. When the
+                  VCC/VCCX/VCCIOn meets the minimum reset level (The reset level may
+                  vary for different devices, and different devices monitor different power
+                  rails.), the POR circuit releases the internal reset signal, allowing the
+                  FPGA to begin its initialization process. When the READY and DONE
+                  signals are pulled down, the device moves to the initialized state as shown
+                  in Figure 4-5.
+                       Figure 4-5 POR Timing
+
+
+
+
+                      Table 4-2 lists the power rails monitored by POR circuits of different
+                  devices.
+                       Table 4-2 Power Rails
+                   Series        Device            POR Rails
+                   Arora Ⅴ       GW5A-138          VCC/VCCX/ VCC_REG/VCCIO2/3/4/5/6/7
+                                 GW5AS-138         VCC/VCCX/ VCC_REG/VCCIO2/3/4/5/6/7
+                                 GW5AT-138         VCC/VCCX/ VCC_REG/VCCIO2/3/4/5/6/7
+                                 GW5AST-138        VCC/VCCX/ VCC_REG/VCCIO2/3/4/5/6/7
+                                 GW5AT-75          VCC/VCCX/ VCC_REG/VCCIO2/3/4/5/6/7
+
+4.2.2 Initialization
+                        After the power on reset circuit drives the READY and DONE status
+                  pins low, the GOWINSEMI FPGA immediately enters the SRAM
+                  initialization state. The initialization is to clear the configuration SRAM
+                  inside the FPGA.
+                      The FPGA remains in the initialization state until all of the following
+                  conditions are met:
+                      The TINITL time period has elapsed.
+                      The RECONFIG_N pin is high.
+                      The READY pin is not driven low by an external drive.
+                        The READY pin has two functions during the initialization phase:
+                      Indicates that the FPGA is currently clearing the internal configuration
+                       SRAM.
+                      Acts as an input preventing the FPGA from exiting the initialization
+                       state when it’s driven low by an external driver.
+
+
+UG704-1.0.7E                                                                                49(70)
+
+
+=== PDF PAGE 58 ===
+   4 Configuration Details                                                 4.3 Safety Precautions
+
+
+
+
+4.2.3 Configuration
+                       The FPGA enters the configuration state at the rising edge of the
+                  READY pin. The internal configuration SRAM of FPGA can be configured
+                  via multiple modes according to the MODE pin values. During the time the
+                  FPGA receives its configuration data, the READY pin can indicate its
+                  internal state. When READY is high, configuration proceeds without
+                  issues. If READY is low, an error has occurred and the FPGA does not
+                  operate.
+
+4.2.4 Wake-up
+                       When the configuration is done, the FPGA enters a wake-up state and
+                  the DONE pin is pulled up. In the wake up state, the FPGA performs the
+                  following operations in sequence:
+                  1. Enables the global output signal (GOE), and then the FPGA I/O exits
+                     the high resistance state and and takes on its programmed functions.
+                     Sets the global set/reset signal (GSR) to prevent the input signal from
+                     affecting the Flip-Flop state inside the FPGA.
+                  2. Releases the GSR and the global Write stop signal (GWDISn).
+                     Enables the GWDISn to prevent the FPGA from mistakenly rewriting
+                     the initialization data of SRAM.
+                  3. Enables the external DONE pin. The DONE pin is a bidirectional,
+                     open-drain I/O when enabled. Keep the FPGA wake-up by externally
+                     driving the DONE pin low. When the DONE pin is driven high, the
+                     FPGA wake-up pahse is complete and enters user mode.
+
+4.2.5 User Modes
+                      After entering the user mode, the FPGA will perform the logical
+                  operations you designed immediately. The FPGA will remain in this user
+                  mode until the following three events are triggered:
+                      The RECONFIG_N pin is pulled down externally.
+                      A REFRESH command is received through the configuration port.
+                      Power cycle.
+                       Once one of the above three events occurs, the FPGA will re-enter
+                  the configuration process.
+
+4.3 Safety Precautions
+                       Security is a key factor for users to design FPGA. Combined with
+                  GOWINSEMI devices features, Gowin programmer offers a series of
+                  safety precautions, which provides a perfect security mechanism for users'
+                  bitstream data.
+                        Safety precautions consist of three stages:
+                      Before configuration, Gowin programmer checks the validity of the
+                       bitstream;
+                      During configuration, GOWINSEMI device verifies the accuracy of the
+
+UG704-1.0.7E                                                                              50(70)
+
+
+=== PDF PAGE 76 ===
+   6 Multi Boot and Background Update                                      6.1 Multi Boot Process
+
+
+
+
+          6       Multi Boot and Background Update
+
+                      The multi boot of GOWINSEMI Arora Ⅴ FPGA products support
+                 flexible dynamic configuration and reliable background upgrade. When an
+                 error is detected during configuration, the FPGA can trigger a fallback
+                 feature that ensures a Golden firmware can be loaded into the device. The
+                 multi boot feature can only be used with the Master SPI mode.
+
+6.1 Multi Boot Process
+                      The Flash space can be divided into multiple regions for storing
+                 Multiboot Bitstream1, Multiboot Bitstream2, …, Multiboot BitstreamN, as
+                 well as the Golden Bitstream. There is no limit on the number of
+                 Bitstreams.
+                      After power-up, the device first loads Multiboot1 Bitstream from
+                 address 0x0. Once the loading is completed, the device enters User_Mode
+                 to execute the corresponding logic functions.
+                      In User_Mode, when a Reconfig command is issued or the
+                 RECONFIG_N pin is pulled low, the device loads Multiboot2 Bitstream
+                 from the predefined Multi2_Address in MSPI mode. After loading, the
+                 device re-enters User_Mode and executes the updated logic functions.
+                 Subsequent Reconfig commands or RECONFIG_N assertions will cause
+                 the device to load Multiboot3 Bitstream from Multi3_Address, and so on.
+                 This allows users to flexibly switch the device logic functions.
+                     If an error occurs during the loading of any Multiboot Bitstream, the
+                 device will load the Golden Bitstream from the predefined Golden Address
+                 (0x80_0000) to ensure stable system operation. In addition, users can
+                 specify the starting address of the next Bitstream to be loaded within the
+                 current Bitstream through the EDA tool. For details, refer to Section 3.10
+                 'MSPI 2nd Boot Address Operation' in the SUG502 Gowin Programmer
+                 User Guide.
+                     If the Golden Bitstream fails to load, the device drives the DONE and
+                 READY pins low, and the done_final flag in the internal status register will
+                 be cleared.
+                      The multi- configuration flow is as shown in Figure 6-1.
+
+
+
+
+UG704-1.0.7E                                                                              68(70)
+
+
+=== PDF PAGE 77 ===
+   6 Multi Boot and Background Update                                                                   6.2 Background Upgrade and Hotboot
+
+
+
+                           Figure 6-1 Multi-Configuration Flow
+
+                                                                                       Power up
+
+
+
+                                  Multi1_Address[2]
+                                                                                     Boot MultiBoot
+                                 Multiboot Bitstream1                                                            FAIL
+                                                                                      Bitstream1
+
+
+                                                                                             PASS
+                                  Multi2_Address[4]
+
+
+
+
+                                                         Memory Map of Flash
+    The Bitstream                Multiboot Bitstream2                                  User Mode
+    contains the                                                                                                                        If the Golden image fails to
+    starting address                                                                                                                    load, DONE and READY are
+    of the next                   Multi3_Address   [4]                                                                                  pulled low, and the done_final
+    Bitstream.[4]                                                                                                                       flag is cleared. The failure
+                                 Multiboot Bitstream3                                 Reconfig[1]?                                      reason can be analyzed
+                                                                                                             N                          through other status flags.
+
+                                         ...                                                   Y
+
+                                 MultiN_Address[4]
+                                                                                  Boot next Bitstream
+                                 Multiboot BitstreamN                                                                   FAIL
+                                                                               according to Last Bitstream
+
+
+                                                                                             PASS
+                                 Golden_Address [3]
+                                                                                                                                               FAIL
+                                                                                                                           Boot Golden
+                                  Golden Bitstream
+                                                                                                                            Bitstream
+
+                                                                                                                                  PASS
+
+
+
+                                                                                                                                                          Drive
+                                                                                       User Mode                           User Mode
+                                                                                                                                                      DONE&READY low
+
+
+
+
+                                                                                      Reconfig[1]?               N         Reconfig[1]?
+
+                                                                                               Y                                    Y
+
+
+                       Note!
+                           [1]
+                              Reconfiguration can be triggered by pulling the RECONFIG_N pin low or issuing a
+                           Reconfig command.
+                           [2]
+                              The default address is 0x0.
+                           [3]
+                              The Golden_address defaults to 0x800000. Users can modify it through Gowin
+                           Programmer. For details, refer to SUG502, Gowin Programmer User Guide, Section
+                           3.10 MSPI 2nd Boot Address Operation.
+                           [4]
+                              The loading address of Multi2–MultiN Bitstreams is stored in the preceding
+                           Bitstream. This can be configured in Gowin EDA tool options. For details, refer to
+                           SUG100, Gowin EDA Tool User Guide, Section 4.3.3 Project Configuration Editing.
+
+6.2 Background Upgrade and Hotboot
+                            Arora Ⅴ FPGA products support background upgrade through
+                       JTAG/SSPI/QSSPI or UserLogic. Please refer to 3 Configuration
+                       Interfaces for accessing Flash through the JTAG/SSPI/QSSPI interface.
+                       For accessing Flash through UserLogic, GOWIN official IP needs to be
+                       used. To improve system robustness, it is advised to reserve Golden
+                       Bistream area during remote upgrades.
+                             In addition, Arora Ⅴ FPGA products also support Hotboot mode, that
+                       is, after background upgrade, if the Reboot command is received or
+                       RECONFIG_N is triggered by the low level pulse from outside, all output
+
+UG704-1.0.7E                                                                                                                                            69(70)
+
+
+=== PDF PAGE 78 ===
+   6 Multi Boot and Background Update                           6.2 Background Upgrade and Hotboot
+
+
+
+                 IO of the device will be locked in the current state until the wakeup is
+                 successful.
+
+
+
+
+UG704-1.0.7E                                                                                70(70)

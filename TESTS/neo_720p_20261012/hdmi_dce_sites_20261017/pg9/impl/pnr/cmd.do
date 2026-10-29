@@ -1,0 +1,22 @@
+-d /home/michael/console/TESTS/neo_720p_20261012/hdmi_dce_sites_20261017/pg9/impl/gwsynthesis/probe.vg
+-p GW5AST-138C-PBGA484A-1
+-pn GW5AST-LV138PG484AC1/I0
+-cst /home/michael/console/TESTS/neo_720p_20261012/hdmi_dce_sites_20261017/pg9/probe.cst
+-cfg /home/michael/console/TESTS/neo_720p_20261012/hdmi_dce_sites_20261017/pg9/impl/pnr/device.cfg
+-sdc /home/michael/console/TESTS/neo_720p_20261012/hdmi_dce_sites_20261017/pg9/probe.sdc
+-bit
+-tr
+-ph
+-tt
+-timing
+-ireg_not_in_iob
+-oreg_not_in_iob
+-ioreg_not_in_iob
+-cst_error
+-convert_sdp32_36_to_sdp16_18
+-place_option 3
+-route_option 2
+-clock_route_order 0
+-correct_hold 1
+-route_maxfan 23
+-global_freq 100.000

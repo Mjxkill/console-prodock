@@ -1,0 +1,47 @@
+## Verdict
+
+**Aucun défaut logique concret identifié** dans le delta `candidate_02` sur le périmètre fourni. Le couplage ajoute une condition de requalification, sans créer de cycle de démarrage combinatoire. En revanche, **la preuve physique CDC et la simulation intégrée mappée manquent** : le packet ne suffit pas à autoriser la route.
+
+## Faits vérifiés
+
+- **Pas de cycle de démarrage.**  
+  `pll_ready` reçoit `pll_ae350_lock && ae350_por_n` (`exact_chain.sv:26`, `console_neo.v:162`).  
+  `ae350_por_n` vient uniquement de la première chaîne, elle-même dépendante de `pll_ae350_lock` et `bus80_clk` (`exact_chain.sv:16-20`, `console_neo.v:148-152`) : elle **ne dépend pas** de `trial_request`, `rst_key_n` ni `por_n`.  
+  `trial_request` dépend de `available`, `ready_meta[1]`, `holding` et `delay_done` (`neo_reset_trial.v:73-78,102-114`).  
+  `rst_key_n = ae350_por_n && trial_request` (`exact_chain.sv:30`, `console_neo.v:169`) attaque `init_sync` (`exact_soc_reset.sv:6-8`, `ae350_soc.v:152-154`), qui produit `por_n` (`exact_soc_reset.sv:9-10`, `ae350_soc.v:155`).  
+  `por_n` ne revient que vers `reset_meta` (`neo_reset_trial.v:79`) et `cpu_reset_n` (`exact_chain.sv:15,26`, `console_neo.v:175`). `reset_meta` n’influence que `holding` (`neo_reset_trial.v:89-96`). La boucle est donc **séquentielle**, pas combinatoire. Au démarrage `holding=0` (`neo_reset_trial.v:16`), `rst_key_n` reste bas jusqu’à `delay_done`, puis libère. Pas de blocage de démarrage.
+
+- **Qualification préservée.**  
+  `release_request` exige toujours `available && ready_meta[1] && !holding && delay_done` (`neo_reset_trial.v:114`).  
+  `ready_meta` est remis à zéro par `available` (`neo_reset_trial.v:75-78`), et `delay_done` est remis à zéro si `!ready_meta[1] || holding || command_valid` (`neo_reset_trial.v:103-105`).  
+  Le couplage ajoute `ae350_por_n` à `available` : il **ne peut pas raccourcir** la fenêtre, il ajoute seulement une condition de requalification. Le terme LOCK reste présent (`neo_reset_trial.v:26,73`).
+
+- **Injection de faute correctement interprétée.**  
+  `capture_asymmetry_tb.sv:30-32` force `ae350_rst_sync=2'b11` alors que `locked=1` ; le fichier précise bien que ce n’est pas un modèle physique (`capture_asymmetry_tb.sv:2-4`, `result.json:17`).  
+  Le contrôle négatif est discriminant : `candidate_01` échoue à `25 ns` (`candidate_01/simulation.log:1`), `candidate_02` passe à `50 000 050 ns` (`candidate_02/simulation.log:1-2`). Cela valide la **logique de requalification**, pas une capture physique de pulse PLL.
+
+- **Raccord `rst_key_n` conforme au SoC complet.**  
+  Le top applique `ae350_por_n && trial_request` (`console_neo.v:169`). Dans `ae350_soc.v`, `rst_key_n` n’est consommé que par : le port (`:38`), la réduction Verilator inutilisée (`:114`), et `init_sync` (`:152-155`).  
+  Le reset DDR reste indépendant (`ae350_soc.v:183-184,192,197`). `exact_chain.sv:30` et `exact_soc_reset.sv:4-10` reproduisent bien ce raccord.
+
+## Limites physiques / preuves manquantes
+
+- **CDC de désassertion de `rst_key_n`.**  
+  `rst_key_n` est un reset asynchrone pour `init_sync` (`ae350_soc.v:152-154`), mais sa désassertion est pilotée depuis `trial_request`, domaine `clk_ref`, donc asynchrone vis-à-vis de `ahb_clk`. Le SDC n’exempte que `ae350_rst_sync_*/PRESET` (`neo.sdc:37`) ; aucun rapport recovery/removal pour `init_sync` n’est fourni, les lignes `neo.sdc:71-72` ne font que demander les rapports. **Ce n’est pas un défaut RTL prouvé**, mais la preuve physique manque.
+
+- **Traversée `bus80_clk` → `clk50` du couplage.**  
+  La nouvelle combinaison `ae350_por_n && ...` est bornée par `set_max_delay 8` (`neo.sdc:30-31`). `ready_meta` joue le rôle de synchroniseur (`neo_reset_trial.v:74-78`). L’absence de `false_path` n’est pas une absence de synchroniseur, mais aucun résultat physique de ce chemin n’est fourni.
+
+- **Preuves d’intégration incomplètes.**  
+  L’équivalence mappée/RTL complète, le log `invariants_tb` de `candidate_02` et le rapport de timing recovery/removal de `init_sync` ne sont pas dans le packet. Le wrapper Verilator de `ae350_soc.v:112-128` ne modélise pas ce reset.  
+  Incohérence de traçabilité : `root_structure_coupled.json:10-19` annonce `changed_modules` avec `ae350_soc` et `source_changes` limité à `console_neo.v`/`neo_reset_trial.v`, alors que `candidate.diff:3-22` ne montre que `console_neo.v` et `exact_chain.sv`. À corriger pour la preuve de périmètre.
+
+- Limites connues non levées : capture de pulse non documentée, minimum reset PLL 10 ns ≠ minimum CLEAR fabric, timeout UART compté en cycles `clk_ref`. Le packet ne les résout pas.
+
+## Test/patch minimal
+
+1. Ajouter au packet : log `invariants_tb` `candidate_02`, résultat d’équivalence mappée/RTL, et **rapport recovery/removal** ciblé sur `init_sync` (`u_soc/init_sync_*/PRESET`).
+2. Test discriminant : en simulation mappée, balayer la phase de désassertion de `trial_request` par rapport à `bus80_clk` (pas de 0,5 ns sur une période) et vérifier que `por_n` ne produit ni X ni impulsion courte.
+3. Corriger `source_changes` dans `root_structure_coupled.json` ou préciser son périmètre. Si et seulement si le rapport recovery/removal montre une violation, la correction minimale est de synchroniser la désassertion de `rst_key_n` dans le domaine `ahb_clk` — pas d’ajout de `false_path` pour masquer.
+
+**Décision de route : à conserver côté parent, suspendue au résultat mappé et aux hashes de source.**

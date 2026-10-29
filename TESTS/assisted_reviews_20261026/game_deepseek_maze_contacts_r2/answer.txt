@@ -1,0 +1,100 @@
+## Verdict
+
+Défaut atteignable avec le moteur réel, sans toucher aux règles ni à la sauvegarde :
+
+> Un premier contact **power** laisse dans `contact_warp` un segment de respawn de **durée nulle**. Si un contact ultérieur sur le **même fantôme** est rejoué avec une nouvelle position, `contact_arrival` rencontre ce segment nul et retourne `0` (`src/maze_motion.c:91`). `l3_maze_motion_observe_events` bascule alors en fallback (`contact_fallbacks++`), perd le rejeu ordonné des contacts précédents et resette la présentation.
+
+Je n’ai exécuté aucun test ici ; le défaut est démontré par lecture déterministe du code fourni.
+
+## Faits et mécanisme
+
+Séquence moteur réelle, sans trace fabriquée :
+
+- `minigames/l3_minigames.c:393-407` : `POWER` est décrémenté avant le déplacement joueur, le joueur avance tous les 6 ticks, les fantômes bougent au tick 14.
+- `minigames/l3_minigames.c:340-359` : contact power → respawn du fantôme ; contact sans power et sans protection → mort/reset.
+- `src/maze_motion.c:87` : sortie anticipée si le dernier segment finit avant `due`.
+- `src/maze_motion.c:91` : `if(s->end==s->start)return 0;` traite tout segment nul comme discontinuité, y compris un respawn power antérieur placé par `contact_warp` (`src/maze_motion.c:118-120`).
+
+Témoin concret :
+
+1. État initial valide : joueur `(4,5)`, `DIR=NEXTDIR=EST`, `TIMER=5`, fantôme 0 en `(5,5)`, `POWER=14`, `AUXCOUNT=0`, 3 vies.
+2. Tick 1 : joueur → `(5,5)`, collecte, contact power fantôme 0, respawn en `(6,5)`.
+3. Tick 7 : joueur → `(6,5)`, collecte, second contact power sur le même fantôme, respawn `(6,5)`.
+4. Tick 13 : joueur → `(7,5)`, collecte.
+5. Tick 14 : `POWER` vaut 0 ; le fantôme 0 en `(6,5)` poursuit le joueur en `(7,5)` et le tue (`AUXCOUNT=0`).
+
+Trace attendue : 6 événements, 3 collectes, 3 contacts, `maze_warp_mask=7`.
+
+Dans le rejeu présentation à `t=0.250` :
+
+- contact 1 : `due≈0.350`, respawn du fantôme 0 à `(6,5)` → segment nul `[0.350,0.350]` ;
+- contact 2 : `due≈0.450`, même respawn ;
+- contact 3/mort : `due≈0.550`, le déplacement observé du fantôme vers `(7,5)` finit vers `0.350+14/60≈0.583 > 0.550` ;
+- `contact_arrival` n’emprunte donc pas la sortie `:87`, entre dans la boucle, rencontre le segment nul `[0.350,0.350]` et retourne `0` à `:91`.
+
+Conséquence : fallback (`src/maze_motion.c:156-157`), `contact_fallbacks` incrémenté, et `observe_trace` est appelé avec `warp=7` ; comme `a.respawn_ticks` a augmenté après la mort (`src/maze_motion.c:22-23`), la présentation est même resettée au lieu de conserver la séquence collectes/contacts/respawns.
+
+## Test C minimal proposé
+
+Fichier suggéré : `games/luma3d/candidates/maze_events_r1/tests/test_contact_respawn_followup.c`.
+
+```c
+#include "l3_maze_events.h"
+#include <assert.h>
+#include <string.h>
+
+int main(void)
+{
+    L3MiniState s;
+    assert(l3_mini_init(&s, L3_MINI_MAZE, 42));
+
+    /* Joueur (4,5), premier pas au tick 1, trajectoire EST (5,5)->(6,5)->(7,5). */
+    s.data[0] = 4;  s.data[1] = 5;   /* CX,CY */
+    s.data[4] = 5;                   /* TIMER: pas aux ticks 1,7,13 */
+    s.data[6] = 3;  s.data[7] = 14;  /* vies; power actif ticks 1/7, nul tick 14 */
+    s.data[8] = s.data[9] = 1;       /* DIR,NEXTDIR = EST */
+    s.data[10] = 5; s.data[11] = 5;  /* fantome 0 initial (5,5) */
+    s.data[14] = 0; s.data[15] = 0;  /* ETIMER; AUXCOUNT=0 => mortel */
+    assert(l3_mini_validate(&s));
+
+    L3MiniView v;
+    L3MiniActors a;
+    assert(l3_mini_view(&s, &v));
+    assert(l3_mini_actors(&s, &a));
+
+    L3MazeMotion m = {0};
+    assert(l3_maze_motion_observe(&m, &v, &a, 0.0, 1));
+
+    L3MiniTrace trace;
+    L3MiniState saved;
+    l3_mini_step_trace(&s, 0, 0, 250, &trace);
+    saved = s;
+
+    assert(trace.event_count == 6);
+    assert(trace.maze_warp_mask == 7u);
+    unsigned contacts = 0;
+    for (unsigned i = 0; i < trace.event_count; ++i)
+        contacts += trace.events[i].kind != L3_MAZE_COLLECT;
+    assert(contacts == 3);
+
+    assert(l3_mini_view(&s, &v));
+    assert(l3_mini_actors(&s, &a));
+    assert(l3_maze_motion_observe_events(&m, &v, &a, 0.250, 1, &trace));
+
+    /* Doit échouer sur le listing fourni: le fallback est atteint. */
+    assert(m.contact_fallbacks == 0);
+    assert(m.contacts == 3);
+
+    /* La présentation ne modifie pas l'état moteur. */
+    assert(!memcmp(&s, &saved, sizeof s));
+    return 0;
+}
+```
+
+Comportement attendu sur le code fourni : arrêt sur `m.contact_fallbacks == 0`, car le rejeu retombe dans le fallback. Le témoin reste purement présentation ; il ne modifie ni règle, ni sauvegarde, ni matériel.
+
+## Hypothèses et preuves manquantes
+
+- **Hypothèse de correction attendue** : préserver le respawn antérieur et ne retimer que la partie postérieure du trajet du fantôme, au lieu de considérer tout segment nul comme une discontinuité fatale.
+- **Preuve manquante** : exécution locale du test ci-dessus ; le `result.json` fourni ne couvre que `test_contacts.c`, pas `test_multicontact.c` ni ce nouveau témoin.
+- **Preuve manquante** : aucun contre-exemple fourni pour une saturation réelle de `L3_MAZE_SEGMENTS` ; le défaut ci-dessus est un fallback de reconstruction, pas un débordement de file.

@@ -12,6 +12,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--out', type=Path, required=True)
     p.add_argument('--reference-rtl', type=Path, help='compare every output cycle with frozen RTL')
+    p.add_argument('--reference-delay', type=int, choices=(0, 1), default=0,
+                   help='expected extra setup cycle relative to the frozen RTL')
     args = p.parse_args()
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
@@ -62,7 +64,7 @@ initial begin
         if(!done || valid!==vectors[i][245])$fatal(1,"Validity/timeout case=%0d",i);
         if(valid && {tu,tv}!==vectors[i][97:0])$fatal(1,"Quotient case=%0d U=%0d V=%0d Q=%0d got=%0d,%0d",i,uq,vq,q,tu,tv);
         if(valid && !dut.fast && dut.fast12)begin
-            if(cycles!=9)$fatal(1,"12-bit path latency %0d",cycles);
+            if(cycles!=10)$fatal(1,"12-bit path latency %0d",cycles);
             fast12_count++;
         end
         if(cycles>max_cycles)max_cycles=cycles;
@@ -89,6 +91,14 @@ perspective_reference ref_dut(.clk(clk),.rst(rst),.start(start),.uq(uq),.vq(vq),
 always @(negedge clk)if(!rst && {done,valid,tu,tv}!=={ref_done,ref_valid,ref_tu,ref_tv})
  $fatal(1,"Perspective cycle equivalence mismatch");
 '''
+        if args.reference_delay:
+            compare = compare.replace(
+                'always @(negedge clk)if(!rst && {done,valid,tu,tv}!=={ref_done,ref_valid,ref_tu,ref_tv})',
+                '''reg [99:0] delayed_reference=0;
+always @(posedge clk)
+ if(rst)delayed_reference<=0;
+ else delayed_reference<={ref_done,ref_valid,ref_tu,ref_tv};
+always @(negedge clk)if(!rst && {done,valid,tu,tv}!==delayed_reference)''')
         bench = out/'tb.sv';bench.write_text(bench.read_text().replace('gpu_perspective dut(.*);','gpu_perspective dut(.*);\n'+compare))
         sources.append(str(out/'reference.v'))
     with (out/'build.log').open('w') as log:

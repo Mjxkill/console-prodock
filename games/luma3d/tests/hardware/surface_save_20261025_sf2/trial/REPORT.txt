@@ -1,0 +1,53 @@
+Surface et sauvegarde — essai Pro Dock sf2, 25 octobre 2026
+
+PASS fonctionnel. Nouvelle version laissée visible en visite automatique :
+/tmp/luma3d-sf2, PID 1193, startticks 7812193.
+Ancre /tmp/luma3d-live.pid ; sauvegarde de la visite /tmp/sf2-live.save.
+Art3 /tmp/luma3d-vl2 conservé pour retour. Aucun NEBULA relancé.
+CDC et verrou diagnostic libérés après la sortie du contrôleur.
+
+ELF : ad74b613145bf410c55ac3501962ecea9089f448d84a40e3056bff8671f09d8d
+Manifeste : c473df7a818f5d0acd99c34df1066e53a6630e65cdbd3bf6e270a1f3d067e840
+FPGA G22r0 conservé ; noyau 6.12.112-prodock-luma3d-g3d1-r1 inchangé.
+Aucun accès FPGA, noyau, SD ou flash en écriture. Ressources et sauvegardes /tmp.
+
+Les cinq scènes ont chacune comparé 96 000 pixels exacts à leur propre oracle,
+puis les deux banques HUD. Toutes passent, ainsi que les commandes et compteurs
+attendus. Les indices HUD sont contrôlés, pas une photographie de composition
+LCD. Fenêtres de 30 images après 3 de chauffe, sans commande UART entre lancement
+et EXIT. Le sol et deux ancrages ont changé : ce n'est pas une comparaison à
+pixels identiques entre art3 et candidat. La mention générique « same content /
+camera » du parseur de logs n'étend pas cette preuve entre les deux versions.
+
+Version | Pose | FPS | Commandes/image | DRAW/image | Faces soumises/image
+--- | --- | ---: | ---: | ---: | ---:
+art3 | 0 | 7.576 | 419 | 93 | 2581
+new | 0 | 7.752 | 419 | 93 | 2581
+new | 1450 | 11.485 | 167 | 36 | 1759
+new | 3800 | 7.612 | 375 | 80 | 2836
+art3 | 0 | 7.610 | 419 | 93 | 2581
+
+Le temps de l'arrivée est inférieur de 2,27 % au premier témoin ; dérive du
+second témoin +0,46 % en débit. Les gardes prédéfinies (ralentissement ≤10 %,
+dérive absolue ≤5 %) passent. Ce petit essai ne démontre aucun gain significatif,
+aucun percentile de stabilité et ne remplace pas les essais d'optimisation.
+
+Visite et sauvegarde : 1 297 images en 165,65 s de processus, moyenne 7,83 FPS.
+Ce total inclut chauffe et contrôles autour d'une fenêtre silencieuse de 120 s ;
+ce n'est pas une mesure isolée du débit de cette fenêtre. La simulation a avancé
+de 149,64 s et terminé la mission (4 lettres, relais 3, lieu découvert, phase 4).
+Aucune erreur GPU, géométrie, underflow, couche/sprite invalide ou fault.
+Deux slivers ont été écartés pendant le parcours ; ils ne sont pas comptés comme
+erreurs par le GPU. Les cinq poses fixes n'en ont aucun.
+
+Sauvegarde /tmp/sf2-progress.save : 136 octets, V1 et CRC/IDs contrôlés. Après
+reprise manuelle une image et sortie propre, les octets restent identiques :
+ab8124eef9db5dae6bca223cb8b7bbb609c0a5248f14d91959a970173289d0a9.
+Les fichiers reconstruits depuis la relecture UART sont archivés à côté.
+Cela valide écriture/reprise RAM sur carte, pas la durabilité après redémarrage.
+Un emplacement persistant reste à décider avant une vraie longue partie.
+
+Le pont et les 1 960 migrations de positions hors chemin sont testés localement.
+L'automate de ce scénario matériel ne traverse pas le pont : ne pas lui attribuer
+une traversée manuelle ou une exploration complète sur carte. Aucun nouveau lieu
+ou mission n'est inclus ; l'atelier est un chantier local distinct. Neo en attente.

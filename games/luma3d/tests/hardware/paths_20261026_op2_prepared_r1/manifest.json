@@ -1,0 +1,1785 @@
+{
+  "candidate": true,
+  "hardware_tested": false,
+  "tag": "op2",
+  "program": "luma3d-op2",
+  "probe": "op2-probe",
+  "helper": "op2-helper",
+  "game": {
+    "bytes": 5535460,
+    "sha256": "8f7500184ccf9977502243e5ddfbfb3b27f4b5b224dde46c606d8bdcf8f18981",
+    "crc32": "63f6840a"
+  },
+  "baseline": {
+    "sha256": "62a9178dab260dc5e60be8b9bcea90b35f370357691fb157e5d7fd45a90616ee",
+    "bytes": 5450304,
+    "crc32": "0c52ffaa"
+  },
+  "probe_binary": {
+    "bytes": 5544580,
+    "sha256": "8943a9343aefed60c3db0b381b7f36d5956b03f780a6c152ecc0a462a5296700",
+    "crc32": "4636082f"
+  },
+  "validation": {
+    "passed": true,
+    "hardware": false,
+    "binaries": {
+      "host": {
+        "bytes": 5377456,
+        "sha256": "ad4aecfc5da341b5710ca8d1bdfd8aadb946baa93b9df6cc5374d1df5a07724f",
+        "crc32": "6c23e10c"
+      },
+      "riscv": {
+        "bytes": 5535460,
+        "sha256": "8f7500184ccf9977502243e5ddfbfb3b27f4b5b224dde46c606d8bdcf8f18981",
+        "crc32": "63f6840a"
+      }
+    },
+    "manifest": {
+      "bytes": 10142,
+      "sha256": "0037b31f1f632ecbdb0984e1ec34f221a6e9842566d2238fba24587319b4bf98"
+    },
+    "tests": {
+      "logic": {
+        "bytes": 5037,
+        "sha256": "f0870c8c4e92634dd13b9f07469929a519132736ef385c47c61df8bfa32dc3e5"
+      },
+      "contract_r2": {
+        "bytes": 6148,
+        "sha256": "4edc8821c08e5717cc2b61250fd4047b6ced7e6d6db261268f9db1fec2d5f356"
+      },
+      "resume": {
+        "bytes": 4813,
+        "sha256": "7828df8b53f7c04d55412e9e323bf6151df29d81623f336bc84bf50b1c35ce1b"
+      },
+      "activities_captures": {
+        "bytes": 24980,
+        "sha256": "79924a6d59ade74eeb30df467d041f95191cd50a75121908de2ceb360a768121"
+      }
+    },
+    "native_oracles": {
+      "bytes": 2677,
+      "sha256": "e0573518fafccfb152e9374190e07835b850341c85ca9fcae9cdcd39007bd709"
+    },
+    "probe": {
+      "bytes": 23495,
+      "sha256": "35a255d646d08b9d62a59fff6c217b377f36a5520dbe675bb754ec136a4a1dbd"
+    },
+    "source_changes": [
+      "games/luma3d/src/game.c"
+    ],
+    "limits": [
+      "New hardware trial pending; op1 FAIL retained and am1 restored.",
+      "Initial contract invocation omitted the documented --renderer-only and failed in its obsolete heightfield query loader (undefined l3_surface_ground). All renderer/CLI cases had passed. The complete documented r4 renderer/CLI scope is repeated unchanged in contract_r2; the original failed result is retained. Terrain, collision and world bytes are unchanged from r4.",
+      "GPU mock paths and QEMU are local evidence, not AE350 GPU or LCD qualification.",
+      "Three-frame fixtures are fixed poses. Replay samples accelerated legal inputs and reloads at activity entries; some dt=0 commands have no intermediate presented frame.",
+      "Five short optional activities; Simon, shooter and platform engines remain separate, not integrated. No multi-hour campaign claim."
+    ]
+  },
+  "probe_validation": {
+    "passed": true,
+    "hardware": false,
+    "build_manifest_sha256": "0037b31f1f632ecbdb0984e1ec34f221a6e9842566d2238fba24587319b4bf98",
+    "commands": [
+      [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-misleading-indentation",
+        "-ffp-contract=off",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-I/home/michael/console/games/luma3d/build/paths_probe_20261026_r5",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/include",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/world",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/minigames",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/fw_console",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/linux/drivers",
+        "/home/michael/console/games/luma3d/build/paths_probe_20261026_r5/route_probe.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/activities.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/amber.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/game.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/hud.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/maze_render.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/mini_ui.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/progress.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/render.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/story.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/surface.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/workshop.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/world.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/world/data.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/minigames/l3_minigames.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/fw_console/gpu_v1.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/fw_console/gpu_geometry.c",
+        "-Wl,--gc-sections",
+        "-lm",
+        "-o",
+        "/home/michael/console/games/luma3d/build/paths_probe_20261026_r5/probe-host"
+      ],
+      [
+        "cc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-misleading-indentation",
+        "-ffp-contract=off",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-I/home/michael/console/games/luma3d/build/paths_probe_20261026_r5",
+        "/home/michael/console/games/luma3d/build/paths_probe_20261026_r5/runtime_inspect.c",
+        "-o",
+        "/home/michael/console/games/luma3d/build/paths_probe_20261026_r5/helper-host"
+      ],
+      [
+        "/home/michael/console/linux/build/userbin/riscv32-prodock-linux-gcc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-misleading-indentation",
+        "-ffp-contract=off",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-static",
+        "-I/home/michael/console/games/luma3d/build/paths_probe_20261026_r5",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/include",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/world",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/minigames",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/fw_console",
+        "-I/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/linux/drivers",
+        "/home/michael/console/games/luma3d/build/paths_probe_20261026_r5/route_probe.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/activities.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/amber.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/game.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/hud.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/maze_render.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/mini_ui.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/progress.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/render.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/story.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/surface.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/workshop.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/world.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/world/data.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/minigames/l3_minigames.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/fw_console/gpu_v1.c",
+        "/home/michael/console/games/luma3d/build/amber_paths_20261026_r5/source/fw_console/gpu_geometry.c",
+        "-Wl,--gc-sections",
+        "-lm",
+        "-o",
+        "/home/michael/console/games/luma3d/build/paths_probe_20261026_r5/probe-riscv"
+      ],
+      [
+        "/home/michael/console/linux/build/userbin/riscv32-prodock-linux-gcc",
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-misleading-indentation",
+        "-ffp-contract=off",
+        "-ffunction-sections",
+        "-fdata-sections",
+        "-static",
+        "-I/home/michael/console/games/luma3d/build/paths_probe_20261026_r5",
+        "/home/michael/console/games/luma3d/build/paths_probe_20261026_r5/runtime_inspect.c",
+        "-o",
+        "/home/michael/console/games/luma3d/build/paths_probe_20261026_r5/helper-riscv"
+      ]
+    ],
+    "source_files": {
+      "games/luma3d/build/paths_probe_20261026_r5/route_probe.c": "c2dc02e9ef4bd9461f4360eb3b60728df87dcfb52317076193277fa27efbd1b3",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/activities.c": "5aa49d96e4806f020a0aedd195285b90f339d0e5ae353b62b1d200c6867dc912",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/amber.c": "a52f548103eaba4d98b9818a9813cff356182446d31a3b9cb5af82c0219357f9",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/game.c": "a93a172476e414171442b82dd90ba386057e517caee09664dd903481c811e9b6",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/hud.c": "d25c01a67fb4c1691960573e71bfe80517e4d9fc35d8b8466d00c5ae1de03ea8",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/maze_render.c": "2a9e4b309528bd8131814e68125f3fd5e39395f263a8668d10ea49205f92edfb",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/mini_ui.c": "059ed943a6d94d28069214f47158f8e42257ee00b5a55cd4f45132a4938dbb0a",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/progress.c": "ab8d5427395e200ea57358e033ddec107685251fbe909757126843c487029658",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/render.c": "69ee17c413752db6245f983fcb99b7cea460008f47461c45bc292e632d26bdb9",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/story.c": "d243375d49c4953fe275f037300bb15ce229ac75550363191c9ea19ffc14e53a",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/surface.c": "d3d11abf51ac4a0a651536fafc760e95c9eebd84d3057b8fcf7e5a3b2ed18c10",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/workshop.c": "929b9e87ac69c7142e1c989738b84c18500128c36c4f1960c9205e46cd047d4d",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/src/world.c": "408dba2fc40d2c5d742e4319c121f56ad74bf010d37491421becc262a089f8ad",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/world/data.c": "5e15a68e34555eaa6b0cf54ab69ce0dc1dc69c47ad7c3285a0c3a8f58dfcd00c",
+      "games/luma3d/build/amber_paths_20261026_r5/source/games/luma3d/minigames/l3_minigames.c": "1b8538b6b037499a998facc16158d5fe3efd444bfdb03ae2eca5c2d27750682f",
+      "games/luma3d/build/amber_paths_20261026_r5/source/fw_console/gpu_v1.c": "31a96d7a206fc2fb7600d17eb0bc0fc4745dd80ff7d3937f7557ea877ef06f26",
+      "games/luma3d/build/amber_paths_20261026_r5/source/fw_console/gpu_geometry.c": "5a136bb32a0ab93ab3df8e5c2542e7caa11d39b3037ceaa20694f2d058501f16"
+    },
+    "route_original_sha256": "eccf6585bc8c4f6b830acb44b7237db70a4de72af69e8b03334cdd82945e896b",
+    "scope": "Fixed three-frame fixtures and legal-input accelerated replay; no real-time FPS claim",
+    "files": {
+      "activity_0_host.log": {
+        "bytes": 451,
+        "sha256": "4253d06cd35c49e0f6c0e672d24ab007887df570478a39ffb6de7f4b5097acdb"
+      },
+      "activity_0_oracle.log": {
+        "bytes": 823,
+        "sha256": "ca4bb30f691650b438f8a2fca13ab67cb743f1e337e7e9db9d6aeee6b960fce9"
+      },
+      "activity_1_host.log": {
+        "bytes": 451,
+        "sha256": "065ef6048fca90aa19eefefc52a5834fa8f9241a4c5a1820e766978cb7534eae"
+      },
+      "activity_1_oracle.log": {
+        "bytes": 824,
+        "sha256": "507a83323fe92b5654bb7a30a5c992e5689760c1a4c85b95831d705b72b54816"
+      },
+      "activity_2_host.log": {
+        "bytes": 450,
+        "sha256": "86c0e8922e77bde513cd666ed6b53916a5fa4fd27f4d5cff8ff8e5b8a38c85e9"
+      },
+      "activity_2_oracle.log": {
+        "bytes": 824,
+        "sha256": "608b47fed185b94a19ad9884d56e3a96bcd29a1d3277d98e98416003ceaae030"
+      },
+      "activity_3_host.log": {
+        "bytes": 450,
+        "sha256": "f37713558f8893cec311fc7cf38600ba76048f3e69d00856ab7eff96c5c3ee9d"
+      },
+      "activity_3_oracle.log": {
+        "bytes": 823,
+        "sha256": "946e5007353f1d92bab3b2d39315d9896783284acd61bdaf6cd06ee18761d1e6"
+      },
+      "activity_4_host.log": {
+        "bytes": 457,
+        "sha256": "368ca3779805a24966a8fcceb6dd3f591e7d6c7e1f83a6c8b235eb790f1a86e6"
+      },
+      "activity_4_oracle.log": {
+        "bytes": 842,
+        "sha256": "fd7579357430ddd2f7b4765a59ad8037a97651db16e9ad7c7f370599254c67b0"
+      },
+      "build_probe.py": {
+        "bytes": 4629,
+        "sha256": "fde7a28dc0ca3159155517ab2b047d723499f7bdddff19add78feb7a3f6ef383"
+      },
+      "compile_helper_host.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "compile_helper_riscv.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "compile_probe_host.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "compile_probe_riscv.log": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fixtures/activity_0.commands": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fixtures/activity_0.json": {
+        "bytes": 281,
+        "sha256": "d729250b84359b09a61d4add6898fda443e9eda700b691e8e72ec6806f455461"
+      },
+      "fixtures/activity_0.memory": {
+        "bytes": 29360128,
+        "sha256": "1514935bf063bd04821f65e1bdaac996efecc5cb03870da699965da27b442589"
+      },
+      "fixtures/activity_0.overlay.json": {
+        "bytes": 750,
+        "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd"
+      },
+      "fixtures/activity_0.png": {
+        "bytes": 6034,
+        "sha256": "bfae1bf94ce46701ac18f17b3c3a589289e4267096901a1c52ec7a5abb05763b"
+      },
+      "fixtures/activity_0.reference.json": {
+        "bytes": 1034,
+        "sha256": "d5430a07f347f57b5bb817b119a5d92ea877fb780203d26fb8599f29d1314561"
+      },
+      "fixtures/activity_0.rgb565": {
+        "bytes": 192000,
+        "sha256": "ea0787f65f73b0013d03b359490e3125211b28ad5c1502ffb1544c0ded4192f5"
+      },
+      "fixtures/activity_0.save": {
+        "bytes": 5292,
+        "sha256": "710cd23500c9b5d5a62aeef2644a953ae6f37cb54284269aa745782d7d1f19e7"
+      },
+      "fixtures/activity_0.world.png": {
+        "bytes": 1196,
+        "sha256": "94ed90ab5cbd201db34230580160c1aa76b41d278162395c11c85959e72f3ed0"
+      },
+      "fixtures/activity_1.commands": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fixtures/activity_1.json": {
+        "bytes": 281,
+        "sha256": "d729250b84359b09a61d4add6898fda443e9eda700b691e8e72ec6806f455461"
+      },
+      "fixtures/activity_1.memory": {
+        "bytes": 29360128,
+        "sha256": "83df2ba3c9c27c7796c445de64391781c77ee7a5dd7b6d226d1db04b37141bc3"
+      },
+      "fixtures/activity_1.overlay.json": {
+        "bytes": 750,
+        "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd"
+      },
+      "fixtures/activity_1.png": {
+        "bytes": 5746,
+        "sha256": "b473b87807d8ccd2f6a380cc3e8d1235f789a3c0e2619f63e1476ecf39af312d"
+      },
+      "fixtures/activity_1.reference.json": {
+        "bytes": 1035,
+        "sha256": "1b8e6da1b3fe483f1865205cdc3254dd128a766cffbf8921c9836f07b1c56d18"
+      },
+      "fixtures/activity_1.rgb565": {
+        "bytes": 192000,
+        "sha256": "ea0787f65f73b0013d03b359490e3125211b28ad5c1502ffb1544c0ded4192f5"
+      },
+      "fixtures/activity_1.save": {
+        "bytes": 5292,
+        "sha256": "b0dc963ab8c4ea1bcf5d01ff2961c3e5277913e2d6615c30d769f210ac644715"
+      },
+      "fixtures/activity_1.world.png": {
+        "bytes": 1196,
+        "sha256": "94ed90ab5cbd201db34230580160c1aa76b41d278162395c11c85959e72f3ed0"
+      },
+      "fixtures/activity_2.commands": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fixtures/activity_2.json": {
+        "bytes": 281,
+        "sha256": "d729250b84359b09a61d4add6898fda443e9eda700b691e8e72ec6806f455461"
+      },
+      "fixtures/activity_2.memory": {
+        "bytes": 29360128,
+        "sha256": "1d1c77032b6cb62ff0bf3c27be5c9f1000b09a4dad6159df71478eb8f5a7a494"
+      },
+      "fixtures/activity_2.overlay.json": {
+        "bytes": 750,
+        "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd"
+      },
+      "fixtures/activity_2.png": {
+        "bytes": 6054,
+        "sha256": "a7e9373a6452e770ba5281e5c8658047d72a559985eec6414564f752f351f4fa"
+      },
+      "fixtures/activity_2.reference.json": {
+        "bytes": 1035,
+        "sha256": "f85c7d327c3c9cfaff856278a1f6c15c9fec6b665c353084c54adc68ec5da10a"
+      },
+      "fixtures/activity_2.rgb565": {
+        "bytes": 192000,
+        "sha256": "ea0787f65f73b0013d03b359490e3125211b28ad5c1502ffb1544c0ded4192f5"
+      },
+      "fixtures/activity_2.save": {
+        "bytes": 5292,
+        "sha256": "5bdba34755438f6d09dd778247c36527b4d02c771ee0a4e1accd9e5a6f874758"
+      },
+      "fixtures/activity_2.world.png": {
+        "bytes": 1196,
+        "sha256": "94ed90ab5cbd201db34230580160c1aa76b41d278162395c11c85959e72f3ed0"
+      },
+      "fixtures/activity_3.commands": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "fixtures/activity_3.json": {
+        "bytes": 281,
+        "sha256": "d729250b84359b09a61d4add6898fda443e9eda700b691e8e72ec6806f455461"
+      },
+      "fixtures/activity_3.memory": {
+        "bytes": 29360128,
+        "sha256": "e3d08c82f0daeb83d0ca9dc9df91e0254b648be2442193e0ca171cf2083ccb42"
+      },
+      "fixtures/activity_3.overlay.json": {
+        "bytes": 750,
+        "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd"
+      },
+      "fixtures/activity_3.png": {
+        "bytes": 5621,
+        "sha256": "4d94b8283a1ecfe265db33aad7b29dd4911b45c92299ea6e8a7d4dbdf3929050"
+      },
+      "fixtures/activity_3.reference.json": {
+        "bytes": 1034,
+        "sha256": "d7cddb73add13150b7397357e830e40f4fae528caf74f0924df0ae9f90f85d3f"
+      },
+      "fixtures/activity_3.rgb565": {
+        "bytes": 192000,
+        "sha256": "ea0787f65f73b0013d03b359490e3125211b28ad5c1502ffb1544c0ded4192f5"
+      },
+      "fixtures/activity_3.save": {
+        "bytes": 5292,
+        "sha256": "73a61a8cd9d2ff02542a1f9854b2186e3db1eb558d52096c00df7d32b348c5ea"
+      },
+      "fixtures/activity_3.world.png": {
+        "bytes": 1196,
+        "sha256": "94ed90ab5cbd201db34230580160c1aa76b41d278162395c11c85959e72f3ed0"
+      },
+      "fixtures/activity_4.commands": {
+        "bytes": 2304,
+        "sha256": "0abd677b5a9d95532b35791bac631fd328a57fa509f7506981f31a4a07e6444b"
+      },
+      "fixtures/activity_4.json": {
+        "bytes": 287,
+        "sha256": "9ad5292aed01d78d19ff3c3217b50b249c55dd9eea2fdfe651382254f02a3c0a"
+      },
+      "fixtures/activity_4.memory": {
+        "bytes": 29360128,
+        "sha256": "590fa4eec81dbde19b45d4bf8e07e9d35efd15b0333f148102a37077be87de8b"
+      },
+      "fixtures/activity_4.overlay.json": {
+        "bytes": 750,
+        "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd"
+      },
+      "fixtures/activity_4.png": {
+        "bytes": 27028,
+        "sha256": "9692157ab3fa8a006faa6c602509eea321dc198dd35f8eb7d347f762f83d5ffa"
+      },
+      "fixtures/activity_4.reference.json": {
+        "bytes": 1053,
+        "sha256": "26cdc74e46b8b4b93588b9b5f63ecb479370b1af222fde8b348465c4e4924643"
+      },
+      "fixtures/activity_4.rgb565": {
+        "bytes": 192000,
+        "sha256": "64534cfa70b06fb5e6a9766571386e0b43ce11017577286e1834236465437a44"
+      },
+      "fixtures/activity_4.save": {
+        "bytes": 5292,
+        "sha256": "36184de90deac42fff9ce08f7b76cdd509d542897e7fdb1e72e301f1bc31ae28"
+      },
+      "fixtures/activity_4.world.png": {
+        "bytes": 24013,
+        "sha256": "89d29b033378f1916f89f45557e1804c673d721e3ab2d8ee5732965459b1276e"
+      },
+      "fixtures/completed.save": {
+        "bytes": 5292,
+        "sha256": "56e1dfa3fdfbc5fabb1b556b020bac87067e4836ba0f4a5890d336ce233ab6ba"
+      },
+      "fixtures/garden.commands": {
+        "bytes": 6048,
+        "sha256": "d2149fd8a24a5613985d47459e45cea28ef706071986222b8c4f0f961b9b0656"
+      },
+      "fixtures/garden.json": {
+        "bytes": 290,
+        "sha256": "c1c69f650383b0e3f7ceedb4f28228adf5faba2d6fffee2ae8ded8f8ab9b817f"
+      },
+      "fixtures/garden.memory": {
+        "bytes": 29360128,
+        "sha256": "ef4c33f8793dfeca7f7be4a52feab45aa2954982a5e057c0cc16966a11e6f904"
+      },
+      "fixtures/garden.overlay.json": {
+        "bytes": 781,
+        "sha256": "951e0b1c1d5d55d824ffea660ff8a9c40933a98de9670f959c2d864d9300d0d3"
+      },
+      "fixtures/garden.png": {
+        "bytes": 25016,
+        "sha256": "186a459f184721bc657882189e1e004d19fcb6831309695fbf8020fd3ae3831f"
+      },
+      "fixtures/garden.reference.json": {
+        "bytes": 1063,
+        "sha256": "a436b0d0a9469bcfe998c88a6681afadfa6958453aa06c29f2efde5b5e0f932c"
+      },
+      "fixtures/garden.rgb565": {
+        "bytes": 192000,
+        "sha256": "a79a7861501c41ab302e65d3e9c22fc3feb39bf6c22262d4dd231ed45646603e"
+      },
+      "fixtures/garden.save": {
+        "bytes": 5292,
+        "sha256": "b61fe2bbe95fa5e217890025c99af5880a635037d8f8294f49330a667d71a824"
+      },
+      "fixtures/garden.world.png": {
+        "bytes": 25743,
+        "sha256": "359124af681049e13f149b142afb0236392713f74cdcce50d51392b61bd52596"
+      },
+      "fixtures/house_entry.commands": {
+        "bytes": 8064,
+        "sha256": "54691d40a3b7fb42025467287f2d212e37bb4f2d450f196753230e23744cb553"
+      },
+      "fixtures/house_entry.json": {
+        "bytes": 290,
+        "sha256": "354b546fd17737345eb78f1df61696caa1133620c84ed237d8cb53633c1ac0f2"
+      },
+      "fixtures/house_entry.memory": {
+        "bytes": 29360128,
+        "sha256": "0c068e2829a77b7bd69314435e428ec10e59ca821ad9c72f8234058927c32943"
+      },
+      "fixtures/house_entry.overlay.json": {
+        "bytes": 781,
+        "sha256": "951e0b1c1d5d55d824ffea660ff8a9c40933a98de9670f959c2d864d9300d0d3"
+      },
+      "fixtures/house_entry.png": {
+        "bytes": 24975,
+        "sha256": "4d08fd4f48e41cced16774b6dca9f4d67ed915c396b49cc72720695d65ea86cf"
+      },
+      "fixtures/house_entry.reference.json": {
+        "bytes": 1063,
+        "sha256": "e0d51169422dc53a133b5a9b5e8eb8ac92fe616dd0083a7e30e9421f7c0492e2"
+      },
+      "fixtures/house_entry.rgb565": {
+        "bytes": 192000,
+        "sha256": "598e533e2e615481c1c7d21152e5f520795d0b68f8792229e28cd317341ec661"
+      },
+      "fixtures/house_entry.save": {
+        "bytes": 5292,
+        "sha256": "4244b4673cd8b1a654eba44291ad99fa0deeb867e7e274b83ce9ad9c0e72db36"
+      },
+      "fixtures/house_entry.world.png": {
+        "bytes": 25592,
+        "sha256": "6eb1ed500f5e90c14be0ddf6a15c0ed6de1b9da18a5699357b0dfe258c3f5397"
+      },
+      "fixtures.log": {
+        "bytes": 1193,
+        "sha256": "85e419c1e31af70f9cd23a6384e169a8bd825e7dcb2879e4ccf93659dea02449"
+      },
+      "garden_host.log": {
+        "bytes": 453,
+        "sha256": "8be3020f76c05fc1d56d7274a4ddcb13765c5d2bd2ee098cd7b4a5f0222671bf"
+      },
+      "garden_oracle.log": {
+        "bytes": 843,
+        "sha256": "226d698e2cf899afd331ad845d9ca1bbb3fc21214d035d52063db8fc3b2c90d9"
+      },
+      "helper-host": {
+        "bytes": 21032,
+        "sha256": "d3ec9504e0d6bd05b5ad668d42b42775cc0d643899b43483670665c71d39209a"
+      },
+      "helper-riscv": {
+        "bytes": 221088,
+        "sha256": "354e42a06828739def6d55aecdc86570638d73ac0d533fb9d48a369eaf52a3c4"
+      },
+      "house_entry_host.log": {
+        "bytes": 454,
+        "sha256": "de7ff7cf0d629f9fa84d61dda0f8f2977e9662a5e16cd53745b3f5ad1ffd4042"
+      },
+      "house_entry_oracle.log": {
+        "bytes": 848,
+        "sha256": "c7a64891ffa5dc7c958767e5dad6e412be25e4e080aec9e81afcc2420bdebc78"
+      },
+      "probe-host": {
+        "bytes": 5387072,
+        "sha256": "e6dfe2fe1a283dc67d833b613447f7f4de3742d92959939642bca1716194efdd"
+      },
+      "probe-riscv": {
+        "bytes": 5544580,
+        "sha256": "8943a9343aefed60c3db0b381b7f36d5956b03f780a6c152ecc0a462a5296700"
+      },
+      "prodock-uapi.h": {
+        "bytes": 3678,
+        "sha256": "28c9b505ecab395639698c143ab8ce48890537fef1008cee6a604dbc93c22a51"
+      },
+      "replay_host.log": {
+        "bytes": 1695,
+        "sha256": "a4c2fac0e5f830861fe98e2872da8d7c476b7a41e51848bb5c4d60c4510554d7"
+      },
+      "replay_host.save": {
+        "bytes": 5292,
+        "sha256": "56e1dfa3fdfbc5fabb1b556b020bac87067e4836ba0f4a5890d336ce233ab6ba"
+      },
+      "route_core.inc": {
+        "bytes": 5679,
+        "sha256": "27679a84ed3b0e8191b731dedb665f053e1c72656b399bf2d0ea76fe484e1bdd"
+      },
+      "route_hooks.patch": {
+        "bytes": 7231,
+        "sha256": "8a6bed504bc68c5d01109c9f0fa36ff550041f7db43d809682af44063c2c1b19"
+      },
+      "route_original.c": {
+        "bytes": 6251,
+        "sha256": "eccf6585bc8c4f6b830acb44b7237db70a4de72af69e8b03334cdd82945e896b"
+      },
+      "route_probe.c": {
+        "bytes": 6760,
+        "sha256": "c2dc02e9ef4bd9461f4360eb3b60728df87dcfb52317076193277fa27efbd1b3"
+      },
+      "runtime_inspect.c": {
+        "bytes": 6736,
+        "sha256": "4815ba9c609464c767529b945c12dc79f0863c8c627c516224712229ddc527b1"
+      }
+    }
+  },
+  "acceptance": {
+    "max_arrival_slowdown": 0.1,
+    "max_witness_drift": 0.05
+  },
+  "reference_files": [
+    "op2-am1-pixels.lz4",
+    "op2-am1-hud.lz4",
+    "op2-new-pixels.lz4",
+    "op2-new-hud.lz4",
+    "op2-garden-pixels.lz4",
+    "op2-garden-hud.lz4",
+    "op2-house_entry-pixels.lz4",
+    "op2-house_entry-hud.lz4",
+    "op2-activity_0-hud.lz4",
+    "op2-activity_1-hud.lz4",
+    "op2-activity_2-hud.lz4",
+    "op2-activity_3-hud.lz4",
+    "op2-activity_4-pixels.lz4",
+    "op2-activity_4-hud.lz4"
+  ],
+  "fixture_files": [
+    "op2-garden-state.lz4",
+    "op2-house_entry-state.lz4",
+    "op2-activity_0-state.lz4",
+    "op2-activity_1-state.lz4",
+    "op2-activity_2-state.lz4",
+    "op2-activity_3-state.lz4",
+    "op2-activity_4-state.lz4"
+  ],
+  "fixtures": [
+    {
+      "name": "garden",
+      "fixture_name": "op2-garden.save",
+      "state": {
+        "file": "op2-garden-state.lz4",
+        "bytes": 5292,
+        "sha256": "b61fe2bbe95fa5e217890025c99af5880a635037d8f8294f49330a667d71a824",
+        "crc32": "67ddafe3"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 29360128,
+        "commands": 189,
+        "draws": 19,
+        "submitted_triangles": 1048,
+        "instances": 14,
+        "culled_instances": 36,
+        "hardware": false,
+        "commands_last": 59,
+        "captured_frames": 3,
+        "model_seconds": 0.12555906700436026,
+        "vertices": 2076,
+        "triangles": 564,
+        "clipped": 756,
+        "culled": 2691,
+        "slivers": 0,
+        "fragments": 407772,
+        "command_sha256": "d2149fd8a24a5613985d47459e45cea28ef706071986222b8c4f0f961b9b0656",
+        "asset_sha256": "f40c5d59e139bf0d522b0d0d28222c2717eb355cc29f5f468382d7ac95f828ee",
+        "image_sha256": "a79a7861501c41ab302e65d3e9c22fc3feb39bf6c22262d4dd231ed45646603e",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 2,
+        "hud_bytes": 134400,
+        "composite_rgb_sha256": "5062e066c044ca4f10e21ab34c60038446dbe64e0001df3875c554bab4a1a56b",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": {
+        "file": "op2-garden-pixels.lz4",
+        "bytes": 192000,
+        "sha256": "a79a7861501c41ab302e65d3e9c22fc3feb39bf6c22262d4dd231ed45646603e",
+        "crc32": "7c0ccf51"
+      },
+      "hud": {
+        "file": "op2-garden-hud.lz4",
+        "bytes": 67200,
+        "sha256": "5c5d9d9b4722e5509db27bc2fe0f16a587b42516f73a37b98b6192c3ac575102",
+        "crc32": "61985d1d",
+        "bank": 20
+      },
+      "host_scene": {
+        "active": 0,
+        "won": 0,
+        "region": 1,
+        "fixed_fixture": 1,
+        "frames": 3,
+        "commands": 189,
+        "batches": 4,
+        "draws_last": 19,
+        "triangles_last": 1048,
+        "mini_uploads": 0,
+        "mini_bytes": 0
+      },
+      "host_present": {
+        "layers": 1,
+        "palette_crc": 2785097834,
+        "descriptor_crc": 3784330229,
+        "cpu_descriptor": 1
+      }
+    },
+    {
+      "name": "house_entry",
+      "fixture_name": "op2-house_entry.save",
+      "state": {
+        "file": "op2-house_entry-state.lz4",
+        "bytes": 5292,
+        "sha256": "4244b4673cd8b1a654eba44291ad99fa0deeb867e7e274b83ce9ad9c0e72db36",
+        "crc32": "3d7327fc"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 29360128,
+        "commands": 252,
+        "draws": 25,
+        "submitted_triangles": 1356,
+        "instances": 16,
+        "culled_instances": 39,
+        "hardware": false,
+        "commands_last": 80,
+        "captured_frames": 3,
+        "model_seconds": 0.16697712504537776,
+        "vertices": 2667,
+        "triangles": 807,
+        "clipped": 684,
+        "culled": 3363,
+        "slivers": 0,
+        "fragments": 380019,
+        "command_sha256": "54691d40a3b7fb42025467287f2d212e37bb4f2d450f196753230e23744cb553",
+        "asset_sha256": "e479a9a7139d0a9d1f94c753c1656f3234617767354325474ac0a1a27e5a4c72",
+        "image_sha256": "598e533e2e615481c1c7d21152e5f520795d0b68f8792229e28cd317341ec661",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 2,
+        "hud_bytes": 134400,
+        "composite_rgb_sha256": "78ea685e5ce65a822277ca7831337649b4936dd1f45a9be402f8e604e1a30772",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": {
+        "file": "op2-house_entry-pixels.lz4",
+        "bytes": 192000,
+        "sha256": "598e533e2e615481c1c7d21152e5f520795d0b68f8792229e28cd317341ec661",
+        "crc32": "d981ca97"
+      },
+      "hud": {
+        "file": "op2-house_entry-hud.lz4",
+        "bytes": 67200,
+        "sha256": "56de88cf80fbe27e2650f91347122662691ad6e5d4e6e8051f413c16d1d9c708",
+        "crc32": "e752bbf1",
+        "bank": 20
+      },
+      "host_scene": {
+        "active": 0,
+        "won": 15,
+        "region": 1,
+        "fixed_fixture": 1,
+        "frames": 3,
+        "commands": 252,
+        "batches": 6,
+        "draws_last": 25,
+        "triangles_last": 1356,
+        "mini_uploads": 0,
+        "mini_bytes": 0
+      },
+      "host_present": {
+        "layers": 1,
+        "palette_crc": 2785097834,
+        "descriptor_crc": 3784330229,
+        "cpu_descriptor": 1
+      }
+    },
+    {
+      "name": "activity_0",
+      "fixture_name": "op2-activity_0.save",
+      "state": {
+        "file": "op2-activity_0-state.lz4",
+        "bytes": 5292,
+        "sha256": "710cd23500c9b5d5a62aeef2644a953ae6f37cb54284269aa745782d7d1f19e7",
+        "crc32": "6debcf4a"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 29360128,
+        "commands": 0,
+        "draws": 0,
+        "submitted_triangles": 0,
+        "instances": 0,
+        "culled_instances": 0,
+        "hardware": false,
+        "commands_last": 0,
+        "captured_frames": 3,
+        "model_seconds": 0.02357278799172491,
+        "vertices": 0,
+        "triangles": 0,
+        "clipped": 0,
+        "culled": 0,
+        "slivers": 0,
+        "fragments": 0,
+        "command_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "asset_sha256": "8b8bc6aca6f843d18603d8e991721738df1f88f131a5d05eb25e12c181f207e7",
+        "image_sha256": "ea0787f65f73b0013d03b359490e3125211b28ad5c1502ffb1544c0ded4192f5",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 0,
+        "hud_bytes": 0,
+        "composite_rgb_sha256": "4197cec790a34c689bd0da2cd2ca8a1af1dce94a73ae00c628a10a0efc3e0b57",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": null,
+      "hud": {
+        "file": "op2-activity_0-hud.lz4",
+        "bytes": 384000,
+        "sha256": "e16a8487a61d561c92207c9ee904c3348b05fd678ae0cacf847978f85015b776",
+        "crc32": "74806ef6",
+        "bank": 22
+      },
+      "host_scene": {
+        "active": 1,
+        "won": 14,
+        "region": 1,
+        "fixed_fixture": 1,
+        "frames": 3,
+        "commands": 0,
+        "batches": 0,
+        "draws_last": 0,
+        "triangles_last": 0,
+        "mini_uploads": 2,
+        "mini_bytes": 768000
+      },
+      "host_present": {
+        "layers": 1,
+        "palette_crc": 2785097834,
+        "descriptor_crc": 1047779026,
+        "cpu_descriptor": 1
+      }
+    },
+    {
+      "name": "activity_1",
+      "fixture_name": "op2-activity_1.save",
+      "state": {
+        "file": "op2-activity_1-state.lz4",
+        "bytes": 5292,
+        "sha256": "b0dc963ab8c4ea1bcf5d01ff2961c3e5277913e2d6615c30d769f210ac644715",
+        "crc32": "d7fe245e"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 29360128,
+        "commands": 0,
+        "draws": 0,
+        "submitted_triangles": 0,
+        "instances": 0,
+        "culled_instances": 0,
+        "hardware": false,
+        "commands_last": 0,
+        "captured_frames": 3,
+        "model_seconds": 0.016752806957811117,
+        "vertices": 0,
+        "triangles": 0,
+        "clipped": 0,
+        "culled": 0,
+        "slivers": 0,
+        "fragments": 0,
+        "command_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "asset_sha256": "d671917907850469a3be6523b08d03debeb5070ee5b130c43188033ae9ffa4fe",
+        "image_sha256": "ea0787f65f73b0013d03b359490e3125211b28ad5c1502ffb1544c0ded4192f5",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 0,
+        "hud_bytes": 0,
+        "composite_rgb_sha256": "637048a1cd1be267c58ae1bdfce1ad43854d468c390d44c169bbfad4f0515194",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": null,
+      "hud": {
+        "file": "op2-activity_1-hud.lz4",
+        "bytes": 384000,
+        "sha256": "85c233f2d7367515eff9dfecfddc0bce4f3a76eb5d99f97724d7e21d47adc150",
+        "crc32": "2e538410",
+        "bank": 22
+      },
+      "host_scene": {
+        "active": 2,
+        "won": 12,
+        "region": 1,
+        "fixed_fixture": 1,
+        "frames": 3,
+        "commands": 0,
+        "batches": 0,
+        "draws_last": 0,
+        "triangles_last": 0,
+        "mini_uploads": 2,
+        "mini_bytes": 768000
+      },
+      "host_present": {
+        "layers": 1,
+        "palette_crc": 2785097834,
+        "descriptor_crc": 1047779026,
+        "cpu_descriptor": 1
+      }
+    },
+    {
+      "name": "activity_2",
+      "fixture_name": "op2-activity_2.save",
+      "state": {
+        "file": "op2-activity_2-state.lz4",
+        "bytes": 5292,
+        "sha256": "5bdba34755438f6d09dd778247c36527b4d02c771ee0a4e1accd9e5a6f874758",
+        "crc32": "c2ede5f2"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 29360128,
+        "commands": 0,
+        "draws": 0,
+        "submitted_triangles": 0,
+        "instances": 0,
+        "culled_instances": 0,
+        "hardware": false,
+        "commands_last": 0,
+        "captured_frames": 3,
+        "model_seconds": 0.025613209989387542,
+        "vertices": 0,
+        "triangles": 0,
+        "clipped": 0,
+        "culled": 0,
+        "slivers": 0,
+        "fragments": 0,
+        "command_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "asset_sha256": "cb457a63146f061672a821f8968f1269f143da7fc77930f2725cd3b3491914d5",
+        "image_sha256": "ea0787f65f73b0013d03b359490e3125211b28ad5c1502ffb1544c0ded4192f5",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 0,
+        "hud_bytes": 0,
+        "composite_rgb_sha256": "11c3227e6f56316c5b2fbd2546777bece8f8cf2a00aaff61f639eab7e3cda76a",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": null,
+      "hud": {
+        "file": "op2-activity_2-hud.lz4",
+        "bytes": 384000,
+        "sha256": "bc47b027b0f7453581fc6f840d9e989c061d5307e81edc3dcb8bcbbfae17d90c",
+        "crc32": "623cb81d",
+        "bank": 22
+      },
+      "host_scene": {
+        "active": 3,
+        "won": 0,
+        "region": 1,
+        "fixed_fixture": 1,
+        "frames": 3,
+        "commands": 0,
+        "batches": 0,
+        "draws_last": 0,
+        "triangles_last": 0,
+        "mini_uploads": 2,
+        "mini_bytes": 768000
+      },
+      "host_present": {
+        "layers": 1,
+        "palette_crc": 2785097834,
+        "descriptor_crc": 1047779026,
+        "cpu_descriptor": 1
+      }
+    },
+    {
+      "name": "activity_3",
+      "fixture_name": "op2-activity_3.save",
+      "state": {
+        "file": "op2-activity_3-state.lz4",
+        "bytes": 5292,
+        "sha256": "73a61a8cd9d2ff02542a1f9854b2186e3db1eb558d52096c00df7d32b348c5ea",
+        "crc32": "ad4f45c4"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 29360128,
+        "commands": 0,
+        "draws": 0,
+        "submitted_triangles": 0,
+        "instances": 0,
+        "culled_instances": 0,
+        "hardware": false,
+        "commands_last": 0,
+        "captured_frames": 3,
+        "model_seconds": 0.01968223601579666,
+        "vertices": 0,
+        "triangles": 0,
+        "clipped": 0,
+        "culled": 0,
+        "slivers": 0,
+        "fragments": 0,
+        "command_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "asset_sha256": "89081de9204c5bea39f51889a9cfa33025554b247faaabd9b7047998090664eb",
+        "image_sha256": "ea0787f65f73b0013d03b359490e3125211b28ad5c1502ffb1544c0ded4192f5",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 0,
+        "hud_bytes": 0,
+        "composite_rgb_sha256": "78463dbd50c61878760a5a3dff5e99339065c6efbbc300987cc4a919aab9c9f3",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": null,
+      "hud": {
+        "file": "op2-activity_3-hud.lz4",
+        "bytes": 384000,
+        "sha256": "d7e4df63ee3ef7fe1aea8b69774d0ff1f6bc164be0b038fa8e23815389a7ad01",
+        "crc32": "05f2ad93",
+        "bank": 22
+      },
+      "host_scene": {
+        "active": 4,
+        "won": 4,
+        "region": 1,
+        "fixed_fixture": 1,
+        "frames": 3,
+        "commands": 0,
+        "batches": 0,
+        "draws_last": 0,
+        "triangles_last": 0,
+        "mini_uploads": 2,
+        "mini_bytes": 768000
+      },
+      "host_present": {
+        "layers": 1,
+        "palette_crc": 2785097834,
+        "descriptor_crc": 1047779026,
+        "cpu_descriptor": 1
+      }
+    },
+    {
+      "name": "activity_4",
+      "fixture_name": "op2-activity_4.save",
+      "state": {
+        "file": "op2-activity_4-state.lz4",
+        "bytes": 5292,
+        "sha256": "36184de90deac42fff9ce08f7b76cdd509d542897e7fdb1e72e301f1bc31ae28",
+        "crc32": "ac8a3a4c"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 29360128,
+        "commands": 72,
+        "draws": 13,
+        "submitted_triangles": 1542,
+        "instances": 0,
+        "culled_instances": 0,
+        "hardware": false,
+        "commands_last": 24,
+        "captured_frames": 3,
+        "model_seconds": 0.2793701739865355,
+        "vertices": 9252,
+        "triangles": 2253,
+        "clipped": 0,
+        "culled": 2373,
+        "slivers": 0,
+        "fragments": 134082,
+        "command_sha256": "0abd677b5a9d95532b35791bac631fd328a57fa509f7506981f31a4a07e6444b",
+        "asset_sha256": "5ee38af7e9b437c223be090f23c517e412325dcb2629e41bbbf8b96c5d90ad58",
+        "image_sha256": "64534cfa70b06fb5e6a9766571386e0b43ce11017577286e1834236465437a44",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 0,
+        "hud_bytes": 0,
+        "composite_rgb_sha256": "492d53fb5544fa049e72bcb328969b38b09db5db2f3184c73cd2cdc2a4cabb0a",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": {
+        "file": "op2-activity_4-pixels.lz4",
+        "bytes": 192000,
+        "sha256": "64534cfa70b06fb5e6a9766571386e0b43ce11017577286e1834236465437a44",
+        "crc32": "0c769871"
+      },
+      "hud": {
+        "file": "op2-activity_4-hud.lz4",
+        "bytes": 384000,
+        "sha256": "afbd8d2379f622342b646c26bee1829a4ba2a6d826acb06f609b0b7963da8906",
+        "crc32": "dd1b9287",
+        "bank": 22
+      },
+      "host_scene": {
+        "active": 5,
+        "won": 15,
+        "region": 1,
+        "fixed_fixture": 1,
+        "frames": 3,
+        "commands": 72,
+        "batches": 3,
+        "draws_last": 13,
+        "triangles_last": 1542,
+        "mini_uploads": 2,
+        "mini_bytes": 768000
+      },
+      "host_present": {
+        "layers": 1,
+        "palette_crc": 2785097834,
+        "descriptor_crc": 1047779026,
+        "cpu_descriptor": 1
+      }
+    }
+  ],
+  "benchmarks": [
+    {
+      "variant": "am1",
+      "pose": 0,
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 481,
+        "draws": 106,
+        "submitted_triangles": 3389,
+        "instances": 105,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.2096485189977102,
+        "vertices": 2456,
+        "triangles": 1208,
+        "clipped": 692,
+        "culled": 2325,
+        "slivers": 0,
+        "fragments": 212289,
+        "command_sha256": "fbd62074f6a8b11a726b1b27b3854bf67cc24e6fd9685c1740c86a22bdb25277",
+        "asset_sha256": "9f7756ae111e33da91931820ae76ef6d7650ed4e54723006aad0e2541fe43972",
+        "image_sha256": "b8004efdc20685ab2e69c5f7a08e6625e67af40d22912efb2235f8645d872699",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "66daa6f9a0a27f18d6bbd265a1ed4550fbacf51ed2d7a589967f8418c48e1de7",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": {
+        "file": "op2-am1-pixels.lz4",
+        "bytes": 192000,
+        "sha256": "b8004efdc20685ab2e69c5f7a08e6625e67af40d22912efb2235f8645d872699",
+        "crc32": "8fac8a6d"
+      },
+      "hud": {
+        "file": "op2-am1-hud.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99",
+        "bank": 20
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 63029.45,
+        "commands": 14070,
+        "batches": 240,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 106,
+        "triangles_last": 3389,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 0,
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 29360128,
+        "commands": 481,
+        "draws": 106,
+        "submitted_triangles": 3389,
+        "instances": 105,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.2117452059756033,
+        "vertices": 2456,
+        "triangles": 1208,
+        "clipped": 692,
+        "culled": 2325,
+        "slivers": 0,
+        "fragments": 212289,
+        "command_sha256": "8c3d89f82fb147f3846ea08f02c753d8dcfe90aac2c06dc4047ed3d491ba2b0f",
+        "asset_sha256": "f173cb8361c0fad2bf0838654da90e393f7b390212f84962e1fb2d18e1642e2a",
+        "image_sha256": "b8004efdc20685ab2e69c5f7a08e6625e67af40d22912efb2235f8645d872699",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "66daa6f9a0a27f18d6bbd265a1ed4550fbacf51ed2d7a589967f8418c48e1de7",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": {
+        "file": "op2-new-pixels.lz4",
+        "bytes": 192000,
+        "sha256": "b8004efdc20685ab2e69c5f7a08e6625e67af40d22912efb2235f8645d872699",
+        "crc32": "8fac8a6d"
+      },
+      "hud": {
+        "file": "op2-new-hud.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99",
+        "bank": 20
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.001,
+        "fps": 59910.73,
+        "commands": 14070,
+        "batches": 240,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 106,
+        "triangles_last": 3389,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "am1",
+      "pose": 0,
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 481,
+        "draws": 106,
+        "submitted_triangles": 3389,
+        "instances": 105,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.2096485189977102,
+        "vertices": 2456,
+        "triangles": 1208,
+        "clipped": 692,
+        "culled": 2325,
+        "slivers": 0,
+        "fragments": 212289,
+        "command_sha256": "fbd62074f6a8b11a726b1b27b3854bf67cc24e6fd9685c1740c86a22bdb25277",
+        "asset_sha256": "9f7756ae111e33da91931820ae76ef6d7650ed4e54723006aad0e2541fe43972",
+        "image_sha256": "b8004efdc20685ab2e69c5f7a08e6625e67af40d22912efb2235f8645d872699",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "66daa6f9a0a27f18d6bbd265a1ed4550fbacf51ed2d7a589967f8418c48e1de7",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "pixels": {
+        "file": "op2-am1-pixels.lz4",
+        "bytes": 192000,
+        "sha256": "b8004efdc20685ab2e69c5f7a08e6625e67af40d22912efb2235f8645d872699",
+        "crc32": "8fac8a6d"
+      },
+      "hud": {
+        "file": "op2-am1-hud.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99",
+        "bank": 20
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 63029.45,
+        "commands": 14070,
+        "batches": 240,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 106,
+        "triangles_last": 3389,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    }
+  ],
+  "initial_guard": "Fresh exact am1 comm/cmdline/ELF CRC and monotonic startticks; no stale PID",
+  "host_replay": {
+    "won": 31,
+    "active": 0,
+    "region": 1,
+    "phase": 4,
+    "met_nils": 1,
+    "reloads": 5,
+    "input_steps": 16544,
+    "rendered_frames": 426,
+    "accelerated_replay": 1
+  },
+  "delta": {
+    "file": "op2-delta.lz4",
+    "old_sha256": "62a9178dab260dc5e60be8b9bcea90b35f370357691fb157e5d7fd45a90616ee",
+    "new_sha256": "8f7500184ccf9977502243e5ddfbfb3b27f4b5b224dde46c606d8bdcf8f18981",
+    "new_bytes": 5535460,
+    "new_crc32": "63f6840a",
+    "patch_bytes": 286180,
+    "patch_crc32": "e1fedc88"
+  },
+  "probe_delta": {
+    "file": "op2-probe_delta.lz4",
+    "old_sha256": "8f7500184ccf9977502243e5ddfbfb3b27f4b5b224dde46c606d8bdcf8f18981",
+    "new_sha256": "8943a9343aefed60c3db0b381b7f36d5956b03f780a6c152ecc0a462a5296700",
+    "new_bytes": 5544580,
+    "new_crc32": "4636082f",
+    "patch_bytes": 143235,
+    "patch_crc32": "e52e8ec2"
+  },
+  "transfer_files": [
+    "op2-helper",
+    "op2-delta.lz4",
+    "op2-probe_delta.lz4",
+    "op2-am1-pixels.lz4",
+    "op2-am1-hud.lz4",
+    "op2-new-pixels.lz4",
+    "op2-new-hud.lz4",
+    "op2-garden-pixels.lz4",
+    "op2-garden-hud.lz4",
+    "op2-house_entry-pixels.lz4",
+    "op2-house_entry-hud.lz4",
+    "op2-activity_0-hud.lz4",
+    "op2-activity_1-hud.lz4",
+    "op2-activity_2-hud.lz4",
+    "op2-activity_3-hud.lz4",
+    "op2-activity_4-pixels.lz4",
+    "op2-activity_4-hud.lz4",
+    "op2-garden-state.lz4",
+    "op2-house_entry-state.lz4",
+    "op2-activity_0-state.lz4",
+    "op2-activity_1-state.lz4",
+    "op2-activity_2-state.lz4",
+    "op2-activity_3-state.lz4",
+    "op2-activity_4-state.lz4"
+  ],
+  "oracle_files": {
+    "oracle/new.reference.json": {
+      "bytes": 1017,
+      "sha256": "a72a28669eb1f6c693d0894d484244850940cd8bc41a0ce4bd4824a4244d91f5",
+      "crc32": "80e9fd14"
+    },
+    "oracle/activity_3.overlay.json": {
+      "bytes": 750,
+      "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd",
+      "crc32": "d0a3149b"
+    },
+    "oracle/new.overlay.json": {
+      "bytes": 780,
+      "sha256": "0ff58d22d46e8eae354ba5dceb3ae631f436834a27a6627df0a7b3633fc86184",
+      "crc32": "89440ded"
+    },
+    "oracle/activity_1.reference.json": {
+      "bytes": 1035,
+      "sha256": "1b8e6da1b3fe483f1865205cdc3254dd128a766cffbf8921c9836f07b1c56d18",
+      "crc32": "de045d91"
+    },
+    "oracle/garden.reference.json": {
+      "bytes": 1063,
+      "sha256": "a436b0d0a9469bcfe998c88a6681afadfa6958453aa06c29f2efde5b5e0f932c",
+      "crc32": "2efcf4f3"
+    },
+    "oracle/activity_2.overlay.json": {
+      "bytes": 750,
+      "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd",
+      "crc32": "d0a3149b"
+    },
+    "oracle/activity_0.reference.json": {
+      "bytes": 1034,
+      "sha256": "d5430a07f347f57b5bb817b119a5d92ea877fb780203d26fb8599f29d1314561",
+      "crc32": "9a8ba428"
+    },
+    "oracle/am1.overlay.json": {
+      "bytes": 705,
+      "sha256": "28d203688d7453f85c28e247e1838fb3baebe28ae52afb7c211314d22d043036",
+      "crc32": "1746a9a6"
+    },
+    "oracle/new.png": {
+      "bytes": 99369,
+      "sha256": "2b417f8fa178918352470cefd400a0bd396db6878d9752d42320c8360ff5294f",
+      "crc32": "fb2e85a6"
+    },
+    "oracle/am1.png": {
+      "bytes": 99369,
+      "sha256": "2b417f8fa178918352470cefd400a0bd396db6878d9752d42320c8360ff5294f",
+      "crc32": "fb2e85a6"
+    },
+    "oracle/new.json": {
+      "bytes": 196,
+      "sha256": "6a249e5b07c7ce5cdc272289326b2b3f5ba452de5de05a20c9e9fb5d2f579afd",
+      "crc32": "759ae61c"
+    },
+    "oracle/activity_2.reference.json": {
+      "bytes": 1035,
+      "sha256": "f85c7d327c3c9cfaff856278a1f6c15c9fec6b665c353084c54adc68ec5da10a",
+      "crc32": "95361323"
+    },
+    "oracle/activity_4.reference.json": {
+      "bytes": 1053,
+      "sha256": "26cdc74e46b8b4b93588b9b5f63ecb479370b1af222fde8b348465c4e4924643",
+      "crc32": "6654abeb"
+    },
+    "oracle/activity_3.reference.json": {
+      "bytes": 1034,
+      "sha256": "d7cddb73add13150b7397357e830e40f4fae528caf74f0924df0ae9f90f85d3f",
+      "crc32": "627e796e"
+    },
+    "oracle/am1.reference.json": {
+      "bytes": 1017,
+      "sha256": "ab8ad75b4d148e19fe77457ed8f003f2a5b1d38d46ae5bc16f3919a6545475a5",
+      "crc32": "72cf6cc4"
+    },
+    "oracle/activity_1.overlay.json": {
+      "bytes": 750,
+      "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd",
+      "crc32": "d0a3149b"
+    },
+    "oracle/activity_0.overlay.json": {
+      "bytes": 750,
+      "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd",
+      "crc32": "d0a3149b"
+    },
+    "oracle/activity_4.overlay.json": {
+      "bytes": 750,
+      "sha256": "b91dcfb53b674ddc1c5362c9cb1314b64dae26dbac6c240399e7eef19d271bdd",
+      "crc32": "d0a3149b"
+    },
+    "oracle/am1.json": {
+      "bytes": 196,
+      "sha256": "7cffe96ce2b20e1ede16f0f0aa99a730037397767abb3a4defa3ca4cfc328ad8",
+      "crc32": "9020aa6d"
+    },
+    "oracle/house_entry.reference.json": {
+      "bytes": 1063,
+      "sha256": "e0d51169422dc53a133b5a9b5e8eb8ac92fe616dd0083a7e30e9421f7c0492e2",
+      "crc32": "bd4ac2b1"
+    },
+    "oracle/garden.overlay.json": {
+      "bytes": 781,
+      "sha256": "951e0b1c1d5d55d824ffea660ff8a9c40933a98de9670f959c2d864d9300d0d3",
+      "crc32": "10f2e86e"
+    },
+    "oracle/am1.world.png": {
+      "bytes": 107917,
+      "sha256": "48fafe19a9f5fcb99abc712f9c42ca2a092d2cd76991f451439b2678a462d397",
+      "crc32": "f11afafe"
+    },
+    "oracle/house_entry.overlay.json": {
+      "bytes": 781,
+      "sha256": "951e0b1c1d5d55d824ffea660ff8a9c40933a98de9670f959c2d864d9300d0d3",
+      "crc32": "10f2e86e"
+    },
+    "oracle/new.world.png": {
+      "bytes": 107917,
+      "sha256": "48fafe19a9f5fcb99abc712f9c42ca2a092d2cd76991f451439b2678a462d397",
+      "crc32": "f11afafe"
+    }
+  },
+  "files": {
+    "TRIAL_PLAN.txt": {
+      "bytes": 3941,
+      "sha256": "dcb09cd03fc2b008e0784ca6d82dba985b39b3ad646f2608adac4a65010cb7d9",
+      "crc32": "2c433e5d"
+    },
+    "am1_benchmark.log": {
+      "bytes": 633,
+      "sha256": "f9e98b255125f22cdd9b07fe11c86d6af7eeda53c60aaf03f1eb97c479728384",
+      "crc32": "dd8c07f7"
+    },
+    "am1_capture.log": {
+      "bytes": 551,
+      "sha256": "681a197edd6ad1b56ecd068fe955c70841bf9153d4e04a689a2a9529f1ee2c5b",
+      "crc32": "73a22e07"
+    },
+    "am1_oracle.log": {
+      "bytes": 813,
+      "sha256": "1df85e79c031132e8348b865c0e97de4abfeb0df69ded670da89f9a27bb2a4e5",
+      "crc32": "074b8f4d"
+    },
+    "baseline_manifest.json": {
+      "bytes": 8582,
+      "sha256": "e774e0f2d9213493a4b8e7c48e9d3927d8da84e63c98d87c51bd25a8f5dd00db",
+      "crc32": "0d8d2b37"
+    },
+    "build_delta.py": {
+      "bytes": 2820,
+      "sha256": "f04c4b091bd58a06264f12cafb26caf70972822e65585c14836d28e14f739240",
+      "crc32": "95038be4"
+    },
+    "build_probe.py": {
+      "bytes": 4629,
+      "sha256": "fde7a28dc0ca3159155517ab2b047d723499f7bdddff19add78feb7a3f6ef383",
+      "crc32": "c6ea3355"
+    },
+    "check_gpu_reloads.py": {
+      "bytes": 9436,
+      "sha256": "b023a7c4ff340dd5fb00f8da6a05baa37834998f0ab0eec024fc931c0f8bd754",
+      "crc32": "d7c834b5"
+    },
+    "check_linux.py": {
+      "bytes": 5723,
+      "sha256": "c5a7fd2b902e32169eae5fed71c3f7f6a4c66fe9ffeb25879d19141e447897d9",
+      "crc32": "74e12906"
+    },
+    "delta_reconstruction.log": {
+      "bytes": 46,
+      "sha256": "c6bd6e075bf35ca34fff64347a00d5d4e84e44ac74c22490fb0417112e62fec0",
+      "crc32": "1e4a465b"
+    },
+    "game_manifest.json": {
+      "bytes": 10142,
+      "sha256": "0037b31f1f632ecbdb0984e1ec34f221a6e9842566d2238fba24587319b4bf98",
+      "crc32": "50d87ef9"
+    },
+    "helper-host": {
+      "bytes": 21032,
+      "sha256": "d3ec9504e0d6bd05b5ad668d42b42775cc0d643899b43483670665c71d39209a",
+      "crc32": "b839fc98"
+    },
+    "local_validation.json": {
+      "bytes": 2204,
+      "sha256": "df0daa74a25c8b3cd0cadaa30f33a65a4bd4c30a022fed37db01ac78096a0a60",
+      "crc32": "7022bf15"
+    },
+    "native_oracles.json": {
+      "bytes": 2677,
+      "sha256": "e0573518fafccfb152e9374190e07835b850341c85ca9fcae9cdcd39007bd709",
+      "crc32": "40baf02c"
+    },
+    "new_benchmark.log": {
+      "bytes": 633,
+      "sha256": "9eb5d2d6bb0295a2b58e720ec57e2f618f6b3ca674d458ac6986e6ef351fec17",
+      "crc32": "d7bcc912"
+    },
+    "new_capture.log": {
+      "bytes": 551,
+      "sha256": "4f6f63ce2f3792fe558cd0f528f1429c89396441f8e4d0f1b48ad6bb584a8b63",
+      "crc32": "ff202e34"
+    },
+    "new_oracle.log": {
+      "bytes": 813,
+      "sha256": "4b208c691fe22adfb75bb01932e6ad79e04cc02225a2b89207949893065794c2",
+      "crc32": "51c59f79"
+    },
+    "op2-activity_0-hud.lz4": {
+      "bytes": 4598,
+      "sha256": "5d8ab825fcf970633ea7e68b8eceb556422a5d57f4da912d94729bfe9f12649e",
+      "crc32": "04bc5321"
+    },
+    "op2-activity_0-state.lz4": {
+      "bytes": 541,
+      "sha256": "9de4b1f6f6341fe4c2d7eedafc24027496e13ea64c817362d35785f12550eeef",
+      "crc32": "64025fa0"
+    },
+    "op2-activity_1-hud.lz4": {
+      "bytes": 4325,
+      "sha256": "dc1bb3f551c79b42fddaae5a5af71be45d3587c66c021f3b7405cc62a805f2de",
+      "crc32": "cb21f65e"
+    },
+    "op2-activity_1-state.lz4": {
+      "bytes": 420,
+      "sha256": "ad2333eab47d47df0e1a9db92e5ea0240f002a01b5f167f0553b5f14f9e6cc30",
+      "crc32": "4416da5a"
+    },
+    "op2-activity_2-hud.lz4": {
+      "bytes": 4648,
+      "sha256": "d3a152d7935f66d8ce8a05f73bf60ba8e839ded6d4e40145f4ee70c89dbc5a4d",
+      "crc32": "d3aa3ac7"
+    },
+    "op2-activity_2-state.lz4": {
+      "bytes": 336,
+      "sha256": "ff169b1f01855838db2e7ab9404f4f5b49de495a2a90962bd02ea09bd37e87c2",
+      "crc32": "1db23a83"
+    },
+    "op2-activity_3-hud.lz4": {
+      "bytes": 4426,
+      "sha256": "02c0e244240c625c2b016c38c1772e36c03a7ddaeaec166299de1e61f45f03f0",
+      "crc32": "adbd01ed"
+    },
+    "op2-activity_3-state.lz4": {
+      "bytes": 375,
+      "sha256": "75649df8b5222a8bd41b5b8f6060d469b8b64b4930be54acd994375265c5f895",
+      "crc32": "b42200f9"
+    },
+    "op2-activity_4-hud.lz4": {
+      "bytes": 4355,
+      "sha256": "3a9356be94a12547fbece886949e3ab21b1dbf1ee86c67ff55114b5dc8ca4735",
+      "crc32": "dda3dee5"
+    },
+    "op2-activity_4-pixels.lz4": {
+      "bytes": 11865,
+      "sha256": "1be2265bf7d87b468e43ae66c5ff45f9c2bf6a99690e6c3f128d4d77258e36ac",
+      "crc32": "fb17ec1b"
+    },
+    "op2-activity_4-state.lz4": {
+      "bytes": 671,
+      "sha256": "07b9c7f396cf1f520beab7b22bbd8f661432af20aed937dd70e1ae1f96985e95",
+      "crc32": "e8580834"
+    },
+    "op2-am1-hud.lz4": {
+      "bytes": 1637,
+      "sha256": "75c166ac25df7f37259138882fa62bf2b3fc3ab31e5846e62688a498b026238f",
+      "crc32": "2920d41a"
+    },
+    "op2-am1-pixels.lz4": {
+      "bytes": 82665,
+      "sha256": "0905445c8672c22ce27a7a9e0505d6f9b0fa769c378f5433186d5e8b8a1d8171",
+      "crc32": "9da26dce"
+    },
+    "op2-delta.lz4": {
+      "bytes": 140137,
+      "sha256": "3115772dfbba569677d50cb4dfa0c84ada92ed5b80582717c2166c272c052a16",
+      "crc32": "9944c65a"
+    },
+    "op2-garden-hud.lz4": {
+      "bytes": 2154,
+      "sha256": "940adcb8c7e6a032386bc9f507393c3991ef9d86771fcdb79f0d4db09e507b01",
+      "crc32": "6ba22637"
+    },
+    "op2-garden-pixels.lz4": {
+      "bytes": 18227,
+      "sha256": "30ba108490bab9d4b16ab60c9c8519674cf2c74a26ece0bfa7a9b6f2b81a6a99",
+      "crc32": "84978404"
+    },
+    "op2-garden-state.lz4": {
+      "bytes": 251,
+      "sha256": "470d61491d028337e576831aecbb2230693febb3b0dd02f58393db28c7bd8745",
+      "crc32": "3f4c48c8"
+    },
+    "op2-helper": {
+      "bytes": 221088,
+      "sha256": "354e42a06828739def6d55aecdc86570638d73ac0d533fb9d48a369eaf52a3c4",
+      "crc32": "6b8cb256"
+    },
+    "op2-house_entry-hud.lz4": {
+      "bytes": 2025,
+      "sha256": "7935cf93b1b4d029d2aa8f96faa3e81ee03bbbb233bdf3e9fe4b0b34b5ab3c09",
+      "crc32": "b966eb36"
+    },
+    "op2-house_entry-pixels.lz4": {
+      "bytes": 18381,
+      "sha256": "1fd2cf772b0b330e11f6557d24a04c408d896258b15fad6086eee737427f82f4",
+      "crc32": "6420a6c9"
+    },
+    "op2-house_entry-state.lz4": {
+      "bytes": 542,
+      "sha256": "b5199064be198b1d0837437522bf74de134a5b6167bebafcbfe528ae46df9a61",
+      "crc32": "e31a8b04"
+    },
+    "op2-new-hud.lz4": {
+      "bytes": 1637,
+      "sha256": "75c166ac25df7f37259138882fa62bf2b3fc3ab31e5846e62688a498b026238f",
+      "crc32": "2920d41a"
+    },
+    "op2-new-pixels.lz4": {
+      "bytes": 82665,
+      "sha256": "0905445c8672c22ce27a7a9e0505d6f9b0fa769c378f5433186d5e8b8a1d8171",
+      "crc32": "9da26dce"
+    },
+    "op2-probe_delta.lz4": {
+      "bytes": 95237,
+      "sha256": "81cbc9ac6f5962e3912b155c090caaf0e39d74ccf84ef98b786feb637a63a1ed",
+      "crc32": "f68a8ebb"
+    },
+    "prepare_trial.py": {
+      "bytes": 7857,
+      "sha256": "545e1e8ab2dbdf40a04efbcd788326f635338f6a16afe439ac9ff95397deb9aa",
+      "crc32": "226ba52b"
+    },
+    "probe_delta_reconstruction.log": {
+      "bytes": 46,
+      "sha256": "720c1736194dd6c43981495b362219895b2e69366f61ee7d3bc89b6a6cfcbbf0",
+      "crc32": "fd9d3fb6"
+    },
+    "probe_validation.json": {
+      "bytes": 23495,
+      "sha256": "35a255d646d08b9d62a59fff6c217b377f36a5520dbe675bb754ec136a4a1dbd",
+      "crc32": "5d5728bd"
+    },
+    "prodock-uapi.h": {
+      "bytes": 3678,
+      "sha256": "28c9b505ecab395639698c143ab8ce48890537fef1008cee6a604dbc93c22a51",
+      "crc32": "4bbb65c6"
+    },
+    "prodock_order.py": {
+      "bytes": 16438,
+      "sha256": "94b4142b4076f121897a0323707452b4c4196916c34b491b062d42f4d05871b9",
+      "crc32": "d7b74abe"
+    },
+    "prodock_paths.py": {
+      "bytes": 19234,
+      "sha256": "86497c3832504a754921dd04da97f562a7ee4393b82e0ec8886dabee85c67bca",
+      "crc32": "be5a408e"
+    },
+    "prodock_transport.py": {
+      "bytes": 4089,
+      "sha256": "fbca604e76cb35f5e3d559644d8add769f40df1b85c129ba343159b327bf772b",
+      "crc32": "4ef1375c"
+    },
+    "prodock_valley_ab.py": {
+      "bytes": 11425,
+      "sha256": "7348d97f9ba20628750c8407419ab489e0f4b1698590b8e934a07f7e950038f4",
+      "crc32": "581bddca"
+    },
+    "prodock_valley_benchmark.py": {
+      "bytes": 14209,
+      "sha256": "38b035631a333f8660fb60faa104aa91c6a4d8f395081e375d7dd1683029b0e7",
+      "crc32": "0dd291db"
+    },
+    "prodock_valley_trial.py": {
+      "bytes": 9628,
+      "sha256": "0256ea224ccfa7e661b845b331f25cfdf4e560dd22b442e6f93b296161e14a8f",
+      "crc32": "34cbcb9b"
+    },
+    "route_core.inc": {
+      "bytes": 5679,
+      "sha256": "27679a84ed3b0e8191b731dedb665f053e1c72656b399bf2d0ea76fe484e1bdd",
+      "crc32": "045e7055"
+    },
+    "route_hooks.patch": {
+      "bytes": 7231,
+      "sha256": "8a6bed504bc68c5d01109c9f0fa36ff550041f7db43d809682af44063c2c1b19",
+      "crc32": "0446371c"
+    },
+    "route_original.c": {
+      "bytes": 6251,
+      "sha256": "eccf6585bc8c4f6b830acb44b7237db70a4de72af69e8b03334cdd82945e896b",
+      "crc32": "84fddae9"
+    },
+    "route_probe.c": {
+      "bytes": 6760,
+      "sha256": "c2dc02e9ef4bd9461f4360eb3b60728df87dcfb52317076193277fa27efbd1b3",
+      "crc32": "8cbdd2f6"
+    },
+    "runtime_inspect.c": {
+      "bytes": 6736,
+      "sha256": "4815ba9c609464c767529b945c12dc79f0863c8c627c516224712229ddc527b1",
+      "crc32": "0340cc41"
+    },
+    "test_trial.py": {
+      "bytes": 14636,
+      "sha256": "effc06d04ee120868a6e836f1632780006a2254ae40e580dd8819feabeb29c1e",
+      "crc32": "c1bba571"
+    }
+  },
+  "transport_bytes": 703206
+}

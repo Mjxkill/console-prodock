@@ -1,0 +1,2270 @@
+=== PDF PAGE 21 ===
+3 Global Clock                                                                       3.1 DCE
+
+
+
+                 Figure 3-2 IP Customization of DCE
+
+
+
+
+                 1. General
+                    The General configuration box is used to configure the generated IP
+                    design files.
+                      Device: Select a device.
+                      Device Version: Select a device version
+                      Part Number: Select a part number
+                      Language: Hardware description language used to generate the IP
+                       design files. Click the drop-down list to select the language,
+                       including Verilog and VHDL.
+                      Module Name: The module name of the generated IP design files.
+                       Enter the module name in the text box. Module name cannot be
+                       the same as the primitive name. If it is the same, an error will be
+                       reported.
+                      File Name: The name of the generated IP design files. Enter the
+                       file name in the text box.
+                      Create In: The path in which the generated IP files will be stored.
+                       Enter the target path in the box or select the target path by clicking
+                       the right textbox.
+                 2. Port Diagram
+                    The port diagram displays a sample diagram of IP Core configuration,
+                    as shown in Figure 3-2.
+
+
+UG306-1.0.7E                                                                          12(123)
+
+
+=== PDF PAGE 26 ===
+3 Global Clock                                                                           3.2 DCS
+
+
+
+                 Figure 3-9 IP Customization of DCS
+
+
+
+
+                 1. General
+                    The General configuration box is used to configure the generated IP
+                    design file.The DCS General configuration box is similar to that of
+                    DCE. For the details, please refer to the General description in 3.1.2
+                    IP Generation.
+                 2. Options
+                    The Options Configuration box is used to configure IP, as shown in
+                    Figure 3-9.
+                        Glitchless Mode: Enable/disable Glitchless
+                        DCS Mode: Set DCS mode
+                 3. Port Diagram
+                    The port diagram displays a sample diagram of IP Core configuration,
+                    as shown in Figure 3-9.
+                 Generated Files
+                      After configuration, it will generate three files that are named after the
+                 "File Name".
+                    "gowin_dcs.v" file is a complete Verilog module to generate
+                     instantiated DCS, and it is generated according to the IP configuration.
+                    "gowin_dcs_tmp.v" is the template file.
+                    "gowin_dcs.ipc" file is IP configuration file. You can load the file to
+
+UG306-1.0.7E                                                                              17(123)
+
+
+=== PDF PAGE 30 ===
+4 HCLK                                                                                         4.1 DHCE
+
+
+
+               Figure 4-2 IP Customization of DHCE
+
+
+
+
+               1. General
+                  The General configuration box is used to configure the generated IP
+                  design file. DHCE General configuration is similar to that of DCE. For
+                  the details, please refer to the General description in 3.1.2 IP
+                  Generation.
+               2. Port Diagram
+                  The port diagram displays a sample diagram of IP Core configuration,
+                  as shown in Figure 4-2.
+               Generated Files
+                    After configuration, it will generate three files that are named after the
+               "File Name".
+                  "gowin_dhce.v" file is a complete Verilog module to generate
+                   instantiated DHCE, and it is generated according to the IP
+                   configuration.
+                  "gowin_dhce_tmp.v" is the template file.
+                  "gowin_dhce.ipc" file is IP configuration file. You can load the file to
+                   configure the IP.
+               Note!
+               If VHDL is selected as the hardware description language, the first two files will be named
+               with .vhd suffix.
+
+
+
+
+UG306-1.0.7E                                                                                     21(123)
+
+
+=== PDF PAGE 31 ===
+4 HCLK                                                                            4.2 CLKDIV2
+
+
+
+ 4.2 CLKDIV2
+ 4.2.1 Primitive Introduction
+                   The CLKDIV2 is a clock divider. It realizes a divide-by-two clock. The
+               output of CLKDIV2 can only drive FCLK of IOLOGIC, CLKIN and CLKFB
+               of PLL, FCLK of DQS, HCLKIN of CLKDIV, and DDRDLL of CLKIN.
+               Functional Description
+                   CLKDIV2 is a HCLK divider module that generates a divide-by-two
+               clock with the phase same as that of the input clock.
+               Port Diagram
+               Figure 4-3 CLKDIV2 Port Diagram
+
+
+                HCLKIN
+
+                                  CLKDIV2           CLKOUT
+
+                RESETN
+
+
+
+
+               Port Description
+               Table 4-2 CLKDIV2 Port Description
+                Port Name           I/O               Description
+                HCLKIN              Input             Clock input signal
+                RESETN              Input             Asynchronous reset signal, active-low.
+                CLKOUT              Output            Clock output signal
+
+
+
+               Primitive Instantiation
+                   The primitive can be instantiated directly.
+                Verilog Instantiation:
+                   CLKDIV2 uut (
+                         .HCLKIN(hclkin),
+                         .RESETN(resetn),
+                         .CLKOUT(clkout)
+                   );
+                VHDL Instantiation:
+                   COMPONENT CLKDIV2
+                            PORT(
+                                  HCLKIN:IN std_logic;
+
+UG306-1.0.7E                                                                           22(123)
+
+
+=== PDF PAGE 32 ===
+4 HCLK                                                                       4.2 CLKDIV2
+
+
+
+                                  RESETN:IN std_logic;
+                                  CLKOUT:OUT std_logic
+                                  );
+                   END CONPONENT;
+                       uut:CLKDIV2
+                                PORT MAP(
+                                       HCLKIN=>hclkin,
+                                       RESETN=>resetn,
+                                       CLKOUT=>clkout
+                                  );
+ 4.2.2 IP Generation
+                    Click "CLKDIV2" on the "IP Core Generator" interface and an
+               overview of related information about CLKDIV2 will be displayed on the
+               right side of the interface.
+               IP Configuration
+                    Double-click on " CLKDIV2", and the "IP Customization" window pops
+               up. It includes the "General", and port diagram, as shown in Figure 4-4.
+               Figure 4-4 IP Customization of CLKDIV2
+
+
+
+
+               1. General
+                  The General configuration box is used to configure the generated IP
+
+UG306-1.0.7E                                                                     23(123)
+
+
+=== PDF PAGE 33 ===
+4 HCLK                                                                                        4.3 CLKDIV
+
+
+
+                     design file. CLKDIV2 General configuration is similar to that of DCE.
+                     For the details, please refer to the General description in 3.1.2 IP
+                     Generation.
+               2. Port Diagram
+                  The port diagram displays a sample diagram of IP Core configuration,
+                  as shown in Figure 4-4.
+               Generated Files
+                     After configuration, three files that are named after the "File Name"
+               will be generated.
+                    "gowin_clkdiv2.v" file is a complete Verilog module to generate
+                     instantiated CLKDIV2, and it is generated according to the IP
+                     configuration.
+                    "gowin_ clkdiv2_tmp.v" is the template file.
+                    "gowin_ clkdiv2.ipc" file is IP configuration file. You can load the file to
+                     configure the IP.
+               Note!
+               If VHDL is selected as the hardware description language, the first two files will be named
+               with .vhd suffix.
+
+ 4.3 CLKDIV
+ 4.3.1 Primitive Introduction
+                     CLKDIV is a clock frequency divider to adjust the clock frequency.
+               Functional Description
+                   CLKDIV generates a divider clock that has the same phase as that of
+               input clock, which is used in the IO logic.
+               Port Diagram
+               Figure 4-5 CLKDIV Diagram
+
+
+                   HCLKIN
+
+                RESETN             CLKDIV             CLKOUT
+
+                    CALIB
+
+
+
+
+UG306-1.0.7E                                                                                     24(123)
+
+
+=== PDF PAGE 34 ===
+4 HCLK                                                                                    4.3 CLKDIV
+
+
+
+               Port Description
+               Table 4-3 CLKDIV Port Description
+                Port Name            I/O         Description
+                HCLKIN               Input       Clock input signal
+                                                 Asynchronous reset signal, active-low; it does not
+                RESETN               Input
+                                                 work for DIV_MODE of 1.
+                CALIB                Input       CALIB input signal, adjusting output clock.
+                CLKOUT               Output      Clock output signal
+
+
+
+                  The above CALIB signal can be used in conjunction with CALIB in
+               IOLOGIC, and the functions are as follows:
+                    For frequency divided by 2, the phase is adjusted every 2 falling edges
+                     with 180 degrees, and 2 adjustments are for one cycle.
+                    For frequency divided by 3, the phase is adjusted every 2 falling edges
+                     with 120 degrees, and 3 adjustments are for one cycle.
+                    For frequency divided by 3.5, the phase is adjusted every 1 falling
+                     edge with about 102.8 degrees, and 7 adjustments are for one cycle.
+                    For frequency divided by 4, the phase is adjusted every 2 falling edges
+                     with 90 degrees, and 4 adjustments are for one cycle.
+                    For frequency divided by 5, the phase is adjusted every 2 falling edges
+                     with about 72 degrees, and 5 adjustments are for one cycle.
+                    For frequency divided by 6, the phase is adjusted every 2 falling edges
+                     with 60 degrees, and 6 adjustments are for one cycle.
+                    For frequency divided by 7, the phase is adjusted every 2 falling edges
+                     with 51.4 degrees, and 7 adjustments are for one cycle
+                    For frequency divided by 8, the phase is adjusted every 2 falling edges
+                     with about 45 degrees, and 8 adjustments are for one cycle.
+                    For frequency divided by 1, the adjustment is invalid.
+               Parameter Description
+               Table 4-4 CLKDIV Parameter Description
+                Name                Value                  Default       Description
+                                                                         Set the clock frequency
+                DIV_MODE            1,2,3,3.5,4,5,6,7,8    2
+                                                                         division coefficient
+
+
+               Primitive Instantiation
+                     The primitive can be instantiated directly.
+                   Verilog Instantiation:
+                     CLKDIV uut (
+                          .HCLKIN(hclkin),
+
+
+UG306-1.0.7E                                                                                 25(123)
+
+
+=== PDF PAGE 35 ===
+4 HCLK                                                                        4.3 CLKDIV
+
+
+
+                        .RESETN(resetn),
+                        .CALIB(calib),
+                        .CLKOUT(clkout)
+                   );
+                   defparam clkdiv_inst.DIV_MODE="2";
+                VHDL Instantiation：
+                   COMPONENT CLKDIV
+                           GENERIC(
+                                      DIV_MODE:STRING:="2"
+                                      );
+                           PORT(
+                                      HCLKIN:IN std_logic;
+                                      RESETN:IN std_logic;
+                                      CALIB:IN std_logic;
+                                      CLKOUT:OUT std_logic
+                            );
+                   END CONPONENT;
+                        uut:CLKDIV
+                           GENERIC MAP(
+                                           DIV_MODE=>"2",
+                                           )
+                           PORT MAP(
+                                           HCLKIN=>hclkin,
+                                           RESETN=>resetn,
+                                           CALIB=>calib,
+                                           CLKOUT=>clkout
+                                 );
+ 4.3.2 IP Generation
+                   Click "CLKDIV" on the "IP Core Generator" interface and an overview
+               of CLKDIV will be displayed on the right side of the interface.
+               IP Configuration
+                    Double-click on "CLKDIV", and the "IP Customization" window pops
+               up. It includes the "General", "Options", and port diagram, as shown in
+               Figure 4-6.
+
+
+
+
+UG306-1.0.7E                                                                     26(123)
+
+
+=== PDF PAGE 36 ===
+4 HCLK                                                                               4.3 CLKDIV
+
+
+
+               Figure 4-6 IP Customization of CLKDIV
+
+
+
+
+               1. General
+                  The Genera configuration box is used to configure the generated IP
+                  design file. The CLKDIV2 General configuration is similar to that of
+                  DCE. For the details, please refer to the General description in 3.1.2
+                  IP Generation.
+               2. Options
+                  The Options Configuration box is used to configure IP, as shown in
+                  Figure 3-9.
+                    Division Factor: Select a division factor
+                    Calibration: Enable/ disable calibration
+               3. Port Diagram
+                  The port diagram displays a sample diagram of IP Core configuration,
+                  as shown in Figure 4-6.
+               IP Generated Files
+                    After configuration, it will generate three files that are named after the
+               "File Name".
+                  "gowin_clkdiv.v" file is a complete Verilog module to generate
+                   instantiated CLKDIV, and it is generated according to the IP
+                   configuration.
+                  "gowin_clkdiv_tmp.v" is the template file.
+                  "gowin_clkdiv.ipc" file is IP configuration file. You can load the file to
+UG306-1.0.7E                                                                             27(123)
+
+
+=== PDF PAGE 41 ===
+4 HCLK                                                                                       4.4 DLLDLY
+
+
+
+                       Delay Mode: Set delay mode
+                       Delay Step: Set delay step
+                       Delay Source: Set delay source
+               3. Port Diagram
+                  The port diagram displays a sample diagram of IP Core configuration,
+                  as shown in Figure 4-8.
+               IP Generated Files
+                     After configuration, three files that are named after the "File Name"
+               will be generated.
+                  "gowin_dlldly.v" file is a complete Verilog module to generate
+                   instantiated DLLDLY, and it is generated according to the IP
+                   configuration.
+                  "gowin_dlldly_tmp.v" is the template file.
+                  "gowin_dlldly.ipc" file is IP configuration file. You can load the file to
+                   configure the IP.
+               Note!
+               If VHDL is selected as the hardware description language, the first two files will be named
+               with .vhd suffix.
+
+
+
+
+UG306-1.0.7E                                                                                     32(123)
+
+
+=== PDF PAGE 45 ===
+5 System Clock                                                                                5.1 PLL
+
+
+
+                 Port Diagram
+                 Figure 5-2 PLL Port Diagram
+
+                              CLKIN
+                              CLKFB
+                             RESET
+                            PLLPWD
+                            RESET_I
+                           RESET_O
+                             FBDSEL     6
+                              IDSEL     6
+                             MDSEL      7                                 CLKOUT0
+                         MDSEL_FRAC     3                                 CLKOUT1
+                             ODSEL0     7
+                             ODSEL1     7                                 CLKOUT2
+                             ODSEL2     7
+                                                                          CLKOUT3
+                             ODSEL3     7
+                             ODSEL4     7            PLL                  CLKOUT4
+                             ODSEL5     7
+                                                                          CLKOUT5
+                             ODSEL6     7
+                      ODSEL0_FRAC       3                                 CLKOUT6
+                               DT0      4
+                               DT1                                        CLKFBOUT
+                                        4
+                               DT2      4
+                               DT3      4
+                                                                          LOCK
+                            ICPSEL      6
+                           LPFRES       3
+                           LPFCAP       2
+                             PSSEL      3
+                             PSDIR
+                          PSPULSE
+                           ENCLK0
+                           ENCLK1
+                           ENCLK2
+                           ENCLK3
+                           ENCLK4
+                           ENCLK5
+                           ENCLK6
+                           SSCPOL
+                           SSCON
+                        SSCMDSEL        7
+                   SSCMDSEL_FRAC        3
+
+
+
+
+                 Port Description
+                 Table 5-2 PLL Port Description
+  Port             I/O         Description
+  CLKIN            Input       Reference clock input
+  CLKFB            Input       Feedback clock input
+  RESET            Input       All reset signal of PLL; reset digital circuit, active-high.
+
+
+UG306-1.0.7E                                                                                  36(123)
+
+
+=== PDF PAGE 46 ===
+5 System Clock                                                                            5.1 PLL
+
+
+
+  Port            I/O     Description
+  PLLPWD          Input   PLL power down signal; power down analog circuits, active-high.
+                          PLL global reset with IDIV, active-high; generally used for internal
+  RESET_I         Input
+                          test.
+                          Reset ODIV and some digital circuits, active-high, generally used for
+  RESET_O         Input
+                          internal test.
+                          Dynamic control of FBDIV value with range 0~63, the actual value
+  FBDSEL[5:0]     Input
+                          of FBDIV is 64-FBDSEL.
+                          Dynamic control of IDIV value with range 0~63, the actual value is
+  IDSEL[5:0]      Input
+                          64-IDSEL.
+                          Dynamical control of MDIV integer value with range 0~126, the
+  MDSEL[6:0]      Input
+                          actual value is 128-MDSEL, i.e. MDIV value range is 2~128.
+  MDSEL_FRAC[2:           Dynamic control of MDIV fraction value, applicable for MDIV integer
+                  Input
+  0]                      range 2~127, fraction value 1/8.
+                          Dynamic control of ODIV0 integer value with range 0~127, the
+  ODSEL0[6:0]     Input
+                          actual value is 128-ODSEL0.
+  ODSEL0_FRAC[            Dynamic control of ODIV0 fraction value, applicable for ODIV0
+                  Input
+  2:0]                    integer range 2~127, fraction value 1/8.
+                          Dynamical control of ODIV1 value with range 0~127, the actual
+  ODSEL1[6:0]     Input
+                          value is 128-ODSEL1.
+                          Dynamical control of ODIV2 value with range 0~127, the actual
+  ODSEL2[6:0]     Input
+                          value is 128-ODSEL2.
+                          Dynamical control of ODIV3 value with range 0~127, the actual
+  ODSEL3[6:0]     Input
+                          value is 128-ODSEL3.
+                          Dynamical control of ODIV4 value with range 0~127, the actual
+  ODSEL4[6:0]     Input
+                          value is 128-ODSEL4.
+                          Dynamical control of ODIV5 value with range 0~127, the actual
+  ODSEL5[6:0]     Input
+                          value is 128-ODSEL5.
+                          Dynamical control of ODIV6 value with range 0~127, the actual
+  ODSEL6[6:0]     Input
+                          value is 128-ODSEL6.
+  DT0[3:0]        Input   Dynamically trim CLKOUT0 duty cycle
+  DT1[3:0]        Input   Dynamically trim CLKOUT1 duty cycle
+  DT2[3:0]        Input   Dynamically trim CLKOUT2 duty cycle
+  DT3[3:0]        Input   Dynamically trim CLKOUT3 duty cycle
+                          Dynamic control of ICP current; the current increases as the value
+  ICPSEL[5:0]     Input
+                          increases, and the current is minimum when the value is 0.
+                          Dynamic control of LPFRES size with the value from small to large
+  LPFRES[2:0]     Input   R0~R7; R0 corresponds to the largest bandwidth, R7 corresponds
+                          to the smallest bandwidth.
+                          Dynamically control of LPFCAP size with the value from small to
+  LPFCAP[1:0]     Input
+                          large C0~C2.
+                          Dynamic control of phase shift direction
+  PSDIR           Input    0: Increase
+                           1: Decrease
+                          Dynamically control of phase shift channel selection:
+  PSSEL[2:0]      Input
+                          Values 0–6: Selects channel 0–6 respectively.
+  PSPULSE         Input   Dynamic control of clock pulse of phase shift
+
+UG306-1.0.7E                                                                              37(123)
+
+
+=== PDF PAGE 56 ===
+5 System Clock                                                                   5.1 PLL
+
+
+
+  Name           Type     Value           Default   Description
+                          "                         cycle
+                                                    adjustment enable:
+                                                     "FALSE": 50% duty cycle
+                                                     "TRUE": When
+                                                        DYN_PE3_SEL="TRUE", set
+                                                        CLKOUT3_PE_COARSE and
+                                                        CLKOUT3_PE_FINE as the
+                                                        falling edge, and dynamically
+                                                        adjust the phase as the rising
+                                                        edge to achieve dynamic duty
+                                                        cycle adjustment (falling edge-
+                                                        rising edge).
+                                                    Channel 4 (ODIV4=2~128) duty
+                                                    cycle
+                                                    adjustment enable:
+                                                     "FALSE": 50% duty cycle
+                                                     "TRUE": When
+                          “TRUE","FALSE                 DYN_PE4_SEL="TRUE", set
+  DE4_EN         string                   “FALSE"       CLKOUT4_PE_COARSE and
+                          "
+                                                        CLKOUT4_PE_FIN as the
+                                                        falling edge, and dynamically
+                                                        adjust the phase as the rising
+                                                        edge to achieve dynamic duty
+                                                        cycle adjustment (falling edge-
+                                                        rising edge).
+                                                    Channel 5 (ODIV5=2~128) duty
+                                                    cycle
+                                                    adjustment enable:
+                                                     "FALSE": 50% duty cycle
+                                                     "TRUE": When
+                          “TRUE","FALSE                 DYN_PE5_SEL="TRUE", set
+  DE5_EN         string                   “FALSE"       CLKOUT5_PE_COARSE and
+                          "
+                                                        CLKOUT5_PE_FINE as the
+                                                        falling edge, and dynamically
+                                                        adjust the phase as the rising
+                                                        edge to achieve dynamic duty
+                                                        cycle adjustment (falling edge-
+                                                        rising edge).
+                                                    Channel 6 (ODIV6=2~128) duty
+                                                    cycle
+                                                    adjustment enable:
+                                                     "FALSE": 50% duty cycle
+                                                     "TRUE": When
+                          “TRUE","FALSE                 DYN_PE6_SEL="TRUE", set
+  DE6_EN         string                   “FALSE"       CLKOUT6_PE_COARSE and
+                          "
+                                                        CLKOUT6_PE_FINE as the
+                                                        falling edge, and dynamically
+                                                        adjust the phase as the rising
+                                                        edge to achieve dynamic duty
+                                                        cycle adjustment (falling edge-
+                                                        rising edge).
+  RESET_I_EN     string   "TRUE",         "FALSE"   Enable the dynamic signal
+
+UG306-1.0.7E                                                                     47(123)
+
+
+=== PDF PAGE 57 ===
+5 System Clock                                                                         5.1 PLL
+
+
+
+  Name           Type        Value            Default     Description
+                             "FALSE"                      RESET_I. If you need to use the
+                                                          RESET_I port, you need to set this
+                                                          parameter to TRUE.
+                                                          Enable the dynamic signal
+                             "TRUE",                      RESET_O. if you need to use the
+  RESET_O_EN     string                       "FALSE"
+                             "FALSE"                      RESET_O port, you need to set this
+                                                          parameter to TRUE.
+                                                          ICPSEL static control parameter or
+                                                          dynamic control signal selected.
+                             "TRUE",                       FALSE: Static, namely select
+  DYN_ICP_SEL    string                       "FALSE"
+                             "FALSE"                          the parameter ICP_SEL.
+                                                           TRUE: Dynamic, namely select
+                                                              dynamic signal ICPSEL.
+                                                          ICP current static setting:
+                                                           6'bXXXXXX: Indicates that
+                                                              Gowin Software will
+                             6'bXXXXXX,
+                                              6'bXXXXX        automatically calculate and set
+  ICP_SEL        binary      6'b000000~6'b1
+                                              X               this parameter.
+                             11111
+                                                           6'b000000~6'b111111: You can
+                                                              set the parameter within the
+                                                              range as requirements.
+                                                          LPFRES and LPFCAP static control
+                                                          parameter or dynamic control signal
+                                                          selected.
+                                                           FALSE: Static, namely select
+  DYN_LPF_SE                 "TRUE",
+                 string                       "FALSE"         the parameters LPF_RES and
+  L                          "FALSE"
+                                                              LPF_CAP.
+                                                           TRUE: Dynamic, namely select
+                                                              dynamic signals LPFREST and
+                                                              LPFCAP.
+                                                          LPRRES static setting:
+                                                           3'bXXX: Indicates that Gowin
+                                                             Software will automatically
+                             3'bXXX,3'b000~                  calculate and set this
+  LPF_RES        binary                       3'bXXX
+                             3'b111                          parameter.
+                                                           3'b000~3'b111: You can set the
+                                                             parameter within the range as
+                                                             requirements.
+  LPF_CAP        binary      2'b00~2'b10      2'b00       LFPCAP static setting
+                             "TRUE",
+  SSC_EN         string                       "FALSE"     SSC enable
+                             "FALSE"
+
+
+                     The input clock divider (IDIV) is used to control the input clock
+                 frequency into the PLL module. This divider coefficient can be adjusted
+                 dynamically through the port IDSEL or statically through the parameter
+                 IDIV_SEL, the correspondence is shown in Table 5-4.
+                     The relationship between IDIV value and port IDSEL is
+                 IDSEL=dec2bin(64-IDIV).
+
+
+UG306-1.0.7E                                                                           48(123)
+
+
+=== PDF PAGE 63 ===
+5 System Clock                                                                                      5.1 PLL
+
+
+
+                 When the init_clk frequency is high, it is recommended to apply timing constraints to this
+                 clock.
+
+
+
+
+                 Primitive Instantiation
+                      The primitive can be instantiated directly.
+                   Verilog Instantiation:
+                          PLL uut (
+                            .LOCK(lock),
+                            .CLKOUT0(clkout0),
+                            .CLKOUT1(clkout1),
+                            .CLKOUT2(clkout2),
+                            .CLKOUT3(clkout3),
+                            .CLKOUT4(clkout4),
+                            .CLKOUT5(clkout5),
+                            .CLKOUT6(clkout6),
+                            .CLKFBOUT(clkfbout),
+                            .CLKIN(clkin),
+                            .CLKFB(clkfb),
+                            .RESET(reset),
+                            .PLLPWD(pllpwd),
+                            .RESET_I(reseti),
+                            .RESET_O(reseto),
+                            .FBDSEL(fbdsel),
+                            .IDSEL(idsel),
+                            .MDSEL(mdsel),
+                            .MDSEL_FRAC(mdsel_frac),
+                            .ODSEL0(odesl0),
+                            .ODSEL0_FRAC(odesl0_frac),
+                            .ODSEL1(odesl1),
+                            .ODSEL2(odesl2),
+                            .ODSEL3(odesl3),
+                            .ODSEL4(odesl4),
+
+UG306-1.0.7E                                                                                        54(123)
+
+
+=== PDF PAGE 67 ===
+5 System Clock                                                     5.1 PLL
+
+
+
+                   defparam uut.MDIV_FRAC_SEL=0;
+                   defparam uut.MDIV_SEL=8;
+                   defparam uut.ODIV0_FRAC_SEL=0;
+                   defparam uut.ODIV0_SEL=8;
+                   defparam uut.ODIV1_SEL=8;
+                   defparam uut.ODIV2_SEL=8;
+                   defparam uut.ODIV3_SEL=8;
+                   defparam uut.ODIV4_SEL=8;
+                   defparam uut.ODIV5_SEL=8;
+                   defparam uut.ODIV6_SEL=8;
+                   defparam uut.RESET_I_EN="FALSE";
+                   defparam uut.RESET_O_EN="FALSE";
+                   defparam uut.SSC_EN="FALSE";
+                 VHDL Instantiation：
+                   COMPONENT PLL
+                        GENERIC(
+                              FCLKIN : STRING := "100.0";
+                              DYN_IDIV_SEL : STRING := "FALSE";
+                              IDIV_SEL : integer := 1;
+                              DYN_FBDIV_SEL : STRING := "FALSE";
+                              FBDIV_SEL : integer := 1;
+                              DYN_ODIV0_SEL : STRING := "FALSE";
+                              ODIV00_SEL : integer := 8;
+                              DYN_ODIV1_SEL : STRING := "FALSE";
+                              ODIV1_SEL : integer := 8;
+                              DYN_ODIV2_SEL : STRING := "FALSE";
+                              ODIV2_SEL : integer := 8;
+                              DYN_ODIV3_SEL : STRING := "FALSE";
+                              ODIV3_SEL : integer := 8;
+                              DYN_ODIV4_SEL : STRING := "FALSE";
+                              ODIV4_SEL : integer := 8;
+                              DYN_ODIV5_SEL : STRING := "FALSE";
+                              ODIV5_SEL : integer := 8;
+                              DYN_ODIV6_SEL : STRING := "FALSE";
+                              ODIV6_SEL : integer := 8;
+
+UG306-1.0.7E                                                       58(123)
+
+
+=== PDF PAGE 69 ===
+5 System Clock                                       5.1 PLL
+
+
+
+                 CLK6_IN_SEL : bit_vector := '0';
+                 CLK6_OUT_SEL : bit := '0';
+                 CLKFB_SEL : STRING := "INTERNAL";
+                 DYN_DPA_EN : STRING := "FALSE";
+                 DYN_PE0_SEL : STRING := "FALSE";
+                 DYN_PE1_SEL : STRING := "FALSE";
+                 DYN_PE2_SEL : STRING := "FALSE";
+                 DYN_PE3_SEL : STRING := "FALSE";
+                 DYN_PE4_SEL : STRING := "FALSE";
+                 DYN_PE5_SEL : STRING := "FALSE";
+                 DYN_PE6_SEL : STRING := "FALSE";
+                 CLKOUT0_PE_COARSE : integer := 1;
+                 CLKOUT0_PE_FINE : integer := 0;
+                 CLKOUT1_PE_COARSE : integer := 0;
+                 CLKOUT1_PE_FINE : integer := 0;
+                 CLKOUT2_PE_COARSE : integer := 1;
+                 CLKOUT2_PE_FINE : integer := 0;
+                 CLKOUT3_PE_COARSE : integer := 0;
+                 CLKOUT3_PE_FINE : integer := 0;
+                 CLKOUT4_PE_COARSE : integer := 1;
+                 CLKOUT4_PE_FINE : integer := 0;
+                 CLKOUT5_PE_COARSE : integer := 0;
+                 CLKOUT5_PE_FINE : integer := 0;
+                 CLKOUT6_PE_COARSE : integer := 1;
+                 CLKOUT6_PE_FINE : integer := 0;
+                 DE0_EN : STRING := "FALSE";
+                 DE1_EN : STRING := "FALSE";
+                 DE2_EN : STRING := "FALSE";
+                 DE3_EN : STRING := "FALSE";
+                 DE4_EN : STRING := "FALSE";
+                 DE5_EN : STRING := "FALSE";
+                 DE6_EN : STRING := "FALSE";
+                 RESET_I_EN : STRING := "FALSE";
+                 RESET_O_EN : STRING := "FALSE";
+                 DYN_ICP_SEL : STRING := "FALSE";
+
+UG306-1.0.7E                                         60(123)
+
+
+=== PDF PAGE 70 ===
+5 System Clock                                                                 5.1 PLL
+
+
+
+                                ICP_SEL : std_logic_vector(5 downto 0) := "XXXXXX";
+                                DYN_LPF_SEL : STRING := "FALSE";
+                               LPR_RES : std_logic_vector(2 downto 0) := "XXX";
+                               LPR_CAP : bit_vector := "00";
+                               SSC_EN : STRING := "FALSE"
+                      );
+                     PORT(
+                               CLKIN : IN std_logic;
+                                CLKFB : IN std_logic:='0';
+                                RESET, PLLPWD : IN std_logic:='0';
+                                RESET_I, RESET_O : IN std_logic:='0';
+                                IDSEL, FBDSEL : IN std_logic_vector(5 downto 0);
+                                ODSEL0,ODSEL1,ODSEL2,ODSEL3, DSEL4,ODSEL5,
+                           ODSEL6, MDSEL : IN std_logic_vector(6 downto 0);
+                               MDSEL_FRAC, ODSEL0_FRAC: IN std_logic_vector(2
+                  downto 0);
+
+
+                                DT0,DT1,DT2,DT3 : IN std_logic_vector(3 downto 0);
+                                ICPSEL : IN std_logic_vector(5 downto 0);
+                                LPFRES : IN std_logic_vector(2 downto 0);
+                                LPFCAP : IN std_logic_vector(1 downto 0);
+                                PSSEL : IN std_logic_vector(2 downto 0);
+                                PSDIR,PSPULSE : IN std_logic;
+                                ENCLK0,ENCLK1,ENCLK2,ENCLK3 : IN std_logic;
+                                ENCLK4,ENCLK5,ENCLK6 : IN std_logic;
+                               SSCPOL, SSCON: IN std_logic;
+                               SSCMDSEL : IN std_logic_vector(6 downto 0);
+                               SSCMDSEL_FRAC : IN std_logic_vector(2 downto 0);
+                                LOCK : OUT std_logic;
+                                CLKOUT0, CLKOUT1 : OUT std_logic;
+                                CLKOUT2, CLKOUT3 : OUT std_logic;
+                                CLKOUT4, CLKOUT5 : OUT std_logic;
+                               CLKOUT6, CLKFBOUT : OUT std_logic
+                      );
+                 END COMPONENT;
+
+
+UG306-1.0.7E                                                                   61(123)
+
+
+=== PDF PAGE 73 ===
+5 System Clock                                     5.1 PLL
+
+
+
+                        CLKOUT1_PE_FINE => 0,
+                         CLKOUT2_PE_COARSE=> 1,
+                        CLKOUT2_PE_FINE => 0,
+                        CLKOUT3_PE_COARSE => 0,
+                        CLKOUT3_PE_FINE => 0,
+                         CLKOUT4_PE_COARSE => 1,
+                        CLKOUT4_PE_FINE => 0,
+                        CLKOUT5_PE_COARSE => 0,
+                        CLKOUT5_PE_FINE => 0,
+                         CLKOUT6_PE_COARSE => 1,
+                        CLKOUT6_PE_FINE => 0,
+                        DE0_EN => "FALSE",
+                        DE1_EN => "FALSE",
+                        DE2_EN => "FALSE",
+                        DE3_EN => "FALSE",
+                        DE4_EN => "FALSE",
+                        DE5_EN => "FALSE",
+                        DE6_EN => "FALSE",
+                        RESET_I_EN => "FALSE",
+                        RESET_O_EN => "FALSE",
+                        DYN_ICP_SEL => "FALSE",
+                        ICP_SEL => "XXXXXX",
+                        DYN_LPF_SEL => "FALSE",
+                        LPR_RES => "XXX",
+                        LPR_CAP => "00",
+                       SSC_EN => "FALSE"
+                 )
+                 PORT MAP(
+                 LOCK=>lock,
+                     CLKOUT0=>clkout0,
+                     CLKOUT1=>clkout1,
+                     CLKOUT2=>clkout2,
+                     CLKOUT3=>clkout3,
+                     CLKOUT4=>clkout4,
+                     CLKOUT5=>clkout5,
+
+UG306-1.0.7E                                       64(123)
+
+
+=== PDF PAGE 74 ===
+5 System Clock                               5.1 PLL
+
+
+
+                 CLKOUT6=>clkout6,
+                 CLKFBOUT=>clkfbout,
+                 CLKIN=>clkin,
+                 CLKFB=>clkfb,
+                 RESET=>reset,
+                 PLLPWD=>pllpwd,
+                 RESET_I=>reseti,
+                 RESET_O=>reseto,
+                 FBDSEL=>fbdsel,
+                 IDSEL=>idsel,
+                 MDSEL=>mdsel,
+                 MDSEL_FRAC=>mdsel_frac,
+                 ODSEL0=>odesl0,
+                 ODSEL0_FRAC=>odesl0_frac,
+                 ODSEL1=>odesl1,
+                 ODSEL2=>odesl2,
+                 ODSEL3=>odesl3,
+                 ODSEL4=>odesl4,
+                 ODSEL5=>odesl5,
+                 ODSEL6=>odesl6,
+                 DT0=>dt0,
+                 DT1=>dt1,
+                 DT2=>dt2,
+                 DT3=>dt3,
+                 ICPSEL=>icpsel,
+                 LPFRES=>lpfres,
+                 LPFCAP=>lpfcap,
+                 PSSEL=>pssel,
+                 PSDIR=>psdir,
+                 PSPULSE=>pspulse,
+                 ENCLK0=>enclk0,
+                 ENCLK1=>enclk1,
+                 ENCLK2=>enclk2,
+                 ENCLK3=>enclk3,
+                 ENCLK4=>enclk4,
+
+UG306-1.0.7E                                 65(123)
+
+
+=== PDF PAGE 76 ===
+5 System Clock                                                                           5.1 PLL
+
+
+
+                 2. Options
+                    The Options configuration box is used to configure IP by users, as
+                    shown in Figure 5-5.
+                    General: Configure "General Mode" or "Advanced Mode". Input the
+                     input clock frequency and output clock frequency in general mode, the
+                     software will automatically calculate different division factors.
+                     Advanced mode is intended for advanced users and allows inputting
+                     the input frequency and different division factors to obtain the desired
+                     output frequency.
+                    CLKIN: Configure PLL input clock frequency, and divide factor.
+                         -   "Clock Frequency": Configure the frequency of the input clock.
+                         -   "Divide Factor": Set the Divide Factor in advanced mode and
+                             support "Dynamic" or "Static". In Static mode, Divide Factor
+                             value can be set as a specific value, which ranges from 1 to
+                             64.
+                         -   "VCO Frequency": Calculated VCO frequency, read only.
+                    CLKFB: Configure the source and divide factor of PLL.
+                         -   When configuring the source of the feedback clock, you can
+                             select "Internal" and "External". If Internal is selected, the
+                             feedback comes from internal; if External is selected, the
+                             feedback comes from one of CLKOUT0~6 and CLKFBOUT,
+                             which you can select as required.
+                         -   Divide Factor: Set the Divide Factor in advanced mode and
+                             support "Dynamic" or "Static". In Static mode, Divide Factor
+                             value can be set as a specific value, which ranges from 1 to
+                             64.
+                    ICP and LPF: Control the ICP current dynamically; the current
+                     increases as the value increases, and the current is minimized when
+                     the value is 0.
+                    LPFSEL
+                         -   Control the LPFRES dynamically with RES value ranging from
+                             R0 to R7; R0 corresponds to the largest bandwidth and R7
+                             corresponds to the smallest bandwidth.
+                         -   Control the LPFCAP dynamically with CAP value ranging from
+                             small to large C0~C2.
+                    PLL Reset
+                         -   If "PLL Reset" is selected, all reset signals of PLL, reset digital
+                             circuit, and configure the RESET enable mode of PLLO.
+                         -   If "PLL Power Down" is selected, the analog circuit is power
+                             down.
+                         -   If "CLKIN Divider Reset" is selected, enable RESET_I.
+                         -   If "CLKOUT Divider Reset" is selected, enable RESET_O.
+
+UG306-1.0.7E                                                                             67(123)
+
+
+=== PDF PAGE 78 ===
+5 System Clock                                                                                    5.2 PLLA
+
+
+
+                      CLKFBOUT:
+                          -    CLKFBOUT can be configured, and the configuration
+                               parameters can be referred to the above CLKOUT1.
+                      Calculate:
+                          -    Calculate whether the divider, multiplier and VCO parameters
+                               are reasonable; if not, click "Calculate", an "error" window will
+                               pop up; if correct, click "Calculate", the "succeed" window will
+                               pop up to indicate the successful configuration.
+                     Port Diagram
+                     The port diagram displays a sample diagram of IP Core configuration
+                     as shown in Figure 5-5.
+                 IP Generated Files
+                       After configuration, three files that are named after the "File Name"
+                 will be generated.
+                    "gowin_pll.v" file is a complete Verilog module to generate instantiated
+                     PLL, and it is generated according to the IP configuration.
+                    "gowin_pll_tmp.v" is the template file.
+                    "gowin_pll.ipc" file is IP configuration file. You can load the file to
+                     configure the IP.
+                 Note!
+                 If VHDL is selected as the hardware description language, the first two files will be named
+                 with .vhd suffix.
+
+ 5.2 PLLA
+ 5.2.1 Primitive Introduction
+                      Arora Ⅴ FPGA products provide phase-locked loop (PLLA) and
+                 support seven clock outputs, and each clock supports independent
+                 adjustment of clock frequency, phase and duty cycle based on a given
+                 reference input clock.
+                 Device Supported
+                 Table 5-11 PLLA Device Supported
+                 Product Family     Series              Device
+                                    GW5A                GW5A-25, GW5A-60
+                                    GW5AR               GW5AR-25
+                 Arora              GW5AS               GW5AS-25
+                                    GW5AT               GW5AT-15, GW5AT-60
+                                    GW5ART              GW5ART-15
+
+
+                 Functional Description
+                      The PLLA structure diagram is as shown in Figure 5-1.
+
+
+UG306-1.0.7E                                                                                       69(123)
+
+
+=== PDF PAGE 80 ===
+5 System Clock                                                                                  5.2 PLLA
+
+
+
+                         CAS mode (channel 4 only): Fclkout4=Fclkout6[1]/ODIV4
+                 Note!
+                    FCLKIN is the input clock CLKIN frequency.
+                    Fclkoutx: x=0~6, the output clock frequency of channels 0~6.
+                    Fclkfb is the frequency of feebback input clock CLKFB.
+                    FPFD is the PFD phase detection frequency.
+                    IDIV, FBDIV, MDIV, ODIVx (x=0~6) are the frequency division coefficients of different
+                     frequency dividers, which can be adjusted to get the clock signal with expected
+                     frequency.
+                     [1]
+                        Fclkout6 refers to the output clock of channel 6 ODIV6.
+                 Port Diagram
+                 Figure 5-7 PLLA Port Diagram
+
+                            CLKIN
+
+                            CLKFB
+                            RESET
+
+                           PLLPWD                                                           LOCK
+
+                          RESET_I
+                                                                                            CLKOUT0
+
+                          RESET_O
+                                                                                            CLKOUT1
+                            PSSEL 3
+
+                          PSPULSE
+                                                                                            CLKOUT2
+                           SSCPOL
+                                                                                            CLKOUT3
+                           SSCON
+                                                       PLLA                                 CLKOUT4
+                         SSCMDSEL
+                                    7
+                                                                                           CLKOUT5
+                 SSCMDSEL_FRAC
+                                    3
+                                                                                            CLKOUT6
+
+                           MDCLK                                                            CLKFBOUT
+
+
+                           MDOPC    2
+                                                                                       8    MDWDI
+
+
+                           MDAINC
+
+
+
+                           MDWDI    8
+
+
+
+
+UG306-1.0.7E                                                                                       71(123)
+
+
+=== PDF PAGE 81 ===
+5 System Clock                                                                                 5.2 PLLA
+
+
+
+                  Port Description
+                  Table 5-12 PLLA Port Description
+  Port              I/O         Description
+  CLKIN             Input       Reference clock input
+  CLKFB             Input       Feedback clock input
+  RESET             Input       All reset signal of PLL; reset digital circuit, active-high.
+  PLLPWD            Input       PLL power down signal; power down analog circuits, active-high.
+                                PLL global reset with IDIV, active-high; generally used for internal
+  RESET_I           Input
+                                test.
+                                Reset ODIV and some digital circuits, active-high, generally used for
+  RESET_O           Input
+                                internal test.
+  PSDIR             Input       Dynamic control of phase shift direction
+  PSSEL[2:0]        Input       Dynamic control of channel selected for phase shift
+  PSPULSE           Input       Dynamic control of clock pulse of phase shift
+                                Optional configuration to avoid timing conflicts:
+  SSCPOL            Input        0：CLK Rising Edge
+                                 1：CLK Falling Edge
+  SSCON             Input       Dynamic control of SSC enable
+                                Dynamic control of SSC MDIV integer value, the recommended
+                                SSC MDIV actual value range is 16~24 (corresponding Fpfd of
+  SSCMDSEL[6:0]     Input
+                                50M), 32~48 (corresponding Fpfd of 25M), and the actual value is
+                                128-SSCMDSEL.
+  SSCMDSEL_FR                   Dynamic control of SSC MDIV fraction value, and the fraction value
+                    Input
+  AC[2:0]                       is 1/8.
+  CLKOUT0           Output      Channel 0 clock output (default)
+  CLKOUT1           Output      Channel 1 clock output
+  CLKOUT2           Output      Channel 2 clock output
+  CLKOUT3           Output      Channel 3 clock output
+  CLKOUT4           Output      Channel 4 clock output
+  CLKOUT5           Output      Channel 5 clock output
+  CLKOUT6           Output      Channel 6clock output
+  CLKFBOUT          Output      Feedback clock output
+  LOCK              Output      PLL lock indication：
+                                 1: Lock
+                                 0: Unlock
+  MDCLK             Input       Clock input signal, all signals on the DRP port are triggered by the
+                                rising edge of the this clock
+  MDOPC [1:0]       Input       Operation type coding:
+                                00: No read/write operation (NOOP)
+                                10: Read operation (RD)
+                                01: Write operation(WR)
+                                11: Whether MDAINC is high or not, the register address remains
+                                unchanged
+  MDAINC            Input       Address increase indication signal, active-high.
+
+UG306-1.0.7E                                                                                    72(123)
+
+
+=== PDF PAGE 88 ===
+5 System Clock                                                                  5.2 PLLA
+
+
+
+  Name           Type     Value           Default   Description
+                                                     "FALSE": 50% duty cycle
+                                                     "TRUE": When
+                                                       DYN_PE3_SEL="TRUE", set
+                                                       CLKOUT3_PE_COARSE and
+                                                       CLKOUT3_PE_FINE as the
+                                                       falling edge, and dynamically
+                                                       adjust the phase as the rising
+                                                       edge to achieve dynamic duty
+                                                       cycle adjustment (falling edge-
+                                                       rising edge).
+                                                    Channel 4 (ODIV4=2~128) duty
+                                                    cycle
+                                                    adjustment enable:
+                                                     "FALSE": 50% duty cycle
+                                                     "TRUE": When
+                          “TRUE","FALSE                 DYN_PE4_SEL="TRUE", set
+  DE4_EN         string                   “FALSE"       CLKOUT4_PE_COARSE and
+                          "
+                                                        CLKOUT4_PE_FIN as the
+                                                        falling edge, and dynamically
+                                                        adjust the phase as the rising
+                                                        edge to achieve dynamic duty
+                                                        cycle adjustment (falling edge-
+                                                        rising edge).
+                                                    Channel 5 (ODIV5=2~128) duty
+                                                    cycle
+                                                    adjustment enable:
+                                                     "FALSE": 50% duty cycle
+                                                     "TRUE": When
+                          “TRUE","FALSE                 DYN_PE5_SEL="TRUE", set
+  DE5_EN         string                   “FALSE"       CLKOUT5_PE_COARSE and
+                          "
+                                                        CLKOUT5_PE_FINE as the
+                                                        falling edge, and dynamically
+                                                        adjust the phase as the rising
+                                                        edge to achieve dynamic duty
+                                                        cycle adjustment (falling edge-
+                                                        rising edge).
+                                                    Channel 6 (ODIV6=2~128) duty
+                                                    cycle
+                                                    adjustment enable:
+                                                     "FALSE": 50% duty cycle
+                                                     "TRUE": When
+                          “TRUE","FALSE                 DYN_PE6_SEL="TRUE", set
+  DE6_EN         string                   “FALSE"       CLKOUT6_PE_COARSE and
+                          "
+                                                        CLKOUT6_PE_FINE as the
+                                                        falling edge, and dynamically
+                                                        adjust the phase as the rising
+                                                        edge to achieve dynamic duty
+                                                        cycle adjustment (falling edge-
+                                                        rising edge).
+
+                          "TRUE",                   Enable the dynamic signal
+  RESET_I_EN     string                   "FALSE"   RESET_I. If you need to use the
+                          "FALSE"
+                                                    RESET_I port, you need to set this
+
+
+UG306-1.0.7E                                                                     79(123)
+
+
+=== PDF PAGE 89 ===
+5 System Clock                                                                           5.2 PLLA
+
+
+
+  Name           Type         Value            Default        Description
+                                                              parameter to TRUE.
+                                                              Enable the dynamic signal
+                              "TRUE",                         RESET_O. if you need to use the
+  RESET_O_EN     string                        "FALSE"
+                              "FALSE"                         RESET_O port, you need to set this
+                                                              parameter to TRUE.
+                                                              ICPSEL static control parameter or
+                                                              dynamic control signal selected.
+                              "TRUE",                          FALSE: Static, namely select
+  DYN_ICP_SEL    string                        "FALSE"
+                              "FALSE"                             the parameter ICP_SEL.
+                                                               TRUE: Dynamic, namely select
+                                                                  dynamic signal ICPSEL.
+                                                              ICP current static setting:
+                                                               6'bXXXXXX: Indicates that
+                                                                  Gowin Software will
+                              6'bXXXXXX,
+                                               6'bXXXXX           automatically calculate and set
+  ICP_SEL        binary       6'b000000~6'b1
+                                               X                  this parameter.
+                              11111
+                                                               6'b000000~6'b111111: You can
+                                                                  set the parameter within the
+                                                                  range as requirements.
+                                                              LPFRES and LPFCAP static control
+                                                              parameter or dynamic control signal
+                                                              selected.
+                                                               FALSE: Static, namely select
+  DYN_LPF_SE                  "TRUE",
+                 string                        "FALSE"            the parameters LPF_RES and
+  L                           "FALSE"
+                                                                  LPF_CAP.
+                                                               TRUE: Dynamic, namely select
+                                                                  dynamic signals LPFREST and
+                                                                  LPFCAP.
+                                                              LPRRES static setting:
+                                                               3'bXXX: Indicates that Gowin
+                                                                 Software will automatically
+                              3'bXXX,3'b000~                     calculate and set this
+  LPF_RES        binary                        3'bXXX
+                              3'b111                             parameter.
+                                                               3'b000~3'b111: You can set the
+                                                                 parameter within the range as
+                                                                 requirements.
+  LPF_CAP        binary       2'b00~2'b10      2'b00          LFPCAP static setting
+                              "TRUE",
+  SSC_EN         string                        "FALSE"        SSC enable
+                              "FALSE"
+
+
+                      The input clock divider (IDIV) is used to control the input clock
+                 frequency into the PLL module. This divider coefficient can be adjusted
+                 statically through the parameter IDIV_SEL, the correspondence is shown
+                 in Table 5-14.
+                 Table 5-14 IDIV Static Correspondence
+                  IDIV_SEL (Static)                      IDIV Actual Value
+                  1                                      1
+                  2                                      2
+
+UG306-1.0.7E                                                                               80(123)
+
+
+=== PDF PAGE 94 ===
+5 System Clock                                                                        5.2 PLLA
+
+
+
+                 reference, the timing as shown in Figure 5-8 and Figure 5-9.
+                 Figure 5-8 Channel 1 Duty Cycle Fine Adjustment Timing Diagram (Direction
+                 1'b1, One Step )
+
+
+
+
+                 Figure 5-9 Channel 1 Duty Cycle Fine Adjustment Timing Diagram (Direction
+                 1'b0, One Step )
+
+
+
+
+                 PhaseShift Aplication
+                      All CLKOUTs of the PLL support PhaseShift applications. To ensure
+                 the phase relationship between multiple high-speed IO clocks, it is strongly
+                 recommended to use CLKOUT [0:3] (hardware direct connection to
+                 HCLK).
+                 Primitive Instantiation
+                     The primitive can be instantiated directly.
+                  Verilog Instantiation:
+                     PLLA uut (
+                          .LOCK(lock),
+                          .CLKOUT0(clkout0),
+                          .CLKOUT1(clkout1),
+                          .CLKOUT2(clkout2),
+                          .CLKOUT3(clkout3),
+                          .CLKOUT4(clkout4),
+                          .CLKOUT5(clkout5),
+                          .CLKOUT6(clkout6),
+                          .CLKFBOUT(clkfbout),
+                          .CLKIN(clkin),
+                          .CLKFB(clkfb),
+                          .RESET(reset),
+                          .PLLPWD(pllpwd),
+                          .RESET_I(reseti),
+                          .RESET_O(reseto),
+
+UG306-1.0.7E                                                                           85(123)
+
+
+=== PDF PAGE 97 ===
+5 System Clock                                               5.2 PLLA
+
+
+
+                   defparam uut.DYN_PE5_SEL="FALSE";
+                   defparam uut.DYN_PE6_SEL="FALSE";
+                   defparam uut.FBDIV_SEL=1;
+                   defparam uut.FCLKIN="100.0";
+                   defparam uut.ICP_SEL=6'bXXXXXX;
+                   defparam uut.IDIV_SEL=1;
+                   defparam uut.LPF_CAP=2'b00;
+                   defparam uut.LPF_RES=3'bXXX;
+                   defparam uut.MDIV_FRAC_SEL=0;
+                   defparam uut.MDIV_SEL=8;
+                   defparam uut.ODIV0_FRAC_SEL=0;
+                   defparam uut.ODIV0_SEL=8;
+                   defparam uut.ODIV1_SEL=8;
+                   defparam uut.ODIV2_SEL=8;
+                   defparam uut.ODIV3_SEL=8;
+                   defparam uut.ODIV4_SEL=8;
+                   defparam uut.ODIV5_SEL=8;
+                   defparam uut.ODIV6_SEL=8;
+                   defparam uut.RESET_I_EN="FALSE";
+                   defparam uut.RESET_O_EN="FALSE";
+                   defparam uut.SSC_EN="FALSE";
+                 VHDL Instantiation：
+                   COMPONENT PLLA
+                        GENERIC(
+                               FCLKIN : STRING := "100.0";
+                               IDIV_SEL : integer := 1;
+                               FBDIV_SEL : integer := 1;
+                               ODIV00_SEL : integer := 8;
+                               ODIV1_SEL : integer := 8;
+                               ODIV2_SEL : integer := 8;
+                               ODIV3_SEL : integer := 8;
+                               ODIV4_SEL : integer := 8;
+                               ODIV5_SEL : integer := 8;
+                               ODIV6_SEL : integer := 8;
+                               MDIV_SEL : integer := 8;
+
+UG306-1.0.7E                                                  88(123)
+
+
+=== PDF PAGE 99 ===
+5 System Clock                                                         5.2 PLLA
+
+
+
+                         DYN_PE2_SEL : STRING := "FALSE";
+                      DYN_PE3_SEL : STRING := "FALSE";
+                         DYN_PE4_SEL : STRING := "FALSE";
+                         DYN_PE5_SEL : STRING := "FALSE";
+                         DYN_PE6_SEL : STRING := "FALSE";
+                         CLKOUT0_PE_COARSE : integer := 0;
+                         CLKOUT0_PE_FINE : integer := 0;
+                         CLKOUT1_PE_COARSE : integer := 0;
+                         CLKOUT1_PE_FINE : integer := 0;
+                         CLKOUT2_PE_COARSE : integer := 0;
+                         CLKOUT2_PE_FINE : integer := 0;
+                         CLKOUT3_PE_COARSE : integer := 0;
+                         CLKOUT3_PE_FINE : integer := 0;
+                         CLKOUT4_PE_COARSE : integer := 0;
+                         CLKOUT4_PE_FINE : integer := 0;
+                         CLKOUT5_PE_COARSE : integer := 0;
+                         CLKOUT5_PE_FINE : integer := 0;
+                         CLKOUT6_PE_COARSE : integer := 0;
+                         CLKOUT6_PE_FINE : integer := 0;
+                         DE0_EN : STRING := "FALSE";
+                         DE1_EN : STRING := "FALSE";
+                         DE2_EN : STRING := "FALSE";
+                      DE3_EN : STRING := "FALSE";
+                         DE4_EN : STRING := "FALSE";
+                         DE5_EN : STRING := "FALSE";
+                         DE6_EN : STRING := "FALSE";
+                         RESET_I_EN : STRING := "FALSE";
+                         RESET_O_EN : STRING := "FALSE";
+                         ICP_SEL : std_logic_vector(5 downto 0) := "XXXXXX";
+                         LPR_RES : std_logic_vector(2 downto 0) := "XXX";
+                         LPR_CAP : bit_vector := "00";
+                      SSC_EN : STRING := "FALSE"
+                 );
+                 PORT(
+                         CLKIN : IN std_logic;
+
+UG306-1.0.7E                                                            90(123)
+
+
+=== PDF PAGE 100 ===
+5 System Clock                                                            5.2 PLLA
+
+
+
+                            CLKFB : IN std_logic:='0';
+                            RESET, PLLPWD : IN std_logic:='0';
+                            RESET_I, RESET_O : IN std_logic:='0';
+                            PSSEL : IN std_logic_vector(2 downto 0);
+                            PSDIR,PSPULSE : IN std_logic;
+                            SSCPOL, SSCON: IN std_logic;
+                            SSCMDSEL : IN std_logic_vector(6 downto 0);
+                            SSCMDSEL_FRAC : IN std_logic_vector(2 downto 0);
+                            MDCLK, MDINC : IN std logic;
+                            MDOPC : IN std logic vector(1 downto 0);
+                            MDWDI : IN std logic vector(7 downto 0);
+                            MDRDO : OUT std logic vector(7 downto 0);
+                            LOCK : OUT std_logic;
+                            CLKOUT0, CLKOUT1 : OUT std_logic;
+                            CLKOUT2, CLKOUT3 : OUT std_logic;
+                            CLKOUT4, CLKOUT5 : OUT std_logic;
+                            CLKOUT6, CLKFBOUT : OUT std_logic
+                      );
+                 END COMPONENT;
+                 uut:PLLA
+                     GENERIC MAP(
+                            FCLKIN => "100.0",
+                            IDIV_SEL => 1,
+                            FBDIV_SEL => 1,
+                            ODIV0_SEL => 8,
+                            ODIV1_SEL => 8,
+                            ODIV2_SEL => 8,
+                            ODIV3_SEL => 8,
+                            ODIV4_SEL => 8,
+                            ODIV5_SEL => 8,
+                            ODIV6_SEL => 8,
+                            MDIV_SEL => 8,
+                            MDIV_FRAC_SEL => 0,
+                            ODIV0_FRAC_SEL => 0,
+                            CLKOUT0_EN => "TRUE",
+
+UG306-1.0.7E                                                               91(123)
+
+
+=== PDF PAGE 102 ===
+5 System Clock                                     5.2 PLLA
+
+
+
+                        DYN_PE5_SEL => "FALSE",
+                        DYN_PE6_SEL => "FALSE",
+                         CLKOUT0_PE_COARSE => 0,
+                        CLKOUT0_PE_FINE => 0,
+                        CLKOUT1_PE_COARSE => 0,
+                        CLKOUT1_PE_FINE => 0,
+                         CLKOUT2_PE_COARSE=> 0,
+                        CLKOUT2_PE_FINE => 0,
+                        CLKOUT3_PE_COARSE => 0,
+                        CLKOUT3_PE_FINE => 0,
+                         CLKOUT4_PE_COARSE => 0,
+                        CLKOUT4_PE_FINE => 0,
+                        CLKOUT5_PE_COARSE => 0,
+                        CLKOUT5_PE_FINE => 0,
+                         CLKOUT6_PE_COARSE => 0,
+                        CLKOUT6_PE_FINE => 0,
+                        DE0_EN => "FALSE",
+                        DE1_EN => "FALSE",
+                        DE2_EN => "FALSE",
+                      DE3_EN => "FALSE",
+                        DE4_EN => "FALSE",
+                        DE5_EN => "FALSE",
+                        DE6_EN => "FALSE",
+                        RESET_I_EN => "FALSE",
+                        RESET_O_EN => "FALSE",
+                        ICP_SEL => "XXXXXX",
+                        LPR_RES => "XXX",
+                        LPR_CAP => "00",
+                       SSC_EN => "FALSE"
+                 )
+                 PORT MAP(
+                 LOCK=>lock,
+                     CLKOUT0=>clkout0,
+                     CLKOUT1=>clkout1,
+                     CLKOUT2=>clkout2,
+
+UG306-1.0.7E                                        93(123)
+
+
+=== PDF PAGE 103 ===
+5 System Clock                                                                      5.2 PLLA
+
+
+
+                                CLKOUT3=>clkout3,
+                                CLKOUT4=>clkout4,
+                                CLKOUT5=>clkout5,
+                                CLKOUT6=>clkout6,
+                                CLKFBOUT=>clkfbout,
+                                CLKIN=>clkin,
+                                CLKFB=>clkfb,
+                                RESET=>reset,
+                                PLLPWD=>pllpwd,
+                                RESET_I=>reseti,
+                                RESET_O=>reseto,
+                                PSSEL=>pssel,
+                                PSDIR=>psdir,
+                                PSPULSE=>pspulse,
+                                SSCPOL=>sscpol,
+                                SSCON=>sscon,
+                                SSCMDSEL=>sscmdsel,
+                                  SSCMDSEL_FRAC=>sscmdsel_frac,
+                                  MDRDO=>mdrdo,
+                                  MDWDI=>mdwdi,
+                                  MDCLK=>mdclk,
+                                  MDOPC=>mdopc,
+                                  MDAINC=>mdainc
+                           );
+ 5.2.2 IP Generation
+                      Click " PLL_ADV " on the IP Core Generator interface and an
+                 overview of related information about PLLA will be displayed on the right
+                 side of the interface.
+                 IP Configuration
+                      Double-click on the " PLL_ADV " on the IP Core Generator interface
+                 to open the "IP Customization" window. It includes the "General",
+                 "Options", and ports diagram, as shown in Figure 5-10.
+
+
+
+
+UG306-1.0.7E                                                                         94(123)
+
+
+=== PDF PAGE 104 ===
+5 System Clock                                                                                    5.2 PLLA
+
+
+
+                 Figure 5-10 IP Customization of PLLA
+
+
+
+
+                 1. General
+                    The General configuration box is used to configure the generated IP
+                    design file. The PLLA General configuration is similar to that of DCE.
+                    For the details, please refer to the General description in 3.1.2 IP
+                    Generation.
+                 2. Options
+                    The Options Configuration box is used to configure IP, The PLLA
+                    General configuration is similar to that of PLL. For the details, please
+                    refer to the Options description in 5.1.2 IP Generation.
+                 3. Port Diagram
+                    The port diagram displays a sample diagram of IP Core configuration,
+                    as shown in Figure 5-10.
+                 IP Generated Files
+                       After configuration, three files that are named after the "File Name"
+                 will generated.
+                    "gowin_plla.v" file is a complete Verilog module to generate
+                     instantiated PLLA, and it is generated according to the IP
+                     configuration.
+                    "gowin_plla_tmp.v" is the template file.
+                    "gowin_plla.ipc" file is IP configuration file. You can load the file to
+                     configure the IP.
+                 Note!
+                 If VHDL is selected as the hardware description language, the first two files will be named
+                 with .vhd suffix.
+
+UG306-1.0.7E                                                                                       95(123)
+
+
+=== PDF PAGE 105 ===
+5 System Clock                                                                                  5.2 PLLA
+
+
+
+ 5.2.3 Fixed-Frequency Operation (No mDRP Required)
+                 mDRP clock frequency
+                      The pll_init module utilizes the mDRP function for parameter
+                 adjustment, which requires an mDRP clock (mdclk). The valid frequency
+                 range for mdclk is 1 MHz to 100 MHz.When the CLKIN frequency is
+                 relatively low (e.g., 20 MHz or 50 MHz), mdclk can share the same clock
+                 source with CLKIN, and no additional system clock is required.
+                 Note!
+                 When the mdclk frequency is high, it is recommended to apply timing constraints to this
+                 clock.
+
+
+
+
+ 5.2.4 Dynamic-Frequency Adjustment or SSC Operation (mDRP
+ Required)
+                 mDRP Clock Frequency
+                      The clock frequency selection in this mode is the same as that used in
+                 the fixed-frequency mode.
+                 Pll_init_bypass Port
+                      mDRP Port Control Description:
+                    When pll_init_bypass is set to 0, the mDRP port is controlled by the
+                     PLL initialization module, and the user cannot operate the PLL through
+                     this port.
+                    When pll_init_bypass is set to 1, the mDRP port switches to user
+                     control mode. The user can configure and operate the PLL through
+                     this interface, in the same way as a standard mDRP interface.
+                      pll_init_bypass = 1
+                     The mDRP port is available for user access. The operation and
+                 control ports are shown below, and the number of clkout outputs can be
+                 selected according to design requirements.
+
+                  PLL Ports                   Description
+                  clkin                       PLL reference clock input
+                  reset                       Reset all PLLs
+                  lock                        PLL lock signal
+                  mdclk                       mDRP control signal
+                  mdainc                      mDRP address increment indicator signal
+
+UG306-1.0.7E                                                                                     96(123)
+
+
+=== PDF PAGE 106 ===
+5 System Clock                                                                                   5.2 PLLA
+
+
+
+
+                  mdopc                       mDRP operation type code
+                  mdrdo                       mDRP port output data
+                  mdwdi                       mDRP port write data
+                     pll_init_bypass = 0
+                     The mDRP port is used by the init module.
+                     The operation and control ports are shown below, with the number of
+                 clkout outputs selectable according to design requirements.
+
+                  PLL Ports                   Description
+                  clkin                       PLL reference clock input
+                  reset                       Reset all PLLs
+                  lock                        PLL lock signal
+                  mdclk                       mDRP control signal
+                  mdainc                      Not available
+                  mdopc                       Not available
+                  mdrdo                       Not available
+                  mdwdi                       Not available
+                     pll_init_bypass Switch Control
+                     Recommended Example for mDRP Control Switching:
+                 a). After power-on initialization is complete, set pll_init_bypass = 0 and
+                     wait for the PLL LOCK signal to go high.
+                 b). Use the system clock to sample the PLL LOCK signal. Once LOCK
+                     goes high, set pll_init_bypass = 1 so that the user can operate the
+                     PLL via the mDRP interface.
+                 c). After user operations are complete, set pll_init_bypass = 0 again and
+                     wait for the LOCK signal to go high to stabilize the output.
+                 Note!
+                    Do not directly connect the PLL LOCK signal to pll_init_bypass as a PLL-switch
+                     indicator. User operations on mDRP may cause LOCK to drop, leading to repeated
+                     contention between init and user modules.
+                    After mDRP adjustments, rerun pll_init. If VCO values were modified, set
+                     pll_init_bypass = 0 and wait for LOCK to go high.
+                    pll_init configuration divides parameters into three ranges: VCO < clkin × 16, clkin ×
+                     16 < VCO < clkin × 34, VCO > clkin × 34. Current design uses clkin × MULTI_FAC.
+                      If VCO frequency does not change, rerunning pll_init is unnecessary.
+                      If VCO frequency changes but remains within the original range, rerun pll_init
+                           and wait for LOCK.
+                      If VCO frequency exceeds the original range, additional handling is required
+                           per application scenario.
+
+
+
+
+UG306-1.0.7E                                                                                       97(123)
+
+
+=== PDF PAGE 112 ===
+5 System Clock                                                                                5.3 DQS
+
+
+
+ 5.3 DQS
+                 Primitive Introduction
+                      DQS is a bi-directional data strobe pulse circuit for DDR memory
+                 interface.
+                 Functional Description
+                      DQS is a key component of memory control IP, which is mainly used
+                 to adjust the phase relationship between DQSIN and DQSR90, DQSW0
+                 and DQSW270 to complete write leveling and read calibration.
+                 Port Diagram
+                 Figure 5-11 DQS Port Diagram
+
+                  DLLSTEP     8
+                    DQSIN
+                     FCLK
+                     HOLD                                   3   RPOINT
+                     PCLK                                   3   WPOINT
+                  RLOADN                                        DQSW270
+                   RMOVE                    DQS                 DQSW0
+                     RDIR                                       DQSR90
+                  WLOADN                                        RBURST
+                   WMOVE                                        RFLAG
+                     WDIR                                       RVALID
+                   WSTEP      8                                 WFLAG
+                     READ
+                              4
+                  RCLKSEL     3
+                    RESET
+
+
+
+
+                 Port Description
+                 Table 5-21 DQS Port Description
+                  Port Name         I/O       Description
+                  DLLSTEP[7:0]      input     DQS delay step control input
+                  DQSIN             input     DQS input from IO PAD
+                                              Fast clock comes from the output of two different
+                  FCLK              input
+                                              FCLK clock trees.
+                                              For DQS write, stop write signals to synchronize the
+                  HOLD              input
+                                              output clock; For DQS read, reset FIFO counter
+                  PCLK              input     Primary clock, from the PCLK clock tree
+                                              Adjusts the delay direction of DDR read
+                  RDIR              input     "0" increases the delay.
+                                              "1" decreases the delay.
+                  RLOADN            input     Resets the final delay step of DDR read, active-low.
+                                              Changes the delay step of DDR read on RMOVE
+                  RMOVE             input
+                                              falling edge, once per pulse.
+
+UG306-1.0.7E                                                                                  103(123)
+
+
+=== PDF PAGE 113 ===
+5 System Clock                                                                                5.3 DQS
+
+
+
+                  Port Name       I/O        Description
+                                             Adjusts the delay direction of DDR write
+                  WDIR            input       "0" increases the delay.
+                                              "1" decreases the delay.
+                  WLOADN          input      Resets the final delay step of DDR write, active-low.
+                                             Changes the delay step of DDR write on WMOVE
+                  WMOVE           input
+                                             falling edge, once per pulse.
+                  WSTEP[7:0]      input      DDR write equalization delay control.
+                  READ[3:0]       input      READ signal for DDR read mode
+                  RCLKSEL[2:0]    input      Selects read clock source and polarity control
+                  RESET           input      DQS reset input, active-high.
+                                             FIFO read pointer works on RADDR in IOLOGIC or on
+                  RPOINT[2:0]     output
+                                             user logic via routing.
+                                             FIFO write pointer works on WADDR in IOLOGIC or
+                  WPOINT[2:0]     output
+                                             on user logic via routing.
+                                             PCLK/FCLK 0°phase shift output works on TCLK in
+                  DQSW0           output
+                                             IOLOGIC or on user logic via routing.
+                                             PCLK/FCLK 270°phase shift output works on TCLK in
+                  DQSW270         output
+                                             IOLOGIC or on user logic via routing.
+                                             DQSI 90°phase shift output works on TCLK in
+                  DQSR90          output
+                                             IOLOGIC or on user logic via routing.
+                                             An output flag that represents under-flow or over-flow
+                  RFLAG           output
+                                             in READ delay adjustment.
+                                             An output flag that represents under-flow or over-flow
+                  WFLAG           output
+                                             in WRITE delay adjustment.
+                  RVALID          output     Data valid flag in READ mode
+                  RBURST          output     READ burst detection output
+
+
+
+                 Parameter Description
+                 Table 5-22 DQS Parameter Description
+                  Name                  Value                Default   Description
+                                                                       FIFO mode selected
+                                                                        1'b0: DDR memory
+                  FIFO_MODE_SEL         1'b0 , 1'b1          1'b0
+                                                                           mode
+                                                                        1'b1: GDDR mode
+                                        "000", "001",
+                                        "010", "011",
+                  RD_PNTR                                    3'b000    FIFO read pointer setting
+                                        "100", "101",
+                                        "110", "111"
+                                        "X1", "X2_DDR2",
+                  DQS_MODE              "X2_DDR3", "X4",     "X1"      DQS mode selected
+                                        "X2_DDR3_EXT"
+                                                                       update0/1 timing
+                                                                       relationship control
+                  HWL                   "false", "true"      "false"
+                                                                        "False ": update1 is one
+                                                                            cycle ahead of
+
+UG306-1.0.7E                                                                                  104(123)
+
+
+=== PDF PAGE 114 ===
+5 System Clock                                                                     5.3 DQS
+
+
+
+                  Name                     Value      Default   Description
+                                                                   update0.
+                                                                 "True ": the timing of
+                                                                   update1 and update 0
+                                                                   are the same.
+
+
+                 Connection Rule
+                      The input DQSI of DQS comes from IO PAD.
+                      The output RPOINT of DQS can be connected to the RADDR of
+                       IOLOGIC and also can work on user logic.
+                      The output WPOINT of DQS can be connected to the WADDR of
+                       IOLOGIC and also can work on user logic.
+                      The output DQSR90 of DQS can be connected to the ICLK of
+                       IOLOGIC and also can work on user logic
+                      The output DQSW0/DQSW270 of DQS can be connected to the TCLK
+                       of IOLOGIC and also can work on user logic.
+                 Primitive Instantiation
+                     Verilog Instantiation:
+                       DQS uut (
+                            .DQSIN(dqs),
+                            .PCLK(pclk),
+                            .FCLK(fclk),
+                            .RESET(reset),
+                            .READ(read),
+                            .RCLKSEL(rsel),
+                            .DLLSTEP(step),
+                            .WSTEP(wstep),
+                            .RLOADN(1'b0),
+                            .RMOVE(1'b0),
+                            .RDIR(1'b0),
+                            .WLOADN(1'b0),
+                            .WMOVE(1'b0),
+                            .WDIR(1'b0),
+                            .HOLD(hold),
+                            .DQSR90(dqsr90),
+                            .DQSW0(dqsw0),
+                            .DQSW270(dqsw270),
+
+
+UG306-1.0.7E                                                                       105(123)
+
+
+=== PDF PAGE 115 ===
+5 System Clock                                                              5.3 DQS
+
+
+
+                        .RPOINT(rpoint),
+                        .WPOINT(wpoint),
+                        .RVALID(rvalid),
+                        .RBURST(rburst),
+                        .RFLAG(rflag),
+                        .WFLAG(wflag)
+                   );
+                   defparam uut.DQS_MODE = "X1";
+                   defparam uut.FIFO_MODE_SEL = 1'b0;
+                   defparam uut.RD_PNTR = 3'b001;
+                 Vhdl Instantiation:
+                   COMPONENT DQS
+                         GENERIC(
+                                    FIFO_MODE_SEL:bit:='0';
+                                    RD_PNTR : bit_vector:="000";
+                                    DQS_MODE:string:="X1";
+                                    HWL:string:="false";
+                                    GSREN : string:="false"
+                         );
+                         PORT(
+                               DQSIN,PCLK,FCLK,RESET:IN std_logic;
+                               READ:IN std_logic_vector(3 downto 0);
+                               RCLKSEL:IN std_logic_vector(2 downto 0);
+                               DLLSTEP,WSTEP:IN std_logic_vector(7 downto 0);
+                               RLOADN,RMOVE,RDIR,HOLD:IN std_logic;
+                               WLOADN,WMOVE,WDIR:IN std_logic;
+                               DQSR90,DQSW0,DQSW270:OUT std_logic;
+                               RPOINT, WPOINT:OUT std_logic_vector(2 downto 0);
+                               RVALID,RBURST,RFLAG,WFLAG:OUT std_logic
+                         );
+                   END COMPONENT;
+                   uut:DQS
+                         GENERIC MAP(
+                                           FIFO_MODE_SEL=>'0',
+                                           RD_PNTR=>"000",
+
+UG306-1.0.7E                                                               106(123)
+
+
+=== PDF PAGE 116 ===
+5 System Clock                                    5.3 DQS
+
+
+
+                                DQS_MODE=>"X1",
+                                HWL=>"false",
+                                GSREN=>"false"
+                 )
+                 PORT MAP (
+                      DQSIN=>dqsin,
+                      PCLK=>pclk,
+                      FCLK=>fclk,
+                      RESET=>reset,
+                      READ=>read,
+                      RCLKSEL=>rclksel,
+                      DLLSTEP=>step,
+                      WSTEP=>wstep,
+                      RLOADN=>rloadn,
+                      RMOVE=>rmove,
+                      RDIR=>rdir,
+                      HOLD=>hold,
+                      WLOADN=>wloadn,
+                      WMOVE=>wmove,
+                      WDIR=>wdir,
+                      DQSR90=>dqsr90,
+                      DQSW0=>dqsw0,
+                      DQSW270=>dqsw270,
+                      RPOINT=>rpoint,
+                      WPOINT=>wpoint,
+                      RVALID=>rvalid,
+                      RBURST=>rburst,
+                      RFLAG=>rflag,
+                      WFLAG=>wflag
+                 );
+
+
+
+
+UG306-1.0.7E                                      107(123)
+
+
+=== PDF PAGE 117 ===
+5 System Clock                                                                             5.4 DDRDLL
+
+
+
+ 5.4 DDRDLL
+ 5.4.1 Primitive Introduction
+                     DDRDLL acts on DDR and other interface modules through DLLDLY,
+                  DQS and other modules when DDRDLL generates different phase delays.
+                  Functional Description
+                      DDRDLL can generate different phase delay steps based on the given
+                  input clock for clock phase shift. The calculated output STEP signal will drive
+                  DQS, DLLDLY modules, and at the same time the STEP can also be routed
+                  to user logic. The clock input sources of DDRDLL include GCLK and the
+                  adjacent HCLK.
+                  Port Diagram
+                  Figure 5-12 DDRDLL Port Diagram
+
+                          CLKIN
+
+                          STOP                         8   STEP
+                                        DDRDLL
+                          RESET                            LOCK
+
+                   UPDNCNTL
+
+
+
+
+                  Port Description
+                  Table 5-23 DDRDLL Port Description
+                   Port               I/O         Description
+                   STEP[7:0]          Output      Delay step output
+                                                  Lock indicator
+                   LOCK               Output       1: Lock
+                                                   0: Unlock
+                   CLKIN              Input       Clock input
+                   STOP               Input       Stop clock input and internal oscillation clock
+                   RESET              Input       Asynchronous reset input, active-high.
+                   UPDNCNTL           Input       DDRDLL delay step update control, active-low.
+
+
+
+                  Parameter Description
+                  Table 5-24 DDRDLL Parameter Description
+           Parameter        Type       Value           Default     Description
+                                                                   Forced delay step and lock
+           DLL_FORCE        Integer    0,1             0
+                                                                   control of DDRDLL
+
+
+
+
+UG306-1.0.7E                                                                                 108(123)
+
+
+=== PDF PAGE 118 ===
+5 System Clock                                                                        5.4 DDRDLL
+
+
+
+           Parameter        Type       Value           Default   Description
+                                                                  TRUE: Forced lock with a
+                                                                    delay step of 255
+                                                                    (maximum) for lower input
+                                                                    frequency mode.
+                                                                  FALSE: Normal mode,
+                                                                    delay step and lock signal
+                                                                    generated by DDRDLL.
+                                                                 DDRDLL phase shift
+                                                                 configuration (45°~135°)
+                                                                  000:101°
+                                                                  001:112°
+                                       000,001,010,0              010:123°
+           CODESCAL         String     11,100,101,     000
+                                                                  011:135°
+                                       110, 111
+                                                                  100:79°
+                                                                  101:68°
+                                                                  110:57°
+                                                                  111:45°
+                                                                 DDRDLL phase shift enable:
+                                                                  TRUE: Enabled, phase shift
+                                                                    is set according to the
+           SCAL_EN          String     true,false      true
+                                                                    parameter CODESCAL.
+                                                                  FALSE: Disabled, 90°
+                                                                    phase shift by default.
+                                                                 DDRDLL lock mode selected:
+           DIV_SEL          Integer    1’b0,1’b1       1’b0       1'b0: Normal
+                                                                  1'b1: Fast
+
+
+                  Connection Rule
+                     The output STEP of DDRDLL can be connected to DQS, DLLDLY
+                  modules and also can be routed to user logic.
+                  Primitive Instantiation
+                     Verilog Instantiation:
+                       DDRDLL uut (
+                             .STEP(step),
+                             .LOCK(lock),
+                             .CLKIN(clkin),
+                             .STOP(stop),
+                             .RESET(reset),
+                             .UPDNCNTL(1’b0)
+                       );
+                       defparam uut.DLL_FORCE = "FALSE";
+                       defparam uut.CODESCAL = "000";
+
+UG306-1.0.7E                                                                                109(123)
+
+
+=== PDF PAGE 119 ===
+5 System Clock                                                               5.4 DDRDLL
+
+
+
+                   defparam uut.SCAL_EN = " TRUE";
+                   defparam uut.DIV_SEL = 1'b0;
+                 Vhdl Instantiation:
+                    COMPONENT DLL
+                            GENERIC(
+                                         DLL_FORCE: STRING := "FALSE";
+                                         DIV_SEL: bit :='1';
+                                         CODESCAL: STRING :="000";
+                                         SCAL_EN: STRING :="true"
+                            );
+                                   PORT(
+                                         CLKIN:IN std_logic;
+                                         STOP:IN std_logic;
+                                         RESET:IN std_logic;
+                                         UPDNCNTL:IN std_logic;
+                                         LOCK:OUT std_logic;
+                                         STEP:OUT std_logic_vector(7 downto 0)
+                                    );
+                   END COMPONENT;
+                   uut:DLL
+                       GENERIC MAP(
+                                           DLL_FORCE=>” FALSE”,
+                                           DIV_SEL=>'1',
+                                           CODESCAL=>"000",
+                                           SCAL_EN=>" TRUE"
+                       )
+                           PORT MAP(
+                                 CLKIN=>clkin,
+                                 STOP=>stop,
+                                 RESET=>reset,
+                                 UPDNCNTL=>updncntl,
+                                 LOCK=>lock,
+                                 STEP=>step
+                            );
+
+
+
+UG306-1.0.7E                                                                     110(123)
+
+
+=== PDF PAGE 120 ===
+5 System Clock                                                                   5.4 DDRDLL
+
+
+
+ 5.4.2 IP Generation
+                     Click "DDRDLL" on the "IP Core Generator" interface and an overview
+                 of DDRDLL will be displayed on the right side of the interface.
+                 IP Configuration
+                      Double-click on "DDRDLL", and the "IP Customization" window pops
+                 up. It includes the "General", "Options", and port diagram, as shown in
+                 Figure 5-13.
+                 Figure 5-13 IP Customization of DDRDLL
+
+
+
+
+                 1. General
+                    The General configuration box is used to configure the generated IP
+                    design file. The DDRDLL General configuration is similar to that of
+                    DCE. For the details, please refer to the General description in 3.1.2
+                    IP Generation.
+                 2. Options
+                    The Options Configuration box is used to configure IP, as shown in
+                    Figure 5-13.
+                      Lock & Code: Set DDRDLL mode
+                      Delay Code(degree): Set delay
+                      Lock Mode: Set lock mode
+                 3. Port Diagram
+                    The port diagram displays a sample diagram of IP Core configuration,
+                    as shown in Figure 5-13.
+UG306-1.0.7E                                                                         111(123)
+
+
+=== PDF PAGE 124 ===
+6 Crystal Oscillator Clock                                                                6.1 OSC
+
+
+
+ 6.1.2 IP Generation
+                          Click "OSC" on the "IP Core Generator" interface and an overview of
+                       OSC will be displayed on the right side of the interface.
+                       IP Configuration
+                            Double-click on "OSC", and the "IP Customization" window pops up. It
+                       includes the "General", "Options", and port diagram, as shown in Figure
+                       6-2.
+                       Figure 6-2 IP Customization of OSC
+
+
+
+
+                       1. General
+                          The General configuration box is used to configure the generated IP
+                          design file. The OSC General configuration is similar to that of DCE.
+                          For the details, please refer to the General description in 3.1.2 IP
+                          Generation.
+                       2. Options
+                          The Options Configuration box is used to configure IP, as shown in
+                          Figure 6-2.
+                              Frequency Divider: Set DDRDLL mode
+                       3. Port Diagram
+                          The port diagram displays a sample diagram of IP Core configuration,
+                          as shown in Figure 6-2.
+
+
+
+UG306-1.0.7E                                                                              115(123)
+
+
+=== PDF PAGE 128 ===
+6 Crystal Oscillator Clock                                                                             6.3 OSCB
+
+
+
+                             Figure 6-4. The OSCA General configuration is similar to that of OSC.
+                             For the details, please refer to the Options description in 6.1.2 IP
+                             Generation.
+                       3. Port Diagram
+                          The port diagram displays a sample diagram of IP Core configuration,
+                          as shown in Figure 6-4.
+                       IP Generated Files
+                             After configuration, three files that are named after the "File Name"
+                       will be generated.
+                            "gowin_osc.v" file is a complete Verilog module to generate
+                             instantiated OSCA, and it is generated according to the IP
+                             configuration.
+                            "gowin_osc_tmp.v" is the template file.
+                            "gowin_osc.ipc" file is IP configuration file. You can load the file to
+                             configure the IP.
+                       Note!
+                       If VHDL is selected as the hardware description language, the first two files will be named
+                       with .vhd suffix.
+
+ 6.3 OSCB
+ 6.3.1 Primitive Introduction
+                             OSCB, programmable on-chip crystal oscillator.
+                       Device Supported
+                       Table 6-7 OSCB Device Supported
+                       Product Family     Series              Device
+                                          GW5ART              GW5ART-15
+                       Arora
+                                          GW5AT               GW5AT-15
+
+                       Functional Description
+                           The programmable on-chip oscillator provides a clock source for
+                       MSPI programming mode, supports OSC dynamic on/off, dynamic
+                       frequency mode selection, and dynamic TRIM function. It also provides a
+                       clock resource for user designs. Up to 64 clock frequencies can be
+                       obtained by setting the parameters.
+                            The output clock frequency of the device can be calculated by the
+                       following formula:
+                                                     𝑓𝐶𝐿𝐾𝑂𝑈𝑇 = 𝑓𝑜𝑠𝑐 /FREQ_DIV
+                             𝑓𝑜𝑠𝑐 is the 210MHz or 25MHz OSC oscillation frequency, the divisor
+                          FREQ_DIV is the configuration parameter, and the range is even
+                       numbers from 2 to 126 and 3.
+
+
+
+
+UG306-1.0.7E                                                                                            119(123)
+
+
+=== PDF PAGE 132 ===
+6 Crystal Oscillator Clock                                                                                    1.1
+
+
+
+                            Enable OSC Reference: OSCREF output can be set when Oscillator
+                             frequency is selected as 210MHz and Enable TRIM is disable.
+                       3. Port Diagram
+                             The port diagram displays a sample diagram of IP Core configuration,
+                             as shown in Figure 6-6.
+                       IP Generated Files
+                             After configuration, three files that are named after the "File Name"
+                       will be generated.
+                            "gowin_osc.v" file is a complete Verilog module to generate
+                             instantiated OSCB, and it is generated according to the IP
+                             configuration.
+                            "gowin_osc_tmp.v" is the template file.
+                            "gowin_osc.ipc" file is IP configuration file. You can load the file to
+                             configure the IP.
+                       Note!
+                       If VHDL is selected as the hardware description language, the first two files will be named
+                       with .vhd suffix.
+
+
+
+
+UG306-1.0.7E                                                                                            123(123)

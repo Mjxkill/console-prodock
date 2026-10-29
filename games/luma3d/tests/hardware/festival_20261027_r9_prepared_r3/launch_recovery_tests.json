@@ -1,0 +1,621 @@
+{
+  "passed": true,
+  "hardware_access": false,
+  "tests": 9,
+  "failures": 0,
+  "errors": 0,
+  "exact_functions": [
+    "Session.run",
+    "Hardware.window",
+    "Hardware.recover",
+    "CheckedTransport.run",
+    "GuardedTransport.run",
+    "Transport.run",
+    "Transport.ack",
+    "trial_guards.recover",
+    "trial_guards.identity",
+    "prodock_arcade.stop",
+    "prodock_valley_ab.process"
+  ],
+  "manifest_sha256": "f5811b4ec4313dc859e4429551b3673885b51d7a0fc1f1d32623930fd9f7c56e",
+  "controller_sha256": "1027dbc53e0144c6968afde6b5e32d062b22246023e2c0a03300ae5f0be12e3e",
+  "test_sha256": "5b3b63c27ed629f0e2626af799990cff5e3583893bb558c0a8784bb4e0996c33",
+  "records": [
+    {
+      "scenario": "pending_presend",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "InterruptedError('Interrupted by signal 15')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "not_sent",
+          "pid": null,
+          "exit_code": null
+        },
+        "recovery": {
+          "display": {
+            "errors": 0,
+            "uf": 0,
+            "invalid": 0,
+            "sprites": 0,
+            "fault": 0,
+            "presents": 12
+          },
+          "identity": {
+            "pid": 4000,
+            "start_ticks": 8888
+          },
+          "save": {
+            "bytes": 5292,
+            "sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+          }
+        },
+        "restored_gm1": true,
+        "signals": [
+          15
+        ],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": true,
+      "candidate_stops": 0,
+      "restore_count": 1,
+      "commands": [
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "/tmp/luma3d-gm1 --showcase < /dev/null > /tmp/festivalr9c_restore.log 2>&1 & echo $! > /tmp/festivalr9c_restore.pid",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "cat /tmp/festivalr9c_restore.log",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "cp /tmp/festivalr9c_restore.pid /tmp/luma3d-live.pid",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "od -b -v /tmp/op2-live.save",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "/tmp/f9c-helper raw /proc/4000/exe unused 10052024 e4089d74"
+      ],
+      "writes": [
+        "03"
+      ]
+    },
+    {
+      "scenario": "before_first_write",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "InterruptedError('Interrupted by signal 15')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "not_sent",
+          "pid": null,
+          "exit_code": null
+        },
+        "recovery": {
+          "display": {
+            "errors": 0,
+            "uf": 0,
+            "invalid": 0,
+            "sprites": 0,
+            "fault": 0,
+            "presents": 12
+          },
+          "identity": {
+            "pid": 4000,
+            "start_ticks": 8888
+          },
+          "save": {
+            "bytes": 5292,
+            "sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+          }
+        },
+        "restored_gm1": true,
+        "signals": [
+          15
+        ],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": true,
+      "candidate_stops": 0,
+      "restore_count": 1,
+      "commands": [
+        "( /tmp/luma3d-f9c --festival --festival-game 0 --manual --frames 120 < /dev/null > /tmp/festivalr9c_0.log 2>&1 & p=$!; printf \"%s\\n\" \"$p\" > /tmp/festivalr9c_0.pid.tmp && mv /tmp/festivalr9c_0.pid.tmp /tmp/festivalr9c_0.pid && printf \"\\nF9_PID_festivalr9c_0:%s\\n\" \"$p\"; wait \"$p\"; rc=$?; echo \"$rc\" > /tmp/festivalr9c_0.exit; printf \"\\nL3_EXIT_festivalr9c_0:%s\\n\" \"$rc\" ) < /dev/null & echo ARCADE_LAUNCHED",
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "/tmp/luma3d-gm1 --showcase < /dev/null > /tmp/festivalr9c_restore.log 2>&1 & echo $! > /tmp/festivalr9c_restore.pid",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "cat /tmp/festivalr9c_restore.log",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "cp /tmp/festivalr9c_restore.pid /tmp/luma3d-live.pid",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "od -b -v /tmp/op2-live.save",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "/tmp/f9c-helper raw /proc/4000/exe unused 10052024 e4089d74"
+      ],
+      "writes": [
+        "03"
+      ]
+    },
+    {
+      "scenario": "exception_before_write",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "OSError('command failed before any write')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "not_sent",
+          "pid": null,
+          "exit_code": null
+        },
+        "recovery": {
+          "display": {
+            "errors": 0,
+            "uf": 0,
+            "invalid": 0,
+            "sprites": 0,
+            "fault": 0,
+            "presents": 12
+          },
+          "identity": {
+            "pid": 4000,
+            "start_ticks": 8888
+          },
+          "save": {
+            "bytes": 5292,
+            "sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+          }
+        },
+        "restored_gm1": true,
+        "signals": [],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": true,
+      "candidate_stops": 0,
+      "restore_count": 1,
+      "commands": [
+        "( /tmp/luma3d-f9c --festival --festival-game 0 --manual --frames 120 < /dev/null > /tmp/festivalr9c_0.log 2>&1 & p=$!; printf \"%s\\n\" \"$p\" > /tmp/festivalr9c_0.pid.tmp && mv /tmp/festivalr9c_0.pid.tmp /tmp/festivalr9c_0.pid && printf \"\\nF9_PID_festivalr9c_0:%s\\n\" \"$p\"; wait \"$p\"; rc=$?; echo \"$rc\" > /tmp/festivalr9c_0.exit; printf \"\\nL3_EXIT_festivalr9c_0:%s\\n\" \"$rc\" ) < /dev/null & echo ARCADE_LAUNCHED",
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "/tmp/luma3d-gm1 --showcase < /dev/null > /tmp/festivalr9c_restore.log 2>&1 & echo $! > /tmp/festivalr9c_restore.pid",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "cat /tmp/festivalr9c_restore.log",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "cp /tmp/festivalr9c_restore.pid /tmp/luma3d-live.pid",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "od -b -v /tmp/op2-live.save",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "/tmp/f9c-helper raw /proc/4000/exe unused 10052024 e4089d74"
+      ],
+      "writes": [
+        "03"
+      ]
+    },
+    {
+      "scenario": "completed",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "InterruptedError('Interrupted by signal 15')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "completed",
+          "pid": 7000,
+          "exit_code": 0
+        },
+        "recovery": {
+          "display": {
+            "errors": 0,
+            "uf": 0,
+            "invalid": 0,
+            "sprites": 0,
+            "fault": 0,
+            "presents": 12
+          },
+          "identity": {
+            "pid": 4000,
+            "start_ticks": 8888
+          },
+          "save": {
+            "bytes": 5292,
+            "sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+          }
+        },
+        "restored_gm1": true,
+        "signals": [
+          15
+        ],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": true,
+      "candidate_stops": 0,
+      "restore_count": 1,
+      "commands": [
+        "( /tmp/luma3d-f9c --festival --festival-game 0 --manual --frames 120 < /dev/null > /tmp/festivalr9c_0.log 2>&1 & p=$!; printf \"%s\\n\" \"$p\" > /tmp/festivalr9c_0.pid.tmp && mv /tmp/festivalr9c_0.pid.tmp /tmp/festivalr9c_0.pid && printf \"\\nF9_PID_festivalr9c_0:%s\\n\" \"$p\"; wait \"$p\"; rc=$?; echo \"$rc\" > /tmp/festivalr9c_0.exit; printf \"\\nL3_EXIT_festivalr9c_0:%s\\n\" \"$rc\" ) < /dev/null & echo ARCADE_LAUNCHED",
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "/tmp/luma3d-gm1 --showcase < /dev/null > /tmp/festivalr9c_restore.log 2>&1 & echo $! > /tmp/festivalr9c_restore.pid",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "cat /tmp/festivalr9c_restore.log",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "cp /tmp/festivalr9c_restore.pid /tmp/luma3d-live.pid",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "od -b -v /tmp/op2-live.save",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "/tmp/f9c-helper raw /proc/4000/exe unused 10052024 e4089d74"
+      ],
+      "writes": [
+        "4c41554e43485f42595445",
+        "03"
+      ]
+    },
+    {
+      "scenario": "published",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "InterruptedError('Interrupted by signal 15')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "published",
+          "pid": 7000,
+          "exit_code": null
+        },
+        "recovery": {
+          "display": {
+            "errors": 0,
+            "uf": 0,
+            "invalid": 0,
+            "sprites": 0,
+            "fault": 0,
+            "presents": 12
+          },
+          "identity": {
+            "pid": 4000,
+            "start_ticks": 8888
+          },
+          "save": {
+            "bytes": 5292,
+            "sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+          }
+        },
+        "restored_gm1": true,
+        "signals": [
+          15
+        ],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": true,
+      "candidate_stops": 1,
+      "restore_count": 1,
+      "commands": [
+        "( /tmp/luma3d-f9c --festival --festival-game 0 --manual --frames 120 < /dev/null > /tmp/festivalr9c_0.log 2>&1 & p=$!; printf \"%s\\n\" \"$p\" > /tmp/festivalr9c_0.pid.tmp && mv /tmp/festivalr9c_0.pid.tmp /tmp/festivalr9c_0.pid && printf \"\\nF9_PID_festivalr9c_0:%s\\n\" \"$p\"; wait \"$p\"; rc=$?; echo \"$rc\" > /tmp/festivalr9c_0.exit; printf \"\\nL3_EXIT_festivalr9c_0:%s\\n\" \"$rc\" ) < /dev/null & echo ARCADE_LAUNCHED",
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/stat; else echo STOPPED; fi",
+        "test \"`cat /tmp/festivalr9c_0.pid`\" = 7000 && set -- `cat /proc/7000/stat` && test \"$1\" = 7000 && test \"$2\" = \"(luma3d-f9c)\" && test \"$3\" != Z && test \"$3\" != X && shift 21 && test \"$1\" = 777 && kill -TERM 7000 && sleep 1",
+        "if test -d /proc/7000; then cat /proc/7000/stat; else echo STOPPED; fi",
+        "/tmp/luma3d-gm1 --showcase < /dev/null > /tmp/festivalr9c_restore.log 2>&1 & echo $! > /tmp/festivalr9c_restore.pid",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "cat /tmp/festivalr9c_restore.log",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "prodockctl display",
+        "if test -f /tmp/festivalr9c_restore.pid; then p=`cat /tmp/festivalr9c_restore.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/festivalr9c_restore.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "cp /tmp/festivalr9c_restore.pid /tmp/luma3d-live.pid",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "od -b -v /tmp/op2-live.save",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "/tmp/f9c-helper raw /proc/4000/exe unused 10052024 e4089d74"
+      ],
+      "writes": [
+        "4c41554e43485f42595445",
+        "03"
+      ]
+    },
+    {
+      "scenario": "parent_reply_only",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "InterruptedError('Interrupted by signal 15')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "sending_unknown",
+          "pid": null,
+          "exit_code": null
+        },
+        "cleanup_error": "UnpublishedPID('/tmp/festivalr9c_0.pid')",
+        "signals": [
+          15
+        ],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": false,
+      "candidate_stops": 0,
+      "restore_count": 0,
+      "commands": [
+        "( /tmp/luma3d-f9c --festival --festival-game 0 --manual --frames 120 < /dev/null > /tmp/festivalr9c_0.log 2>&1 & p=$!; printf \"%s\\n\" \"$p\" > /tmp/festivalr9c_0.pid.tmp && mv /tmp/festivalr9c_0.pid.tmp /tmp/festivalr9c_0.pid && printf \"\\nF9_PID_festivalr9c_0:%s\\n\" \"$p\"; wait \"$p\"; rc=$?; echo \"$rc\" > /tmp/festivalr9c_0.exit; printf \"\\nL3_EXIT_festivalr9c_0:%s\\n\" \"$rc\" ) < /dev/null & echo ARCADE_LAUNCHED",
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi"
+      ],
+      "writes": [
+        "4c41554e43485f42595445",
+        "03"
+      ]
+    },
+    {
+      "scenario": "write_exception",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "OSError('first write delivery unknown')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "sending_unknown",
+          "pid": null,
+          "exit_code": null
+        },
+        "cleanup_error": "UnpublishedPID('/tmp/festivalr9c_0.pid')",
+        "signals": [],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": false,
+      "candidate_stops": 0,
+      "restore_count": 0,
+      "commands": [
+        "( /tmp/luma3d-f9c --festival --festival-game 0 --manual --frames 120 < /dev/null > /tmp/festivalr9c_0.log 2>&1 & p=$!; printf \"%s\\n\" \"$p\" > /tmp/festivalr9c_0.pid.tmp && mv /tmp/festivalr9c_0.pid.tmp /tmp/festivalr9c_0.pid && printf \"\\nF9_PID_festivalr9c_0:%s\\n\" \"$p\"; wait \"$p\"; rc=$?; echo \"$rc\" > /tmp/festivalr9c_0.exit; printf \"\\nL3_EXIT_festivalr9c_0:%s\\n\" \"$rc\" ) < /dev/null & echo ARCADE_LAUNCHED",
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi"
+      ],
+      "writes": [
+        "4c41554e43485f42595445",
+        "03"
+      ]
+    },
+    {
+      "scenario": "timeout_after_write",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "TimeoutError('command reply lost')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "sending_unknown",
+          "pid": null,
+          "exit_code": null
+        },
+        "cleanup_error": "UnpublishedPID('/tmp/festivalr9c_0.pid')",
+        "signals": [],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": false,
+      "candidate_stops": 0,
+      "restore_count": 0,
+      "commands": [
+        "( /tmp/luma3d-f9c --festival --festival-game 0 --manual --frames 120 < /dev/null > /tmp/festivalr9c_0.log 2>&1 & p=$!; printf \"%s\\n\" \"$p\" > /tmp/festivalr9c_0.pid.tmp && mv /tmp/festivalr9c_0.pid.tmp /tmp/festivalr9c_0.pid && printf \"\\nF9_PID_festivalr9c_0:%s\\n\" \"$p\"; wait \"$p\"; rc=$?; echo \"$rc\" > /tmp/festivalr9c_0.exit; printf \"\\nL3_EXIT_festivalr9c_0:%s\\n\" \"$rc\" ) < /dev/null & echo ARCADE_LAUNCHED",
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi"
+      ],
+      "writes": [
+        "4c41554e43485f42595445",
+        "03"
+      ]
+    },
+    {
+      "scenario": "empty_pidfile",
+      "simulated_result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "transfers": [],
+        "error": "InterruptedError('Interrupted by signal 15')",
+        "interrupted_launch": {
+          "program": "luma3d-f9c",
+          "pidfile": "/tmp/festivalr9c_0.pid",
+          "state": "sending_unknown",
+          "pid": null,
+          "exit_code": null
+        },
+        "cleanup_error": "AssertionError()",
+        "signals": [
+          15
+        ],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "baseline_running_after": false,
+      "candidate_stops": 0,
+      "restore_count": 0,
+      "commands": [
+        "( /tmp/luma3d-f9c --festival --festival-game 0 --manual --frames 120 < /dev/null > /tmp/festivalr9c_0.log 2>&1 & p=$!; printf \"%s\\n\" \"$p\" > /tmp/festivalr9c_0.pid.tmp && mv /tmp/festivalr9c_0.pid.tmp /tmp/festivalr9c_0.pid && printf \"\\nF9_PID_festivalr9c_0:%s\\n\" \"$p\"; wait \"$p\"; rc=$?; echo \"$rc\" > /tmp/festivalr9c_0.exit; printf \"\\nL3_EXIT_festivalr9c_0:%s\\n\" \"$rc\" ) < /dev/null & echo ARCADE_LAUNCHED",
+        "/tmp/f9c-helper raw /tmp/luma3d-gm1 unused 10052024 e4089d74",
+        "if test -f /tmp/festivalr9c_0.pid; then p=`cat /tmp/festivalr9c_0.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi"
+      ],
+      "writes": [
+        "4c41554e43485f42595445",
+        "03"
+      ]
+    }
+  ]
+}

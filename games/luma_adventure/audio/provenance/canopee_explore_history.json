@@ -1,0 +1,162 @@
+{
+  "10e56235-07ed-4e37-9331-fa65ef8efcd1": {
+    "prompt": [
+      21,
+      "10e56235-07ed-4e37-9331-fa65ef8efcd1",
+      {
+        "1": {
+          "class_type": "CheckpointLoaderSimple",
+          "inputs": {
+            "ckpt_name": "yue2_3b_int8_convrot.safetensors"
+          }
+        },
+        "2": {
+          "class_type": "YuE2GenerateMusic",
+          "inputs": {
+            "clip": [
+              "1",
+              1
+            ],
+            "style": "Original instrumental fantasy adventure game soundtrack, intimate acoustic ensemble, warm living world, tender curiosity and ancient mystery, expressive human phrasing, organic room acoustics, clear melody with space between phrases, restrained dynamics, no vocals, no singing, no speech, no choir, no cinematic trailer hits. breathy alto flute, delicate glass chimes, marimba, pizzicato strings, dew on translucent leaves, curious descending replies, quiet woodland mystery",
+            "lyrics": "",
+            "abc": "X:1\nT:La Canopée de Verre\nM:4/4\nL:1/8\nQ:1/4=76\nK:Ddor\n\"Dm\"D2 A2 B2 d2 | \"G\"B3 A G2 E2 | \"Dm\"F2 A2 d3 A | \"Am\"E4 z4 |\n\"Bdim\"B2 d2 e2 d2 | \"G\"B3 A G2 E2 | \"Am\"F2 E2 D2 E2 | \"Dm\"D6 z2 |]\n",
+            "seed": 2026102303,
+            "mode": "full",
+            "max_duration": 64.0,
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "top_k": 100,
+            "repetition_penalty": 1.2,
+            "cfg_scale": 1.0
+          }
+        },
+        "3": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": [
+              "2",
+              0
+            ]
+          }
+        },
+        "4": {
+          "class_type": "EmptyYuE2LatentAudio",
+          "inputs": {
+            "seconds": [
+              "2",
+              1
+            ],
+            "batch_size": 1
+          }
+        },
+        "5": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": [
+              "1",
+              0
+            ],
+            "positive": [
+              "2",
+              0
+            ],
+            "negative": [
+              "3",
+              0
+            ],
+            "latent_image": [
+              "4",
+              0
+            ],
+            "seed": 2026102303,
+            "steps": 32,
+            "cfg": 1.0,
+            "sampler_name": "dpm_2",
+            "scheduler": "sgm_uniform",
+            "denoise": 1.0
+          }
+        },
+        "6": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": [
+              "5",
+              0
+            ],
+            "vae": [
+              "1",
+              2
+            ]
+          }
+        },
+        "7": {
+          "class_type": "SaveAudio",
+          "inputs": {
+            "audio": [
+              "6",
+              0
+            ],
+            "filename_prefix": "luma_yue2/canopee_explore"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792794365845
+      },
+      [
+        "7"
+      ]
+    ],
+    "outputs": {
+      "7": {
+        "audio": [
+          {
+            "filename": "canopee_explore_00001.flac",
+            "subfolder": "luma_yue2",
+            "type": "output",
+            "id": "afa2982a-469b-4816-a902-a46e2d5222ee"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "10e56235-07ed-4e37-9331-fa65ef8efcd1",
+            "timestamp": 1792794365845
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "1"
+            ],
+            "prompt_id": "10e56235-07ed-4e37-9331-fa65ef8efcd1",
+            "timestamp": 1792794365846
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "10e56235-07ed-4e37-9331-fa65ef8efcd1",
+            "timestamp": 1792794386669
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "7": {
+        "node_id": "7",
+        "display_node": "7",
+        "parent_node": null,
+        "real_node_id": "7"
+      }
+    }
+  }
+}

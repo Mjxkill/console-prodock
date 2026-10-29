@@ -1,0 +1,488 @@
+{
+  "9f6c3176-7c7f-43a4-8249-354d10291db8": {
+    "prompt": [
+      51,
+      "9f6c3176-7c7f-43a4-8249-354d10291db8",
+      {
+        "model": {
+          "class_type": "LoadBackgroundRemovalModel",
+          "inputs": {
+            "bg_removal_name": "birefnet.safetensors"
+          }
+        },
+        "load_sanctuary_props": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "luma_sanctuary_props_00001_.png [output]"
+          }
+        },
+        "cell_0": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_props",
+              0
+            ],
+            "x": 0,
+            "y": 0,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "cell_1": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_props",
+              0
+            ],
+            "x": 384,
+            "y": 0,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "batch_1": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "cell_0",
+              0
+            ],
+            "image2": [
+              "cell_1",
+              0
+            ]
+          }
+        },
+        "cell_2": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_props",
+              0
+            ],
+            "x": 768,
+            "y": 0,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "batch_2": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "batch_1",
+              0
+            ],
+            "image2": [
+              "cell_2",
+              0
+            ]
+          }
+        },
+        "cell_3": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_props",
+              0
+            ],
+            "x": 0,
+            "y": 384,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "batch_3": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "batch_2",
+              0
+            ],
+            "image2": [
+              "cell_3",
+              0
+            ]
+          }
+        },
+        "cell_4": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_props",
+              0
+            ],
+            "x": 384,
+            "y": 384,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "batch_4": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "batch_3",
+              0
+            ],
+            "image2": [
+              "cell_4",
+              0
+            ]
+          }
+        },
+        "cell_5": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_props",
+              0
+            ],
+            "x": 768,
+            "y": 384,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "batch_5": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "batch_4",
+              0
+            ],
+            "image2": [
+              "cell_5",
+              0
+            ]
+          }
+        },
+        "load_sanctuary_active": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "luma_sanctuary_active_00001_.png [output]"
+          }
+        },
+        "cell_6": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_active",
+              0
+            ],
+            "x": 384,
+            "y": 0,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "batch_6": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "batch_5",
+              0
+            ],
+            "image2": [
+              "cell_6",
+              0
+            ]
+          }
+        },
+        "cell_7": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_active",
+              0
+            ],
+            "x": 768,
+            "y": 0,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "batch_7": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "batch_6",
+              0
+            ],
+            "image2": [
+              "cell_7",
+              0
+            ]
+          }
+        },
+        "cell_8": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load_sanctuary_active",
+              0
+            ],
+            "x": 0,
+            "y": 384,
+            "width": 384,
+            "height": 384
+          }
+        },
+        "batch_8": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "batch_7",
+              0
+            ],
+            "image2": [
+              "cell_8",
+              0
+            ]
+          }
+        },
+        "load_lamp_off": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "luma_lamp_off_00001_.png [output]"
+          }
+        },
+        "cell_9": {
+          "class_type": "ImageScale",
+          "inputs": {
+            "image": [
+              "load_lamp_off",
+              0
+            ],
+            "upscale_method": "lanczos",
+            "width": 384,
+            "height": 384,
+            "crop": "disabled"
+          }
+        },
+        "batch_9": {
+          "class_type": "ImageBatch",
+          "inputs": {
+            "image1": [
+              "batch_8",
+              0
+            ],
+            "image2": [
+              "cell_9",
+              0
+            ]
+          }
+        },
+        "mask": {
+          "class_type": "RemoveBackground",
+          "inputs": {
+            "bg_removal_model": [
+              "model",
+              0
+            ],
+            "image": [
+              "batch_9",
+              0
+            ]
+          }
+        },
+        "invert": {
+          "class_type": "InvertMask",
+          "inputs": {
+            "mask": [
+              "mask",
+              0
+            ]
+          }
+        },
+        "rgba": {
+          "class_type": "JoinImageWithAlpha",
+          "inputs": {
+            "image": [
+              "batch_9",
+              0
+            ],
+            "alpha": [
+              "invert",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "rgba",
+              0
+            ],
+            "filename_prefix": "luma_sanctuary_cutouts"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792802255340
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "luma_sanctuary_cutouts_00001_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "76905dec-0a9c-441c-b23f-6a71e633fab5"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00002_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "2a8c3429-2906-492a-bd43-8a976ca98369"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00003_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "1555081f-6aba-4a91-91c1-2e745bc585b9"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00004_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "b9aff1ee-ad00-4f02-9cd0-2c6e905fc839"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00005_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "fa93ae5d-b0c5-42d4-a826-7abc685340c4"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00006_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "da1e3000-dd9f-41b3-9ef8-60fd335db29d"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00007_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "6a6457fa-eed3-4e09-a8bb-49e23e045bf7"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00008_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "e4979adc-2714-45f7-9818-bce50f289087"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00009_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "31bbbd25-f8bf-493f-b261-e6d7b42b1d10"
+          },
+          {
+            "filename": "luma_sanctuary_cutouts_00010_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 384,
+              "height": 384
+            },
+            "id": "fe8f8bd7-ebe9-4b73-b318-4cba3219d503"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "9f6c3176-7c7f-43a4-8249-354d10291db8",
+            "timestamp": 1792802255341
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "load_sanctuary_props",
+              "cell_4"
+            ],
+            "prompt_id": "9f6c3176-7c7f-43a4-8249-354d10291db8",
+            "timestamp": 1792802255352
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "9f6c3176-7c7f-43a4-8249-354d10291db8",
+            "timestamp": 1792802261150
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

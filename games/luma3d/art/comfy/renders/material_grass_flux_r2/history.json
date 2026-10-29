@@ -1,0 +1,189 @@
+{
+  "feed5fb5-3499-40e2-84d9-aec2ff2ddc5e": {
+    "prompt": [
+      64,
+      "feed5fb5-3499-40e2-84d9-aec2ff2ddc5e",
+      {
+        "unet": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "flux-2-klein-4b-fp8.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "clip": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_3_4b.safetensors",
+            "type": "flux2"
+          }
+        },
+        "vae": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "flux2-vae.safetensors"
+          }
+        },
+        "positive": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "clip",
+              0
+            ],
+            "text": "Seamless stylized game material swatch. Full frame MACRO view of a flat short meadow grass carpet seen from exactly perpendicular above. Uniform dense green surface, small curved hand-painted grass blades pointing in diverse directions, olive and celadon clusters and subtle ochre clover flecks. Every edge and corner has the same scale and brightness as the center. Broad quiet brush shapes with restrained contrast. Flat unlit albedo illustration. No horizon, no perspective depth, no path, no clearing, no border, no frame, no vignette, no lighting gradient, no tree, no rock. This is a repeatable diffuse texture map only, not a landscape painting."
+          }
+        },
+        "latent": {
+          "class_type": "EmptyFlux2LatentImage",
+          "inputs": {
+            "width": 1024,
+            "height": 1024,
+            "batch_size": 1
+          }
+        },
+        "noise": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 20261024201
+          }
+        },
+        "guider": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": [
+              "unet",
+              0
+            ],
+            "conditioning": [
+              "positive",
+              0
+            ]
+          }
+        },
+        "sampler": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "sigmas": {
+          "class_type": "Flux2Scheduler",
+          "inputs": {
+            "steps": 4,
+            "width": 1024,
+            "height": 1024
+          }
+        },
+        "sample": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": [
+              "noise",
+              0
+            ],
+            "guider": [
+              "guider",
+              0
+            ],
+            "sampler": [
+              "sampler",
+              0
+            ],
+            "sigmas": [
+              "sigmas",
+              0
+            ],
+            "latent_image": [
+              "latent",
+              0
+            ]
+          }
+        },
+        "decode": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "sample",
+              0
+            ],
+            "vae": [
+              "vae",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "decode",
+              0
+            ],
+            "filename_prefix": "luma3d/material_grass_flux_r2"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792840989383
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "material_grass_flux_r2_00001_.png",
+            "subfolder": "luma3d",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 1024,
+              "height": 1024
+            },
+            "id": "692624ba-9536-4f15-bcd5-805da1f58e43"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "feed5fb5-3499-40e2-84d9-aec2ff2ddc5e",
+            "timestamp": 1792840989384
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "feed5fb5-3499-40e2-84d9-aec2ff2ddc5e",
+            "timestamp": 1792840989386
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "feed5fb5-3499-40e2-84d9-aec2ff2ddc5e",
+            "timestamp": 1792840998052
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "unet": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "clip": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "vae": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "shift": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "lora",
+        0
+      ],
+      "shift": 3.0
+    }
+  },
+  "latent": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "positive": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "text": "A polished professional ORIGINAL top-down adventure game character asset sheet: precisely 4 columns by 4 rows, 16 isolated full-body characters, one centered character per equal square cell with generous blank margin. Same camera for all, three-quarter overhead, feet toward bottom, cozy hand-painted pixel-art, chunky readable silhouettes, warm amber upper-left light, teal shadows, apricot and cream details. Read left-to-right top-to-bottom: Row1 elderly female seed keeper in moss coat with round seed bag; gentle tall botanist wearing a glass visor and leaf cloak; female sea cartographer with navy coat and brass compass; female copper mechanic with orange overalls and goggles. Row2 female pilot in cream flight jacket and short blue scarf; young mail carrier with red satchel; small elderly seated traveler carrying a kettle; dark teal mischievous shadow creature with two cyan eyes and little claw feet. Row3 massive but kind moss-covered stone forest guardian with a glowing cyan heart; elegant emerald crystal stag; huge turquoise turtle with a tiny ceramic lighthouse on shell; round ornate copper clockwork automaton with cream dial chest. Row4 large folded-wing silver tin bird with blue feather edges; mysterious dark root creature with small golden inner glow; cheerful flower seller with basket; small floating teal shadow wisp. Entire background pure flat saturated MAGENTA #ff00ff, no magenta inside subjects. No ground, no scenery, no text, no cell border, no grid lines, no watermark. Exactly one character per cell, separated, consistent style, no copyrighted characters."
+    }
+  },
+  "negative": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "text": ""
+    }
+  },
+  "sample": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "shift",
+        0
+      ],
+      "seed": 2310261002,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": [
+        "positive",
+        0
+      ],
+      "negative": [
+        "negative",
+        0
+      ],
+      "latent_image": [
+        "latent",
+        0
+      ],
+      "denoise": 1.0
+    }
+  },
+  "decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "sample",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ]
+    }
+  },
+  "save": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "decode",
+        0
+      ],
+      "filename_prefix": "luma_cast_sheet"
+    }
+  },
+  "lora": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "unet",
+        0
+      ],
+      "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+      "strength_model": 1.0
+    }
+  }
+}

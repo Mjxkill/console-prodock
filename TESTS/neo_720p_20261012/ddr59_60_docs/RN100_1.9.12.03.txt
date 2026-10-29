@@ -1,0 +1,512 @@
+Gowin Software
+Release Note
+
+
+
+RN100-1.9.12.03E, 06/17/2026
+Copyright © 2026 Guangdong Gowin Semiconductor Corporation. All Rights Reserved.
+
+             is a trademark of Guangdong Gowin Semiconductor Corporation and is
+registered in China, the U.S. Patent and Trademark Office, and other countries. All other
+words and logos identified as trademarks or service marks are the property of their
+respective holders. No part of this document may be reproduced or transmitted in any form
+or by any means, electronic, mechanical, photocopying, recording or otherwise, without
+the prior written consent of GOWINSEMI.
+Disclaimer
+GOWINSEMI assumes no liability and provides no warranty (either expressed or implied)
+and is not responsible for any damage incurred to your hardware, software, data, or
+property resulting from usage of the materials or intellectual property except as outlined in
+the GOWINSEMI Terms and Conditions of Sale. GOWINSEMI may make changes to this
+document at any time without prior notice. Anyone relying on this documentation should
+contact GOWINSEMI for the current documentation and errata.
+                                                                                                                             Contents
+
+
+
+
+Contents
+
+     Contents ............................................................................................................... i
+
+     1 About This Release......................................................................................... 1
+
+     2 Platform Supported ........................................................................................ 3
+
+     3 Memory Requirements ................................................................................... 8
+
+     4 Ports ................................................................................................................. 9
+
+     5 Documents .................................................................................................... 10
+
+     6 Known Problems and Solutions .................................................................. 12
+
+
+
+
+RN100-1.9.12.03E                                                                                                                    i
+                                                                                  1 About This Release
+
+
+
+
+                                                1      About This Release
+
+                   Gowin Software Release Note
+                        The V1.9.12.03 release includes features and enhancement functions
+                   of Gowin Software. GOWINSEMI recommends downloading this version to
+                   get the latest software.
+                       The following table summarizes the release items:
+                   Feature            Description
+                   Gowin Software: V1.9.12.03
+                                       GW1AN-5 Version B
+                                        - GW1AN-LV5LQ100XC6/I5
+                                        - GW1AN-UV5LQ100XC6/I5
+                                        - GW1AN-LV5LQ144XC6/I5
+                                        - GW1AN-UV5LQ144XC6/I5
+                                        - GW1AN-LV5PG256XC6/I5
+                                        - GW1AN-UV5PG256XC6/I5
+                                        - GW1AN-LV5UG256XC6/I5
+                   New Devices          - GW1AN-UV5UG256XC6/I5
+                                       GW1AN-3 Version B
+                                        - GW1AN-LV3PG256XC6/I5
+                                        - GW1AN-UV3PG256XC6/I5
+                                        - GW1AN-LV3UG256XC6/I5
+                                        - GW1AN-UV3UG256XC6/I5
+                                       GW3AR-20 Version A
+                                        - GW3AR-LV20UG256ES
+                                        - GW3AR-LV20UG256C1/10
+                                       GW1NZ-1 Version D
+                                        - GW1NZ-LV1QN48A3
+                   New PNs             GW3A-20 Version A
+                                        - GW3A-LV20QN88C1/I0
+                                        - GW3A-LV20LQ100C1/I0
+                   PN Removed         All GW1N(R)-4 PNs with speed grade C7/I6
+                                         Added IP cores: AXI_UART, AXI_GPIO, AXI_PIT, AXI
+                   New Functions          Timer, APB-to-WB Async Bridge, AXI4 Full-to-Lite Bridge,
+                                          AHB Bus Matrix, and GMT.
+
+RN100-1.9.12.03E                                                                                 1(13)
+                                                                       1 About This Release
+
+
+
+
+                   Feature   Description
+                              GW3A(R)-20 devices support the OTP, CMSERB, and
+                                SAMBA primitives.
+                              Added BUF_EN parameter to the SARADC primitive for
+                                GW1AN-5 devices.
+                              Added SEED and LOADSEED ports to the RNG_DB
+                                primitive for GW3A-20 devices.
+                              Added RTL encryption support in the GUI.
+                              Optimized GAO CSV export by removing the first row
+                                containing "X" and eliminating separate export of sub-
+                                signals.
+                              Added support for ADC_IN attribute column in the pinout
+                                file for PnR reports.
+                              GUI supports more configuration options for
+                                GowinSynthesis; refer to Section 4.3.3 "Synthesize" in
+                                SUG100, Gowin Software User Guide.
+                              Added MIPI_OBUF_LP and IOBUF_LP primitives for
+                                GW5A(R)T-15 devices; refer to Sections 3.6.14
+                                MIPI_OBUF_LP and 3.6.15 IOBUF_LP in UG304, Arora V
+                                Programmable GPIO User Guide.
+                              GW1AN-1C supports JTAGSEL_N function controlled by
+                                logic.
+                              GW5A(R)(S)-25 devices support IBIS file generation for
+                                LVCMOS33 (drive 4/6/8/12 VCCX 3.3) and LVDS25
+                                (VCCX3.3 input).
+                              GW5A(T)-60 devices support IBIS file generation for
+                                LVDS25 (drive 2.5/3.5/4.5/6 VCCX 3.3 output).
+                              Added two clock input ports to the SARADC primitive and
+                                removed the PLLCLK port for GW1AN-5 devices.
+                              Added the CONT input port to the SUBADC_DB primitive
+                                for GW3A-20 devices to support continuous sampling
+                                mode selection.
+                              Added the Map Option configuration item in
+                                GowinSynthesis to control LUT mapping.
+                              Removed MULT mode support from the ALU primitive for
+                                GW1AN-5 devices.
+                              Programmer adds a device-dependent configuration UI
+                                display; refer to SUG502 Gowin Programmer User Guide.
+                              IP cores updated: Advanced FIR Filter, MIPI_CPHY,
+                               MIPI_DPHY, CLKDIVG, USB3.1 PHY, Gowin_EMPU_M1,
+                               FFT, ADC, USB3.0 PHY, DSP, SSCPLL, ASRC, USB2.0
+                               Controller, DVI TX, Scaler, Scaler Lite Down, Scaler Up,
+                               Video Frame Buffer, SPI Flash Interface, USB to Multi
+                               Serial Protocol Bridge, SPI Flash Interface Lite (With
+                               External Flash), MIPI_DPHY, EDID PROM, USB2.0
+                   Updates     SoftPHY, PCIe_Controller, 10G Serial Ethernet, DVI RX,
+                               EDP Encode, EDP Decode, EDP_RX_Desteer, MIPI DPHY
+                               RX/TX.
+                              IP cores removed: USB2.0 Mass Storage
+                              Remove the XTALP and XTALN ports from the EOSC
+                               primitive for GW3A-20 devices; refer to Section 6.2 EOSC
+                               in UG317-1.0 Arora III Clock Resource User Guide.
+                              Removed support for the SAMB primitive on GW1AN-5
+
+
+RN100-1.9.12.03E                                                                      2(13)
+                                                                                   1 About This Release
+
+
+
+
+                   Feature             Description
+                                          devices.
+                                        In GW3A(R)-20 pinout, the ADC_IN attribute bus2 is
+                                          updated to bus4; refer to UG1353, GW3A-20 Pinout and
+                                          UG1360, GW3AR-20 Pinout.
+                                        Swapped the pin assignments of pins 133 and 134 in the
+                                          GW5AR-25-LQ144P package; refer to UG1110, GW5AR-25
+                                          Pinout.
+                                        Swapped the pin assignments of pins AA7 and AB5 in the
+                                          GW5AT-75-UBGA484 package; refer to UG1224, GW5AT-
+                                          15 Pinout.
+                                        Removed the default option "Disable I/O Insertion" from the
+                                          IP Core configuration interface.
+                                        Updated the typical VCC voltage for GW5A(T)-60 devices
+                                          to 0.95V.
+                                        When register initial values of asynchronous set/reset do
+                                          not match hardware initial values, GowinSynthesis issues a
+                                          warning indicating that software will ignore the mismatched
+                                          initial values.
+                                        Updated Background Programming configuration items in
+                                          the GUI; refer to Section 4.3.3 Place & Route in SUG100,
+                                          Gowin Software User Guide.
+                                        Updated delay data for C6 of GW1N(R)-4 devices; refer to
+                                          Section 3.4 Switching Characteristics in DS100, GW1N
+                                          series of FPGA Data Sheet.
+                                        Updated delay data for C7 of GW1N(R)-9 devices; refer to
+                                          Section 3.4 Switching Characteristics in DS100, GW1N
+                                          series of FPGA Data Sheet..
+                                        Renamed "I2C Address Modify (9x/18x)" to "I2C Address
+                                          Modify" in Programmer.
+
+                   IP Release Note
+                      PCI Express Controller (V2.0)
+                       -     Added 8 GT/s option support
+                       -     Extended BAR address range
+                       -     Added Expansion ROM configuration support
+                      USB 2.0 SoftPHY (V3.5)
+                       -     Added support for GW3A-20 devices
+                       -     Adjusted IO delay control parameters
+                      USB 2.0 Controller (V3.3)
+                       -     Added RX/TX finish signals
+                       -     Added debug interface
+                       -     Optimized code to reduce timing pressure on external user logic
+                      USB 3.0 PHY (V1.6)
+                       -     Added tx_elastic_buffer; ref_clk must be connected to a standard
+
+RN100-1.9.12.03E                                                                                  3(13)
+                                                                             1 About This Release
+
+
+
+
+                           125 MHz clock
+                       -   Changed loopback mode to LB_FES mode
+                      USB 3.1 PHY (V1.1)
+                       -   Added interfaces
+                       -   Added retimer support with variable SKP
+                       -   Reduced data rate to 5 Gbps
+                       -   Changed "Reference_Clock_Frequency" to a fixed dropdown list
+                       -   Removed QPLL1 option from PLL selection
+                      10G Serial Ethernet (V1.3)
+                       -   Added RX AFE tuning interface
+                      MIPI D-PHY TX Advance (V2.1)
+                       -   Added reset synchronous release logic to ensure stable transmit
+                           data
+                       -   Added support for GW3A-20 devices
+                      MIPI D-PHY RX Advance (V2.3)
+                       -   Fixed an issue where byte alignment failure may occur in certain
+                           channels when Byte alignment is enabled but Lane alignment is
+                           disabled
+                       -   Added support for GW3A-20 devices
+                      DVI RX (V4.3)
+                       -   Added support for GW3A-20 devices
+                      EDP Encode (V2.7)
+                       -   Optimized IP
+                       -   Added support for 18-bit video interface data
+                       -   Added TPS4 parameter TX_TPS4_ENABLE
+                      EDP Decode (V2.7)
+                       -   Optimized IP
+                       -   Added support for 18-bit video interface data
+                       -   Added TPS4 parameter TX_TPS4_ENABLE
+                      Scaler Lite Down (V2.4)
+                       -   Added support for GW3A-20 devices
+                      Scaler Lite Up (V2.4)
+                       -   Added support for GW3A-20 devices
+
+RN100-1.9.12.03E                                                                            4(13)
+                                                                                1 About This Release
+
+
+
+
+                      Scaler (V3.4)
+                       -     Added support for GW3A-20 devices
+                      EDID PROM (V2.2)
+                       -     Added support for GW3A-20 devices
+                      SSCPLL (V1.5.1)
+                       -     Added lock signal
+                      ASRC (V1.3)
+                       -     Supported 32-bit data width, added support for 8-channel and 384
+                             kHz sampling rate
+                      Advanced FIR Filter (V2.7)
+                       -     Fixed a bug where fractional rate mode causes incorrect data
+                             output
+                      FFT (V1.7)
+                       -     Added support for GW3A-20 devices
+                       -     Added selectable bit width in full-precision mode to avoid data
+                             overflow
+                      USB Mass Storage
+                       -     Removed IP; provided open-source reference design and user
+                             manual
+
+                       IP Support Status on GW3A-20 Devices
+
+                        The following IPs have not been validated at board level on GW3A-20
+                   devices. After evaluation, they are made available for use on this device
+                   series. If any issues occur during use, please contact FAE.
+                      MII to RMII
+                      SDRAM Controller HS
+                      SDRAM Controller (With External SDRAM)
+                      IES
+                      DDR3 Memory Interface
+                      DDR3 PHY Interface
+                      PCI-To-Ethernet
+                      PCI-To-CAN
+                      PCI Target
+                      SDIO Slave Controller
+
+RN100-1.9.12.03E                                                                               5(13)
+                                                             1 About This Release
+
+
+
+
+                      FOC Current Loop Control Light
+                      DC-SCM LTPI
+                      USB 1.1 SoftPHY
+                      USB 2.0 Device Controller
+                      USB 2.0 SoftPHY
+                      USB 2.0 Host Controller
+                      USB 2.0 Mass Storage
+                      USB to Multi Serial Protocol Bridge
+                      DVI RX
+                      DVI TX
+                      EDID PROM
+                      Scaler
+                      Scaler Lite Down
+                      Scaler Lite Up
+                      Video Frame Buffer
+                      MIPI DSI/CSI-2 Receiver
+                      MIPI DSI/CSI-2 Transceiver
+                      MIPI Pixel-to-Byte Converter
+                      MIPI Byte-to-Pixel Converter
+
+
+
+
+RN100-1.9.12.03E                                                            6(13)
+                                                                                       2 Platform Supported
+
+
+
+
+                                                2         Platform Supported
+
+                       The software is supported on the platforms listed below.
+                   Windows                      Windows 7/8/10/11 (64-bit)
+                                                Centos 7.0/7.3/7.5/8.2/9 (64-bit)
+                   Linux
+                                                Ubuntu 18.04/20.04/22.04/24.04/24.10 LTS
+                                                Sonoma 14.4/14.6.1 (M2)
+                                                Ventura 13.6 (M2)
+                   macOS
+                                                Sequoia 15.2 (M4)
+                                                Sequoia 15.3 (M2)
+                   Note!
+                      Apple's official signing and notarization process of the current macOS dmg package
+                       has not yet completed, and users may encounter system security prompts during
+                       installation.
+                      When running Gowin Software on a Linux system, you need to set the environment
+                       variable LD_LIBRARY_PATH first, such as
+                       export LD_LIBRARY_PATH=installPath/Gowin_V1.9.12.03/IDE/lib
+                      If you need Gowin Software V1.9.12.03(32-bit) in Windows or CentOS 6 (64-bit),
+                       please contact GOWIN Support.
+
+
+
+
+RN100-1.9.12.03E                                                                                      7(13)
+                                                                         3 Memory Requirements
+
+
+
+
+                                        3   Memory Requirements
+
+                       The table below lists the minimum and recommended memory
+                   requirements for Gowin Software to support GOWIN devices. It is
+                   recommended to use a 64-bit operating system when running Arora V
+                   devices on the Windows platform.
+                   Device                 Minimum                Recommended
+                   GW5A(S)(T)-138/75      3GB                    5GB
+                   GW5A(T)-60             3GB                    5GB
+                   GW2A(N)-55             2GB                    2.5GB
+                   GW5A(S)(R)-25          2GB                    4GB
+                   GW3A(R)-20             2GB                    4GB
+                   GW2A(N)(R)-18          1GB                    1.5GB
+                   GW5A(R)T-15            1GB                    1.5GB
+                   GW1N(R)-9              512MB                  1GB
+                   GW1AN-5                256MB                  1GB
+                   GW1N(S)(E)(R)(F)-4     256MB                  1GB
+                   GW1N(Z)(R)-2           128MB                  1GB
+                   GW1(A)(N)(Z)(R)-1      128MB                  1GB
+
+
+
+
+RN100-1.9.12.03E                                                                         8(13)
+                                                                                         4 Ports
+
+
+
+
+                                                                             4      Ports
+
+Port No.     Port Type              Port Description
+                                    Used for Gowin Analyzer Oscilloscope (GAO) display
+36546        Fixed Protocol Port
+                                    communicating with JTAG server
+                                    Used for Gowin Analyzer Oscilloscope (GAO) display
+36547        Fixed Protocol Port
+                                    communicating with JTAG server
+36548        Custom Protocol Port   Used for Gowin Programmer communicating with JTAG server
+10559        Custom Protocol Port   The license server port for Gowin Software
+10558        Custom Protocol Port   The license server port for Gowin Software
+
+
+
+
+RN100-1.9.12.03E                                                                          9(13)
+                                                                                         5 Documents
+
+
+
+
+                                                                 5        Documents
+
+                        The released documents are listed in the table below and the PDF
+                   versions are packaged in the installation directory.
+                   Documents                                                   Description
+                   SUG501, Gowin Software Quick Installation User Guide        PDF
+                   SUG918, Gowin Software Quick Start Guide                    PDF
+                   SUG100, Gowin Software User Guide                           PDF
+                   SUG940, Gowin Design Timing Constraints User Guide          PDF
+                   SUG114, Gowin Analyzer Oscilloscope User Guide              PDF
+                   SUG282, Gowin Power Analyzer User Guide                     PDF
+                   SUG283, Gowin Primitive User Guide                          PDF
+                   SUG550, GowinSynthesis User Guide                           PDF
+                   SUG935, Gowin Design Physical Constraints User Guide        PDF
+                   SUG502, Gowin Programmer User Guide                         PDF
+                   SUG937, Gowin Software User Messages Reference              Online help, PDF
+                   SUG755, Gowin HDL Schematic Viewer User Guide               PDF
+                   SUG949, Gowin HDL Coding User Guide                         PDF
+                   UG287, Gowin DSP User Guide                                 PDF
+                   UG285, Gowin BSRAM & SSRAM User Guide                       PDF
+                   UG286, Gowin Clock User Guide                               PDF
+                   UG288, Gowin Configurable Function Unit (CFU) User Guide    PDF
+                   UG289, Gowin Programmable IO (GPIO) User Guide              PDF
+                   UG295, Gowin User Flash User Guide                          PDF
+                   SUG1018, Arora Ⅴ Design Physical Constraints User Guide     PDF
+                   UG300, Arora V BSRAM & SSRAM User Guide.                    PDF
+                   UG303, Arora V Configurable Function Unit (CFU) User
+                                                                               PDF
+                   Guide
+                   UG304, Arora Ⅴ Programmable IO (GPIO) User Guide            PDF
+                   UG305, Arora V Digital Signal Processing (DSP) User Guide   PDF
+                   UG306, Arora V Clock User Guide                             PDF
+
+
+RN100-1.9.12.03E                                                                              10(13)
+                                                                               5 Documents
+
+
+
+
+                   Documents                                         Description
+                   SUG1189, Gowin Virtual Input Output User Guide    PDF
+                   SUG1220, Gowin Software Tcl Commands User Guide   PDF
+
+
+
+
+RN100-1.9.12.03E                                                                    11(13)
+                                                                        6 Known Problems and Solutions
+
+
+
+
+                   6        Known Problems and Solutions
+
+                       The following problems apply to the supported functions in Gowin
+                   Software.
+                   1. In HDL design, undefined initial values of reg may cause
+                      mismatches between the synthesized netlist and the HDL
+                      description.
+                       Solution: Define initial values for reg in the HDL design.
+                   2. An error is reported when launching the software on Linux:
+                      symbol lookup error: /lib/x86_64-linux-
+                      gnu/libfontconfig.so.1: undefined symbol: FT_Done_MM_Var
+                        Solution: Delete the file /IDE/lib/libfreetype.so.6 located in the
+                   software installation directory.
+                   3. The information output pane displays messy code on Ubuntu 18.04
+                      LTS system
+                       The information output pane displays messy code in Linux; when the
+                   content is copied and pasted to the code editing pane, the display is
+                   normal.
+                        Solution: Delete the file /IDE/lib/libfreetype.so.6 located in the
+                   software installation directory.
+                   4. If Smart App Control is enabled on Windows 11 system, the software
+                      may be blocked, resulting in installation failure.
+                        Solution: Disable Smart App Control and then try installing the
+                   software again.
+                   5. Failure to generate SSCPLL and SerDes IP on Windows 7 system
+                        Solution: Update the Windows operating system to Windows 8 or
+                   later.
+
+
+RN100-1.9.12.03E                                                                                12(13)
+                                                                     6 Known Problems and Solutions
+
+
+
+
+                   6. GAO BSRAM Placement Failure
+                        Solution: Reduce the number of BSRAMs used in the .gao
+                   configuration, for example by reducing the configured capture depth,
+                   reducing the number of captured signals, or modifying the implementation
+                   method of the trigger expression.
+                   7. GAO Capture Signal Failure
+                       Solution: Try to reduce the number of capture signals and capture
+                   depth. If the problem still exists, please contact GOWIN support.
+                   8. GAO PnR Failure
+                       ERROR (PR1011): Failed to capture GAO signal<name>,
+                   because there is no wire to route for the signal.
+                        Solution: Check whether the signal is hard-wired, such as the output
+                   of IOLOGIC.
+                   9. If the simulator reports the following error during timing simulation
+                      using the .vho file: Failed to find INSTANCE 'GSR'
+                       It is due to the fact that VHDL language does not support the
+                   duplication of names for primitives and their instantiations.
+                        Solution: Modify the instantiation name of the primitive GSR in both
+                   the .vho and .sdf files to "GSR_ins".
+
+
+
+
+RN100-1.9.12.03E                                                                             13(13)
+

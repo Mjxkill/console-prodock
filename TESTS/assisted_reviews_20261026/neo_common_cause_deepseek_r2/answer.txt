@@ -1,0 +1,40 @@
+## Faits établis
+
+La différence PLL est réelle et précisément localisée dans `video_pll_audit_01/result.json` :
+
+- Neo R19/R21r2 : `DYN_ICP_SEL="TRUE"`, `DYN_LPF_SEL="TRUE"`, `ICPSEL` et `LPFRES` reliés à GND, donc codes zéro ; `LPF_CAP=2'b00`; `RESET` à GND ; VCO 743,75 MHz, sortie 74,375 MHz.
+- Pro Dock G22r0 : `DYN_ICP_SEL="FALSE"`, `DYN_LPF_SEL="FALSE"`, calcul statique automatique par Gowin ; mêmes ports à zéro mais non sélectionnés ; VCO 1050 MHz, sortie 35 MHz.
+
+`video_pll_audit_01/README.md` établit, d’après UG306 tableaux 5-2/5-3, que les codes zéro signifient courant de charge minimal et bande passante la plus large ; les `X` des paramètres statiques ne sont pas des entrées physiques inconnues mais des valeurs calculées par l’outil. Aucune source du paquet ne prouve que ces codes sont interdits à 743,75 MHz, ni qu’ils rendent la PLL instable. Aucun erratum public B/C de PLL n’a été trouvé (`web_reset_independent.md`), mais cette absence n’est pas une preuve d’absence.
+
+Le point décisif : le fichier vidéo L31r8 est byte-identique à celui de Neo R19/R21r2, même SHA, et branche aussi les trois entrées à zéro ; L31r8 et R19 ont affiché une image. La configuration n’empêche donc pas universellement le fonctionnement. Elle reste non qualifiée pour un fonctionnement intermittent.
+
+## Mécanisme conditionnel plausible — non prouvé
+
+Hypothèse H1 : à 743,75 MHz de VCO, les codes dynamiques zéro donneraient une marge de boucle ou une acquisition de verrouillage marginale, non un fonctionnement interdit. Cela pourrait expliquer un défaut HDMI/scanout dépendant du démarrage ou de la température, mais **pas** à lui seul le lecteur DDR, COPY16, ni l’USB. La PLL vidéo n’est pas démontrée comme cause commune.
+
+Hypothèse H2, distincte : Neo libère `pixel_up[2]` après trois fronts pixel de LOCK haut, environ 40 ns, alors qu’UG306 demande au moins 2 ms d’observation continue avant de confirmer LOCK (`web_reset_independent.md`; `video_pll_audit_01/README.md`). C’est une lacune de qualification du démarrage prouvée dans la source, pas une occurrence physique prouvée. Elle peut expliquer un démarrage vidéo intermittent sans rendre compte de l’USB.
+
+La comparaison Pro Dock/Neo n’est pas un A/B contrôlé : elle change simultanément le mode analogique, la fréquence VCO/sortie et la cible 676B versus 484C (`tang/impl/gpu_geometry_g22r0/build.tcl:1`; `tang/impl/console_neo_n56r19_capture_ce_local/build.tcl:1`). Elle ne permet donc pas d’attribuer l’échec au mode dynamique. Le fait que `RESET` soit à GND sur les deux versions n’est pas non plus un discriminant Neo.
+
+## Correction explicite sur B/C et les succès partiels
+
+L31r8 et R19 réfutent seulement une incompatibilité **universelle** de la cible C/PG484 ou de l’IP USB ancienne. Ils ne réfutent pas une incompatibilité conditionnelle de bloc, de configuration, de ressource, d’intégration ou de point de fonctionnement. L31r8 peut différer par le top, les contraintes, le placement et la provenance USB ; R19 reste une version au timing FAIL avec des témoins partiels. Un succès partiel n’élimine donc pas une incompatibilité conditionnelle B/C.
+
+## Valeurs et documentation manquantes
+
+Avant toute correction de la PLL, il manque :
+
+1. La sortie du générateur officiel Gowin pour **la même cible C/PG484 et les mêmes fréquences** 50 MHz → 743,75/74,375 MHz : valeurs `ICP_SEL`, `LPF_RES`, `LPF_CAP`, temps de verrouillage et éventuelles recommandations de boucle. Les valeurs Pro Dock à 35 MHz ne remplacent pas cet essai.
+2. La table complète UG306 pour le mode dynamique à ce point de fonctionnement, et une éventuelle note/erratum B/C. Aucune valeur numérique ne doit être inventée.
+3. Les composants externes du filtre de boucle et la référence PLL réellement mesurés sur Neo : absents du paquet.
+4. Une observation indépendante de `pixel_clk`, `LOCK`, `pixel_up[2]`, `vid_hrstn` et des resets au démarrage à froid et après rechargement. L’audit INIT ne montre aucun conflit (`init_audit_01/README.md`), mais ne mesure ni horloges ni distribution physique.
+5. Pour l’ancienne IP USB : la provenance exacte de l’IP USB de L31r8, son target de génération et son hash. Neo utilise des modules Sipeed 1.9.10.03 de novembre 2024, template target B, et la nouvelle IP target C n’est pas dans R19/R21r2 (`evidence/packet.txt`, tableau USB). Les zéros `ID55544e41/status0/sequence0` sont des registres de contrôle AHB, pas une mesure du domaine USB ; aucune capture fraîche de la banque USB n’a été faite (chronologie 9).
+
+## Tests discriminants prioritaires
+
+1. **Générateur officiel, sans compilation FPGA** : générer la PLL pour cible C/PG484 à 743,75/74,375 MHz, puis comparer les paramètres calculés aux zéros Neo. Refaire au point Pro 1050/35 MHz séparément. Un écart prouverait une déviation par rapport à l’outil, pas encore la causalité.
+2. **Observation LOCK/clock/reset sur R19 existant** : capture froide de `pixel_clk`, `LOCK`, `pixel_up[2]` et `vid_hrstn`, avec compteur de fronts et recherche d’impulsions LOCK dans les 2 ms. C’est le seul test qui distingue H1/H2 d’un simple défaut de scanout.
+3. **Ancienne IP USB** : relevé UTNA frais avec ACK et lecture de la banque USB complète, plus compteurs d’horloge/reset USB ; ne pas réutiliser les ticks R1 d’un autre build. Si le domaine USB est vivant, l’hypothèse d’une incompatibilité conditionnelle old-IP target B devient moins plausible.
+
+Aucun patch analogique n’est justifié avant le test 1. Un patch minimal ultérieur, seulement si LOCK glitche, serait d’exiger 2 ms de LOCK continu avant `pixel_up[2]` ; il ne doit pas être présenté comme correction de la PLL.

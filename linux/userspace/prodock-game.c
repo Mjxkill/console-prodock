@@ -16,10 +16,13 @@
 /* Small playable integration game. All pixels are drawn by GPU CLEAR_RECT;
  * Linux performs input and physics. Each page owns 480 rows at pitch 1600,
  * even though the game renders 400x240; scanout selects native or x2. */
+static unsigned canvas_width=400,canvas_height=240;
 static volatile sig_atomic_t stopped;
 static void stop(int sig) { (void)sig; stopped=1; }
 static void rect(struct prodock_batch *b,unsigned color,int x,int y,int w,int h)
 {
+    int right=(x+w)*canvas_width/400,bottom=(y+h)*canvas_height/240;
+    x=x*canvas_width/400;y=y*canvas_height/240;w=right-x;h=bottom-y;
     uint32_t *c=b->commands[b->count++];
     c[0]=28U<<24; c[1]=1; c[2]=color; c[4]=((uint32_t)x<<16)|(unsigned)y;
     c[5]=((uint32_t)w<<16)|(unsigned)h;
@@ -42,6 +45,11 @@ int main(int argc,char **argv)
     int fd=open("/dev/prodock-gpu",O_RDWR|O_CLOEXEC);
     if(fd<0) { perror("GPU open");return 1; }
     struct termios saved,raw; int changed=0;
+    struct prodock_info info;
+    if(ioctl(fd,PRODOCK_INFO,&info) ||
+       !((info.width==800 && info.height==480)||(info.width==1280 && info.height==720)))goto done;
+    canvas_width=info.width/2;canvas_height=info.height/2;
+    unsigned pitch=info.width*2,page_bytes=info.width==800?0x100000:0x200000;
     if(!demo) {
         if(tcgetattr(STDIN_FILENO,&saved)) { perror("game terminal");goto done; }
         raw=saved; raw.c_lflag &= ~(ICANON|ECHO); raw.c_cc[VMIN]=0;raw.c_cc[VTIME]=0;
@@ -99,8 +107,8 @@ int main(int argc,char **argv)
         if(score==40) { score=0;memset(bricks,1,sizeof(bricks)); }
         struct prodock_batch b={0};unsigned page=frames&1;
         uint32_t *c=b.commands[b.count++];
-        c[0]=22U<<24;c[1]=0x800000+page*0x100000;c[2]=0xa00000;
-        c[3]=(400U<<16)|240;c[4]=(1600U<<16)|1600;
+        c[0]=22U<<24;c[1]=0x800000+page*page_bytes;c[2]=0x800000+2*page_bytes;
+        c[3]=(canvas_width<<16)|canvas_height;c[4]=(pitch<<16)|pitch;
         rect(&b,0x0823,0,0,400,240);
         rect(&b,0x3a4a,0,0,4,240);rect(&b,0x3a4a,396,0,4,240);
         static const unsigned colours[4]={0xf986,0xfcc6,0x76ee,0x365e};
@@ -115,7 +123,7 @@ int main(int argc,char **argv)
         double stamp=now();
         if(ioctl(fd,PRODOCK_SUBMIT,&b)) { perror("GPU submit");goto restore; }
         submit_seconds+=now()-stamp;
-        struct prodock_scene scene={.base=0x800000+page*0x100000,.stride=1600,.format=7};
+        struct prodock_scene scene={.base=0x800000+page*page_bytes,.stride=pitch,.format=7};
         stamp=now();
         if(ioctl(fd,PRODOCK_PRESENT,&scene)) { perror("GPU present");goto restore; }
         present_seconds+=now()-stamp;

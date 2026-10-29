@@ -1,0 +1,887 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-analyser A/B/A/B et la prochaine sonde combinée reset/GPU/USB sans Linux ni DMA. Définir l’expérience la plus discriminante et ses gardes, tester précisément snapshot/commandeGPU/absenceUSB. Pas de compilation spéculative ; avis borné rapide.
+
+EVIDENCE PACKET:
+FACTS: Four-phase A/B/A/B completed: exact R19 returns bank version0 each phase, exactR22r1 returns bank/raw1=1 each phase. All restore R19 fresh. No corrected cause claimed. The new witness adds taps/load/402FF/32readmux; new routing too. See exact evidence below.
+
+result.json
+{
+  "passed": true,
+  "scope": "Evidence integrity and comparison only",
+  "hardware_access": false,
+  "hardware_qualified": false,
+  "global_qualification": "FAIL",
+  "results": [
+    {
+      "label": "A1",
+      "build": "R19",
+      "input": "/home/michael/console/TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_000942/result.json",
+      "sha256": "1c39884c0dab5fca3a1217eef887cbd1ac7e8fca21f250174070ce85bfdf342d",
+      "rows": [
+        {
+          "phase": "ARM",
+          "sequence": 1,
+          "bank_version": 0,
+          "ticks": 0,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "DISARM",
+          "sequence": 2,
+          "bank_version": 0,
+          "ticks": 26061045,
+          "armed": true,
+          "sof_cycles": 1,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "STOPPED",
+          "sequence": 3,
+          "bank_version": 0,
+          "ticks": 26061046,
+          "armed": false,
+          "sof_cycles": 1,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "STABLE",
+          "sequence": 4,
+          "bank_version": 0,
+          "ticks": 26061046,
+          "armed": false,
+          "sof_cycles": 1,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        }
+      ],
+      "restored_exact_R19": true,
+      "qualification_status": "FAIL",
+      "error": "RuntimeError(\"Activity data contract failed: ['Version0: ARM first', 'Version0: ARM repeat', 'Version0: DISARM first', 'Version0: DISARM repeat', 'Version0: STOPPED first', 'Version0: STOPPED repeat', 'Version0: STABLE first', 'Version0: STABLE repeat']\")"
+    },
+    {
+      "label": "B1",
+      "build": "R22r1",
+      "input": "/home/michael/console/TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_124213/result.json",
+      "sha256": "af7599cc42c95136020911b236f91abc5208a8b7aee65518890fbd2fdd88e3a4",
+      "rows": [
+        {
+          "phase": "ARM",
+          "sequence": 1,
+          "bank_version": 1,
+          "ticks": 0,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            1,
+            1,
+            1
+          ],
+          "total": 32,
+          "frames": 1,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "phase": "DISARM",
+          "sequence": 2,
+          "bank_version": 1,
+          "ticks": 29695297,
+          "armed": true,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            2,
+            2,
+            2
+          ],
+          "total": 64,
+          "frames": 2,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "phase": "STOPPED",
+          "sequence": 3,
+          "bank_version": 1,
+          "ticks": 29695298,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            3,
+            3,
+            3
+          ],
+          "total": 96,
+          "frames": 3,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "STABLE",
+          "sequence": 4,
+          "bank_version": 1,
+          "ticks": 29695298,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            4,
+            4,
+            4
+          ],
+          "total": 128,
+          "frames": 4,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            3,
+            3,
+            3
+          ]
+        }
+      ],
+      "restored_exact_R19": true,
+      "qualification_status": "FAIL",
+      "error": null
+    },
+    {
+      "label": "A2",
+      "build": "R19",
+      "input": "/home/michael/console/TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_124422/result.json",
+      "sha256": "6e26b76d9252e2b6dcc163582e1ac5bb95f9c3aef438841a913c5585303e2d93",
+      "rows": [
+        {
+          "phase": "ARM",
+          "sequence": 1,
+          "bank_version": 0,
+          "ticks": 0,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "DISARM",
+          "sequence": 2,
+          "bank_version": 0,
+          "ticks": 26111935,
+          "armed": true,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "STOPPED",
+          "sequence": 3,
+          "bank_version": 0,
+          "ticks": 26111936,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "STABLE",
+          "sequence": 4,
+          "bank_version": 0,
+          "ticks": 26111936,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        }
+      ],
+      "restored_exact_R19": true,
+      "qualification_status": "FAIL",
+      "error": "RuntimeError(\"Activity data contract failed: ['Version0: ARM first', 'Version0: ARM repeat', 'Version0: DISARM first', 'Version0: DISARM repeat', 'Version0: STOPPED first', 'Version0: STOPPED repeat', 'Version0: STABLE first', 'Version0: STABLE repeat']\")"
+    },
+    {
+      "label": "B2",
+      "build": "R22r1",
+      "input": "/home/michael/console/TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_124454/result.json",
+      "sha256": "bb05c3936dcdc82e8cb13e8cf7620bdb4d0c9fb65027a553b4e85e1a590d9720",
+      "rows": [
+        {
+          "phase": "ARM",
+          "sequence": 1,
+          "bank_version": 1,
+          "ticks": 0,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            1,
+            1,
+            1
+          ],
+          "total": 32,
+          "frames": 1,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "phase": "DISARM",
+          "sequence": 2,
+          "bank_version": 1,
+          "ticks": 29758497,
+          "armed": true,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            2,
+            2,
+            2
+          ],
+          "total": 64,
+          "frames": 2,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "phase": "STOPPED",
+          "sequence": 3,
+          "bank_version": 1,
+          "ticks": 29758498,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            3,
+            3,
+            3
+          ],
+          "total": 96,
+          "frames": 3,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "STABLE",
+          "sequence": 4,
+          "bank_version": 1,
+          "ticks": 29758498,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            4,
+            4,
+            4
+          ],
+          "total": 128,
+          "frames": 4,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            3,
+            3,
+            3
+          ]
+        }
+      ],
+      "restored_exact_R19": true,
+      "qualification_status": "FAIL",
+      "error": null
+    }
+  ],
+  "conclusion": "The constant version result follows the tested build across A/B/A/B: R19 returns zero, R22r1 returns one in the bank and witness. No captured disagreement between raw witness and bank.",
+  "changed_variables": [
+    "Added witness taps, load, 402 FF and combinational logic",
+    "Added 32 hrdata input muxes",
+    "Complete new placement/routing",
+    "R22 collector also reads extension words; read cadence differs from R19 activity collector"
+  ],
+  "not_established": [
+    "Root cause",
+    "FIFO fault versus bank validity/data fault",
+    "Silicon erratum",
+    "USB enumeration or negotiated speed",
+    "Physical clock frequencies",
+    "GPU functionality",
+    "DDR integrity"
+  ],
+  "first_failed_attempt": {
+    "path": "TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_105428",
+    "reason": "libusb_init() failed with LIBUSB_ERROR_OTHER before initial guard; no programming and no hardware observation; excluded from comparison"
+  },
+  "inputs": {
+    "/home/michael/console/TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_000942/result.json": "1c39884c0dab5fca3a1217eef887cbd1ac7e8fca21f250174070ce85bfdf342d",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_124213/result.json": "af7599cc42c95136020911b236f91abc5208a8b7aee65518890fbd2fdd88e3a4",
+    "/home/michael/console/TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_124422/result.json": "6e26b76d9252e2b6dcc163582e1ac5bb95f9c3aef438841a913c5585303e2d93",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_124454/result.json": "bb05c3936dcdc82e8cb13e8cf7620bdb4d0c9fb65027a553b4e85e1a590d9720"
+  }
+}
+
+
+postroute_summary
+{
+  "schema": "neo-utw1-r22r1-postroute-summary-v1",
+  "candidate": true,
+  "hardware_access": false,
+  "hardware_qualified": false,
+  "route_status": "ROUTED_NOT_QUALIFIED",
+  "bitstream_sha256": "55601256120915adbb08279c0b6bd42caabf8deff261bf87b8a7b8d8cbf9c8aa",
+  "netlist_sha256": "0eb5638a63c4c2562f78db1dc71474830b7425b23c30b56674639bac4a4cb191",
+  "structure_passed": true,
+  "helper_ff": 402,
+  "target_requests_resolved": true,
+  "target_slacks_nonnegative": true,
+  "target_status_counts": {
+    "REPORTED_NONNEGATIVE": 2604
+  },
+  "target_minima": [
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "D",
+      "endpoints": 402,
+      "worst_slack_ns": 3.878,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_457/D"
+    },
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "CE",
+      "endpoints": 402,
+      "worst_slack_ns": 5.003,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_105/CE"
+    },
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "RESET",
+      "endpoints": 402,
+      "worst_slack_ns": 7.099,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_105/RESET"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "D",
+      "endpoints": 402,
+      "worst_slack_ns": 0.247,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_123/D"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "CE",
+      "endpoints": 402,
+      "worst_slack_ns": 0.971,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_532/CE"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "RESET",
+      "endpoints": 402,
+      "worst_slack_ns": 0.756,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_596/RESET"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "D",
+      "endpoints": 32,
+      "worst_slack_ns": 2.828,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_3_s0/D"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "CE",
+      "endpoints": 32,
+      "worst_slack_ns": 10.076,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_26_s0/CE"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "RESET",
+      "endpoints": 32,
+      "worst_slack_ns": 8.309,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_26_s0/RESET"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "D",
+      "endpoints": 32,
+      "worst_slack_ns": 0.559,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_3_s0/D"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "CE",
+      "endpoints": 32,
+      "worst_slack_ns": 0.515,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_19_s0/CE"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "RESET",
+      "endpoints": 32,
+      "worst_slack_ns": 0.661,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_19_s0/RESET"
+    }
+  ],
+  "target_clock_pairs": [
+    {
+      "launch": "bus80_clk:[R]",
+      "latch": "bus80_clk:[R]",
+      "paths": 5982
+    }
+  ],
+  "global_timing_qualification": "FAIL",
+  "global_summary": {
+    "Numbers of Paths Analyzed": 192679,
+    "Numbers of Endpoints Analyzed": 190580,
+    "Numbers of Falling Endpoints": 22,
+    "Numbers of Setup Violated Endpoints": 9,
+    "Numbers of Hold Violated Endpoints": 0
+  },
+  "global_reports": [
+    {
+      "analysis": "setup",
+      "command": "report_timing -setup -max_paths 1000 -max_common_paths 1",
+      "reported_paths": 1000,
+      "invalid_rows": 0,
+      "minimum_slack_ns": -1.013
+    },
+    {
+      "analysis": "hold",
+      "command": "report_timing -hold -max_paths 200 -max_common_paths 1",
+      "reported_paths": 200,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.13
+    },
+    {
+      "analysis": "recovery",
+      "command": "report_timing -recovery -max_paths 10000 -max_common_paths 3",
+      "reported_paths": 10000,
+      "invalid_rows": 0,
+      "minimum_slack_ns": -0.212
+    },
+    {
+      "analysis": "recovery",
+      "command": "report_timing -recovery -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3",
+      "reported_paths": 9,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 1.199
+    },
+    {
+      "analysis": "removal",
+      "command": "report_timing -removal -max_paths 10000 -max_common_paths 3",
+      "reported_paths": 5411,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.289
+    },
+    {
+      "analysis": "removal",
+      "command": "report_timing -removal -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3",
+      "reported_paths": 9,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.289
+    }
+  ],
+  "negative_paths": [
+    {
+      "analysis": "setup",
+      "valid": true,
+      "slack_ns": -1.013,
+      "source": "u_accel/u_blitter/wp_2_s0",
+      "destination": "u_accel/busy_sync_0_s0",
+      "endpoint_pin": "u_accel/busy_sync_0_s0/D",
+      "launch_clock": "ddr3_sys_clk:[R]",
+      "latch_clock": "bus80_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.212,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.212,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/after_event_13_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/after_event_13_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/at_event_12_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/at_event_12_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/at_event_13_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/at_event_13_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_0_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_0_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_1_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_1_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_2_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_2_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_3_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_3_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    }
+  ],
+  "global_summary_caveat": "Gowin labels 9 endpoints as Setup Violated; detailed reports show one setup and eight recovery destinations. Preserve both outputs without treating the summary label as nine ordinary setup paths.",
+  "reset_and_clock_netlist_facts": {
+    "u_soc/vid_hrstn_r_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_soc/exts_hrstn",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "GND",
+        "Q": "vid_hrstn"
+      },
+      "parameters": {
+        "u_soc/vid_hrstn_r_s0.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/n77_s2": {
+      "type": "INV",
+      "pins": {
+        "I": "vid_hrstn",
+        "O": "u_accel/u_v1/u_pixels/u_capture/n77_7"
+      },
+      "parameters": {}
+    },
+    "u_usb_idle_trace/n6_s1": {
+      "type": "LUT2",
+      "pins": {
+        "I0": "rst_usb",
+        "I1": "vid_hrstn",
+        "F": "n6_5"
+      },
+      "parameters": {
+        "u_usb_idle_trace/n6_s1.INIT": "4'hB"
+      }
+    },
+    "u_usb_idle_trace/hreset_s0": {
+      "type": "LUT2",
+      "pins": {
+        "I0": "u_usb_idle_trace/hr[2]",
+        "I1": "u_usb_idle_trace/uh[1]",
+        "F": "u_usb_idle_trace/hreset"
+      },
+      "parameters": {
+        "u_usb_idle_trace/hreset_s0.INIT": "4'h7"
+      }
+    },
+    "u_usb_idle_trace/utw_observer/utw_cell_105": {
+      "type": "DFFRE",
+      "pins": {
+        "D": "u_usb_idle_trace/utw_observer/utw_net_343",
+        "CLK": "vid_hclk",
+        "CE": "u_usb_idle_trace/utw_observer/utw_net_274",
+        "RESET": "u_usb_idle_trace/hreset",
+        "Q": "u_usb_idle_trace/utw_observer/utw_net_344"
+      },
+      "parameters": {
+        "u_usb_idle_trace/utw_observer/utw_cell_105.INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/hr_2_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_usb_idle_trace/hr[1]",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "n6_5",
+        "Q": "u_usb_idle_trace/hr[2]"
+      },
+      "parameters": {
+        "u_usb_idle_trace/hr_2_s0.INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/uh_1_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_usb_idle_trace/uh[0]",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "n6_5",
+        "Q": "u_usb_idle_trace/uh[1]"
+      },
+      "parameters": {
+        "u_usb_idle_trace/uh_1_s0.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_accel/u_v1/u_pixels/u_capture/n217_9",
+        "CLK": "gpu_clk",
+        "CE": "u_accel/u_v1/u_pixels/u_capture/complete_7",
+        "CLEAR": "u_accel/u_v1/u_pixels/u_capture/n77_7",
+        "Q": "u_accel/u_v1/u_pixels/u_capture/after_event[8]"
+      },
+      "parameters": {
+        "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/beat_0_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_accel/u_v1/u_pixels/u_capture/n491_6",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "CLEAR": "u_accel/u_v1/u_pixels/u_capture/n77_7",
+        "Q": "u_accel/u_v1/u_pixels/u_capture/beat[0]"
+      },
+      "parameters": {
+        "u_accel/u_v1/u_pixels/u_capture/beat_0_s0.INIT": "1'b0"
+      }
+    }
+  },
+  "reset_relationship": "Common upstream AE350 HRESETN is sampled by vid_hrstn_r on vid_hclk. GPU local capture takes inverse vid_hrstn as asynchronous CLEAR under gpu_clk. UTNA uses rst_usb OR !vid_hrstn for reset synchronizers and derives hreset from hr[2]/uh[1]; UTW1/hrdata use hreset synchronously under vid_hclk.",
+  "clock_warnings": {
+    "clk_d": "PR1014 present in both R19 and this build; input-buffer output serves reference PLLs and init/reset logic.",
+    "ae350_tck_d": "PR1014 present in both R19 and this build; debugger clock branch. No causality established."
+  },
+  "clock_caveat": "STA clock names/rates are the constraint model, not measured frequency or physical lock evidence.",
+  "not_individually_targeted": [
+    "PHY-side snapshot and send_index",
+    "FIFO write/CDC/synchronizer and flag paths",
+    "Original bank storage/validity, receive_index, snapshot_count, busy, read_pending",
+    "Asynchronous reset release of UTNA synchronizers",
+    "AHB/JTAG upstream and external return route beyond hrdata"
+  ],
+  "diagnostic_recommendation": "Suitable to consider for the reviewed bounded diagnostic with CPU parked and no GPU/DDR workload, followed by exact R19 restoration. This is not global timing closure or board qualification.",
+  "interpretation_bounds": [
+    "Version zero remains FAIL even with a coherent capture.",
+    "Witness=1/bank=0 places disagreement after sampled boundary only conditional on witness/read-path validity.",
+    "Witness=0/bank=0 cannot distinguish upstream zero from witness failure; does not prove a FIFO defect.",
+    "Shared reset origin is real; different branches do not imply independent reset correctness.",
+    "No listed negative path ends in UTNA/UTW1; this does not prove CDC/metastability correctness or external clock/reset behavior."
+  ],
+  "inputs": {
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/route_result.json": "57dce7f81c3f7e8e5d1033426ebb01aca3cde319dd6344058c75939c337bd06e",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/postroute_structure_01/result.json": "63bf08832be2a195d05651e83b4bd7c4bc3c1b6cfbca7260bd5d9a1dedd200a3",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/postroute_timing_01/result.json": "4b12da4edf20373d9dea7c7aa303e0831bd5a2143ed778108900803cc4cba6a0",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.vo": "2a2cd1361999c40a743d38f90935df947c5d2641887c6b666bb68ab0ba9ab81d",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.tr": "2f12219270c3eb965916cc29693b9d89fe9fb0f7ea069efb624a70f44c89d86b",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.fs": "55601256120915adbb08279c0b6bd42caabf8deff261bf87b8a7b8d8cbf9c8aa",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/summarize_route.py": "aead871489fb3e7df0b9b292040b972e619931d142dd81bfce0fd04c7999bc64"
+  }
+}
+
+
+
+Next planned experiment CPU parked, no Linux/DDR writes: T0/T100/T200/T1200 read video, coherent snapshots NGDB and scan, single matrix_row0 opcode31 (8words) register-only, UTW1 ARM then bounded USB host sysfs inventory; EP0 diagnostic only if exactly authorized sysfs path, serial11252024 VID359f PID2011 speed480; disarm and restore exactR19. Review minimal discriminating observations and failure conditions, not more builds.
+# Non-destructive sampling and one register-only geometry command; no DMA command.
+proc cv_video {label} {
+ echo "COMBINED_TIME $label [clock milliseconds]"
+ echo "COMBINED_SCAN $label [read_memory 0xe9000000 32 30]"
+ echo "COMBINED_GPU $label [read_memory 0xe9001000 32 26]"
+ echo "COMBINED_NCP $label [read_memory 0xe9005080 32 7]"
+}
+proc cv_snapshot {base label} {
+ if {$base!=0xe9005000 && $base!=0xe9006000} {error "Forbidden snapshot base"}
+ set id [lindex [read_memory $base 32 1] 0]
+ set status [lindex [read_memory [expr {$base+4}] 32 1] 0]
+ if {$id!=0x4e474442 || ($status&5)!=4} {
+  echo "COMBINED_GPU_FAIL $label source_not_ready $id $status"
+  return 0
+ }
+ set n [expr {([lindex [read_memory [expr {$base+12}] 32 1] 0]+1)&0xffffffff}]
+ if {$base==0xe9005000} {write_memory 0xe9005004 32 {1}} else {write_memory 0xe9006004 32 {1}}
+ set complete 0
+ for {set i 0} {$i<50} {incr i} {
+  set s [lindex [read_memory [expr {$base+4}] 32 1] 0]
+  set seq [lindex [read_memory [expr {$base+12}] 32 1] 0]
+  if {$s==6 && $seq==$n} {set complete 1;break}
+  sleep 1
+ }
+ if {!$complete} {echo "COMBINED_GPU_FAIL $label snapshot_timeout $s $seq";return 0}
+ echo "COMBINED_SNAPSHOT $label [read_memory $base 32 17]"
+ return 1
+}
+proc cv_matrix {} {
+ set idle [lindex [read_memory 0xe9001004 32 1] 0]
+ set sent [lindex [read_memory 0xe9005008 32 1] 0]
+ set received [lindex [read_memory 0xe9005010 32 1] 0]
+ if {$idle!=0 || ($sent&7)!=0 || $sent!=$received} {echo "COMBINED_GPU_FAIL MATRIX not_idle $idle $sent $received";return}
+ foreach a {0xe900000c 0xe9000014 0xe9000034 0xe9000044} {
+  if {[lindex [read_memory $a 32 1] 0]!=0} {error "Scanout DMA must be disabled"}
+ }
+ set done [expr {[lindex [read_memory 0xe9001008 32 1] 0]&0xffff}]
+ set errors [read_memory 0xe900100c 32 1]
+ set rejected [read_memory 0xe9001034 32 1]
+ echo "COMBINED_MATRIX_BEFORE $sent $received $done $errors $rejected"
+ foreach word {0x1f000000 0 65536 0 0 0 0 0} {write_memory 0xe9001010 32 [list $word]}
+ set complete 0
+ for {set i 0} {$i<50} {incr i} {
+  set after [expr {[lindex [read_memory 0xe9001008 32 1] 0]&0xffff}]
+  if {$after==(($done+1)&0xffff)} {set complete 1;break}
+  sleep 1
+ }
+ set sent_after [lindex [read_memory 0xe9005008 32 1] 0]
+ set received_after [lindex [read_memory 0xe9005010 32 1] 0]
+ set errors_after [read_memory 0xe900100c 32 1]
+ set rejected_after [read_memory 0xe9001034 32 1]
+ echo "COMBINED_MATRIX_AFTER $sent_after $received_after $after $errors_after $rejected_after"
+ if {!$complete || $sent_after!=(($sent+8)&0xffffffff) || $received_after!=(($received+8)&0xffffffff) || $errors_after ne $errors || $rejected_after ne $rejected} {echo "COMBINED_GPU_FAIL MATRIX counters_or_completion"}
+}
+foreach label {T0 T100 T200 T1200} {
+ if {$label eq "T100" || $label eq "T200"} {sleep 100}
+ if {$label eq "T1200"} {sleep 1000}
+ cv_video $label
+}
+
+#!/usr/bin/env python3
+"""Bounded sysfs inventory; at most one EP0 diagnostic on an explicitly bound HS path."""
+import argparse,ctypes,fcntl,json,os,re,struct,time
+from pathlib import Path
+class Control(ctypes.Structure):
+ _fields_=[('request_type',ctypes.c_uint8),('request',ctypes.c_uint8),('value',ctypes.c_uint16),('index',ctypes.c_uint16),('length',ctypes.c_uint16),('timeout',ctypes.c_uint32),('data',ctypes.c_void_p)]
+
+def inventory(root=Path('/sys/bus/usb/devices')):
+ result=[]
+ for path in sorted(root.iterdir()):
+  try:
+   if (path/'idVendor').read_text().strip()!='359f' or (path/'idProduct').read_text().strip()!='2011' or (path/'serial').read_text().strip()!='11252024':continue
+   fields={name:(path/name).read_text().strip() for name in ['idVendor','idProduct','serial','speed','busnum','devnum']}
+   fields['path']=str(path);result.append(fields)
+  except OSError:continue
+ return result
+
+def sample(allowed_path=None,root=Path('/sys/bus/usb/devices'),opener=os.open,ioctl=fcntl.ioctl,closer=os.close):
+ devices=inventory(root);result=dict(devices=devices,host_time_ns=time.time_ns(),usb_io_attempted=False,hs_present=any(x['speed']=='480' for x in devices),diag_status='NO_DEVICE' if not devices else 'NOT_ATTEMPTED',physical_identity_not_attested=True)
+ if len(devices)!=1:
+  if devices:result['diag_status']='AMBIGUOUS'
+  return result
+ d=devices[0]
+ if d['speed']!='480':result['diag_status']='NON_HS_REFUSED';return result
+ if allowed_path is None or d['path']!=allowed_path:result['diag_status']='PATH_NOT_AUTHORIZED';return result
+ if not re.fullmatch(r'/sys/bus/usb/devices/[0-9]+-[0-9]+(?:\.[0-9]+)*',allowed_path):raise ValueError('Unsafe allowed USB path')
+ # Recheck identity immediately before opening; never detach/reset a device.
+ if inventory(root)!=devices:raise ValueError('USB identity changed before transfer')
+ bus,dev=int(d['busnum']),int(d['devnum'])
+ if not(1<=bus<=999 and 1<=dev<=127):raise ValueError('Invalid USB node')
+ fd=None
+ try:
+  fd=opener('/dev/bus/usb/%03d/%03d'%(bus,dev),os.O_RDWR|os.O_CLOEXEC)
+  buf=ctypes.create_string_buffer(32);req=Control(0xa0,0x21,0xd1a6,0,32,1000,ctypes.addressof(buf))
+  result['usb_io_attempted']=True
+  size=ioctl(fd,0xc0005500|(ctypes.sizeof(Control)<<16),bytearray(bytes(req)))
+  if size!=32:raise ValueError('EP0 diagnostic size '+str(size))
+  result.update(diag_status='READ_32_BYTES',diag_hex=buf.raw.hex(),board_status_nibble=(struct.unpack('<8I',buf.raw)[4]>>28)&15)
+ except (OSError,ValueError) as exc:result.update(diag_status='TRANSFER_FAILED',error=repr(exc))
+ finally:
+  if fd is not None:closer(fd)
+ return result
+
+def main():
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--allowed-path');a=p.parse_args();print(json.dumps(sample(a.allowed_path)))
+if __name__=='__main__':main()

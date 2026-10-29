@@ -1,0 +1,336 @@
+Gowin Software
+Release Note
+
+
+
+RN100-1.9.12E, 08/29/2025
+Copyright © 2025 Guangdong Gowin Semiconductor Corporation. All Rights Reserved.
+
+             is a trademark of Guangdong Gowin Semiconductor Corporation and is
+registered in China, the U.S. Patent and Trademark Office, and other countries. All other
+words and logos identified as trademarks or service marks are the property of their
+respective holders. No part of this document may be reproduced or transmitted in any form
+or by any means, electronic, mechanical, photocopying, recording or otherwise, without
+the prior written consent of GOWINSEMI.
+Disclaimer
+GOWINSEMI assumes no liability and provides no warranty (either expressed or implied)
+and is not responsible for any damage incurred to your hardware, software, data, or
+property resulting from usage of the materials or intellectual property except as outlined in
+the GOWINSEMI Terms and Conditions of Sale. GOWINSEMI may make changes to this
+document at any time without prior notice. Anyone relying on this documentation should
+contact GOWINSEMI for the current documentation and errata.
+                                                                                                                             Contents
+
+
+
+
+Contents
+
+     Contents ............................................................................................................... i
+
+     1 About This Release......................................................................................... 1
+
+     2 Platform Supported ........................................................................................ 3
+
+     3 Memory Requirements ................................................................................... 4
+
+     4 Ports ................................................................................................................. 5
+
+     5 Documents ...................................................................................................... 6
+
+     6 Known Problems and Solutions .................................................................... 8
+
+
+
+
+RN100-1.9.12E                                                                                                                       i
+                                                                                 1 About This Release
+
+
+
+
+                                              1        About This Release
+
+                     The V1.9.12 release includes features and enhancement functions of
+                Gowin Software. GOWINSEMI recommends downloading this version to
+                get the latest software.
+                    The following table summarizes the release items:
+                Feature            Description
+                Gowin Software: V1.9.12
+                                         GW1N-9 Version C
+                PN Supported
+                                          - GW1N-LV9QN60C6/I5
+                                         IP Cores added: Gowin_GoRV32 and
+                                          Gowin_GoRV32_Pro were added.
+                                         "Add to current project" option added in the "New GPA
+                                          Config File" interface.
+                                         "SerDes retiming" configuration item added under "Place"
+                                          to optimize timing.
+                                         Independent PULL MODE settings for P-side and N-side
+                                          supported for differential buffers.
+                                         DIFF_RESISTOR=ON settings supported for left/right
+                                          sides of GW5A(S)(T)-138/GW5A(R)(S)-25 devices.
+                                         PWRGRD primitive supported for GW1N-2/GW1N-1P5
+                                          devices to enable dynamic GPIO power control and reduce
+                                          power consumption.
+                New Functions            TLVDS_IOBUF supported for GW1N(R)-2/GW1N(R)-
+                                          4/GW1N(R)-9/GW2AN-9X/GW2AN-18X devices.
+                                         Physical constraint syntax NET_NO_REP added to
+                                          prevent replication of the source DFF of a specified net.
+                                         DQS simulation library model of GW5A devices updated to
+                                          an encrypted model.
+                                         Synthesis attribute syn_dont_touch supported.
+                                         Function options added in Programmer: "exFlash Erase
+                                          Sectors About File", "exFlash Erase Sectors About File
+                                          Arora V", "exFlash Erase Sectors About File thru GAO-
+                                          Bridge Arora V", "sFlash Erase Sectors About File",
+                                          "sFlash Erase Sectors About File thru GAO-Bridge",
+                                          "exFlash Erase Sectors About File thru GAO-Bridge", to
+                                          erase the corresponding regions of external Flash based
+                                          on the bitstream file size and start address.
+
+RN100-1.9.12E                                                                                    1(9)
+                                                                       1 About This Release
+
+
+
+
+                Feature   Description
+                           External Flash capacity for GW5AST-38 C devices
+                             increased to 32 Mbytes in Programmer.
+                           IPs updated: HyperRAM Memory Interface, AEC, Advanced
+                            FIR Filter, EDP_RX_Desteer, goConfig SPI, USB3.0 PHY,
+                            SDI Encoder, SDI Decoder, EDP_Encoder, EDP_Decoder,
+                            SerDes RoraLink 64B66B, RiscV_AE350_SOC, SDIO
+                            SDR104 Slave Controller.
+                           IP Core LICD renamed to JPEG+.
+                           SDPB/DPB IP cores for GW1N(R)-9 Version C devices only
+                            support configurations with identical data widths and
+                            address depths.
+                           View Help updated.
+                           Inference rule for shift registers inferred as RAM updated to
+                            SDP mode.
+                           SSRAM disabled for GW5AT-60 Version B devices.
+                           Default values of MIPI DPHY updated for Arora V devices.
+                           Package GW5ART-15A/B-WLCSP90PF updated: VDDAM
+                            tied to VCC, VDDXM tied to VCCX.
+                           I/O buffer delay data updated for GW5A(R)(S)-25 devices.
+                Updated    The Dsim URL updated.
+                           For GW5A(S)(T)-138/GW5AT-75 devices, all BANKs now
+                            support the DIFF_RESISTOR configuration; the default
+                            value is ON for BANK4 and BANK5, and OFF for all other
+                            BANKs.
+                           For GW5A(S)(T)-138/GW5AT-75 devices, only BANK4 and
+                            BANK5 support MIPI_IBUF.
+                           For GW5A(R)(S)-25 devices, all BANKs now support the
+                            DIFF_RESISTOR configuration; the default value is OFF
+                            for BANK2 and BANK6, and ON for all other BANKs.
+                           For GW5A(R)(S)-25 devices, only BANK0, BANK1,
+                            BANK3, BANK4, BANK5, and BANK7 support MIPI_IBUF.
+                           External Flash download flow in Programmer optimized by
+                            checking whether the file size exceeds the Flash capacity
+                            before downloading.
+                           gao-bridge bitstream file for GW5AST-138 C devices
+                            updated to optimize external Flash download flow in
+                            Programmer.
+
+
+
+
+RN100-1.9.12E                                                                          2(9)
+                                                                                    2 Platform Supported
+
+
+
+
+                                             2         Platform Supported
+
+                    The software is supported on the platforms listed below.
+                Windows                      Windows 7/8/10/11 (64-bit)
+                                             Centos 7.0/7.3/7.5/8.2 (64-bit)
+                Linux
+                                             Ubuntu 18.04/20.04/22.04 LTS
+                                             Sonoma 14.4/14.6.1 (M2)
+                macOS                        Ventura 13.6 (M2)
+                                             Sequoia 15.3 (M2)
+                Note!
+                   Apple's official signing and notarization process of the current macOS dmg package
+                    has not yet completed, and users may encounter system security prompts during
+                    installation.
+                   When running Gowin Software on a Linux system, you need to set the environment
+                    variable LD_LIBRARY_PATH first, such as export
+                    LD_LIBRARY_PATH=/Gowin_V1.9.12/IDE/lib
+                   If you need Gowin Software V1.9.12(32-bit) in Windows or CentOS 6 (64-bit), please
+                    contact GOWIN Support.
+
+
+
+
+RN100-1.9.12E                                                                                       3(9)
+                                                                      3 Memory Requirements
+
+
+
+
+                                     3   Memory Requirements
+
+                    The table below lists the minimum and recommended memory
+                requirements for Gowin Software to support GOWIN devices. It is
+                recommended to use a 64-bit operating system when running Arora V
+                devices on the Windows platform.
+                Device                 Minimum                Recommended
+                GW5A(S)(T)-138         3GB                    5GB
+                GW5A(T)-60             3GB                    5GB
+                GW5A(S)(R)-25          2GB                    4GB
+                GW5A(N)(R)T-15         1GB                    1.5GB
+                GW2A(N)-55             2GB                    2.5GB
+                GW2A(N)(R)-18          1GB                    1.5GB
+                GW1N(R)-9              512MB                  1GB
+                GW1N(S)(E)(R)(F)-4     256MB                  1GB
+                GW1N(Z)(R)-2           128MB                  1GB
+                GW1N(Z)(R)-1           128MB                  1GB
+
+
+
+
+RN100-1.9.12E                                                                          4(9)
+                                                                                            4 Ports
+
+
+
+
+                                                                                4      Ports
+
+Port No.        Port Type              Port Description
+                                       Used for Gowin Analyzer Oscilloscope (GAO) display
+36546           Fixed Protocol Port
+                                       communicating with JTAG server
+                                       Used for Gowin Analyzer Oscilloscope (GAO) display
+36547           Fixed Protocol Port
+                                       communicating with JTAG server
+36548           Custom Protocol Port   Used for Gowin Programmer communicating with JTAG server
+10559           Custom Protocol Port   The license server port for Gowin Software
+10558           Custom Protocol Port   The license server port for Gowin Software
+
+
+
+
+RN100-1.9.12E                                                                                  5(9)
+                                                                                      5 Documents
+
+
+
+
+                                                              5        Documents
+
+                     The released documents are listed in the table below and the PDF
+                versions are packaged in the installation directory.
+                Documents                                                   Description
+                SUG501, Gowin Software Quick Installation User Guide        PDF
+                SUG918, Gowin Software Quick Start Guide                    PDF
+                SUG100, Gowin Software User Guide                           PDF
+                SUG940, Gowin Design Timing Constraints User Guide          PDF
+                SUG114, Gowin Analyzer Oscilloscope User Guide              PDF
+                SUG282, Gowin Power Analyzer User Guide                     PDF
+                SUG283, Gowin Primitive User Guide                          PDF
+                SUG550, GowinSynthesis User Guide                           PDF
+                SUG935, Gowin Design Physical Constraints User Guide        PDF
+                SUG502, Gowin Programmer User Guide                         PDF
+                SUG937, Gowin Software User Messages Reference              Online help, PDF
+                SUG755, Gowin HDL Schematic Viewer User Guide               PDF
+                SUG949, Gowin HDL Coding User Guide                         PDF
+                UG287, Gowin DSP User Guide                                 PDF
+                UG285, Gowin BSRAM & SSRAM User Guide                       PDF
+                UG286, Gowin Clock User Guide                               PDF
+                UG288, Gowin Configurable Function Unit (CFU) User Guide    PDF
+                UG289, Gowin Programmable IO (GPIO) User Guide              PDF
+                UG295, Gowin User Flash User Guide                          PDF
+                SUG1018, Arora Ⅴ Design Physical Constraints User Guide     PDF
+                UG300, Arora V BSRAM & SSRAM User Guide.                    PDF
+                UG303, Arora V Configurable Function Unit (CFU) User
+                                                                            PDF
+                Guide
+                UG304, Arora Ⅴ Programmable IO (GPIO) User Guide            PDF
+                UG305, Arora V Digital Signal Processing (DSP) User Guide   PDF
+                UG306, Arora V Clock User Guide                             PDF
+
+
+RN100-1.9.12E                                                                                  6(9)
+                                                                            5 Documents
+
+
+
+
+                Documents                                         Description
+                SUG1189, Gowin Virtual Input Output User Guide    PDF
+                SUG1220, Gowin Software Tcl Commands User Guide   PDF
+
+
+
+
+RN100-1.9.12E                                                                      7(9)
+                                                                  6 Known Problems and Solutions
+
+
+
+
+                6        Known Problems and Solutions
+
+                    The following problems apply to the supported functions in Gowin
+                Software.
+                1. If Smart App Control is enabled on Windows 11 system, the software
+                   may be blocked, resulting in installation failure.
+                     Solution: Disable Smart App Control and then try installing the
+                software again.
+                2. Failure to generate SSCPLL and SerDes IP on Windows 7 system
+                    Solution: Update the Windows operating system to Windows 8 or
+                above.
+                3. GAO Capture Signal Failure
+                    Solution: Try to reduce the number of capture signals and capture
+                depth. If the problem still exists, please contact GOWIN support.
+                4. GAO PnR Failure
+                    ERROR (PR1011): Failed to capture GAO signal<name>,
+                because there is no wire to route for the signal.
+                     Solution: Check whether the signal is hard-wired, such as the output
+                of IOLOGIC.
+                5. The information output pane displays messy code on Ubuntu 18.04
+                   LTS system
+                    The information output pane displays messy code in Linux; when the
+                content is copied and pasted to the code editing pane, the display is
+                normal.
+                      Solution: Delete ide/lib/libfreetype.so.6, and make the software use
+                the library that comes with the user's computer system.
+
+
+
+RN100-1.9.12E                                                                               8(9)
+                                                                  6 Known Problems and Solutions
+
+
+
+
+                6. When simulating vho, the simulator reports an error: Failed to find
+                   INSTANCE 'GSR'
+                    It is due to the fact that VHDL language does not support the
+                duplication of names for primitives and their instantiations.
+                     Solution: Modify the instantiation name of the primitive GSR in both
+                the vho and .sdf files to "GSR_ins".
+                7. For GW1N(R)-9 Version C devices, GowinSynthesis has an
+                   inequivalence known issue in inference of asymmetric RAM for
+                   SDP.
+                    Solution: Add the synthesis attribute synthesis
+                syn_ramstyle=registers or synthesis syn_ramstyle=distributed_ram to
+                implement asymmetric RAM using logic, though this will increase logic
+                resource utilization.
+                8. When programming GW5AT-LV138FPG676A, GW5AT-
+                   LV138PG676A, GW5AT-LV138PG484A samples, ID Code mismatch
+                   is prompted.
+                     Solution: When creating a new project, you need to select the
+                corresponding GW5AST-138 Version B PN to generate the bitstream file,
+                and select the GW5AST-138 Version B device in Programmer.
+
+
+
+
+RN100-1.9.12E                                                                               9(9)
+

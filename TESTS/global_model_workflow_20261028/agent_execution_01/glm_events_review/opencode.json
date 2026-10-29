@@ -1,0 +1,41 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "enabled_providers": [
+    "explicit-ollama-cloud"
+  ],
+  "autoupdate": false,
+  "snapshot": false,
+  "share": "disabled",
+  "permission": {
+    "*": "deny"
+  },
+  "agent": {
+    "worker": {
+      "mode": "primary",
+      "description": "Prepared text only",
+      "prompt": "You are an implementation or review assistant. Work ONLY from the supplied text packet. Tools, filesystem access and execution are unavailable. Produce the requested concrete artifact. Separate evidence from hypotheses. Never claim tests were run. Results require independent review and validation. Keep code modular, documented, and below 1000 physical lines per file.",
+      "permission": {
+        "*": "deny"
+      }
+    }
+  },
+  "provider": {
+    "explicit-ollama-cloud": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Explicit Ollama Cloud",
+      "options": {
+        "baseURL": "https://ollama.com/v1",
+        "apiKey": "{env:OLLAMA_API_KEY}"
+      },
+      "models": {
+        "glm-5.3-flash": {
+          "name": "glm-5.3-flash",
+          "limit": {
+            "context": 131072,
+            "output": 32768
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,236 @@
+# Revue — procédure « six fenêtres » + restauration GM1, gardes PID/starttime, sans sauvegarde
+
+**Note de citation** : le paquet ne fournit aucune numérotation de lignes. Je cite donc `README.md` (paragraphes) et les symboles exacts de `GUARDS EXISTING` (`identity()`, `stop_baseline()`, `recover()`) et de `read_metrics.py` (`need()`, `records()`, `one()`, `parse()`, `main()`). Aucun test n'a été exécuté ; tout ce qui suit est dérivé par lecture du code fourni.
+
+---
+
+## 1. Faits, hypothèses, manques
+
+### Faits (lisibles dans le paquet)
+
+1. **La garde d'identité existante est spécifique à GM1/`--showcase`.** `identity()` termine par
+   `assert end==len(args) and args==('/tmp/'+program+'\0--showcase\0').encode(), 'Unexpected full argv; fresh plan required'`.
+   Conséquence directe : elle **ne peut pas** garder un processus de fenêtre (argv différent) et elle **ne peut pas** être réutilisée telle quelle pour un lancement de mesure. En revanche, cette égalité *exacte* d'argv est déjà une preuve anti-`--save` pour la restauration GM1.
+2. **La garde starttime est correcte dans `stop_baseline()`** : `set -- $(cat /proc/PID/stat)` puis `shift 21 && test "$1" = ticks` cible bien le champ 22 (starttime), avec `test "$3" != Z/X` et `test "$2" = "(luma3d-gm1)"`. Le TERM est lié au PID fixe, pas à une relecture ultérieure de `LIVE` (commentaire explicite dans le code).
+3. **`recover()` publie avec `cp`** (`tx.run('publish_restored_pid','cp '+recovery['pidfile']+' '+LIVE)`), soit une publication **non atomique** et écrasante, alors que `README.md` (« phase2 ») exige « nouveaux pidfiles/logs et publication atomique ».
+4. **`SAVE_SHA` est défini mais jamais utilisé** dans le code fourni. L'exigence du README « le SHA de la sauvegarde inchangée » n'a donc **aucun contrôle associé** dans le paquet.
+5. **`recover()` peut arrêter la baseline puis relancer GM1.** Si `current` porte l'identité de la baseline et `ever` est faux, `if current: stop(...)` tue GM1, puis `if not ever and process(...)` échoue (processus mort) et l'on tombe dans la branche `restore_baseline` → **double restauration** au sens du README, ou au minimum arrêt indu.
+6. **Le delta de progression est mal testé** : `assert (two['presents']-one['presents'])&0xffffffff`. Un delta négatif (ex. −1) donne `0xffffffff`, donc *vrai* : le masque accepte exactement le cas « compteur réinitialisé / processus remplacé » qu'il faudrait refuser.
+7. **`parse()` ne vérifie pas l'identité carte.** Il ne fait que comparer le champ déclaré `hardware=` (`need(all(x['hardware']==int(hardware)...`), et renvoie `source_identity_must_be_verified_separately=True`. La chaîne de preuve dépend donc entièrement de la garde d'acquisition de root, absente du paquet.
+8. **Trous de complétude du parseur** :
+   - `mode 5` est **surchargé** : `memory_actions is not None` impose `mode==5` + phases `{entry,deal,reveal,hide,pair,wait}`, mais un log `mode 5` avec phase `garden` et sans `--memory-actions` passe par la branche atlas 1 MiB et **aucun contrôle d'actions** ; une ligne `LUMA3D_MEMORY_SAMPLE` parasite y est ignorée (la branche `elif` est limitée à `mode<4`).
+   - `mode 4` n'est couvert par **aucun** contrôle spécifique (`mode in range(6)` l'accepte, `mode<4` l'exclut des contrôles d'actions).
+   - Table : si la ligne `LUMA3D_FESTIVAL_SAMPLE` est absente **et** `--table-actions` n'est pas passé, le parseur **ne contrôle ni `stable_tail`, ni `completed_actions`, ni `unseen_actions`**.
+9. **Exclusivité GPU** : `read_metrics.py` exige `asset_generation==1` et `frame==0` (`need(len(assets)==1 and assets[0]['frame']==0 ... asset_generation==1,'not a fresh single scene')`). Cela impose **un processus neuf par fenêtre** (sinon génération > 1 → refus). C'est cohérent avec « jamais deux propriétaires GPU ».
+10. **`recover()` suppose `recovery['baseline_identity']`** dans la branche `if not ever and process(...)` ; si l'appelant ne l'a pas initialisé → `KeyError`, pas un refus explicite.
+
+### Hypothèses (à valider par l'équipe, non prouvées ici)
+
+- H1 : chaque fenêtre du plan est un **processus distinct** lançable avec un argv exact connu d'avance (sinon la garde d'argv exacte n'est pas applicable).
+- H2 : `--showcase` ne prend **aucune** option de sauvegarde et n'écrit pas `/tmp/op2-live.save` (sinon le SHA « inchangé » contredirait la restauration ; à trancher avant de figer le gate).
+- H3 : le `progress()` de `prodock_valley_ab` ne renvoie PAS-PASS que sur un log complet et non ambigu ; signature non fournie.
+- H4 : `stop(tx, pid, label, ticks)` (import `prodock_arcade`) vérifie lui-même le starttime ; non fourni, donc non prouvé.
+- H5 : le plan associe bien Othello/Solitaire/Chroma/Pendu aux modes `<4`, Memory à `mode 5 / 24 actions`, jardin à `mode 5 / garden` — `plan.json` n'est pas dans le paquet.
+
+### Manques d'évidence
+
+- `plan.json` (six fenêtres, argv exacts, timeouts par fenêtre) : absent.
+- Preuve d'identité carte rattachée au log (nonce/session) : absente ; `parse()` ne peut pas la fournir.
+- Timeouts des fenêtres : le README ne donne 15 min / idle 5 s que pour les **sessions de transfert** phase1, pas pour les fenêtres.
+- Signature de `process()`, `progress()`, `stop()`, `display()`, `prodockctl` : absentes.
+
+---
+
+## 2. Patches minimales (avant toute exécution)
+
+**P0 — lier le processus à son exécutable (dans `identity()`)** : après la lecture de `/proc/$p/stat`, ajouter au `tx.run` :
+`readlink /proc/$p/exe` et `stat -Lc %i /proc/$p/exe /tmp/<program>`, puis `assert exe == '/tmp/'+program` et inodes égaux. Cela ne remplace pas le SHA du binaire, mais interdit un argv identique exécuté depuis un autre fichier.
+
+**P1 — paramétrer l'argv attendu** :
+```python
+def identity(tx,label,pidfile=LIVE,program=BASE,expected_argv=None):
+    expected = expected_argv or (('/tmp/'+program+'\0--showcase\0').encode())
+    ...
+    assert end==len(args) and args==expected, 'Unexpected full argv; fresh plan required'
+```
+Cette seule modification rend la garde utilisable pour les fenêtres **et** conserve la preuve anti-sauvegarde (égalité exacte, pas un `in`).
+
+**P2 — TERM générique** : extraire de `stop_baseline()` une `term_guarded(tx,label,pid,ticks,comm)` avec le **même** test shell (`$1=pid`, `$2="(comm)"`, `$3∉{Z,X}`, `shift 21`, `$1=ticks`), sans dépendance à `--showcase`. Ajouter `echo "$1 $2 $3 $ticks"` **avant** `kill` pour que la sortie du shell archive les valeurs réellement vérifiées (aujourd'hui la preuve du contrôle pré-TERM n'est pas journalisée).
+
+**P3 — publication atomique** dans `recover()` :
+```python
+tx.run('publish_restored_pid',
+       f'test ! -e {LIVE} && mv {recovery["pidfile"]} {LIVE}')
+assert identity(...) == anchor
+```
+(`mv` même répertoire = rename ; `test ! -e` interdit l'écrasement silencieux). Idem pour tout pidfile de fenêtre.
+
+**P4 — progression stricte** : remplacer
+`assert (two['presents']-one['presents'])&0xffffffff` par
+`delta = two['presents']-one['presents']; assert 0 < delta < 2**30`.
+
+**P5 — gate SHA sauvegarde** (constante morte aujourd'hui) : avant la première fenêtre et après la restauration, `sha256sum /tmp/op2-live.save` doit égaler `SAVE_SHA` (`2138ac0a…8cc6`, `GUARDS EXISTING`). C'est la preuve « sans sauver » côté fichier, en complément de l'argv exact.
+
+**P6 — fermer les trous du parseur** :
+```python
+if memory_actions is not None: need(mode==5, ...)
+elif mode==5: need('garden' in names and not records(text,'LUMA3D_MEMORY_SAMPLE'),
+                   'mode 5 ambiguous Memory/garden')
+elif mode<4: need(table_actions is not None, 'table proof requires --table-actions')
+need(mode!=4, 'mode 4 has no validation path')
+```
+
+**P7 — refuser `current == baseline`** en tête de `recover()` :
+```python
+if current and current[1] == recovery.get('baseline_identity', {}).get('start_ticks'):
+    return adopt_baseline(...)   # jamais de TERM puis restore
+```
+
+---
+
+## 3. Procédure concrète « six fenêtres » (pseudocode)
+
+Invariants :
+
+- **I1** : au plus un marqueur actif (`intent`/`pid`) vivant parmi {6 fenêtres, restore}.
+- **I2** : write-ahead — `intent` est créé **avant** la commande de lancement ; toute perte après ce point est `sending_unknown`, jamais `not_sent`.
+- **I3** : `published` exige `identity(expected_argv)` réussi (pid + comm + statut + starttime + argv complet).
+- **I4** : `completed` exige `parse(..., hardware=True)` sans exception **et** processus terminé (`STOPPED` ou `Z/X` avec starttime inchangé).
+- **I5** : un marqueur non publié = refus, sauf preuve d'échec **pré-exec** enregistrée.
+
+```text
+ÉTATS = {not_sent, sending_unknown, published, completed}
+
+def chemins(tag): intent=/tmp/tag.intent ; pid=/tmp/tag.pid ; log=/tmp/tag.log
+
+def owner_actif(tx):
+    return any(exists(intent(t)) or exists(pid(t)) for t in TOUS_LES_TAGS)
+
+def lancer(tx, tag, argv_exact, mode, memory_actions=None, table_actions=None):
+    assert phase1_PASS                      # gate README
+    assert not owner_actif(tx)              # I1, jamais deux propriétaires GPU
+    assert not exists(intent) and not exists(pid)   # -> not_sent
+    rc = tx.run('intent', f'(set -C; printf %s {nonce} > {intent})')  # création exclusive
+    assert rc_ok(rc)                        # échec => reste not_sent, aucune commande de jeu
+    # --- frontière : toute perte ici = sending_unknown ---
+    tx.run('start', f'{argv_exact} < /dev/null > {log} 2>&1 & echo $! > {intent}.pid')
+    anchor = identity(tx,'win_identity',pidfile=intent+'.pid',
+                      program=PROG, expected_argv=argv_exact)      # P1
+    tx.run('publish', f'test ! -e {pid} && mv {intent}.pid {pid}')  # P3
+    assert identity(tx,'win_after_publish',pidfile=pid,
+                    program=PROG, expected_argv=argv_exact) == anchor
+    return anchor                          # état published
+
+def reconcilier(tx, tag, argv_exact):
+    if exists(pid(tag)):
+        return identity(...,expected_argv=argv_exact)              # published ; relance interdite
+    # intent sans pid : sending_unknown
+    if exists(intent+'.pid'):
+        try:  a = identity(...,pidfile=intent+'.pid',expected_argv=argv_exact)
+              publier(a); return a                                  # adoption -> published
+        except AssertionError: pass
+    if preuve_pre_exec_enregistree(tag): return not_sent            # seul retour arrière autorisé
+    raise RuntimeError('sending_unknown: refus, aucun second lancement')
+
+def terminer_fenetre(tx, tag, anchor, mode, memory_actions, table_actions):
+    term_guarded(tx,'win_stop',anchor['pid'],anchor['start_ticks'],PROG)   # P2
+    attendre STOPPED/Z-X avec starttime inchangé (sinon « PID reused; refuse »)
+    result = parse(log_text(tag), hardware=True, mode=mode,
+                   memory_actions=memory_actions, table_actions=table_actions)  # P6
+    assert result['frames']>0 and result['hardware'] is True
+    tx.run('retire', f'test -e {pid(tag)} && mv {pid(tag)} {pid(tag)}.done')  # trace conservée
+    return result                          # completed
+
+# boucle
+for w in plan.json['windows']:             # Othello, Solitaire, Chroma, Pendu, Memory(24), jardin
+    a = lancer(tx, w.tag, w.argv_exact, w.mode, w.memory_actions, w.table_actions)
+    r = terminer_fenetre(tx, w.tag, a, w.mode, w.memory_actions, w.table_actions)
+    archiver(w.tag, a, r, log=w.log, out=f'{w.tag}.metrics.json')   # parse --out exclusif (x)
+    assert not owner_actif(tx)
+```
+
+Points durs à respecter :
+
+- `argv_exact` doit être **exact** (aucun `--save`, aucun flag ajouté) : c'est P1 qui le prouve, pas le plan.
+- `parse()` écrit en `open('x')` : chaque fenêtre doit avoir un `--out` **neuf**, sinon `FileExistsError` (fait, `read_metrics.py: main()`).
+- Log ≤ 1 MiB (`need(len(text.encode())<=1048576,'oversize log')`) : à vérifier avant parse, sinon `ValueError`.
+- `asset_generation==1` impose un processus neuf par fenêtre (fait n°9).
+
+---
+
+## 4. Restauration GM1 (pseudocode)
+
+```text
+// Pré-conditions : la dernière fenêtre est completed, aucun owner actif,
+//                  SAVE_SHA inchangé (P5).
+def restaurer_gm1(tx, etat):                       # etat persisté hors processus
+    assert not owner_actif(tx)
+    if exists('/tmp/luma3d-live.pid'):            # marqueur résiduel => unknown/published
+        return reconcilier(tx, 'restore', ARGV_GM1)
+    # 1) write-ahead
+    tx.run('restore_intent', f'(set -C; printf %s {nonce} > /tmp/restore.intent)')
+    # 2) lancement SANS option de sauvegarde (argv exact)
+    tx.run('restore_launch',
+           '/tmp/luma3d-gm1 --showcase < /dev/null > /tmp/restore.log 2>&1 '
+           '& echo $! > /tmp/restore.intent.pid')
+    anchor = identity(tx,'restore_identity',pidfile='/tmp/restore.intent.pid',
+                      expected_argv=ARGV_GM1)     # ARGV_GM1 = b'/tmp/luma3d-gm1\0--showcase\0'
+    tx.run('restore_publish', 'test ! -e /tmp/luma3d-live.pid && '
+                              'mv /tmp/restore.intent.pid /tmp/luma3d-live.pid')
+    assert identity(tx,'restore_after_publish',pidfile=LIVE,
+                    expected_argv=ARGV_GM1) == anchor
+    # 3) contrôles post-restauration, une seule fois
+    assert (anchor['pid'], anchor['start_ticks']) != (3158, 27508908)   # nouvel identifiant
+    one = display(tx.run('post_restore_display1','prodockctl display')); sleep(3)
+    two = display(tx.run('post_restore_display2','prodockctl display'))
+    assert 0 < two['presents'] - one['presents'] < 2**30                # P4
+    assert sha256('/tmp/op2-live.save') == SAVE_SHA                     # P5
+    return anchor
+```
+
+Séquençage de l'arrêt initial de GM1 (README : PID 3158 / starttime 27508908 **immédiatement** avant TERM) :
+
+```text
+assert identity(tx,'baseline_pre',LIVE,BASE,ARGV_GM1) == {'pid':3158,'start_ticks':27508908}
+stop_baseline(tx, expected)        # re-vérifie dans le shell juste avant kill, puis mv LIVE -> .stopped
+```
+
+Après `stop_baseline()`, **retirer `LIVE`** (`mv /tmp/luma3d-live.pid /tmp/luma3d-live.pid.stopped.<nonce>`) : sinon `identity()` par défaut pointerait vers un mort et le prochain contrôle échouerait de façon ambiguë (fait n°3 de `recover()`).
+
+---
+
+## 5. Contre-tests lifecycle (simulés, sans matériel)
+
+| # | État injecté | Condition simulée | Attendu | Test qui doit échouer si la garde est retirée |
+|---|---|---|---|---|
+| T1 | `not_sent` | aucun `intent`, aucun `pid` | `lancer()` émet **une** commande puis `published` | relancer deux fois → `owner_actif()` doit refuser |
+| T2 | `not_sent` bloqué | `set -C` échoue (intent préexistant) | aucune commande de jeu, exception | lancement quand même → double propriétaire |
+| T3 | `sending_unknown` | `intent` + `intent.pid` morts/illisibles, pas de preuve pré-exec | refus, **zéro** lancement | `reconcilier()` retournant `not_sent` sans preuve |
+| T4 | `sending_unknown` récupérable | `intent.pid` vivant, identité conforme | adoption + `mv` → `published` | `cp` (P3 absent) écrase un pidfile existant |
+| T5 | `sending_unknown` avec preuve pré-exec | wrapper : `exec_not_reached` avant fork | ré-armement autorisé (seul cas) | ré-armement sur simple absence de fichier |
+| T6 | `published` | `pid` + `argv` conformes | aucune relance ; seul `term_guarded` autorisé | `lancer()` sur marqueur existant |
+| T7 | `published` altéré | même pid, argv avec un flag de sauvegarde | refus, **pas de TERM**, revue humaine | `identity` en `startswith`/`in` |
+| T8 | PID réutilisé | même pid, `starttime` différent | refus (`PID reused; refuse further GPU launch`) | comparaison au seul pid |
+| T9 | `completed` | parse OK, frames>0, STOPPED | prochaine fenêtre seulement si `not owner_actif` | enchaîner sans retirer le marqueur |
+| T10 | `completed` invalide | `invalid=1`, `skipped_actions>0`, `tail_pages≠3`, `unseen_actions>0` | `ValueError` avant `completed` | parse sans `--memory-actions`/`--table-actions` |
+| T11 | double restauration | `recover(attempted=True, pidfile vivant)` | adoption, **un seul** `--showcase` | relance après perte de réponse |
+| T12 | baseline vivante + `current==baseline` | `ever=False`, `process()` vrai | **adoption, aucun TERM**, aucun restore | `recover()` actuel : TERM puis relance (fait n°5) |
+| T13 | progression nulle/négative | `presents` identiques ou −1 | refus | `&0xffffffff` (fait n°6) accepte −1 |
+| T14 | sauvegarde modifiée | `sha256(op2-live.save) != SAVE_SHA` | refus post-restauration | `SAVE_SHA` non testé (fait n°4) |
+
+Contre-tests parseur (purs, sans I/O matérielle) :
+
+- **C1** log `mode 5`, phase `garden`, + ligne `LUMA3D_MEMORY_SAMPLE` → doit être refusé après P6 ; aujourd'hui accepté.
+- **C2** log `mode 5`, `memory_actions=24`, phases `{entry,deal,reveal,hide,pair}` (sans `wait`) → doit lever `missing complete-round phase` (déjà couvert par `need(set(names)=={...})`).
+- **C3** log table sans `LUMA3D_FESTIVAL_SAMPLE` ni `--table-actions` → doit lever après P6 ; aujourd'hui aucun contrôle d'actions.
+- **C4** log `mode 4` → doit lever après P6.
+- **C5** phase `rate` incohérente de plus que l'intervalle d'arrondi (`p['rate']` hors `[low,high]`) → `inconsistent completion rate` (test de la formule `frames/(completion±5e-10)±5e-7`).
+- **C6** `--origin hardware` avec `hardware=0` partout → `wrong declared origin` (fait, `parse()`), et symétriquement `--origin host` supprime bien toutes les durées/rates (`scope` renvoyé).
+
+---
+
+## 6. Preuves à archiver (reproductibles, hors matériel)
+
+Par fenêtre et pour la restauration : `intent` d'origine, `pid` puis `pid.done`, transcript brut de `identity()` (stat + `od -b -v cmdline` + `readlink /proc/PID/exe`), sortie de `term_guarded` incluant le `stat` échoé avant `kill`, `*.log`, `*.metrics.json` produit par `parse()` (`--out` exclusif), les deux échantillons `display()` pré/post, et `sha256sum /tmp/op2-live.save` avant/après. Le tout signé par la garde d'acquisition root, puisque `parse()` ne prouve **pas** l'identité carte (`source_identity_must_be_verified_separately=True`).
+
+**Limite explicite** : je n'ai exécuté ni `parse()`, ni les gardes, ni `prodockctl` ; les contre-tests ci-dessus sont des scénarios à instrumenter avec des doubles de `tx`, pas des résultats.

@@ -1,0 +1,1784 @@
+{
+  "schema": 1,
+  "title": "LUMA — Les Jardins du Souvenir",
+  "duration": {
+    "design_goal_hours": [
+      6,
+      10
+    ],
+    "measured_campaign_minutes": null,
+    "reference_prototype_minutes": 34.1,
+    "note": "Two playable sanctuaries extend the prototype. Their oracle traversal times are not human playtimes; a multi-hour campaign remains an unverified design goal."
+  },
+  "runtime_contract": {
+    "max_worlds": 96,
+    "max_missions_per_world": 16,
+    "local_mission_ids": true,
+    "successful_prior_interactions_count": true,
+    "collection_and_defeat_retroactive": true,
+    "choices_retry_without_loss": true,
+    "route_progress_persistent": true,
+    "all_required_missions_gate_forward_portals": true
+  },
+  "worlds": [
+    {
+      "world": 0,
+      "arc": "Les lanternes n’ont pas perdu leur lumière : elles ont perdu les chemins qui reliaient leurs souvenirs.",
+      "missions": [
+        {
+          "id": "a01",
+          "title": "Un nom au bord du chemin",
+          "text": "Parler à Maëlle. Retenir où se trouvent le verger, le moulin et le marais.",
+          "type": "talk",
+          "requires": [],
+          "reward": {},
+          "required": true,
+          "target": "guide"
+        },
+        {
+          "id": "a02",
+          "title": "Le verger silencieux",
+          "text": "Rejoindre le vieux verger. Observer les fleurs avant de toucher sa balise.",
+          "type": "visit",
+          "requires": [
+            "a01"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 496,
+            "y": 432,
+            "radius": 46
+          }
+        },
+        {
+          "id": "a03",
+          "title": "Ce que les fleurs protègent",
+          "text": "Lire le carnet du verger et choisir ce qui rendra sa prochaine récolte possible.",
+          "type": "choice",
+          "requires": [
+            "a02"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "observation_1",
+          "options": [
+            "Enlever toutes les fleurs entre les arbres",
+            "Garder des fleurs pour les pollinisateurs",
+            "Couvrir les arbres pour arrêter le vent"
+          ],
+          "answer": 1,
+          "feedback": "Les fleurs nourrissent les pollinisateurs, qui transportent le pollen entre les fleurs. Le verger a besoin de voisins vivants."
+        },
+        {
+          "id": "a04",
+          "title": "Les réserves des anciens",
+          "text": "Trouver trois réserves distinctes près du verger, du moulin ou des chemins. Une réserve ouverte compte même si ses éclats ont déjà servi.",
+          "type": "collect",
+          "requires": [
+            "a01"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "cache_1",
+            "cache_2",
+            "crystal_03",
+            "crystal_04",
+            "crystal_05"
+          ],
+          "count": 3
+        },
+        {
+          "id": "a05",
+          "title": "Faire place aux jeunes pousses",
+          "text": "Repousser l’ombre qui tourne autour du verger. Approcher en observant ses déplacements.",
+          "type": "defeat",
+          "requires": [
+            "a03"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "sentinel_1"
+          ],
+          "count": 1
+        },
+        {
+          "id": "a06",
+          "title": "Le premier souvenir",
+          "text": "Réveiller le verger avec deux éclats. Sa lumière devient le premier repère du voyage.",
+          "type": "talk",
+          "requires": [
+            "a04",
+            "a05"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "beacon_1"
+        },
+        {
+          "id": "a07",
+          "title": "Brindille connaît la route",
+          "text": "Rencontrer Nino et apprendre à voyager avec son cheval. Il partage une route, pas seulement une monture.",
+          "type": "talk",
+          "requires": [
+            "a01"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "companion"
+        },
+        {
+          "id": "a08",
+          "title": "La tournée des moulins",
+          "text": "Avec Brindille, suivre dans l’ordre le village, le passage central, le moulin et la prairie. La tournée restaure le souvenir du courant.",
+          "type": "vehicle_route",
+          "requires": [
+            "a07",
+            "a04"
+          ],
+          "reward": {
+            "flags": 4
+          },
+          "required": true,
+          "vehicle": 1,
+          "checkpoints": [
+            {
+              "x": 528,
+              "y": 1200,
+              "radius": 64
+            },
+            {
+              "x": 1200,
+              "y": 1200,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "a09",
+          "title": "Le bord de la rivière",
+          "text": "Observer les roseaux. Choisir une manière de protéger le marais sans fermer le chemin des voyageurs.",
+          "type": "choice",
+          "requires": [
+            "a06",
+            "a08"
+          ],
+          "reward": {
+            "flags": 8
+          },
+          "required": true,
+          "target": "observation_3",
+          "options": [
+            "Couper tous les roseaux pour voir le fond",
+            "Creuser le lit le plus vite possible",
+            "Garder une rive plantée et un passage étroit"
+          ],
+          "answer": 2,
+          "feedback": "Les roseaux ralentissent l’eau, retiennent des sédiments et offrent un abri. Le passage étroit garde une place aux voyageurs."
+        },
+        {
+          "id": "a10",
+          "title": "La colère d’Orme",
+          "text": "Les trois souvenirs sont revenus. Apaiser Orme à l’entrée de l’observatoire, en alternant esquive, épée et tir.",
+          "type": "defeat",
+          "requires": [
+            "a06",
+            "a08",
+            "a09"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "keeper"
+          ],
+          "count": 1
+        },
+        {
+          "id": "a11",
+          "title": "Un banc pour deux",
+          "text": "Rejoindre la halte centrale après le combat. Laisser au voyage une place sans urgence.",
+          "type": "visit",
+          "requires": [
+            "a10"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 1200,
+            "y": 1072,
+            "radius": 46
+          }
+        },
+        {
+          "id": "a12",
+          "title": "La carte au-delà du ciel",
+          "text": "Retrouver l’arche au sud-est. Toutes les autres étapes principales doivent être terminées avant le départ.",
+          "type": "visit",
+          "requires": [
+            "a10",
+            "a11",
+            "a17_sanctuary"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 2096,
+            "y": 1648,
+            "radius": 46
+          }
+        },
+        {
+          "id": "a13",
+          "title": "La question qui voyage",
+          "text": "Rencontrer la personne au sud-ouest qui a conservé une question plutôt qu’une réponse.",
+          "type": "talk",
+          "requires": [
+            "a01"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_start"
+        },
+        {
+          "id": "a14",
+          "title": "La graine à deux ailes",
+          "text": "Retrouver la plaque au nord-ouest et lire son observation. Le lieu et le texte sont deux parties du même indice.",
+          "type": "talk",
+          "requires": [
+            "a13"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_clue"
+        },
+        {
+          "id": "a15",
+          "title": "Ce qui se transmet",
+          "text": "Rejoindre la pierre du jardin sud avec l’indice retrouvé. Elle relie la question à une manière d’agir.",
+          "type": "talk",
+          "requires": [
+            "a14"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_memory"
+        },
+        {
+          "id": "a17_sanctuary",
+          "title": "Le Jardin sous les Racines",
+          "text": "Entrer dans le sanctuaire près du jardin nord, traverser ses dix salles et retrouver la première graine. Les interrupteurs, tirs, caisses, dalles et séquences y conservent leurs états.",
+          "type": "dungeon",
+          "requires": [
+            "a09"
+          ],
+          "reward": {},
+          "required": true,
+          "target_world": 15,
+          "complete_flags": 32
+        }
+      ]
+    },
+    {
+      "world": 1,
+      "arc": "La Canopée respire par un réseau vivant : pour rouvrir ses serres, il faut comprendre ce qui circule sans se voir.",
+      "missions": [
+        {
+          "id": "b01",
+          "title": "Une forêt sous verre",
+          "text": "Écouter Silo et retrouver la différence entre protéger une plante et l’enfermer.",
+          "type": "talk",
+          "requires": [],
+          "reward": {},
+          "required": true,
+          "target": "guide"
+        },
+        {
+          "id": "b02",
+          "title": "Le vent dans les herbes",
+          "text": "Pim confie une aile de feuilles. Observer comment l’air déplace les herbes avant de quitter le sol.",
+          "type": "talk",
+          "requires": [
+            "b01"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "companion"
+        },
+        {
+          "id": "b03",
+          "title": "La leçon de l’air",
+          "text": "En parapente, franchir les ravines en reliant quatre clairières. Se poser entre les traversées pour reprendre son souffle.",
+          "type": "vehicle_route",
+          "requires": [
+            "b02"
+          ],
+          "reward": {},
+          "required": true,
+          "vehicle": 4,
+          "checkpoints": [
+            {
+              "x": 656,
+              "y": 1264,
+              "radius": 64
+            },
+            {
+              "x": 1168,
+              "y": 464,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "b04",
+          "title": "Ouvrir sans dessécher",
+          "text": "Au carnet de la serre haute, choisir comment rendre son souffle au jardin.",
+          "type": "choice",
+          "requires": [
+            "b03"
+          ],
+          "reward": {
+            "flags": 2
+          },
+          "required": true,
+          "target": "observation_1",
+          "options": [
+            "Ouvrir les soupiraux et préserver l’eau des racines",
+            "Retirer toutes les vitres d’un seul coup",
+            "Fermer chaque ouverture pour garder la chaleur"
+          ],
+          "answer": 0,
+          "feedback": "La circulation d’air évite l’enfermement ; les racines ont toujours besoin d’eau. Le premier soupirail s’ouvre."
+        },
+        {
+          "id": "b05",
+          "title": "Une réserve de graines",
+          "text": "Retrouver quatre petits dépôts de mémoire sans épuiser tous les lieux à la fois.",
+          "type": "collect",
+          "requires": [
+            "b01"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "crystal_03",
+            "crystal_04",
+            "crystal_05",
+            "crystal_06",
+            "cache_1",
+            "cache_2"
+          ],
+          "count": 4
+        },
+        {
+          "id": "b06",
+          "title": "La serre sous la serre",
+          "text": "Découvrir le petit jardin au fond du détour nord-ouest. Les racines dessinent un autre paysage.",
+          "type": "visit",
+          "requires": [
+            "b04",
+            "b05"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 240,
+            "y": 272,
+            "radius": 46
+          }
+        },
+        {
+          "id": "b07",
+          "title": "Les voisins invisibles",
+          "text": "Lire le carnet des racines et expliquer pourquoi un arbre peut dépendre d’un champignon.",
+          "type": "choice",
+          "requires": [
+            "b06"
+          ],
+          "reward": {
+            "flags": 4
+          },
+          "required": true,
+          "target": "observation_2",
+          "options": [
+            "Le champignon remplace toutes les feuilles",
+            "Les deux échangent des ressources utiles",
+            "Les racines mangent la roche sans aide"
+          ],
+          "answer": 1,
+          "feedback": "Certains filaments apportent eau et minéraux ; l’arbre leur fournit des sucres. La deuxième serre retrouve son réseau."
+        },
+        {
+          "id": "b08",
+          "title": "Les graines dans la nuit",
+          "text": "Repousser les deux ombres du sud avant de rouvrir la banque des semences.",
+          "type": "defeat",
+          "requires": [
+            "b07"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "sentinel_3",
+            "wanderer_5"
+          ],
+          "count": 2
+        },
+        {
+          "id": "b09",
+          "title": "Attendre le bon printemps",
+          "text": "Au carnet des semences, choisir ce qu’il faut préserver pour que les graines puissent attendre.",
+          "type": "choice",
+          "requires": [
+            "b08",
+            "b05"
+          ],
+          "reward": {
+            "flags": 8
+          },
+          "required": true,
+          "target": "observation_3",
+          "options": [
+            "Une chaleur maximale toute la journée",
+            "Un bain permanent dans l’eau",
+            "Une réserve fraîche et protégée"
+          ],
+          "answer": 2,
+          "feedback": "Une graine n’a pas besoin de germer tout de suite. La réserve lui permet d’attendre un milieu favorable. Le dernier soupirail s’ouvre."
+        },
+        {
+          "id": "b10",
+          "title": "Le cerf de cristal",
+          "text": "Apaiser Verrier sans confondre ses craquelures avec une blessure à agrandir.",
+          "type": "defeat",
+          "requires": [
+            "b04",
+            "b07",
+            "b09"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "keeper"
+          ],
+          "count": 1
+        },
+        {
+          "id": "b11",
+          "title": "Rapporter une graine",
+          "text": "Revenir en parapente du grand jardin à la halte, puis aux serres. La route est devenue un lien dans les deux sens.",
+          "type": "vehicle_route",
+          "requires": [
+            "b10"
+          ],
+          "reward": {},
+          "required": true,
+          "vehicle": 4,
+          "checkpoints": [
+            {
+              "x": 2096,
+              "y": 1584,
+              "radius": 64
+            },
+            {
+              "x": 1200,
+              "y": 1072,
+              "radius": 64
+            },
+            {
+              "x": 496,
+              "y": 432,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "b12",
+          "title": "L’odeur de la mer",
+          "text": "Rejoindre la porte du Grand Poumon. La lumière qui la traverse porte déjà le sel de l’archipel.",
+          "type": "visit",
+          "requires": [
+            "b11"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 2096,
+            "y": 1648,
+            "radius": 46
+          }
+        },
+        {
+          "id": "b13",
+          "title": "Le réseau invisible",
+          "text": "Rencontrer la personne au sud-ouest qui a conservé une question plutôt qu’une réponse.",
+          "type": "talk",
+          "requires": [
+            "b01"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_start"
+        },
+        {
+          "id": "b14",
+          "title": "Le carnet sous l’écorce",
+          "text": "Retrouver la plaque au nord-ouest et lire son observation. Le lieu et le texte sont deux parties du même indice.",
+          "type": "talk",
+          "requires": [
+            "b13"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_clue"
+        },
+        {
+          "id": "b15",
+          "title": "Observer sans arracher",
+          "text": "Rejoindre la pierre du jardin sud avec l’indice retrouvé. Elle relie la question à une manière d’agir.",
+          "type": "talk",
+          "requires": [
+            "b14"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_memory"
+        },
+        {
+          "id": "b17_herbarium",
+          "title": "L'Herbier des Ombres",
+          "text": "Après avoir retrouvé le carnet sous l'écorce et la mémoire du jardin sud, entrer dans la serre souterraine au nord du passage central. Traverser les dix chambres de lumière, d'ombre et de semences, puis rapporter l'herbier à Silo.",
+          "type": "dungeon",
+          "requires": [
+            "b15"
+          ],
+          "reward": {
+            "crystals": 2
+          },
+          "required": false,
+          "target_world": 25,
+          "complete_flags": 32
+        }
+      ]
+    },
+    {
+      "world": 2,
+      "arc": "Une cartographe, un facteur et une tortue-phare cherchent chacun une adresse. Leurs routes forment la même carte.",
+      "missions": [
+        {
+          "id": "c01",
+          "title": "Une carte deux fois fausse",
+          "text": "Rencontrer Iria. Sur une île, un chemin peut changer sans que le voyageur se trompe.",
+          "type": "talk",
+          "requires": [],
+          "reward": {},
+          "required": true,
+          "target": "guide"
+        },
+        {
+          "id": "c02",
+          "title": "Le rivage à lire",
+          "text": "Observer les traces du rivage dans la baie nord-ouest. Chercher ce que l’eau a laissé.",
+          "type": "visit",
+          "requires": [
+            "c01"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 496,
+            "y": 432,
+            "radius": 46
+          }
+        },
+        {
+          "id": "c03",
+          "title": "Le travail du soleil",
+          "text": "Au carnet des salines, retrouver ce qui reste quand l’eau s’évapore.",
+          "type": "choice",
+          "requires": [
+            "c02"
+          ],
+          "reward": {
+            "flags": 2
+          },
+          "required": true,
+          "target": "observation_1",
+          "options": [
+            "Le sel reste dans les bassins",
+            "Le vent transforme le sel en sable",
+            "L’eau devient du cuivre"
+          ],
+          "answer": 0,
+          "feedback": "L’eau peut s’évaporer, mais le sel dissous reste. Les bassins recueillent patiemment ce que la mer apporte. Le premier phare se rallume."
+        },
+        {
+          "id": "c04",
+          "title": "Les lettres qui reviennent",
+          "text": "Rencontrer Ollo. Il a conservé des lettres dont le trajet semblait terminé.",
+          "type": "talk",
+          "requires": [
+            "c01"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "companion"
+        },
+        {
+          "id": "c05",
+          "title": "Les boîtes du courrier perdu",
+          "text": "Ouvrir les trois réserves des voyageurs pour reconstruire la tournée qui reliait les îles.",
+          "type": "collect",
+          "requires": [
+            "c04"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "cache_1",
+            "cache_2",
+            "cache_3"
+          ],
+          "count": 3
+        },
+        {
+          "id": "c06",
+          "title": "La poste des petites îles",
+          "text": "Avec la voile de chute, rejoindre les quatre haltes dans l’ordre du courrier : baie, atelier, île sud, chenal.",
+          "type": "vehicle_route",
+          "requires": [
+            "c04",
+            "c05"
+          ],
+          "reward": {
+            "flags": 4
+          },
+          "required": true,
+          "vehicle": 2,
+          "checkpoints": [
+            {
+              "x": 496,
+              "y": 432,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            },
+            {
+              "x": 528,
+              "y": 1200,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "c07",
+          "title": "Une forme qui grandit",
+          "text": "Au phare des coquilles, expliquer ce que sa spirale permet de conserver en grandissant.",
+          "type": "choice",
+          "requires": [
+            "c06"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "observation_2",
+          "options": [
+            "La même taille pour toujours",
+            "Une forme organisée malgré la croissance",
+            "Un mouvement perpétuel"
+          ],
+          "answer": 1,
+          "feedback": "La coquille ajoute de la matière en conservant une organisation reconnaissable. Le phare emprunte cette forme, pas un pouvoir magique."
+        },
+        {
+          "id": "c08",
+          "title": "Les veilleurs du chenal",
+          "text": "Repousser deux ombres qui empêchent le courrier de traverser. Les îles doivent rester reliées après ton départ.",
+          "type": "defeat",
+          "requires": [
+            "c07"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "wanderer_2",
+            "sentinel_3"
+          ],
+          "count": 2
+        },
+        {
+          "id": "c09",
+          "title": "Un repère qui ne se visite pas",
+          "text": "Au carnet du phare des étoiles, choisir l’usage d’une étoile pour un navigateur.",
+          "type": "choice",
+          "requires": [
+            "c08"
+          ],
+          "reward": {
+            "flags": 8
+          },
+          "required": true,
+          "target": "observation_3",
+          "options": [
+            "Naviguer jusqu’à toucher l’étoile",
+            "Comparer sa direction et sa hauteur dans le ciel",
+            "Attendre qu’elle tombe sur le rivage"
+          ],
+          "answer": 1,
+          "feedback": "Une étoile aide à comparer une direction ou une hauteur. C’est un repère dans une carte du ciel. Le troisième phare retrouve son regard."
+        },
+        {
+          "id": "c10",
+          "title": "Le phare vivant",
+          "text": "Apaiser Nacre. Sa carapace porte les lumières d’une route oubliée.",
+          "type": "defeat",
+          "requires": [
+            "c03",
+            "c06",
+            "c09"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "keeper"
+          ],
+          "count": 1
+        },
+        {
+          "id": "c11",
+          "title": "L’adresse retrouvée",
+          "text": "Revenir au jardin caché du sud-est. Les réponses aux lettres attendaient tout près du destinataire.",
+          "type": "visit",
+          "requires": [
+            "c10"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 2288,
+            "y": 1808,
+            "radius": 46
+          }
+        },
+        {
+          "id": "c12",
+          "title": "La route du cuivre",
+          "text": "Rejoindre l’arche du phare. Les prochains habitants ont besoin des idées que les îles ont conservées.",
+          "type": "visit",
+          "requires": [
+            "c11"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 2096,
+            "y": 1648,
+            "radius": 46
+          }
+        },
+        {
+          "id": "c13",
+          "title": "Le message sans destinataire",
+          "text": "Rencontrer la personne au sud-ouest qui a conservé une question plutôt qu’une réponse.",
+          "type": "talk",
+          "requires": [
+            "c01"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_start"
+        },
+        {
+          "id": "c14",
+          "title": "Une adresse sous la marée",
+          "text": "Retrouver la plaque au nord-ouest et lire son observation. Le lieu et le texte sont deux parties du même indice.",
+          "type": "talk",
+          "requires": [
+            "c13"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_clue"
+        },
+        {
+          "id": "c15",
+          "title": "Le prochain voyageur",
+          "text": "Rejoindre la pierre du jardin sud avec l’indice retrouvé. Elle relie la question à une manière d’agir.",
+          "type": "talk",
+          "requires": [
+            "c14"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_memory"
+        },
+        {
+          "id": "c16",
+          "title": "Réparer une boîte",
+          "text": "Ouvrir la boîte à l’est du jardin sud. Son cadeau garde la trace de ce que tu as compris.",
+          "type": "collect",
+          "requires": [
+            "c15"
+          ],
+          "reward": {
+            "crystals": 2
+          },
+          "required": false,
+          "targets": [
+            "sidequest_reward"
+          ],
+          "count": 1
+        }
+      ]
+    },
+    {
+      "world": 3,
+      "arc": "Les ateliers possèdent encore leurs machines. Ce qui leur manque est une façon de partager l’énergie, les outils et le savoir.",
+      "missions": [
+        {
+          "id": "d01",
+          "title": "La ville des outils gardés",
+          "text": "Écouter Tess. Une machine peut être entière et une ville pourtant arrêtée.",
+          "type": "talk",
+          "requires": [],
+          "reward": {},
+          "required": true,
+          "target": "guide"
+        },
+        {
+          "id": "d02",
+          "title": "L’inventaire des ateliers",
+          "text": "Retrouver cinq dépôts dans les différents ateliers, plutôt que vider une seule réserve.",
+          "type": "collect",
+          "requires": [
+            "d01"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "cache_1",
+            "cache_2",
+            "cache_3",
+            "crystal_05",
+            "crystal_06",
+            "crystal_09",
+            "crystal_10"
+          ],
+          "count": 5
+        },
+        {
+          "id": "d03",
+          "title": "Rassembler la lumière",
+          "text": "Au jardin des miroirs, choisir comment chauffer un point sans inventer de l’énergie.",
+          "type": "choice",
+          "requires": [
+            "d02"
+          ],
+          "reward": {
+            "flags": 2
+          },
+          "required": true,
+          "target": "observation_1",
+          "options": [
+            "Tourner les miroirs pour renvoyer la lumière au même endroit",
+            "Couvrir les miroirs de sable",
+            "Faire tourner les miroirs dans le noir"
+          ],
+          "answer": 0,
+          "feedback": "Les miroirs concentrent une énergie reçue du soleil. La surface éclairée et les protections comptent aussi. Le premier atelier redémarre."
+        },
+        {
+          "id": "d04",
+          "title": "Le véhicule réparable",
+          "text": "Rencontrer Basile et prendre la trottinette. Repérer les pièces qu’un autre habitant pourrait réparer.",
+          "type": "talk",
+          "requires": [
+            "d01"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "companion"
+        },
+        {
+          "id": "d05",
+          "title": "Le réseau des courriers",
+          "text": "En trottinette, relier la place, le jardin des miroirs, les engrenages et la réserve. Il faut livrer chaque atelier dans l’ordre.",
+          "type": "vehicle_route",
+          "requires": [
+            "d03",
+            "d04"
+          ],
+          "reward": {},
+          "required": true,
+          "vehicle": 5,
+          "checkpoints": [
+            {
+              "x": 528,
+              "y": 1200,
+              "radius": 64
+            },
+            {
+              "x": 496,
+              "y": 432,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            },
+            {
+              "x": 1200,
+              "y": 1072,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "d06",
+          "title": "Vitesse contre force",
+          "text": "Au carnet des engrenages, retrouver ce qu’une transmission peut réellement changer.",
+          "type": "choice",
+          "requires": [
+            "d05"
+          ],
+          "reward": {
+            "flags": 4
+          },
+          "required": true,
+          "target": "observation_2",
+          "options": [
+            "Créer de l’énergie en tournant plus vite",
+            "Échanger vitesse et force",
+            "Annuler tous les frottements"
+          ],
+          "answer": 1,
+          "feedback": "Les engrenages changent la relation entre vitesse et force. Les pertes et le travail nécessaire restent réels. Le deuxième atelier se remet en mouvement."
+        },
+        {
+          "id": "d07",
+          "title": "Une place pour les réparateurs",
+          "text": "Dégager les routes de deux ombres pour que les apprentis puissent rejoindre les machines.",
+          "type": "defeat",
+          "requires": [
+            "d06"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "wanderer_1",
+            "wanderer_2"
+          ],
+          "count": 2
+        },
+        {
+          "id": "d08",
+          "title": "La machine qui fait de l’ombre",
+          "text": "Découvrir le petit jardin nord-ouest. Sa machine ne produit rien à vendre : elle protège les voyageurs.",
+          "type": "visit",
+          "requires": [
+            "d07"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 240,
+            "y": 272,
+            "radius": 46
+          }
+        },
+        {
+          "id": "d09",
+          "title": "L’atelier après le coucher du soleil",
+          "text": "À la réserve, décider comment garder une ville utile lorsque le jour s’arrête.",
+          "type": "choice",
+          "requires": [
+            "d08"
+          ],
+          "reward": {
+            "flags": 8
+          },
+          "required": true,
+          "target": "observation_3",
+          "options": [
+            "Dépenser toute la réserve avant le soir",
+            "Partager une réserve et limiter les besoins inutiles",
+            "Promettre que le soleil ne se couchera plus"
+          ],
+          "answer": 1,
+          "feedback": "Stocker aide, mais répartir les usages et réduire les pertes permet aussi de traverser la nuit. La réserve commune rallume le troisième atelier."
+        },
+        {
+          "id": "d10",
+          "title": "L’horloge sans retard",
+          "text": "Apaiser Méridien, qui confondait précision et obligation de ne jamais s’arrêter.",
+          "type": "defeat",
+          "requires": [
+            "d03",
+            "d06",
+            "d09"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "keeper"
+          ],
+          "count": 1
+        },
+        {
+          "id": "d11",
+          "title": "Une dernière livraison",
+          "text": "En trottinette, ramener les outils aux trois haltes avant de quitter les ateliers. La ville doit continuer sans attendre ton retour.",
+          "type": "vehicle_route",
+          "requires": [
+            "d10"
+          ],
+          "reward": {},
+          "required": true,
+          "vehicle": 5,
+          "checkpoints": [
+            {
+              "x": 2096,
+              "y": 1584,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            },
+            {
+              "x": 528,
+              "y": 1200,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "d12",
+          "title": "L’heure des sommets",
+          "text": "Rejoindre l’Horloge du Zénith. Son cadran est une route vers les stations du ciel.",
+          "type": "visit",
+          "requires": [
+            "d11"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 2096,
+            "y": 1648,
+            "radius": 46
+          }
+        },
+        {
+          "id": "d13",
+          "title": "Le vélo aux deux roues",
+          "text": "Rencontrer la personne au sud-ouest qui a conservé une question plutôt qu’une réponse.",
+          "type": "talk",
+          "requires": [
+            "d01"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_start"
+        },
+        {
+          "id": "d14",
+          "title": "Le dessin des rapports",
+          "text": "Retrouver la plaque au nord-ouest et lire son observation. Le lieu et le texte sont deux parties du même indice.",
+          "type": "talk",
+          "requires": [
+            "d13"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_clue"
+        },
+        {
+          "id": "d15",
+          "title": "Aucun rapport pour tout",
+          "text": "Rejoindre la pierre du jardin sud avec l’indice retrouvé. Elle relie la question à une manière d’agir.",
+          "type": "talk",
+          "requires": [
+            "d14"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_memory"
+        },
+        {
+          "id": "d16",
+          "title": "Le vélo de Basile",
+          "text": "Ouvrir la boîte à l’est du jardin sud. Son cadeau garde la trace de ce que tu as compris.",
+          "type": "collect",
+          "requires": [
+            "d15"
+          ],
+          "reward": {
+            "vehicle": 6
+          },
+          "required": false,
+          "targets": [
+            "sidequest_reward"
+          ],
+          "count": 1
+        }
+      ]
+    },
+    {
+      "world": 4,
+      "arc": "Les stations voient chacune une partie du ciel. Comprendre la pluie exige de réunir des observations, pas de trouver un instrument parfait.",
+      "missions": [
+        {
+          "id": "e01",
+          "title": "Les pieds des îles",
+          "text": "Rencontrer Anouk. Les montagnes ne flottent pas : les nuages en cachent les pieds.",
+          "type": "talk",
+          "requires": [],
+          "reward": {},
+          "required": true,
+          "target": "guide"
+        },
+        {
+          "id": "e02",
+          "title": "La règle de la pilote",
+          "text": "Préparer le petit avion avec Eden. Un vol se prépare en gardant un endroit où revenir au sol.",
+          "type": "talk",
+          "requires": [
+            "e01"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "companion"
+        },
+        {
+          "id": "e03",
+          "title": "La première boucle du ciel",
+          "text": "En avion, relier les quatre terrains de repos. Refaire ses réserves au sol entre les traversées.",
+          "type": "vehicle_route",
+          "requires": [
+            "e02"
+          ],
+          "reward": {},
+          "required": true,
+          "vehicle": 3,
+          "checkpoints": [
+            {
+              "x": 528,
+              "y": 1200,
+              "radius": 64
+            },
+            {
+              "x": 1168,
+              "y": 464,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "e04",
+          "title": "D’où vient le vent ?",
+          "text": "Au carnet des vents, expliquer le rôle de la girouette.",
+          "type": "choice",
+          "requires": [
+            "e03"
+          ],
+          "reward": {
+            "flags": 2
+          },
+          "required": true,
+          "target": "observation_1",
+          "options": [
+            "Elle fabrique le vent",
+            "Elle indique d’où vient le vent",
+            "Elle mesure la distance aux étoiles"
+          ],
+          "answer": 1,
+          "feedback": "La girouette se place selon l’air qui arrive. Différentes couches d’air peuvent suivre des directions différentes. La station du vent retrouve sa mesure."
+        },
+        {
+          "id": "e05",
+          "title": "Des observations espacées",
+          "text": "Retrouver quatre dépôts entre les stations. Une série de mesures doit conserver plusieurs lieux, pas seulement plusieurs nombres.",
+          "type": "collect",
+          "requires": [
+            "e04"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "crystal_04",
+            "crystal_05",
+            "crystal_06",
+            "crystal_08",
+            "crystal_09",
+            "cache_2"
+          ],
+          "count": 4
+        },
+        {
+          "id": "e06",
+          "title": "La matière d’un nuage",
+          "text": "Au carnet de pluie, choisir ce que contient le nuage visible.",
+          "type": "choice",
+          "requires": [
+            "e05"
+          ],
+          "reward": {
+            "flags": 4
+          },
+          "required": true,
+          "target": "observation_2",
+          "options": [
+            "De la fumée blanche",
+            "Seulement un vide froid",
+            "De minuscules gouttes ou cristaux de glace"
+          ],
+          "answer": 2,
+          "feedback": "La vapeur d’eau est invisible. En refroidissant, elle peut former des gouttes ou des cristaux : le nuage devient visible. La station des averses se réveille."
+        },
+        {
+          "id": "e07",
+          "title": "L’autre côté de la carte",
+          "text": "Découvrir l’île cachée près du détour nord-ouest. Le dos d’une carte peut garder un ancien projet.",
+          "type": "visit",
+          "requires": [
+            "e06"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 240,
+            "y": 272,
+            "radius": 46
+          }
+        },
+        {
+          "id": "e08",
+          "title": "Le passage des astronomes",
+          "text": "Repousser les deux ombres près des stations du nord et du sud pour ouvrir la tournée nocturne.",
+          "type": "defeat",
+          "requires": [
+            "e07"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "wanderer_4",
+            "sentinel_3"
+          ],
+          "count": 2
+        },
+        {
+          "id": "e09",
+          "title": "Éteindre pour regarder",
+          "text": "Au refuge des astronomes, choisir ce qui aide à voir une étoile faible.",
+          "type": "choice",
+          "requires": [
+            "e08"
+          ],
+          "reward": {
+            "flags": 8
+          },
+          "required": true,
+          "target": "observation_3",
+          "options": [
+            "Allumer tous les projecteurs vers le ciel",
+            "Réduire les lumières inutiles et laisser les yeux s’adapter",
+            "Regarder uniquement les objets les plus brillants"
+          ],
+          "answer": 1,
+          "feedback": "Une lumière proche peut cacher une lumière lointaine. Protéger la nuit rend visibles des étoiles que la puissance d’une lampe ne révèle pas. Le troisième refuge s’ouvre."
+        },
+        {
+          "id": "e10",
+          "title": "L’oiseau des relevés",
+          "text": "Apaiser Cirrus. Ses plumes portent les mesures qu’aucune station ne pouvait lire seule.",
+          "type": "defeat",
+          "requires": [
+            "e04",
+            "e06",
+            "e09"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "keeper"
+          ],
+          "count": 1
+        },
+        {
+          "id": "e11",
+          "title": "La constellation terrestre",
+          "text": "En avion, relier les points de la constellation dessinée par les stations, puis revenir à la grande arche.",
+          "type": "vehicle_route",
+          "requires": [
+            "e10"
+          ],
+          "reward": {},
+          "required": true,
+          "vehicle": 3,
+          "checkpoints": [
+            {
+              "x": 496,
+              "y": 432,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            },
+            {
+              "x": 2096,
+              "y": 1584,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "e12",
+          "title": "Au cœur des racines",
+          "text": "Rejoindre l’arche au-delà des nuages. Tous les voyages convergent maintenant vers le Grand Arbre.",
+          "type": "visit",
+          "requires": [
+            "e11"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 2096,
+            "y": 1648,
+            "radius": 46
+          }
+        },
+        {
+          "id": "e13",
+          "title": "La pluie qui n’arrivait pas",
+          "text": "Rencontrer la personne au sud-ouest qui a conservé une question plutôt qu’une réponse.",
+          "type": "talk",
+          "requires": [
+            "e01"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_start"
+        },
+        {
+          "id": "e14",
+          "title": "Une mesure sans contexte",
+          "text": "Retrouver la plaque au nord-ouest et lire son observation. Le lieu et le texte sont deux parties du même indice.",
+          "type": "talk",
+          "requires": [
+            "e13"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_clue"
+        },
+        {
+          "id": "e15",
+          "title": "L’autre versant",
+          "text": "Rejoindre la pierre du jardin sud avec l’indice retrouvé. Elle relie la question à une manière d’agir.",
+          "type": "talk",
+          "requires": [
+            "e14"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_memory"
+        },
+        {
+          "id": "e16",
+          "title": "Les pages de demain",
+          "text": "Ouvrir la boîte à l’est du jardin sud. Son cadeau garde la trace de ce que tu as compris.",
+          "type": "collect",
+          "requires": [
+            "e15"
+          ],
+          "reward": {
+            "crystals": 2
+          },
+          "required": false,
+          "targets": [
+            "sidequest_reward"
+          ],
+          "count": 1
+        }
+      ]
+    },
+    {
+      "world": 5,
+      "arc": "Le Grand Arbre ne réclame pas six trophées. Il demande que les façons d’apprendre, de réparer et de partager deviennent un seul jardin.",
+      "missions": [
+        {
+          "id": "f01",
+          "title": "Maëlle, autrement",
+          "text": "Retrouver Maëlle sous le Grand Arbre. Le retour change autant la personne qui accueille que celle qui arrive.",
+          "type": "talk",
+          "requires": [],
+          "reward": {},
+          "required": true,
+          "target": "guide"
+        },
+        {
+          "id": "f02",
+          "title": "Ce que les mondes ont confié",
+          "text": "Réunir les trois réserves des jardins. Ce qu’elles représentent compte davantage que leur valeur en éclats.",
+          "type": "collect",
+          "requires": [
+            "f01"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "cache_1",
+            "cache_2",
+            "cache_3"
+          ],
+          "count": 3
+        },
+        {
+          "id": "f03",
+          "title": "Un jardin qui n’est pas une copie",
+          "text": "Au carnet du vivant, décider comment accueillir les graines venues d’ailleurs.",
+          "type": "choice",
+          "requires": [
+            "f02"
+          ],
+          "reward": {
+            "flags": 2
+          },
+          "required": true,
+          "target": "observation_1",
+          "options": [
+            "Tout planter de la même façon sans observer le lieu",
+            "Observer le milieu et préserver la diversité",
+            "Remplacer toutes les plantes déjà présentes"
+          ],
+          "answer": 1,
+          "feedback": "Une graine arrive avec une histoire, mais rencontre un nouveau milieu. Observer permet d’accueillir sans effacer ce qui vit déjà. Le jardin du vivant s’ouvre."
+        },
+        {
+          "id": "f04",
+          "title": "Une place pour les autres",
+          "text": "Retrouver Nino et sa petite voiture. Elle transporte aussi les voyageurs trop fatigués pour finir la route à pied.",
+          "type": "talk",
+          "requires": [
+            "f01"
+          ],
+          "reward": {},
+          "required": true,
+          "target": "companion"
+        },
+        {
+          "id": "f05",
+          "title": "La tournée des retours",
+          "text": "Avec la voiture, relier le village, les jardins et l’atelier. Ramener les ressources là où elles pourront servir après ton passage.",
+          "type": "vehicle_route",
+          "requires": [
+            "f03",
+            "f04"
+          ],
+          "reward": {},
+          "required": true,
+          "vehicle": 7,
+          "checkpoints": [
+            {
+              "x": 528,
+              "y": 1200,
+              "radius": 64
+            },
+            {
+              "x": 496,
+              "y": 432,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            },
+            {
+              "x": 1200,
+              "y": 1072,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "f06",
+          "title": "L’invention qui continue",
+          "text": "Au carnet des mains, choisir ce qui rend un outil durable au-delà de son inventeur.",
+          "type": "choice",
+          "requires": [
+            "f05"
+          ],
+          "reward": {
+            "flags": 4
+          },
+          "required": true,
+          "target": "observation_2",
+          "options": [
+            "Cacher la méthode pour rester indispensable",
+            "Le rendre impossible à ouvrir",
+            "Expliquer comment le réparer et partager ses plans"
+          ],
+          "answer": 2,
+          "feedback": "Une invention continue de servir quand d’autres peuvent la comprendre, la réparer et l’adapter. L’atelier des liens retrouve sa lumière."
+        },
+        {
+          "id": "f07",
+          "title": "Les portes encore fermées",
+          "text": "Repousser les deux ombres qui isolent les jardins. Les chemins doivent rester ouverts à ceux qui viendront ensuite.",
+          "type": "defeat",
+          "requires": [
+            "f06"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "wanderer_1",
+            "wanderer_5"
+          ],
+          "count": 2
+        },
+        {
+          "id": "f08",
+          "title": "La graine du premier jour",
+          "text": "Rejoindre le petit jardin nord-ouest. La première graine avait commencé à pousser bien avant la dernière porte.",
+          "type": "visit",
+          "requires": [
+            "f07"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 240,
+            "y": 272,
+            "radius": 46
+          }
+        },
+        {
+          "id": "f09",
+          "title": "Le souvenir que l’on partage",
+          "text": "Au carnet des voix, choisir ce que signifie transmettre un souvenir.",
+          "type": "choice",
+          "requires": [
+            "f08"
+          ],
+          "reward": {
+            "flags": 8
+          },
+          "required": true,
+          "target": "observation_3",
+          "options": [
+            "Imposer à tout le monde le même récit",
+            "Donner des repères et laisser les autres ajouter leur histoire",
+            "Fermer le jardin pour que rien ne change"
+          ],
+          "answer": 1,
+          "feedback": "Transmettre ne fige pas le monde. Cela laisse des repères et une place aux nouvelles voix. Le dernier jardin se rallume."
+        },
+        {
+          "id": "f10",
+          "title": "La place laissée à l’Oubli",
+          "text": "Affronter le gardien des portes fermées. Ce combat conclut les apprentissages du voyage ; il ne les remplace pas.",
+          "type": "defeat",
+          "requires": [
+            "f03",
+            "f06",
+            "f09"
+          ],
+          "reward": {},
+          "required": true,
+          "targets": [
+            "keeper"
+          ],
+          "count": 1
+        },
+        {
+          "id": "f11",
+          "title": "Le chemin à pied",
+          "text": "Revenir à pied du grand jardin jusqu’au premier banc, puis parcourir les trois jardins. Prendre le temps de reconnaître ce qui a changé.",
+          "type": "vehicle_route",
+          "requires": [
+            "f10"
+          ],
+          "reward": {},
+          "required": true,
+          "vehicle": 0,
+          "checkpoints": [
+            {
+              "x": 2096,
+              "y": 1584,
+              "radius": 64
+            },
+            {
+              "x": 1200,
+              "y": 1072,
+              "radius": 64
+            },
+            {
+              "x": 496,
+              "y": 432,
+              "radius": 64
+            },
+            {
+              "x": 2032,
+              "y": 720,
+              "radius": 64
+            },
+            {
+              "x": 944,
+              "y": 1616,
+              "radius": 64
+            }
+          ]
+        },
+        {
+          "id": "f12",
+          "title": "Une place pour le prochain départ",
+          "text": "Rejoindre le cœur du Grand Arbre. La conclusion laisse les mondes ouverts à l’exploration et aux retours.",
+          "type": "visit",
+          "requires": [
+            "f11"
+          ],
+          "reward": {},
+          "required": true,
+          "point": {
+            "x": 2096,
+            "y": 1648,
+            "radius": 46
+          }
+        },
+        {
+          "id": "f13",
+          "title": "Une place pour demain",
+          "text": "Rencontrer la personne au sud-ouest qui a conservé une question plutôt qu’une réponse.",
+          "type": "talk",
+          "requires": [
+            "f01"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_start"
+        },
+        {
+          "id": "f14",
+          "title": "La ligne laissée libre",
+          "text": "Retrouver la plaque au nord-ouest et lire son observation. Le lieu et le texte sont deux parties du même indice.",
+          "type": "talk",
+          "requires": [
+            "f13"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_clue"
+        },
+        {
+          "id": "f15",
+          "title": "Le carnet ouvert",
+          "text": "Rejoindre la pierre du jardin sud avec l’indice retrouvé. Elle relie la question à une manière d’agir.",
+          "type": "talk",
+          "requires": [
+            "f14"
+          ],
+          "reward": {},
+          "required": false,
+          "target": "sidequest_memory"
+        },
+        {
+          "id": "f16",
+          "title": "Les graines différentes",
+          "text": "Ouvrir la boîte à l’est du jardin sud. Son cadeau garde la trace de ce que tu as compris.",
+          "type": "collect",
+          "requires": [
+            "f15"
+          ],
+          "reward": {
+            "crystals": 2
+          },
+          "required": false,
+          "targets": [
+            "sidequest_reward"
+          ],
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "mission_changes": [
+    {
+      "world": 1,
+      "removed": "b16",
+      "added": "b17_herbarium",
+      "mapping": "No completion transfer: new activity has a new persistent ID.",
+      "preserved": "b01..b15 IDs, existing chest sidequest_reward, inventory, collected objects and every vehicle unlock.",
+      "reward": "Old b16 granted two extra crystals, never a vehicle. Already earned crystals remain in inventory; b17 grants its own two crystals only on completion."
+    }
+  ]
+}

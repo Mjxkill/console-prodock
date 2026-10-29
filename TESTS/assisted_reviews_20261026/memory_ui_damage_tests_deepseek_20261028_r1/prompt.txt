@@ -1,0 +1,64 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-tests ciblés de pixels transparents/deux pages/invalidation, code court et vérifiable.
+
+EVIDENCE PACKET:
+Candidat isole, pas de carte, pas de modification du R4 fige. UI Memory actuellement memset(canvas,0,w*h), redessin texte identique puis publish plein w*h sur chaque changement revision, chaque page. 24actions=18.432MB copies UI en800x480. Plan: 2 shadows CPU independants w*h (max1.8432MB au total1280x720), forcefull pour 1ere publication de chaque page, validite detruite lors invalidate()/changementtaille/transitionmode. Garder rasterisation/regles/poses/GPU identiques. Ligne: comparer32bit source vs shadow, publier intervalle [premier mot different,dernier mot different] arrondi4; gaps peuvent etre recopies. Premierfull doit ecrire meme pixelszeros (VRAM inconnue). Writer volatile32bit versmapping UI20/21MiB, widthmultiple4, rows480/720. Couverture: mots debut/fin, alpha efface, deuxpagesasynchrones, reset/invalidation/restore/resize. Un chronometre global autour scan+publication, pas2syscalls parfragment. Retourstatsbytes_scannes,publies,nombrespans; majshadowuniquementdeszonespubliees. AucunelectureDDRpourcomparaison. Pas de FPS calcule. Donne seulement code court/contre-exemple concret, pas long raisonnement.
+TACHE: revuecontradictoire 4contre-exemples concrets et banc C de comparaison finalbuffer vsfullcopy sur2pages. Inclureinvalidation, reductiontexte transparence, lignechangedhors premiere etresize. Maximum1500mots, reponsecodecourte.
+static void text(L3Render *r,L3MemoryScene *f,int x,int y,const char *s,unsigned color,unsigned width){l3_ui_text(f->ui,r->width*2,r->height*2,x,y,0,s,color,width);}
+static int ui(L3Render *r,L3MemoryScene *f,struct prodock_scene *scene){
+ unsigned w=r->width*2,h=r->height*2,page=r->frame&1;if(f->ui_revision[page]!=f->revision){
+  memset(f->ui,0,w*h);char s[160];text(r,f,w==800?115:250,9,"MEMORY - Les constellations",78,w-230);
+  snprintf(s,sizeof(s),"%s  /  %u cartes  /  %u paires  /  %u essais",f->automatic?"VISITE AUTO":"A VOUS",f->view.count,f->view.pairs,f->view.turns);text(r,f,w==800?115:250,w==800?33:37,s,74,w-230);
+  float k=w==800?1:1.2f;int ox=w==800?0:160,oy=w==800?40:120;
+  text(r,f,ox+590*k,oy+60*k,"LE CIEL",78,130*k);
+  snprintf(s,sizeof(s),"%u / %u",f->view.pairs,f->view.count/2);text(r,f,ox+600*k,oy+336*k,s,78,100*k);
+  if(f->view.phase==L3_MEMORY_WON){
+   text(r,f,ox+175*k,oy+145*k,"LE CIEL SE SOUVIENT",78,340*k);
+   snprintf(s,sizeof(s),"%u etoiles  -  %u essais",f->view.stars,f->view.turns);text(r,f,ox+210*k,oy+185*k,s,74,300*k);
+   snprintf(s,sizeof(s),"Prochain ciel : %u cartes",f->view.difficulty<2?l3_memory_count(f->view.difficulty+1):30);text(r,f,ox+185*k,oy+225*k,s,74,330*k);
+  }
+  const char *bottom=f->view.phase==L3_MEMORY_WON?"Ciel complete ! Entree : prochaine constellation":"Fleches / WASD : choisir   E : retourner   Tab : retour";
+  text(r,f,w==800?105:210,h-(w==800?30:36),bottom,74,w-210);
+  publish(r,(20u<<20)+page*(1u<<20),f->ui,w*h);f->ui_revision[page]=f->revision;
+ }
+ uint32_t *l=scene->layers[0];l[0]=PRODOCK_GPU_BASE+(20u<<20)+page*(1u<<20);l[1]=w|(h<<16);l[3]=l[1];l[5]=w;l[6]=3;scene->layers_enabled=1;return 1;
+}
+int l3_memory_scene_render(L3Render *r,L3MemoryScene *f,struct prodock_scene *scene,int full){
+ if(!r||!f||!scene||!r->memory||!((r->width==400&&r->height==240)||(r->width==640&&r->height==360))||r->pitch!=r->width*4||r->page_bytes!=(r->width==400?1u<<20:2u<<20))return 0;
+ return art(r,f)&&board(r,f,scene,full)&&ui(r,f,scene);
+}
+
+#ifndef L3_MEMORY_SCENE_H
+#define L3_MEMORY_SCENE_H
+#include "l3_memory.h"
+#include "luma3d_render.h"
+typedef struct {int id,tile,atlas;float x,y,w,h,alpha;} L3MemoryPose;
+typedef struct {
+ L3Memory game;L3MemoryView view;L3MemoryTrace trace;
+ L3MemoryPose old[31],poses[31],pages[2][31];
+ unsigned old_n,poses_n,page_n[2],page_valid[2],base_ready[2];
+ unsigned assets,asset_w,asset_h,revision,ui_revision[2],cursor,automatic,escape,exit_requested;
+ unsigned actions,reveals,pairs,mismatches,rounds;
+ float elapsed,duration,wait;uint8_t *ui;uint16_t *background;
+} L3MemoryScene;
+int l3_memory_scene_init(L3MemoryScene *,uint32_t seed,int automatic);
+void l3_memory_scene_close(L3MemoryScene *);
+/* Call after another mode has overwritten the reserved GPU regions. Does not
+ * modify the game. The next draw republishes textures/background and pages. */
+void l3_memory_scene_invalidate(L3MemoryScene *);
+/* Every accepted action goes through the same rules; animation/hold rejects
+ * impatient actions. Navigation does not alter the rules or remembered cards. */
+int l3_memory_scene_action(L3MemoryScene *,L3MemoryAction);
+void l3_memory_scene_step(L3MemoryScene *,float dt);
+void l3_memory_scene_key(L3MemoryScene *,int key);
+void l3_memory_scene_poses(L3MemoryScene *);
+/* Restore uses the separate MRY1 codec, commits only on success, and starts
+ * from a settled public state. It never changes any Festival/GM1 save. */
+int l3_memory_scene_restore(L3MemoryScene *,const void *,size_t);
+/* Uses a caller-owned L3Render mapping/palette and frame counter. No IO or
+ * present ioctl here. Full restore is an oracle/debug mode, not a second
+ * rendering implementation. Caller must wait for GPU completion before reuse. */
+int l3_memory_scene_render(L3Render *,L3MemoryScene *,struct prodock_scene *,int full_restore);
+#endif

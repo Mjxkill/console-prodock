@@ -1,0 +1,255 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Vérifie ce script précis avant son exécution à la fin du routage R21r1. Cherche faux PASS de comparaison drivers/alias, trous SDF et signes/arrondis marges setup, CDC held→shadow et couverture flags sticky. Propose seulement corrections de preuve, sans modifier RTL ni inventer de timing. Résultat global FAIL doit rester explicite. Le script ne doit jamais autoriser automatiquement un chargement carte. Réponse ciblée.
+
+EVIDENCE PACKET:
+R21r1 route ongoing. Audit script prepared only, no result yet. Need review of proof completeness, not new architecture. Parent R19 known global setup/recovery FAIL; previous local SDF showed no reset sink arcs, so no zero-reset-delay inference allowed. New observer has helper+4sticky/4held FF added and5 observation cells. All old .vg cells intact. .vo may rename aliases via observer output buses.
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/audit_postroute.py SHA256 e4947e182f1f7811e6c726290917c9d4bab329fd0e0e89aaaebd7379494efb12
+1: #!/usr/bin/env python3
+2: """R21r1 route: application provenance, observer CDC/data bounds, full timing."""
+3: import functools
+4: import json
+5: from pathlib import Path
+6: import re
+7: import sys
+8: import build_memory_capture as b
+9: import format_r21r1 as fmt
+10: 
+11: sys.path.insert(0,str(b.HERE.parent/'reset_sequence_20261025'))
+12: from audit_routed import cells
+13: from check_geometry_timing import inspect
+14: from neo.timing import timing_checks
+15: from neo.timing_closure import global_clock_routes
+16: 
+17: LOCAL='u_accel/u_v1/u_pixels/u_capture/'
+18: BUS='u_gpu_debug/u_capture_bus/'
+19: EXTRA={'u_accel/trace_observe_pixel_valid'}|{
+20:  'u_accel/u_v1/u_pixels/u_copy/trace_observe_'+n for n in ('idle','low_one','check','validate')}
+21: def vec(s):
+22:  values=tuple(float(v) for v in s.split(':'));assert len(values)==3
+23:  return values
+24: def clean(s):return s.replace('\\','')
+25: def plus(a,c):return tuple(x+y for x,y in zip(a,c))
+26: 
+27: def drivers(data):
+28:  result={}
+29:  for name,(kind,pins) in data.items():
+30:   for pin in ('Q','F','O','G','V'):
+31:    if pin in pins:
+32:     key=('constant',kind) if kind in ('GND','VCC') else (name,pin)
+33:     result.setdefault(pins[pin],set()).add(key)
+34:  return result
+35: 
+36: def main():
+37:  build=fmt.OUT;out=b.HERE/'postroute_01';out.mkdir()
+38:  assert json.loads((build/'route_result.json').read_text())['status']=='ROUTED_NOT_QUALIFIED'
+39:  data=json.loads((build/'format_assembly.json').read_text())
+40:  for name,h in data['inputs'].items():assert b.sha(build/name)==h,name
+41:  assert b.manifest(build/'source')==json.loads((build/'sources.json').read_text())
+42:  pnr=build/'impl/pnr'
+43:  files=[Path(__file__),build/'format_assembly.json',build/'sources.json',build/'console_neo.vg',build/'route_result.json',build/'build.tcl',
+44:         b.PARENT/'impl/pnr/console_neo.vo']+[pnr/('console_neo'+e) for e in ('.vo','.sdf','.tr','.fs','.rpt.txt')]
+45:  hashes={str(p):b.sha(p) for p in files}
+46:  old,op=cells(b.PARENT/'impl/pnr/console_neo.vo');new,np=cells(pnr/'console_neo.vo')
+47:  od,nd=drivers(old),drivers(new)
+48:  missing=sorted(n for n in old.keys()-new.keys() if not n.startswith(LOCAL))
+49:  changed={};aliases={}
+50:  for name in old.keys()&new.keys():
+51:   if name.startswith(LOCAL) or old[name]==new[name]:continue
+52:   oldkind,oldpins=old[name];newkind,newpins=new[name]
+53:   delta={p:dict(before=oldpins.get(p),after=newpins.get(p)) for p in oldpins.keys()|newpins.keys() if oldpins.get(p)!=newpins.get(p)}
+54:   equivalent=oldkind==newkind
+55:   for item in delta.values():
+56:    sources=od.get(item['before'],set());destinations=nd.get(item['after'],set())
+57:    item['driver_identity_before']=sorted(sources);item['driver_identity_after']=sorted(destinations)
+58:    equivalent &= bool(sources) and sources==destinations and len(sources)==1
+59:   target=aliases if equivalent else changed
+60:   target[name]=dict(before=old[name],after=new[name],pin_changes=delta)
+61:  params_changed={k:dict(before=v,after=np.get(k)) for k,v in op.items() if not k.startswith(LOCAL) and np.get(k)!=v}
+62:  additions=sorted(new.keys()-old.keys())
+63:  unexpected_added=[n for n in additions if not n.startswith(LOCAL) and n not in EXTRA]
+64:  # Conservative SDF data graph. Reset arcs missing from the vendor SDF are
+65:  # not interpreted as zero delay; recovery/removal remain separate STA data.
+66:  sdf=(pnr/'console_neo.sdf').read_text();assert '(TIMESCALE 1 ns)' in sdf
+67:  incoming={};cq={};clocks={};setup={}
+68:  def edge(dst,src,delay):incoming.setdefault(dst,[]).append((src,delay))
+69:  for part in sdf.split('\n  (CELL\n')[1:]:
+70:   match=re.search(r'\(INSTANCE ([^\s)]+)\)',part)
+71:   if not match:continue
+72:   name=clean(match[1]);kind=re.search(r'\(CELLTYPE "([^"]+)"\)',part)[1]
+73:   for source,dest,delay in re.findall(r'\(IOPATH (\S+) (\S+) \(([^)]+)\)\)',part):
+74:    if kind.startswith('DFF'):
+75:     if source=='CLK' and dest=='Q':cq[name]=vec(delay)
+76:    else:edge(name+'/'+clean(dest),name+'/'+clean(source),vec(delay))
+77:   if kind.startswith('DFF'):
+78:    for pin,delay in re.findall(r'\(SETUPHOLD \((?:pos|neg)edge (\w+)\) \(posedge CLK\) \(([^)]+)\)',part):
+79:     key=name+'/'+pin;setup[key]=max(setup.get(key,0),max(vec(delay)))
+80:  for source,dest,delay in re.findall(r'\(INTERCONNECT (\S+) (\S+) \(([^)]+)\)\)',sdf):
+81:   source,dest=clean(source),clean(dest);edge(dest,source,vec(delay))
+82:   if dest.endswith('/CLK'):
+83:    key=dest.removesuffix('/CLK');assert key not in clocks
+84:    clocks[key]=(source,vec(delay))
+85:  @functools.lru_cache(None)
+86:  def origins(pin):
+87:   name,port=pin.rsplit('/',1)
+88:   if name in cq and port=='Q':return {name:cq[name]}
+89:   found={}
+90:   for source,delay in incoming.get(pin,[]):
+91:    for origin,before in origins(source).items():
+92:     value=plus(before,delay)
+93:     found[origin]=tuple(max(a,c) for a,c in zip(value,found[origin])) if origin in found else value
+94:   return found
+95:  observer_ff={n:v for n,v in new.items() if n.startswith((LOCAL,BUS)) and v[0].startswith('DFF')}
+96:  wrong_clocks={n:v for n,v in observer_ff.items() if v[1].get('CLK')!=('gpu_clk' if n.startswith(LOCAL) else 'vid_hclk')}
+97:  sample=[n for n in observer_ff if n.startswith((LOCAL+'at_event_',LOCAL+'after_event_'))]
+98:  memory=[n for n in observer_ff if n.startswith(LOCAL+'mem_seen_')]
+99:  shadow=[n for n in observer_ff if n.startswith(BUS+'shadow_')]
+100:  bounds=[];uncovered=[];crossings=[];clock_missing=[]
+101:  for name in sample+memory:
+102:   for pin in ('D','CE'):
+103:    target=name+'/'+pin;found=origins(target)
+104:    if not found:uncovered.append(target)
+105:    for origin,delay in found.items():
+106:     if origin not in clocks or name not in clocks or target not in setup:
+107:      clock_missing.append(dict(source=origin,destination=target));continue
+108:     sc,sd=clocks[origin];dc,dd=clocks[name]
+109:     if sc!=dc or new[origin][1].get('CLK')!='gpu_clk':
+110:      crossings.append(dict(source=origin,destination=target,source_clock=sc,destination_clock=dc));continue
+111:     values=[13.333+d-s-path-setup[target] for s,d,path in zip(sd,dd,delay)]
+112:     bounds.append(dict(source=origin,destination=target,conservative_setup_ns=values,max_by_corner_ns=delay))
+113:  held=[]
+114:  for name in shadow:
+115:   for origin,delay in origins(name+'/D').items():
+116:    if origin.startswith(LOCAL):held.append(dict(source=origin,destination=name,max_by_corner_ns=delay))
+117:  held_max=max((max(p['max_by_corner_ns']) for p in held),default=None)
+118:  tr=(pnr/'console_neo.tr').read_text();rpt=(pnr/'console_neo.rpt.txt').read_text()
+119:  summary=inspect(build,'console_neo');timing=timing_checks(tr)
+120:  routes=global_clock_routes(rpt)
+121:  required=json.loads((build/'source/tang/boards/neo/timing_closure.json').read_text())['required_primary_clocks']
+122:  missing_primary=sorted(set(required)-{n for n,k,_ in routes if k=='PRIMARY'})
+123:  constraints=re.findall(r'^\s*TC_\S+\s+(\S+)\s+(.+?)\s*$',tr,re.M)
+124:  expected={' '.join(l.split()) for l in (build/'source/tang/boards/neo/neo.sdc').read_text().splitlines() if l.startswith(('create_','set_','report_timing '))}
+125:  constraints_passed=bool(constraints) and all(s=='Actived' for s,_ in constraints) and expected=={' '.join(c.split()) for _,c in constraints}
+126:  result=dict(audit_complete=True,hardware_access=False,loaded=False,build=str(build),input_sha256=hashes,
+127:   bitstream_sha256=b.sha(pnr/'console_neo.fs'),netlist_sha256=b.sha(build/'console_neo.vg'),
+128:   qualification_status='PASS' if summary['status']=='PASS' and all(v>=0 for v in timing.values()) else 'FAIL',
+129:   timing=timing,timing_summary=summary,missing_parent_cells=missing,changed_parent_cells=changed,
+130:   alias_only_parent_changes=aliases,changed_parent_parameters=params_changed,added_cells=additions,unexpected_added_cells=unexpected_added,
+131:   application_structural_passed=not (missing or changed or params_changed or unexpected_added),
+132:   observer_ff_count=len(observer_ff),sample_ff_count=len(sample),sticky_ff_count=len(memory),shadow_ff_count=len(shadow),wrong_observer_clocks=wrong_clocks,
+133:   sample_setup_bounds=bounds,sample_setup_lower_bound_ns=min((min(x['conservative_setup_ns']) for x in bounds),default=None),
+134:   sample_cone_without_registered_origins=uncovered,sample_missing_clock_or_setup=clock_missing,sample_async_origins=crossings,
+135:   held_shadow_paths=held,held_shadow_max_ns=held_max,held_shadow_bound_ns=20,
+136:   held_shadow_bound_passed=held_max is not None and held_max<20,
+137:   required_primary=required,missing_primary=missing_primary,global_routes=routes,
+138:   constraints_passed=constraints_passed,active_constraints=len(constraints),
+139:   limits=['No hardware or complete GPU qualification.',
+140:           'SDF raw local setup bound is not independent STA and does not cover missing reset arcs.',
+141:           'Global timing failures remain explicit; root must review before any diagnostic loading.',
+142:           'Uncovered or asynchronous origins require review, not silent acceptance.'])
+143:  assert all(b.sha(Path(p))==h for p,h in hashes.items())
+144:  b.save(out/'result.json',result)
+145:  print(json.dumps({k:result[k] for k in ['bitstream_sha256','qualification_status','timing','application_structural_passed',
+146:        'observer_ff_count','sample_ff_count','sticky_ff_count','sample_setup_lower_bound_ns','held_shadow_max_ns','missing_primary']}),flush=True)
+147: 
+148: if __name__=='__main__':main()
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/contract.json SHA256 833c79b3cad0b8f07b41aab86695a6a8557527b15de1a26541c2748f8b4484f6
+1: {
+2:   "candidate": true,
+3:   "hardware": false,
+4:   "format": "D*",
+5:   "helper": "TESTS/neo_720p_20261012/capture_memory_20261027/neo_capture_memory.v",
+6:   "helper_sha256": "1051163608ea69c7f56ebb2a4363a7ac773285e7284e3f532b377054602f7a90",
+7:   "bus": "Existing R19 neo_capture_bus unchanged, NCP1 signature, 64-bit held mailbox",
+8:   "sample": {
+9:     "7:0": "COPY packet D bits87:80 (low8 source width), expected0x10 for canonical COPY16",
+10:     "15:8": "COPY packet Q bits87:80",
+11:     "16": "COPY packet CE n7630_6",
+12:     "17": "COPY engine reset qualifier active high, not packet FF RESET (constant GND)",
+13:     "18": "COPY_START trigger in parent pixel FSM",
+14:     "19": "COPY state IDLE predicate",
+15:     "20": "COPY state CHECK predicate (early snapshots normally false)",
+16:     "21": "COPY state VALIDATE predicate (early snapshots normally false)",
+17:     "22": "COPY bad (early snapshot is not final rejection reason)",
+18:     "23": "COPY done (early snapshot is not final completion)"
+19:   },
+20:   "mem_events": {
+21:     "0": "native_issue (CLEAR pixel engine)",
+22:     "1": "pixel producer valid native_valid OR cache_valid OR copy_valid, NOT v1_valid alias of pending",
+23:     "2": "v1_pending",
+24:     "3": "v1_accepted"
+25:   },
+26:   "sticky_contract": "Clear at acknowledged ARM; OR every subsequent GPU edge including SNAP edge; continue accumulating after SNAP until next ARM; held changes only at SNAP. Host waits for arm acknowledgement before command. ARM wins over coincident SNAP/events.",
+27:   "limits": [
+28:     "Eight width bits only, not entire COPY descriptor.",
+29:     "Two capture edges at COPY_START and next edge; later validation result not captured by those samples.",
+30:     "Sticky flags establish occurrence, not counts, order or temporal coincidence.",
+31:     "No new functional GPU/DDR/PLL/reset driver permitted.",
+32:     "Instrumented route and hardware must be validated separately; simulation cannot certify physical capture."
+33:   ]
+34: }
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_netlist_01/reset_class_01.json SHA256 9afc9f5f955f06d0e05ed0952f1b4fdb8dfca9019eee7396525fc1c2b7be6cab
+1: {
+2:   "hardware_access": false,
+3:   "inv_count": 107,
+4:   "split_count": 10,
+5:   "inv_with_cell": 107,
+6:   "inv_with_outgoing_edge": 97,
+7:   "split_with_cell": 10,
+8:   "split_with_outgoing_edge": 0,
+9:   "reset_sinks": {
+10:     "DFFRE/RESET": {
+11:       "sinks": 2612,
+12:       "with_timing_check": 2612,
+13:       "with_interconnect": 0
+14:     },
+15:     "DFFSE/SET": {
+16:       "sinks": 38,
+17:       "with_timing_check": 38,
+18:       "with_interconnect": 0
+19:     }
+20:   },
+21:   "reset_driver_clear_has_edge": false,
+22:   "mrst0_driver_of_debug42": {
+23:     "u_accel/mrst_0_s0": {
+24:       "kind": "DFFCE",
+25:       "ports": {
+26:         "D": "VCC",
+27:         "CLK": "gpu_clk",
+28:         "CE": "VCC",
+29:         "CLEAR": "u_scan_observe/gowin_split_inv_from_n6_s2_onet",
+30:         "Q": "gpu_debug_state[42]"
+31:       },
+32:       "init": "1'b0"
+33:     }
+34:   },
+35:   "reports": {
+36:     "tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.tr": {
+37:       "sha256": "58005fba0ac890af1b66c12094a5aea7aa6f64a7de580b0e2e7cea336f3d25a7",
+38:       "split_mentions": 0,
+39:       "driver_mentions": 6,
+40:       "unrouted_related_lines": []
+41:     },
+42:     "tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.rpt.txt": {
+43:       "sha256": "b1539d51568dc8a4eaeb1af1fb6fd260845ca349a7e14b17881ac544866558cb",
+44:       "split_mentions": 0,
+45:       "driver_mentions": 0,
+46:       "unrouted_related_lines": []
+47:     },
+48:     "tang/impl/console_neo_n56r19_capture_ce_local/build.log": {
+49:       "sha256": "f7d5dd5d7b0318d6b6536bfa3ec9b8db9a1cb94b3db3e222cab30e121b5145b7",
+50:       "split_mentions": 0,
+51:       "driver_mentions": 0,
+52:       "unrouted_related_lines": []
+53:     }
+54:   },
+55:   "limits": [
+56:     "Missing finite STA report paths do not imply unconstrained or unanalyzed paths.",
+57:     "No matching unrouted message is not an explicit zero-unrouted count.",
+58:     "SDF coverage omission is not proof of an open physical net."
+59:   ]
+60: }

@@ -1,0 +1,140 @@
+{
+  "18ff0f7e-9a44-4c95-b1b8-842dcc95a4b4": {
+    "prompt": [
+      35,
+      "18ff0f7e-9a44-4c95-b1b8-842dcc95a4b4",
+      {
+        "load": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "luma_kick_scooter_illustrated_00001_.png [output]"
+          }
+        },
+        "model": {
+          "class_type": "LoadBackgroundRemovalModel",
+          "inputs": {
+            "bg_removal_name": "birefnet.safetensors"
+          }
+        },
+        "crop_00": {
+          "class_type": "ImageCrop",
+          "inputs": {
+            "image": [
+              "load",
+              0
+            ],
+            "width": 512,
+            "height": 512,
+            "x": 0,
+            "y": 0
+          }
+        },
+        "mask": {
+          "class_type": "RemoveBackground",
+          "inputs": {
+            "bg_removal_model": [
+              "model",
+              0
+            ],
+            "image": [
+              "crop_00",
+              0
+            ]
+          }
+        },
+        "invert": {
+          "class_type": "InvertMask",
+          "inputs": {
+            "mask": [
+              "mask",
+              0
+            ]
+          }
+        },
+        "rgba": {
+          "class_type": "JoinImageWithAlpha",
+          "inputs": {
+            "image": [
+              "crop_00",
+              0
+            ],
+            "alpha": [
+              "invert",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "rgba",
+              0
+            ],
+            "filename_prefix": "luma_kick_scooter_illustrated_cutout"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792795708753
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "luma_kick_scooter_illustrated_cutout_00001_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 512,
+              "height": 512
+            },
+            "id": "efe175f3-09a4-4932-9e92-515939bc1979"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "18ff0f7e-9a44-4c95-b1b8-842dcc95a4b4",
+            "timestamp": 1792795708753
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "18ff0f7e-9a44-4c95-b1b8-842dcc95a4b4",
+            "timestamp": 1792795708756
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "18ff0f7e-9a44-4c95-b1b8-842dcc95a4b4",
+            "timestamp": 1792795710080
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

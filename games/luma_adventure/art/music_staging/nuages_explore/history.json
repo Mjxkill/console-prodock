@@ -1,0 +1,162 @@
+{
+  "f5c5c9fa-8678-491e-9529-365083d3deca": {
+    "prompt": [
+      24,
+      "f5c5c9fa-8678-491e-9529-365083d3deca",
+      {
+        "1": {
+          "class_type": "CheckpointLoaderSimple",
+          "inputs": {
+            "ckpt_name": "yue2_3b_int8_convrot.safetensors"
+          }
+        },
+        "2": {
+          "class_type": "YuE2GenerateMusic",
+          "inputs": {
+            "clip": [
+              "1",
+              1
+            ],
+            "style": "Original instrumental fantasy adventure game soundtrack, intimate acoustic ensemble, warm living world, tender curiosity and ancient mystery, expressive human phrasing, organic room acoustics, clear melody with space between phrases, restrained dynamics, no vocals, no singing, no speech, no choir, no cinematic trailer hits. soaring flute, transparent string harmonics, harp arpeggios, soft French horn, vast cloud ocean, weightless rising phrases, wonder with no bombast",
+            "lyrics": "",
+            "abc": "X:1\nT:La Mer des Nuages\nM:4/4\nL:1/8\nQ:1/4=92\nK:D\n\"D\"D2 A2 B2 d2 | \"G\"B3 A G2 E2 | \"D\"F2 A2 d3 A | \"A\"E4 z4 |\n\"Bm\"B2 d2 e2 d2 | \"G\"B3 A G2 E2 | \"A\"F2 E2 D2 E2 | \"D\"D6 z2 |]\n",
+            "seed": 2026102312,
+            "mode": "full",
+            "max_duration": 64.0,
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "top_k": 100,
+            "repetition_penalty": 1.2,
+            "cfg_scale": 1.0
+          }
+        },
+        "3": {
+          "class_type": "ConditioningZeroOut",
+          "inputs": {
+            "conditioning": [
+              "2",
+              0
+            ]
+          }
+        },
+        "4": {
+          "class_type": "EmptyYuE2LatentAudio",
+          "inputs": {
+            "seconds": [
+              "2",
+              1
+            ],
+            "batch_size": 1
+          }
+        },
+        "5": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": [
+              "1",
+              0
+            ],
+            "positive": [
+              "2",
+              0
+            ],
+            "negative": [
+              "3",
+              0
+            ],
+            "latent_image": [
+              "4",
+              0
+            ],
+            "seed": 2026102312,
+            "steps": 32,
+            "cfg": 1.0,
+            "sampler_name": "dpm_2",
+            "scheduler": "sgm_uniform",
+            "denoise": 1.0
+          }
+        },
+        "6": {
+          "class_type": "VAEDecodeAudio",
+          "inputs": {
+            "samples": [
+              "5",
+              0
+            ],
+            "vae": [
+              "1",
+              2
+            ]
+          }
+        },
+        "7": {
+          "class_type": "SaveAudio",
+          "inputs": {
+            "audio": [
+              "6",
+              0
+            ],
+            "filename_prefix": "luma_yue2/nuages_explore"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792794424873
+      },
+      [
+        "7"
+      ]
+    ],
+    "outputs": {
+      "7": {
+        "audio": [
+          {
+            "filename": "nuages_explore_00001.flac",
+            "subfolder": "luma_yue2",
+            "type": "output",
+            "id": "76f61965-b9bf-47d1-8c8e-391fe443ffdb"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "f5c5c9fa-8678-491e-9529-365083d3deca",
+            "timestamp": 1792794424873
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "1"
+            ],
+            "prompt_id": "f5c5c9fa-8678-491e-9529-365083d3deca",
+            "timestamp": 1792794424874
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "f5c5c9fa-8678-491e-9529-365083d3deca",
+            "timestamp": 1792794445768
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "7": {
+        "node_id": "7",
+        "display_node": "7",
+        "parent_node": null,
+        "real_node_id": "7"
+      }
+    }
+  }
+}

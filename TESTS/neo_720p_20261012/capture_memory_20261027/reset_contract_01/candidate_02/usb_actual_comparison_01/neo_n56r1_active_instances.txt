@@ -1,0 +1,103 @@
+USB_Device_Controller_Top u_usb_device_controller_top (
+    .rst_usb(rst_usb),
+    .usb_txcork(usb_txcork),
+    .usb_rxrdy(usb_rxrdy),
+    .phy_clk(phy_clk),
+    .PHY_TXREADY(PHY_TXREADY),
+    .n1006_3(n1006_3),
+    .PHY_RXACTIVE(PHY_RXACTIVE),
+    .PHY_RXVALID(PHY_RXVALID),
+    .PHY_RXERROR(PHY_RXERROR),
+    .usb_txdat_len(usb_txdat_len[11:0]),
+    .PHY_LINESTATE(PHY_LINESTATE[1:0]),
+    .usb_txdat(usb_txdat[7:0]),
+    .DESCROM_RDAT(DESCROM_RDAT[7:0]),
+    .PHY_DATAIN(PHY_DATAIN[7:0]),
+    .inf_alter_i(inf_alter_i[7:0]),
+    .PHY_TXVALID(PHY_TXVALID),
+    .usb_rxact(usb_rxact),
+    .setup_active(setup_active),
+    .usb_txpktfin(usb_txpktfin),
+    .usb_rxval(usb_rxval),
+    .usb_rxpktval(usb_rxpktval),
+    .PHY_RESET(PHY_RESET),
+    .usb_highspeed(usb_highspeed),
+    .PHY_TERMSELECT(PHY_TERMSELECT),
+    .n316_8_3(n316_8_3),
+    .usb_txpop(usb_txpop),
+    .usb_sof(usb_sof),
+    .usb_online(usb_online),
+    .inf_set_o(inf_set_o),
+    .controller_dataout(controller_dataout[7:0]),
+    .PHY_OPMODE(PHY_OPMODE[1:0]),
+    .usb_rxdat(usb_rxdat[7:0]),
+    .DESCROM_RADDR(DESCROM_RADDR[8:0]),
+    .fifo_diagnostic(fifo_diagnostic_144[25]),
+    .PHY_XCVRSELECT(PHY_XCVRSELECT[0]),
+    .endpt_sel(endpt_sel[3:0]),
+    .inf_alter_o(inf_alter_o[7:0]),
+    .inf_sel_o(inf_sel_o[7:0])
+);
+
+USB2_0_SoftPHY_Top u_usb_softphy_top (
+    .rst_usb(rst_usb),
+    .PHY_RESET(PHY_RESET),
+    .usb_app_reset(usb_app_reset),
+    .PHY_TERMSELECT(PHY_TERMSELECT),
+    .fclk_960m(fclk_960m),
+    .n316_8_3(n316_8_3),
+    .phy_clk(phy_clk),
+    .PHY_TXVALID(PHY_TXVALID),
+    .usb_rxdp_i_d(usb_rxdp_i_d),
+    .usb_rxdn_i_d(usb_rxdn_i_d),
+    .PHY_XCVRSELECT(PHY_XCVRSELECT[0]),
+    .PHY_OPMODE(PHY_OPMODE[1:0]),
+    .PHY_DATAOUT(PHY_DATAOUT[7:0]),
+    .usb_pullup_en_o(usb_pullup_en_o),
+    .PHY_TXREADY(PHY_TXREADY),
+    .PHY_RXVALID(PHY_RXVALID),
+    .PHY_RXACTIVE(PHY_RXACTIVE),
+    .n19_6(n19_6),
+    .PHY_RXERROR(PHY_RXERROR),
+    .fs_rxerror(fs_rxerror),
+    .PHY_DATAIN(PHY_DATAIN[7:0]),
+    .PHY_LINESTATE(PHY_LINESTATE[1:0]),
+    .usb_term_dp_io(usb_term_dp_io),
+    .usb_term_dn_io(usb_term_dn_io),
+    .usb_dxp_io(usb_dxp_io),
+    .usb_dxn_io(usb_dxn_io)
+);
+
+Gowin_PLL_F u_pll_f (
+    .clk_d(clk_d),
+    .pll_f_lock(pll_f_lock),
+    .clk48(clk48)
+);
+
+Gowin_PLL_B u_pll_b (
+    .clk48(clk48),
+    .pll_b_reset(pll_b_reset),
+    .pll_b_lock(pll_b_lock),
+    .fclk_960m(fclk_960m),
+    .phy_clk(phy_clk)
+);
+
+usb_reset_release u_usb_ref_start (
+    .clk_d(clk_d),
+    .pll_f_lock(pll_f_lock),
+    .pll_b_reset(pll_b_reset)
+);
+
+usb_reset_release_0 u_usb_phy_start (
+    .clk_d(clk_d),
+    .pll_b_reset(pll_b_reset),
+    .pll_b_lock(pll_b_lock),
+    .pll_f_lock(pll_f_lock),
+    .phy_lock_reset(phy_lock_reset)
+);
+
+usb_reset_release_1 u_usb_controller_start (
+    .phy_clk(phy_clk),
+    .phy_lock_reset(phy_lock_reset),
+    .rst_usb(rst_usb)
+);

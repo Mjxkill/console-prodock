@@ -1,0 +1,17 @@
+LUMA R7 — comparaison par mots, essai non retenu
+
+Mêmes ressources que R5/R6, FPGA G22r0 et Linux R17 conservés.
+Trois fenêtres silencieuses de 600 images après 120 images d'échauffement.
+Exécution PASS, cinq compteurs GPU à zéro ; NEBULA restauré et vérifié après
+cinq secondes. Ressources réutilisées depuis R5 et CRC revérifiés au chargement.
+
+walk : 51.91 FPS, p95 <= 29.7 ms, p99 <= 37.3 ms, max 54.852 ms ; 22/600 images > 33,333 ms.
+horse : 51.93 FPS, p95 <= 29.7 ms, p99 <= 39.0 ms, max 55.153 ms ; 25/600 images > 33,333 ms.
+sanctuary : 47.74 FPS, p95 <= 36.6 ms, p99 <= 55.2 ms, max 83.750 ms ; 61/600 images > 33,333 ms.
+
+Salle 22 : 47,74 FPS / p95 36,6 ms ; meilleure que R6 mais moins bonne que
+R5 (49,51 FPS / p95 35,5 ms). La comparaison par huit mots supprime bien
+la boucle par octets (désassemblage conservé) sans suffire à rentabiliser
+le cache supplémentaire. Le chemin R5 reste le meilleur de ces trois essais.
+Aucun retrait de décor ou d'effet. Le critère p95 reste manqué en sanctuaire.
+La durée d'une partie humaine et la qualification Neo restent en attente.

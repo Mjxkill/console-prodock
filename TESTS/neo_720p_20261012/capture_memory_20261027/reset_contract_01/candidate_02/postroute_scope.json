@@ -1,0 +1,38 @@
+{
+  "parent": "tang/impl/console_neo_n56r21r1_capture_memory",
+  "candidate": "tang/impl/console_neo_n56r21r2_resetqual_coupled",
+  "allowed_new_outside_helper": [
+    "neo_qualified_pll_lut",
+    "u_soc/neo_qualified_clear_lut"
+  ],
+  "allowed_changed_parent_inputs": {
+    "u_soc/init_sync_0_s0": [
+      "CLEAR"
+    ],
+    "u_soc/init_sync_1_s0": [
+      "CLEAR"
+    ]
+  },
+  "helper_prefix": "u_reset_trial/",
+  "preserved_clock_reset_chains": [
+    "ae350_rst_sync_0_s0",
+    "ae350_rst_sync_1_s0",
+    "u_soc/init_sync_0_s0",
+    "u_soc/init_sync_1_s0"
+  ],
+  "helper_synchronizers": [
+    "u_reset_trial/ready_meta_0_s0",
+    "u_reset_trial/ready_meta_1_s0",
+    "u_reset_trial/reset_meta_0_s0",
+    "u_reset_trial/reset_meta_1_s0"
+  ],
+  "requirements": [
+    "Primitive type and INIT preservation outside helper, except exact2CLEARconnections plus2LUTs.",
+    "Exact helper mapped cell and internal driver identity, UART unchanged, external port connections proved.",
+    "SDC/TR clock periods agree, both intra-domain stages constrained.",
+    "New CLEAR recovery/removal report paths and SDF requirements enumerated; absent evidence stays missing.",
+    "No async pulse-width or hardCPU reset contract inferred from STA or SDFabsence.",
+    "No claim LW routing is intrinsically erroneous."
+  ],
+  "hardware_access": false
+}

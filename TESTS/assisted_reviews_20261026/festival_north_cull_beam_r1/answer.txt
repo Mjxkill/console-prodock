@@ -1,0 +1,60 @@
+```c
+#ifndef FESTIVAL_SPHERE_H
+#define FESTIVAL_SPHERE_H
+
+#include <math.h>
+
+static inline int festival_sphere_visible(float x, float y, float z,
+                                         float radius, float near_z, float far_z,
+                                         float sx, float sy)
+{
+    double X = (double)x;
+    double Y = (double)y;
+    double Z = (double)z;
+    double R = (double)radius;
+    double N = (double)near_z;
+    double F = (double)far_z;
+    double Sx = (double)sx;
+    double Sy = (double)sy;
+
+    if (!isfinite(X) || !isfinite(Y) || !isfinite(Z) ||
+        !isfinite(R) || !isfinite(N) || !isfinite(F) ||
+        !isfinite(Sx) || !isfinite(Sy))
+        return 1;
+
+    if (R < 0.0 || N < 0.0 || F <= N || Sx <= 0.0 || Sy <= 0.0)
+        return 1;
+
+    /* Near/far planes. Tangency is retained by strict tests. */
+    if (Z < N - R)
+        return 0;
+    if (Z > F + R)
+        return 0;
+
+    /* Left/right planes. Squaring is done only for negative outer distances. */
+    {
+        double limit_x = R * R * (1.0 + Sx * Sx);
+        double left = X + Z * Sx;
+        if (left < 0.0 && left * left > limit_x)
+            return 0;
+        double right = Sx * Z - X;
+        if (right < 0.0 && right * right > limit_x)
+            return 0;
+    }
+
+    /* Bottom/top planes. */
+    {
+        double limit_y = R * R * (1.0 + Sy * Sy);
+        double bottom = Y + Z * Sy;
+        if (bottom < 0.0 && bottom * bottom > limit_y)
+            return 0;
+        double top = Sy * Z - Y;
+        if (top < 0.0 && top * top > limit_y)
+            return 0;
+    }
+
+    return 1;
+}
+
+#endif
+```

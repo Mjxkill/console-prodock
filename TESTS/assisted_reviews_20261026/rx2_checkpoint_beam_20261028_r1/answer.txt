@@ -1,0 +1,129 @@
+**Faits saisis**
+- Format observé : `RX2 <nonce32hex> <statut> <seq8hex> <offset8hex> <prefixCRC8hex> <reason8hex> <lineCRC8hex>`.
+- `lineCRC` protège tout ce qui précède le dernier espace.
+- La durabilité d’un offset exige : CRC de ligne valide, `ceil(offset/512) == seq`, et `zlib.crc32(payload[:offset]) == prefixCRC`.
+- Les `N` sont des répétitions/non-acceptations ; `X` avec `reason=2` est une sortie propre et rapporte le dernier offset traité.
+- Les `A` dupliqués ne font pas avancer l’offset par leur nombre.
+- Le marqueur final `RX2_RETURN_<nonce>:2` confirme la fin du wrapper, mais il ne remplace pas les vérifications CRC.
+
+**Hypothèse retenue**
+On conserve le maximum offset parmi les lignes valides de statut `A` ou `X` (avec `reason == 2` pour `X`). Les autres statuts sont ignorés. Les lignes mal formées ou CRC-invalides sont ignorées. Pour les données fournies, si tous les CRC sont valides contre le payload, le dernier offset durable est `0x000dcc00`.
+
+**Élément manquant**
+- Le payload réel n’est pas fourni, donc impossible de revérifier ici les CRC de champ réel. Les tests ci-dessous construisent leur propre payload et recalculent les CRC.
+
+```python
+import zlib
+
+def last_durable_offset(lines, payload, *, chunk_size=512):
+    best = 0
+    expected_nonce = None
+
+    for raw in lines:
+        line = raw.decode("ascii", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw)
+        line = line.rstrip("\r\n")
+
+        # Marqueur de fin du wrapper, sans CRC de ligne.
+        if line.startswith("RX2_RETURN_"):
+            nonce_part, sep, code = line[len("RX2_RETURN_"):].partition(":")
+            if sep and code == "2" and expected_nonce is None:
+                expected_nonce = nonce_part
+            continue
+
+        parts = line.split(" ")
+        if len(parts) != 8 or parts[0] != "RX2":
+            continue
+
+        _, nonce, status, seq_hex, off_hex, prefix_hex, reason_hex, line_crc_hex = parts
+        if not all(len(x) == expected for x, expected in (
+            (nonce, 32), (seq_hex, 8), (off_hex, 8),
+            (prefix_hex, 8), (reason_hex, 8), (line_crc_hex, 8)
+        )):
+            continue
+        if len(status) != 1:
+            continue
+
+        try:
+            seq = int(seq_hex, 16)
+            offset = int(off_hex, 16)
+            prefix_crc = int(prefix_hex, 16)
+            reason = int(reason_hex, 16)
+            line_crc = int(line_crc_hex, 16)
+        except ValueError:
+            continue
+
+        if expected_nonce is None:
+            expected_nonce = nonce
+        elif nonce != expected_nonce:
+            continue
+
+        # CRC de ligne : tout ce qui précède le dernier espace.
+        before_final_space = line[:line.rfind(" ")]
+        try:
+            computed_line_crc = zlib.crc32(before_final_space.encode("ascii")) & 0xffffffff
+        except (UnicodeEncodeError, ValueError):
+            continue
+        if computed_line_crc != line_crc:
+            continue
+
+        # Contrainte seq / offset : ceil(offset / chunk_size).
+        if offset == 0:
+            expected_seq = 0
+        else:
+            expected_seq = (offset - 1) // chunk_size + 1
+        if seq != expected_seq:
+            continue
+
+        if offset < 0 or offset > len(payload):
+            continue
+        if (zlib.crc32(payload[:offset]) & 0xffffffff) != prefix_crc:
+            continue
+
+        # Seuls A et X avec sortie propre sont durables.
+        if status == "A":
+            pass
+        elif status == "X":
+            if reason != 2:
+                continue
+        else:
+            continue
+
+        if offset > best:
+            best = offset
+
+    return best
+```
+
+```python
+import zlib
+
+def _rx2_line(nonce, status, seq, offset, payload, reason=0):
+    prefix = zlib.crc32(payload[:offset]) & 0xffffffff
+    before = f"RX2 {nonce} {status} {seq:08x} {offset:08x} {prefix:08x} {reason:08x}"
+    crc = zlib.crc32(before.encode("ascii")) & 0xffffffff
+    return f"{before} {crc:08x}"
+
+def test_01_duplicate_acks_do_not_inflate_offset():
+    payload = bytes((i * 37 + 11) % 256 for i in range(1024))
+    nonce = "a" * 32
+    lines = [
+        _rx2_line(nonce, "A", 1, 0x200, payload),
+        _rx2_line(nonce, "A", 2, 0x400, payload),
+        _rx2_line(nonce, "A", 2, 0x400, payload),  # doublon ACK
+        _rx2_line(nonce, "N", 2, 0x400, payload, reason=1),  # non-acceptation
+    ]
+    assert last_durable_offset(lines, payload) == 0x400
+
+def test_02_tampered_crc_is_rejected():
+    payload = bytes((i * 37 + 11) % 256 for i in range(1024))
+    nonce = "a" * 32
+    valid = _rx2_line(nonce, "A", 1, 0x200, payload)
+    forged_prefix = _rx2_line(nonce, "A", 2, 0x400, payload).replace(
+        # préfixe CRC falsifié, mais CRC de ligne recalculé pour faire passer la ligne côté transport
+        _rx2_line(nonce, "A", 2, 0x400, payload).split()[5],
+        "00000000", 1
+    )
+    # CRC de ligne falsifié directement.
+    forged_line_crc = valid[:-1] + ("f" if valid[-1] != "f" else "0")
+    assert last_durable_offset([valid, forged_prefix, forged_line_crc], payload) == 0x200
+```

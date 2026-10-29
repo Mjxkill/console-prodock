@@ -6,6 +6,8 @@ from pathlib import Path
 import struct
 import subprocess
 import zlib
+import argparse
+import sys
 HERE = Path(__file__).resolve().parent
 BUILD = HERE / 'build'
 LAYOUT = {1: (0x06000000, 0x06000000, 0x800000),
@@ -24,6 +26,13 @@ def wrap(data, kind):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--candidate', action='store_true')
+    args = parser.parse_args()
+    sys.path.insert(0, str(HERE.parent/'tools'))
+    from board_contract import before_build, record_build
+    contract = before_build('prodock', candidate=args.candidate)
+    record_build(BUILD, contract)
     out = BUILD / 'sd/PRODOCK'; out.mkdir(parents=True, exist_ok=True)
     items = [('UBOOT.BIN', 1, BUILD / 'uboot/out/u-boot.bin'),
              ('LINUX.BIN', 2, BUILD / 'opensbi/platform/generic/firmware/fw_payload.bin')]

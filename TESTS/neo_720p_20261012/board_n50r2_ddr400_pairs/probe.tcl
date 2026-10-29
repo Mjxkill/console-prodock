@@ -1,0 +1,2577 @@
+riscv expose_csrs 1994,1996,2000
+init
+halt
+riscv set_enable_virt2phys off
+set pc [lindex [reg pc] 2]
+if {($pc != 0x80000000 && $pc != 0x80000004) || [lindex [reg priv] 2] != 3} {error "CPU is not in the boot parking loop"}
+set parking [read_memory 0x80000000 32 2]
+if {[lindex $parking 0] != 0x10500073 || [lindex $parking 1] != 0xffdff06f} {error "Boot parking fingerprint differs"}
+reg priv 3
+reg satp 0
+reg mstatus 0
+reg mie 0
+reg csr1996 6
+reg csr1994 0
+echo NEO_ADDRESS_PAIRS_BEGIN
+write_memory 0x12000000 32 {0x13179bdf}
+write_memory 0x12000010 32 {0xece86420}
+echo "PAIR 0 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 0 1 b [read_memory 0x12000010 32 1]"
+echo "PAIR 0 2 b [read_memory 0x12000010 32 1]"
+echo "PAIR 0 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 0 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 0 5 b [read_memory 0x12000010 32 1]"
+echo "PAIR 0 6 b [read_memory 0x12000010 32 1]"
+echo "PAIR 0 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000010 32 {0xece86420}
+write_memory 0x12000000 32 {0x13179bdf}
+echo "PAIR 1 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 1 1 b [read_memory 0x12000010 32 1]"
+echo "PAIR 1 2 b [read_memory 0x12000010 32 1]"
+echo "PAIR 1 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 1 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 1 5 b [read_memory 0x12000010 32 1]"
+echo "PAIR 1 6 b [read_memory 0x12000010 32 1]"
+echo "PAIR 1 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000000 32 {0xece86420}
+write_memory 0x12000010 32 {0x13179bdf}
+echo "PAIR 2 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 2 1 b [read_memory 0x12000010 32 1]"
+echo "PAIR 2 2 b [read_memory 0x12000010 32 1]"
+echo "PAIR 2 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 2 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 2 5 b [read_memory 0x12000010 32 1]"
+echo "PAIR 2 6 b [read_memory 0x12000010 32 1]"
+echo "PAIR 2 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000010 32 {0x13179bdf}
+write_memory 0x12000000 32 {0xece86420}
+echo "PAIR 3 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 3 1 b [read_memory 0x12000010 32 1]"
+echo "PAIR 3 2 b [read_memory 0x12000010 32 1]"
+echo "PAIR 3 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 3 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 3 5 b [read_memory 0x12000010 32 1]"
+echo "PAIR 3 6 b [read_memory 0x12000010 32 1]"
+echo "PAIR 3 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000004 32 {0x121598db}
+write_memory 0x12000014 32 {0xedea6724}
+echo "PAIR 4 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 4 1 b [read_memory 0x12000014 32 1]"
+echo "PAIR 4 2 b [read_memory 0x12000014 32 1]"
+echo "PAIR 4 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 4 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 4 5 b [read_memory 0x12000014 32 1]"
+echo "PAIR 4 6 b [read_memory 0x12000014 32 1]"
+echo "PAIR 4 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000014 32 {0xedea6724}
+write_memory 0x12000004 32 {0x121598db}
+echo "PAIR 5 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 5 1 b [read_memory 0x12000014 32 1]"
+echo "PAIR 5 2 b [read_memory 0x12000014 32 1]"
+echo "PAIR 5 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 5 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 5 5 b [read_memory 0x12000014 32 1]"
+echo "PAIR 5 6 b [read_memory 0x12000014 32 1]"
+echo "PAIR 5 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000004 32 {0xedea6724}
+write_memory 0x12000014 32 {0x121598db}
+echo "PAIR 6 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 6 1 b [read_memory 0x12000014 32 1]"
+echo "PAIR 6 2 b [read_memory 0x12000014 32 1]"
+echo "PAIR 6 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 6 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 6 5 b [read_memory 0x12000014 32 1]"
+echo "PAIR 6 6 b [read_memory 0x12000014 32 1]"
+echo "PAIR 6 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000014 32 {0x121598db}
+write_memory 0x12000004 32 {0xedea6724}
+echo "PAIR 7 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 7 1 b [read_memory 0x12000014 32 1]"
+echo "PAIR 7 2 b [read_memory 0x12000014 32 1]"
+echo "PAIR 7 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 7 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 7 5 b [read_memory 0x12000014 32 1]"
+echo "PAIR 7 6 b [read_memory 0x12000014 32 1]"
+echo "PAIR 7 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000008 32 {0x11139dd7}
+write_memory 0x12000018 32 {0xeeec6228}
+echo "PAIR 8 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 8 1 b [read_memory 0x12000018 32 1]"
+echo "PAIR 8 2 b [read_memory 0x12000018 32 1]"
+echo "PAIR 8 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 8 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 8 5 b [read_memory 0x12000018 32 1]"
+echo "PAIR 8 6 b [read_memory 0x12000018 32 1]"
+echo "PAIR 8 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000018 32 {0xeeec6228}
+write_memory 0x12000008 32 {0x11139dd7}
+echo "PAIR 9 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 9 1 b [read_memory 0x12000018 32 1]"
+echo "PAIR 9 2 b [read_memory 0x12000018 32 1]"
+echo "PAIR 9 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 9 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 9 5 b [read_memory 0x12000018 32 1]"
+echo "PAIR 9 6 b [read_memory 0x12000018 32 1]"
+echo "PAIR 9 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000008 32 {0xeeec6228}
+write_memory 0x12000018 32 {0x11139dd7}
+echo "PAIR 10 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 10 1 b [read_memory 0x12000018 32 1]"
+echo "PAIR 10 2 b [read_memory 0x12000018 32 1]"
+echo "PAIR 10 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 10 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 10 5 b [read_memory 0x12000018 32 1]"
+echo "PAIR 10 6 b [read_memory 0x12000018 32 1]"
+echo "PAIR 10 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000018 32 {0x11139dd7}
+write_memory 0x12000008 32 {0xeeec6228}
+echo "PAIR 11 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 11 1 b [read_memory 0x12000018 32 1]"
+echo "PAIR 11 2 b [read_memory 0x12000018 32 1]"
+echo "PAIR 11 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 11 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 11 5 b [read_memory 0x12000018 32 1]"
+echo "PAIR 11 6 b [read_memory 0x12000018 32 1]"
+echo "PAIR 11 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x1200000c 32 {0x101192d3}
+write_memory 0x1200001c 32 {0xefee6d2c}
+echo "PAIR 12 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 12 1 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 12 2 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 12 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 12 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 12 5 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 12 6 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 12 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200001c 32 {0xefee6d2c}
+write_memory 0x1200000c 32 {0x101192d3}
+echo "PAIR 13 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 13 1 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 13 2 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 13 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 13 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 13 5 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 13 6 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 13 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200000c 32 {0xefee6d2c}
+write_memory 0x1200001c 32 {0x101192d3}
+echo "PAIR 14 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 14 1 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 14 2 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 14 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 14 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 14 5 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 14 6 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 14 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200001c 32 {0x101192d3}
+write_memory 0x1200000c 32 {0xefee6d2c}
+echo "PAIR 15 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 15 1 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 15 2 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 15 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 15 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 15 5 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 15 6 b [read_memory 0x1200001c 32 1]"
+echo "PAIR 15 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x12000580 32 {0x13179e5f}
+write_memory 0x12000590 32 {0xece861a0}
+echo "PAIR 16 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 16 1 b [read_memory 0x12000590 32 1]"
+echo "PAIR 16 2 b [read_memory 0x12000590 32 1]"
+echo "PAIR 16 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 16 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 16 5 b [read_memory 0x12000590 32 1]"
+echo "PAIR 16 6 b [read_memory 0x12000590 32 1]"
+echo "PAIR 16 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000590 32 {0xece861a0}
+write_memory 0x12000580 32 {0x13179e5f}
+echo "PAIR 17 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 17 1 b [read_memory 0x12000590 32 1]"
+echo "PAIR 17 2 b [read_memory 0x12000590 32 1]"
+echo "PAIR 17 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 17 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 17 5 b [read_memory 0x12000590 32 1]"
+echo "PAIR 17 6 b [read_memory 0x12000590 32 1]"
+echo "PAIR 17 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000580 32 {0xece861a0}
+write_memory 0x12000590 32 {0x13179e5f}
+echo "PAIR 18 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 18 1 b [read_memory 0x12000590 32 1]"
+echo "PAIR 18 2 b [read_memory 0x12000590 32 1]"
+echo "PAIR 18 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 18 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 18 5 b [read_memory 0x12000590 32 1]"
+echo "PAIR 18 6 b [read_memory 0x12000590 32 1]"
+echo "PAIR 18 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000590 32 {0x13179e5f}
+write_memory 0x12000580 32 {0xece861a0}
+echo "PAIR 19 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 19 1 b [read_memory 0x12000590 32 1]"
+echo "PAIR 19 2 b [read_memory 0x12000590 32 1]"
+echo "PAIR 19 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 19 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 19 5 b [read_memory 0x12000590 32 1]"
+echo "PAIR 19 6 b [read_memory 0x12000590 32 1]"
+echo "PAIR 19 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000584 32 {0x12159d5b}
+write_memory 0x12000594 32 {0xedea62a4}
+echo "PAIR 20 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 20 1 b [read_memory 0x12000594 32 1]"
+echo "PAIR 20 2 b [read_memory 0x12000594 32 1]"
+echo "PAIR 20 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 20 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 20 5 b [read_memory 0x12000594 32 1]"
+echo "PAIR 20 6 b [read_memory 0x12000594 32 1]"
+echo "PAIR 20 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000594 32 {0xedea62a4}
+write_memory 0x12000584 32 {0x12159d5b}
+echo "PAIR 21 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 21 1 b [read_memory 0x12000594 32 1]"
+echo "PAIR 21 2 b [read_memory 0x12000594 32 1]"
+echo "PAIR 21 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 21 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 21 5 b [read_memory 0x12000594 32 1]"
+echo "PAIR 21 6 b [read_memory 0x12000594 32 1]"
+echo "PAIR 21 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000584 32 {0xedea62a4}
+write_memory 0x12000594 32 {0x12159d5b}
+echo "PAIR 22 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 22 1 b [read_memory 0x12000594 32 1]"
+echo "PAIR 22 2 b [read_memory 0x12000594 32 1]"
+echo "PAIR 22 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 22 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 22 5 b [read_memory 0x12000594 32 1]"
+echo "PAIR 22 6 b [read_memory 0x12000594 32 1]"
+echo "PAIR 22 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000594 32 {0x12159d5b}
+write_memory 0x12000584 32 {0xedea62a4}
+echo "PAIR 23 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 23 1 b [read_memory 0x12000594 32 1]"
+echo "PAIR 23 2 b [read_memory 0x12000594 32 1]"
+echo "PAIR 23 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 23 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 23 5 b [read_memory 0x12000594 32 1]"
+echo "PAIR 23 6 b [read_memory 0x12000594 32 1]"
+echo "PAIR 23 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000588 32 {0x11139857}
+write_memory 0x12000598 32 {0xeeec67a8}
+echo "PAIR 24 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 24 1 b [read_memory 0x12000598 32 1]"
+echo "PAIR 24 2 b [read_memory 0x12000598 32 1]"
+echo "PAIR 24 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 24 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 24 5 b [read_memory 0x12000598 32 1]"
+echo "PAIR 24 6 b [read_memory 0x12000598 32 1]"
+echo "PAIR 24 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000598 32 {0xeeec67a8}
+write_memory 0x12000588 32 {0x11139857}
+echo "PAIR 25 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 25 1 b [read_memory 0x12000598 32 1]"
+echo "PAIR 25 2 b [read_memory 0x12000598 32 1]"
+echo "PAIR 25 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 25 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 25 5 b [read_memory 0x12000598 32 1]"
+echo "PAIR 25 6 b [read_memory 0x12000598 32 1]"
+echo "PAIR 25 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000588 32 {0xeeec67a8}
+write_memory 0x12000598 32 {0x11139857}
+echo "PAIR 26 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 26 1 b [read_memory 0x12000598 32 1]"
+echo "PAIR 26 2 b [read_memory 0x12000598 32 1]"
+echo "PAIR 26 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 26 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 26 5 b [read_memory 0x12000598 32 1]"
+echo "PAIR 26 6 b [read_memory 0x12000598 32 1]"
+echo "PAIR 26 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000598 32 {0x11139857}
+write_memory 0x12000588 32 {0xeeec67a8}
+echo "PAIR 27 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 27 1 b [read_memory 0x12000598 32 1]"
+echo "PAIR 27 2 b [read_memory 0x12000598 32 1]"
+echo "PAIR 27 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 27 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 27 5 b [read_memory 0x12000598 32 1]"
+echo "PAIR 27 6 b [read_memory 0x12000598 32 1]"
+echo "PAIR 27 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x1200058c 32 {0x10119753}
+write_memory 0x1200059c 32 {0xefee68ac}
+echo "PAIR 28 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 28 1 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 28 2 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 28 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 28 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 28 5 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 28 6 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 28 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200059c 32 {0xefee68ac}
+write_memory 0x1200058c 32 {0x10119753}
+echo "PAIR 29 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 29 1 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 29 2 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 29 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 29 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 29 5 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 29 6 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 29 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200058c 32 {0xefee68ac}
+write_memory 0x1200059c 32 {0x10119753}
+echo "PAIR 30 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 30 1 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 30 2 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 30 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 30 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 30 5 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 30 6 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 30 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200059c 32 {0x10119753}
+write_memory 0x1200058c 32 {0xefee68ac}
+echo "PAIR 31 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 31 1 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 31 2 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 31 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 31 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 31 5 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 31 6 b [read_memory 0x1200059c 32 1]"
+echo "PAIR 31 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x12000000 32 {0x13079bdf}
+write_memory 0x12000020 32 {0xecf86420}
+echo "PAIR 32 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 32 1 b [read_memory 0x12000020 32 1]"
+echo "PAIR 32 2 b [read_memory 0x12000020 32 1]"
+echo "PAIR 32 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 32 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 32 5 b [read_memory 0x12000020 32 1]"
+echo "PAIR 32 6 b [read_memory 0x12000020 32 1]"
+echo "PAIR 32 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000020 32 {0xecf86420}
+write_memory 0x12000000 32 {0x13079bdf}
+echo "PAIR 33 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 33 1 b [read_memory 0x12000020 32 1]"
+echo "PAIR 33 2 b [read_memory 0x12000020 32 1]"
+echo "PAIR 33 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 33 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 33 5 b [read_memory 0x12000020 32 1]"
+echo "PAIR 33 6 b [read_memory 0x12000020 32 1]"
+echo "PAIR 33 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000000 32 {0xecf86420}
+write_memory 0x12000020 32 {0x13079bdf}
+echo "PAIR 34 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 34 1 b [read_memory 0x12000020 32 1]"
+echo "PAIR 34 2 b [read_memory 0x12000020 32 1]"
+echo "PAIR 34 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 34 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 34 5 b [read_memory 0x12000020 32 1]"
+echo "PAIR 34 6 b [read_memory 0x12000020 32 1]"
+echo "PAIR 34 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000020 32 {0x13079bdf}
+write_memory 0x12000000 32 {0xecf86420}
+echo "PAIR 35 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 35 1 b [read_memory 0x12000020 32 1]"
+echo "PAIR 35 2 b [read_memory 0x12000020 32 1]"
+echo "PAIR 35 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 35 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 35 5 b [read_memory 0x12000020 32 1]"
+echo "PAIR 35 6 b [read_memory 0x12000020 32 1]"
+echo "PAIR 35 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000004 32 {0x120598db}
+write_memory 0x12000024 32 {0xedfa6724}
+echo "PAIR 36 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 36 1 b [read_memory 0x12000024 32 1]"
+echo "PAIR 36 2 b [read_memory 0x12000024 32 1]"
+echo "PAIR 36 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 36 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 36 5 b [read_memory 0x12000024 32 1]"
+echo "PAIR 36 6 b [read_memory 0x12000024 32 1]"
+echo "PAIR 36 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000024 32 {0xedfa6724}
+write_memory 0x12000004 32 {0x120598db}
+echo "PAIR 37 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 37 1 b [read_memory 0x12000024 32 1]"
+echo "PAIR 37 2 b [read_memory 0x12000024 32 1]"
+echo "PAIR 37 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 37 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 37 5 b [read_memory 0x12000024 32 1]"
+echo "PAIR 37 6 b [read_memory 0x12000024 32 1]"
+echo "PAIR 37 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000004 32 {0xedfa6724}
+write_memory 0x12000024 32 {0x120598db}
+echo "PAIR 38 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 38 1 b [read_memory 0x12000024 32 1]"
+echo "PAIR 38 2 b [read_memory 0x12000024 32 1]"
+echo "PAIR 38 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 38 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 38 5 b [read_memory 0x12000024 32 1]"
+echo "PAIR 38 6 b [read_memory 0x12000024 32 1]"
+echo "PAIR 38 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000024 32 {0x120598db}
+write_memory 0x12000004 32 {0xedfa6724}
+echo "PAIR 39 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 39 1 b [read_memory 0x12000024 32 1]"
+echo "PAIR 39 2 b [read_memory 0x12000024 32 1]"
+echo "PAIR 39 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 39 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 39 5 b [read_memory 0x12000024 32 1]"
+echo "PAIR 39 6 b [read_memory 0x12000024 32 1]"
+echo "PAIR 39 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000008 32 {0x11039dd7}
+write_memory 0x12000028 32 {0xeefc6228}
+echo "PAIR 40 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 40 1 b [read_memory 0x12000028 32 1]"
+echo "PAIR 40 2 b [read_memory 0x12000028 32 1]"
+echo "PAIR 40 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 40 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 40 5 b [read_memory 0x12000028 32 1]"
+echo "PAIR 40 6 b [read_memory 0x12000028 32 1]"
+echo "PAIR 40 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000028 32 {0xeefc6228}
+write_memory 0x12000008 32 {0x11039dd7}
+echo "PAIR 41 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 41 1 b [read_memory 0x12000028 32 1]"
+echo "PAIR 41 2 b [read_memory 0x12000028 32 1]"
+echo "PAIR 41 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 41 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 41 5 b [read_memory 0x12000028 32 1]"
+echo "PAIR 41 6 b [read_memory 0x12000028 32 1]"
+echo "PAIR 41 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000008 32 {0xeefc6228}
+write_memory 0x12000028 32 {0x11039dd7}
+echo "PAIR 42 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 42 1 b [read_memory 0x12000028 32 1]"
+echo "PAIR 42 2 b [read_memory 0x12000028 32 1]"
+echo "PAIR 42 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 42 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 42 5 b [read_memory 0x12000028 32 1]"
+echo "PAIR 42 6 b [read_memory 0x12000028 32 1]"
+echo "PAIR 42 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000028 32 {0x11039dd7}
+write_memory 0x12000008 32 {0xeefc6228}
+echo "PAIR 43 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 43 1 b [read_memory 0x12000028 32 1]"
+echo "PAIR 43 2 b [read_memory 0x12000028 32 1]"
+echo "PAIR 43 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 43 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 43 5 b [read_memory 0x12000028 32 1]"
+echo "PAIR 43 6 b [read_memory 0x12000028 32 1]"
+echo "PAIR 43 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x1200000c 32 {0x100192d3}
+write_memory 0x1200002c 32 {0xeffe6d2c}
+echo "PAIR 44 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 44 1 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 44 2 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 44 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 44 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 44 5 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 44 6 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 44 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200002c 32 {0xeffe6d2c}
+write_memory 0x1200000c 32 {0x100192d3}
+echo "PAIR 45 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 45 1 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 45 2 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 45 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 45 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 45 5 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 45 6 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 45 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200000c 32 {0xeffe6d2c}
+write_memory 0x1200002c 32 {0x100192d3}
+echo "PAIR 46 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 46 1 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 46 2 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 46 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 46 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 46 5 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 46 6 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 46 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200002c 32 {0x100192d3}
+write_memory 0x1200000c 32 {0xeffe6d2c}
+echo "PAIR 47 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 47 1 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 47 2 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 47 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 47 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 47 5 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 47 6 b [read_memory 0x1200002c 32 1]"
+echo "PAIR 47 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x12000580 32 {0x13079e5f}
+write_memory 0x120005a0 32 {0xecf861a0}
+echo "PAIR 48 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 48 1 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 48 2 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 48 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 48 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 48 5 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 48 6 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 48 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x120005a0 32 {0xecf861a0}
+write_memory 0x12000580 32 {0x13079e5f}
+echo "PAIR 49 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 49 1 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 49 2 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 49 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 49 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 49 5 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 49 6 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 49 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000580 32 {0xecf861a0}
+write_memory 0x120005a0 32 {0x13079e5f}
+echo "PAIR 50 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 50 1 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 50 2 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 50 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 50 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 50 5 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 50 6 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 50 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x120005a0 32 {0x13079e5f}
+write_memory 0x12000580 32 {0xecf861a0}
+echo "PAIR 51 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 51 1 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 51 2 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 51 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 51 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 51 5 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 51 6 b [read_memory 0x120005a0 32 1]"
+echo "PAIR 51 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000584 32 {0x12059d5b}
+write_memory 0x120005a4 32 {0xedfa62a4}
+echo "PAIR 52 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 52 1 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 52 2 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 52 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 52 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 52 5 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 52 6 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 52 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x120005a4 32 {0xedfa62a4}
+write_memory 0x12000584 32 {0x12059d5b}
+echo "PAIR 53 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 53 1 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 53 2 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 53 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 53 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 53 5 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 53 6 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 53 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000584 32 {0xedfa62a4}
+write_memory 0x120005a4 32 {0x12059d5b}
+echo "PAIR 54 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 54 1 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 54 2 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 54 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 54 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 54 5 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 54 6 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 54 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x120005a4 32 {0x12059d5b}
+write_memory 0x12000584 32 {0xedfa62a4}
+echo "PAIR 55 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 55 1 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 55 2 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 55 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 55 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 55 5 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 55 6 b [read_memory 0x120005a4 32 1]"
+echo "PAIR 55 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000588 32 {0x11039857}
+write_memory 0x120005a8 32 {0xeefc67a8}
+echo "PAIR 56 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 56 1 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 56 2 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 56 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 56 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 56 5 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 56 6 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 56 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x120005a8 32 {0xeefc67a8}
+write_memory 0x12000588 32 {0x11039857}
+echo "PAIR 57 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 57 1 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 57 2 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 57 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 57 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 57 5 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 57 6 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 57 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000588 32 {0xeefc67a8}
+write_memory 0x120005a8 32 {0x11039857}
+echo "PAIR 58 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 58 1 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 58 2 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 58 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 58 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 58 5 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 58 6 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 58 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x120005a8 32 {0x11039857}
+write_memory 0x12000588 32 {0xeefc67a8}
+echo "PAIR 59 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 59 1 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 59 2 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 59 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 59 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 59 5 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 59 6 b [read_memory 0x120005a8 32 1]"
+echo "PAIR 59 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x1200058c 32 {0x10019753}
+write_memory 0x120005ac 32 {0xeffe68ac}
+echo "PAIR 60 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 60 1 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 60 2 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 60 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 60 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 60 5 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 60 6 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 60 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x120005ac 32 {0xeffe68ac}
+write_memory 0x1200058c 32 {0x10019753}
+echo "PAIR 61 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 61 1 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 61 2 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 61 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 61 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 61 5 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 61 6 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 61 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200058c 32 {0xeffe68ac}
+write_memory 0x120005ac 32 {0x10019753}
+echo "PAIR 62 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 62 1 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 62 2 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 62 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 62 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 62 5 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 62 6 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 62 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x120005ac 32 {0x10019753}
+write_memory 0x1200058c 32 {0xeffe68ac}
+echo "PAIR 63 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 63 1 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 63 2 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 63 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 63 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 63 5 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 63 6 b [read_memory 0x120005ac 32 1]"
+echo "PAIR 63 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x12000000 32 {0x13379bdf}
+write_memory 0x12000040 32 {0xecc86420}
+echo "PAIR 64 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 64 1 b [read_memory 0x12000040 32 1]"
+echo "PAIR 64 2 b [read_memory 0x12000040 32 1]"
+echo "PAIR 64 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 64 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 64 5 b [read_memory 0x12000040 32 1]"
+echo "PAIR 64 6 b [read_memory 0x12000040 32 1]"
+echo "PAIR 64 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000040 32 {0xecc86420}
+write_memory 0x12000000 32 {0x13379bdf}
+echo "PAIR 65 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 65 1 b [read_memory 0x12000040 32 1]"
+echo "PAIR 65 2 b [read_memory 0x12000040 32 1]"
+echo "PAIR 65 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 65 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 65 5 b [read_memory 0x12000040 32 1]"
+echo "PAIR 65 6 b [read_memory 0x12000040 32 1]"
+echo "PAIR 65 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000000 32 {0xecc86420}
+write_memory 0x12000040 32 {0x13379bdf}
+echo "PAIR 66 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 66 1 b [read_memory 0x12000040 32 1]"
+echo "PAIR 66 2 b [read_memory 0x12000040 32 1]"
+echo "PAIR 66 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 66 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 66 5 b [read_memory 0x12000040 32 1]"
+echo "PAIR 66 6 b [read_memory 0x12000040 32 1]"
+echo "PAIR 66 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000040 32 {0x13379bdf}
+write_memory 0x12000000 32 {0xecc86420}
+echo "PAIR 67 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 67 1 b [read_memory 0x12000040 32 1]"
+echo "PAIR 67 2 b [read_memory 0x12000040 32 1]"
+echo "PAIR 67 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 67 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 67 5 b [read_memory 0x12000040 32 1]"
+echo "PAIR 67 6 b [read_memory 0x12000040 32 1]"
+echo "PAIR 67 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000004 32 {0x123598db}
+write_memory 0x12000044 32 {0xedca6724}
+echo "PAIR 68 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 68 1 b [read_memory 0x12000044 32 1]"
+echo "PAIR 68 2 b [read_memory 0x12000044 32 1]"
+echo "PAIR 68 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 68 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 68 5 b [read_memory 0x12000044 32 1]"
+echo "PAIR 68 6 b [read_memory 0x12000044 32 1]"
+echo "PAIR 68 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000044 32 {0xedca6724}
+write_memory 0x12000004 32 {0x123598db}
+echo "PAIR 69 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 69 1 b [read_memory 0x12000044 32 1]"
+echo "PAIR 69 2 b [read_memory 0x12000044 32 1]"
+echo "PAIR 69 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 69 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 69 5 b [read_memory 0x12000044 32 1]"
+echo "PAIR 69 6 b [read_memory 0x12000044 32 1]"
+echo "PAIR 69 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000004 32 {0xedca6724}
+write_memory 0x12000044 32 {0x123598db}
+echo "PAIR 70 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 70 1 b [read_memory 0x12000044 32 1]"
+echo "PAIR 70 2 b [read_memory 0x12000044 32 1]"
+echo "PAIR 70 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 70 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 70 5 b [read_memory 0x12000044 32 1]"
+echo "PAIR 70 6 b [read_memory 0x12000044 32 1]"
+echo "PAIR 70 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000044 32 {0x123598db}
+write_memory 0x12000004 32 {0xedca6724}
+echo "PAIR 71 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 71 1 b [read_memory 0x12000044 32 1]"
+echo "PAIR 71 2 b [read_memory 0x12000044 32 1]"
+echo "PAIR 71 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 71 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 71 5 b [read_memory 0x12000044 32 1]"
+echo "PAIR 71 6 b [read_memory 0x12000044 32 1]"
+echo "PAIR 71 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000008 32 {0x11339dd7}
+write_memory 0x12000048 32 {0xeecc6228}
+echo "PAIR 72 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 72 1 b [read_memory 0x12000048 32 1]"
+echo "PAIR 72 2 b [read_memory 0x12000048 32 1]"
+echo "PAIR 72 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 72 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 72 5 b [read_memory 0x12000048 32 1]"
+echo "PAIR 72 6 b [read_memory 0x12000048 32 1]"
+echo "PAIR 72 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000048 32 {0xeecc6228}
+write_memory 0x12000008 32 {0x11339dd7}
+echo "PAIR 73 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 73 1 b [read_memory 0x12000048 32 1]"
+echo "PAIR 73 2 b [read_memory 0x12000048 32 1]"
+echo "PAIR 73 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 73 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 73 5 b [read_memory 0x12000048 32 1]"
+echo "PAIR 73 6 b [read_memory 0x12000048 32 1]"
+echo "PAIR 73 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000008 32 {0xeecc6228}
+write_memory 0x12000048 32 {0x11339dd7}
+echo "PAIR 74 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 74 1 b [read_memory 0x12000048 32 1]"
+echo "PAIR 74 2 b [read_memory 0x12000048 32 1]"
+echo "PAIR 74 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 74 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 74 5 b [read_memory 0x12000048 32 1]"
+echo "PAIR 74 6 b [read_memory 0x12000048 32 1]"
+echo "PAIR 74 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000048 32 {0x11339dd7}
+write_memory 0x12000008 32 {0xeecc6228}
+echo "PAIR 75 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 75 1 b [read_memory 0x12000048 32 1]"
+echo "PAIR 75 2 b [read_memory 0x12000048 32 1]"
+echo "PAIR 75 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 75 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 75 5 b [read_memory 0x12000048 32 1]"
+echo "PAIR 75 6 b [read_memory 0x12000048 32 1]"
+echo "PAIR 75 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x1200000c 32 {0x103192d3}
+write_memory 0x1200004c 32 {0xefce6d2c}
+echo "PAIR 76 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 76 1 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 76 2 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 76 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 76 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 76 5 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 76 6 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 76 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200004c 32 {0xefce6d2c}
+write_memory 0x1200000c 32 {0x103192d3}
+echo "PAIR 77 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 77 1 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 77 2 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 77 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 77 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 77 5 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 77 6 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 77 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200000c 32 {0xefce6d2c}
+write_memory 0x1200004c 32 {0x103192d3}
+echo "PAIR 78 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 78 1 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 78 2 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 78 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 78 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 78 5 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 78 6 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 78 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200004c 32 {0x103192d3}
+write_memory 0x1200000c 32 {0xefce6d2c}
+echo "PAIR 79 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 79 1 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 79 2 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 79 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 79 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 79 5 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 79 6 b [read_memory 0x1200004c 32 1]"
+echo "PAIR 79 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x12000580 32 {0x13379e5f}
+write_memory 0x120005c0 32 {0xecc861a0}
+echo "PAIR 80 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 80 1 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 80 2 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 80 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 80 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 80 5 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 80 6 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 80 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x120005c0 32 {0xecc861a0}
+write_memory 0x12000580 32 {0x13379e5f}
+echo "PAIR 81 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 81 1 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 81 2 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 81 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 81 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 81 5 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 81 6 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 81 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000580 32 {0xecc861a0}
+write_memory 0x120005c0 32 {0x13379e5f}
+echo "PAIR 82 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 82 1 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 82 2 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 82 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 82 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 82 5 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 82 6 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 82 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x120005c0 32 {0x13379e5f}
+write_memory 0x12000580 32 {0xecc861a0}
+echo "PAIR 83 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 83 1 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 83 2 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 83 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 83 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 83 5 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 83 6 b [read_memory 0x120005c0 32 1]"
+echo "PAIR 83 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000584 32 {0x12359d5b}
+write_memory 0x120005c4 32 {0xedca62a4}
+echo "PAIR 84 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 84 1 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 84 2 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 84 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 84 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 84 5 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 84 6 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 84 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x120005c4 32 {0xedca62a4}
+write_memory 0x12000584 32 {0x12359d5b}
+echo "PAIR 85 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 85 1 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 85 2 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 85 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 85 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 85 5 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 85 6 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 85 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000584 32 {0xedca62a4}
+write_memory 0x120005c4 32 {0x12359d5b}
+echo "PAIR 86 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 86 1 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 86 2 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 86 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 86 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 86 5 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 86 6 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 86 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x120005c4 32 {0x12359d5b}
+write_memory 0x12000584 32 {0xedca62a4}
+echo "PAIR 87 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 87 1 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 87 2 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 87 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 87 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 87 5 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 87 6 b [read_memory 0x120005c4 32 1]"
+echo "PAIR 87 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000588 32 {0x11339857}
+write_memory 0x120005c8 32 {0xeecc67a8}
+echo "PAIR 88 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 88 1 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 88 2 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 88 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 88 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 88 5 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 88 6 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 88 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x120005c8 32 {0xeecc67a8}
+write_memory 0x12000588 32 {0x11339857}
+echo "PAIR 89 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 89 1 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 89 2 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 89 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 89 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 89 5 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 89 6 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 89 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000588 32 {0xeecc67a8}
+write_memory 0x120005c8 32 {0x11339857}
+echo "PAIR 90 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 90 1 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 90 2 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 90 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 90 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 90 5 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 90 6 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 90 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x120005c8 32 {0x11339857}
+write_memory 0x12000588 32 {0xeecc67a8}
+echo "PAIR 91 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 91 1 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 91 2 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 91 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 91 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 91 5 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 91 6 b [read_memory 0x120005c8 32 1]"
+echo "PAIR 91 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x1200058c 32 {0x10319753}
+write_memory 0x120005cc 32 {0xefce68ac}
+echo "PAIR 92 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 92 1 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 92 2 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 92 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 92 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 92 5 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 92 6 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 92 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x120005cc 32 {0xefce68ac}
+write_memory 0x1200058c 32 {0x10319753}
+echo "PAIR 93 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 93 1 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 93 2 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 93 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 93 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 93 5 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 93 6 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 93 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200058c 32 {0xefce68ac}
+write_memory 0x120005cc 32 {0x10319753}
+echo "PAIR 94 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 94 1 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 94 2 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 94 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 94 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 94 5 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 94 6 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 94 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x120005cc 32 {0x10319753}
+write_memory 0x1200058c 32 {0xefce68ac}
+echo "PAIR 95 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 95 1 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 95 2 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 95 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 95 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 95 5 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 95 6 b [read_memory 0x120005cc 32 1]"
+echo "PAIR 95 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x12000000 32 {0x13279bdf}
+write_memory 0x12000080 32 {0xecd86420}
+echo "PAIR 96 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 96 1 b [read_memory 0x12000080 32 1]"
+echo "PAIR 96 2 b [read_memory 0x12000080 32 1]"
+echo "PAIR 96 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 96 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 96 5 b [read_memory 0x12000080 32 1]"
+echo "PAIR 96 6 b [read_memory 0x12000080 32 1]"
+echo "PAIR 96 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000080 32 {0xecd86420}
+write_memory 0x12000000 32 {0x13279bdf}
+echo "PAIR 97 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 97 1 b [read_memory 0x12000080 32 1]"
+echo "PAIR 97 2 b [read_memory 0x12000080 32 1]"
+echo "PAIR 97 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 97 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 97 5 b [read_memory 0x12000080 32 1]"
+echo "PAIR 97 6 b [read_memory 0x12000080 32 1]"
+echo "PAIR 97 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000000 32 {0xecd86420}
+write_memory 0x12000080 32 {0x13279bdf}
+echo "PAIR 98 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 98 1 b [read_memory 0x12000080 32 1]"
+echo "PAIR 98 2 b [read_memory 0x12000080 32 1]"
+echo "PAIR 98 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 98 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 98 5 b [read_memory 0x12000080 32 1]"
+echo "PAIR 98 6 b [read_memory 0x12000080 32 1]"
+echo "PAIR 98 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000080 32 {0x13279bdf}
+write_memory 0x12000000 32 {0xecd86420}
+echo "PAIR 99 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 99 1 b [read_memory 0x12000080 32 1]"
+echo "PAIR 99 2 b [read_memory 0x12000080 32 1]"
+echo "PAIR 99 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 99 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 99 5 b [read_memory 0x12000080 32 1]"
+echo "PAIR 99 6 b [read_memory 0x12000080 32 1]"
+echo "PAIR 99 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000004 32 {0x122598db}
+write_memory 0x12000084 32 {0xedda6724}
+echo "PAIR 100 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 100 1 b [read_memory 0x12000084 32 1]"
+echo "PAIR 100 2 b [read_memory 0x12000084 32 1]"
+echo "PAIR 100 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 100 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 100 5 b [read_memory 0x12000084 32 1]"
+echo "PAIR 100 6 b [read_memory 0x12000084 32 1]"
+echo "PAIR 100 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000084 32 {0xedda6724}
+write_memory 0x12000004 32 {0x122598db}
+echo "PAIR 101 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 101 1 b [read_memory 0x12000084 32 1]"
+echo "PAIR 101 2 b [read_memory 0x12000084 32 1]"
+echo "PAIR 101 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 101 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 101 5 b [read_memory 0x12000084 32 1]"
+echo "PAIR 101 6 b [read_memory 0x12000084 32 1]"
+echo "PAIR 101 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000004 32 {0xedda6724}
+write_memory 0x12000084 32 {0x122598db}
+echo "PAIR 102 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 102 1 b [read_memory 0x12000084 32 1]"
+echo "PAIR 102 2 b [read_memory 0x12000084 32 1]"
+echo "PAIR 102 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 102 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 102 5 b [read_memory 0x12000084 32 1]"
+echo "PAIR 102 6 b [read_memory 0x12000084 32 1]"
+echo "PAIR 102 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000084 32 {0x122598db}
+write_memory 0x12000004 32 {0xedda6724}
+echo "PAIR 103 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 103 1 b [read_memory 0x12000084 32 1]"
+echo "PAIR 103 2 b [read_memory 0x12000084 32 1]"
+echo "PAIR 103 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 103 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 103 5 b [read_memory 0x12000084 32 1]"
+echo "PAIR 103 6 b [read_memory 0x12000084 32 1]"
+echo "PAIR 103 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000008 32 {0x11239dd7}
+write_memory 0x12000088 32 {0xeedc6228}
+echo "PAIR 104 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 104 1 b [read_memory 0x12000088 32 1]"
+echo "PAIR 104 2 b [read_memory 0x12000088 32 1]"
+echo "PAIR 104 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 104 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 104 5 b [read_memory 0x12000088 32 1]"
+echo "PAIR 104 6 b [read_memory 0x12000088 32 1]"
+echo "PAIR 104 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000088 32 {0xeedc6228}
+write_memory 0x12000008 32 {0x11239dd7}
+echo "PAIR 105 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 105 1 b [read_memory 0x12000088 32 1]"
+echo "PAIR 105 2 b [read_memory 0x12000088 32 1]"
+echo "PAIR 105 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 105 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 105 5 b [read_memory 0x12000088 32 1]"
+echo "PAIR 105 6 b [read_memory 0x12000088 32 1]"
+echo "PAIR 105 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000008 32 {0xeedc6228}
+write_memory 0x12000088 32 {0x11239dd7}
+echo "PAIR 106 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 106 1 b [read_memory 0x12000088 32 1]"
+echo "PAIR 106 2 b [read_memory 0x12000088 32 1]"
+echo "PAIR 106 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 106 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 106 5 b [read_memory 0x12000088 32 1]"
+echo "PAIR 106 6 b [read_memory 0x12000088 32 1]"
+echo "PAIR 106 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000088 32 {0x11239dd7}
+write_memory 0x12000008 32 {0xeedc6228}
+echo "PAIR 107 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 107 1 b [read_memory 0x12000088 32 1]"
+echo "PAIR 107 2 b [read_memory 0x12000088 32 1]"
+echo "PAIR 107 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 107 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 107 5 b [read_memory 0x12000088 32 1]"
+echo "PAIR 107 6 b [read_memory 0x12000088 32 1]"
+echo "PAIR 107 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x1200000c 32 {0x102192d3}
+write_memory 0x1200008c 32 {0xefde6d2c}
+echo "PAIR 108 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 108 1 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 108 2 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 108 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 108 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 108 5 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 108 6 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 108 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200008c 32 {0xefde6d2c}
+write_memory 0x1200000c 32 {0x102192d3}
+echo "PAIR 109 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 109 1 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 109 2 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 109 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 109 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 109 5 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 109 6 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 109 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200000c 32 {0xefde6d2c}
+write_memory 0x1200008c 32 {0x102192d3}
+echo "PAIR 110 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 110 1 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 110 2 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 110 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 110 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 110 5 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 110 6 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 110 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200008c 32 {0x102192d3}
+write_memory 0x1200000c 32 {0xefde6d2c}
+echo "PAIR 111 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 111 1 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 111 2 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 111 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 111 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 111 5 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 111 6 b [read_memory 0x1200008c 32 1]"
+echo "PAIR 111 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x12000500 32 {0x13279e5f}
+write_memory 0x12000580 32 {0xecd861a0}
+echo "PAIR 112 0 a [read_memory 0x12000500 32 1]"
+echo "PAIR 112 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 112 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 112 3 a [read_memory 0x12000500 32 1]"
+echo "PAIR 112 4 a [read_memory 0x12000500 32 1]"
+echo "PAIR 112 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 112 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 112 7 a [read_memory 0x12000500 32 1]"
+write_memory 0x12000580 32 {0xecd861a0}
+write_memory 0x12000500 32 {0x13279e5f}
+echo "PAIR 113 0 a [read_memory 0x12000500 32 1]"
+echo "PAIR 113 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 113 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 113 3 a [read_memory 0x12000500 32 1]"
+echo "PAIR 113 4 a [read_memory 0x12000500 32 1]"
+echo "PAIR 113 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 113 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 113 7 a [read_memory 0x12000500 32 1]"
+write_memory 0x12000500 32 {0xecd861a0}
+write_memory 0x12000580 32 {0x13279e5f}
+echo "PAIR 114 0 a [read_memory 0x12000500 32 1]"
+echo "PAIR 114 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 114 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 114 3 a [read_memory 0x12000500 32 1]"
+echo "PAIR 114 4 a [read_memory 0x12000500 32 1]"
+echo "PAIR 114 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 114 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 114 7 a [read_memory 0x12000500 32 1]"
+write_memory 0x12000580 32 {0x13279e5f}
+write_memory 0x12000500 32 {0xecd861a0}
+echo "PAIR 115 0 a [read_memory 0x12000500 32 1]"
+echo "PAIR 115 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 115 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 115 3 a [read_memory 0x12000500 32 1]"
+echo "PAIR 115 4 a [read_memory 0x12000500 32 1]"
+echo "PAIR 115 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 115 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 115 7 a [read_memory 0x12000500 32 1]"
+write_memory 0x12000504 32 {0x12259d5b}
+write_memory 0x12000584 32 {0xedda62a4}
+echo "PAIR 116 0 a [read_memory 0x12000504 32 1]"
+echo "PAIR 116 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 116 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 116 3 a [read_memory 0x12000504 32 1]"
+echo "PAIR 116 4 a [read_memory 0x12000504 32 1]"
+echo "PAIR 116 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 116 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 116 7 a [read_memory 0x12000504 32 1]"
+write_memory 0x12000584 32 {0xedda62a4}
+write_memory 0x12000504 32 {0x12259d5b}
+echo "PAIR 117 0 a [read_memory 0x12000504 32 1]"
+echo "PAIR 117 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 117 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 117 3 a [read_memory 0x12000504 32 1]"
+echo "PAIR 117 4 a [read_memory 0x12000504 32 1]"
+echo "PAIR 117 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 117 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 117 7 a [read_memory 0x12000504 32 1]"
+write_memory 0x12000504 32 {0xedda62a4}
+write_memory 0x12000584 32 {0x12259d5b}
+echo "PAIR 118 0 a [read_memory 0x12000504 32 1]"
+echo "PAIR 118 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 118 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 118 3 a [read_memory 0x12000504 32 1]"
+echo "PAIR 118 4 a [read_memory 0x12000504 32 1]"
+echo "PAIR 118 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 118 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 118 7 a [read_memory 0x12000504 32 1]"
+write_memory 0x12000584 32 {0x12259d5b}
+write_memory 0x12000504 32 {0xedda62a4}
+echo "PAIR 119 0 a [read_memory 0x12000504 32 1]"
+echo "PAIR 119 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 119 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 119 3 a [read_memory 0x12000504 32 1]"
+echo "PAIR 119 4 a [read_memory 0x12000504 32 1]"
+echo "PAIR 119 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 119 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 119 7 a [read_memory 0x12000504 32 1]"
+write_memory 0x12000508 32 {0x11239857}
+write_memory 0x12000588 32 {0xeedc67a8}
+echo "PAIR 120 0 a [read_memory 0x12000508 32 1]"
+echo "PAIR 120 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 120 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 120 3 a [read_memory 0x12000508 32 1]"
+echo "PAIR 120 4 a [read_memory 0x12000508 32 1]"
+echo "PAIR 120 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 120 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 120 7 a [read_memory 0x12000508 32 1]"
+write_memory 0x12000588 32 {0xeedc67a8}
+write_memory 0x12000508 32 {0x11239857}
+echo "PAIR 121 0 a [read_memory 0x12000508 32 1]"
+echo "PAIR 121 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 121 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 121 3 a [read_memory 0x12000508 32 1]"
+echo "PAIR 121 4 a [read_memory 0x12000508 32 1]"
+echo "PAIR 121 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 121 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 121 7 a [read_memory 0x12000508 32 1]"
+write_memory 0x12000508 32 {0xeedc67a8}
+write_memory 0x12000588 32 {0x11239857}
+echo "PAIR 122 0 a [read_memory 0x12000508 32 1]"
+echo "PAIR 122 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 122 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 122 3 a [read_memory 0x12000508 32 1]"
+echo "PAIR 122 4 a [read_memory 0x12000508 32 1]"
+echo "PAIR 122 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 122 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 122 7 a [read_memory 0x12000508 32 1]"
+write_memory 0x12000588 32 {0x11239857}
+write_memory 0x12000508 32 {0xeedc67a8}
+echo "PAIR 123 0 a [read_memory 0x12000508 32 1]"
+echo "PAIR 123 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 123 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 123 3 a [read_memory 0x12000508 32 1]"
+echo "PAIR 123 4 a [read_memory 0x12000508 32 1]"
+echo "PAIR 123 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 123 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 123 7 a [read_memory 0x12000508 32 1]"
+write_memory 0x1200050c 32 {0x10219753}
+write_memory 0x1200058c 32 {0xefde68ac}
+echo "PAIR 124 0 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 124 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 124 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 124 3 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 124 4 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 124 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 124 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 124 7 a [read_memory 0x1200050c 32 1]"
+write_memory 0x1200058c 32 {0xefde68ac}
+write_memory 0x1200050c 32 {0x10219753}
+echo "PAIR 125 0 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 125 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 125 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 125 3 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 125 4 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 125 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 125 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 125 7 a [read_memory 0x1200050c 32 1]"
+write_memory 0x1200050c 32 {0xefde68ac}
+write_memory 0x1200058c 32 {0x10219753}
+echo "PAIR 126 0 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 126 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 126 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 126 3 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 126 4 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 126 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 126 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 126 7 a [read_memory 0x1200050c 32 1]"
+write_memory 0x1200058c 32 {0x10219753}
+write_memory 0x1200050c 32 {0xefde68ac}
+echo "PAIR 127 0 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 127 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 127 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 127 3 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 127 4 a [read_memory 0x1200050c 32 1]"
+echo "PAIR 127 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 127 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 127 7 a [read_memory 0x1200050c 32 1]"
+write_memory 0x12000000 32 {0x13d79bdf}
+write_memory 0x12000100 32 {0xec286420}
+echo "PAIR 128 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 128 1 b [read_memory 0x12000100 32 1]"
+echo "PAIR 128 2 b [read_memory 0x12000100 32 1]"
+echo "PAIR 128 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 128 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 128 5 b [read_memory 0x12000100 32 1]"
+echo "PAIR 128 6 b [read_memory 0x12000100 32 1]"
+echo "PAIR 128 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000100 32 {0xec286420}
+write_memory 0x12000000 32 {0x13d79bdf}
+echo "PAIR 129 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 129 1 b [read_memory 0x12000100 32 1]"
+echo "PAIR 129 2 b [read_memory 0x12000100 32 1]"
+echo "PAIR 129 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 129 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 129 5 b [read_memory 0x12000100 32 1]"
+echo "PAIR 129 6 b [read_memory 0x12000100 32 1]"
+echo "PAIR 129 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000000 32 {0xec286420}
+write_memory 0x12000100 32 {0x13d79bdf}
+echo "PAIR 130 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 130 1 b [read_memory 0x12000100 32 1]"
+echo "PAIR 130 2 b [read_memory 0x12000100 32 1]"
+echo "PAIR 130 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 130 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 130 5 b [read_memory 0x12000100 32 1]"
+echo "PAIR 130 6 b [read_memory 0x12000100 32 1]"
+echo "PAIR 130 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000100 32 {0x13d79bdf}
+write_memory 0x12000000 32 {0xec286420}
+echo "PAIR 131 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 131 1 b [read_memory 0x12000100 32 1]"
+echo "PAIR 131 2 b [read_memory 0x12000100 32 1]"
+echo "PAIR 131 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 131 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 131 5 b [read_memory 0x12000100 32 1]"
+echo "PAIR 131 6 b [read_memory 0x12000100 32 1]"
+echo "PAIR 131 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000004 32 {0x12d598db}
+write_memory 0x12000104 32 {0xed2a6724}
+echo "PAIR 132 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 132 1 b [read_memory 0x12000104 32 1]"
+echo "PAIR 132 2 b [read_memory 0x12000104 32 1]"
+echo "PAIR 132 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 132 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 132 5 b [read_memory 0x12000104 32 1]"
+echo "PAIR 132 6 b [read_memory 0x12000104 32 1]"
+echo "PAIR 132 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000104 32 {0xed2a6724}
+write_memory 0x12000004 32 {0x12d598db}
+echo "PAIR 133 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 133 1 b [read_memory 0x12000104 32 1]"
+echo "PAIR 133 2 b [read_memory 0x12000104 32 1]"
+echo "PAIR 133 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 133 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 133 5 b [read_memory 0x12000104 32 1]"
+echo "PAIR 133 6 b [read_memory 0x12000104 32 1]"
+echo "PAIR 133 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000004 32 {0xed2a6724}
+write_memory 0x12000104 32 {0x12d598db}
+echo "PAIR 134 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 134 1 b [read_memory 0x12000104 32 1]"
+echo "PAIR 134 2 b [read_memory 0x12000104 32 1]"
+echo "PAIR 134 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 134 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 134 5 b [read_memory 0x12000104 32 1]"
+echo "PAIR 134 6 b [read_memory 0x12000104 32 1]"
+echo "PAIR 134 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000104 32 {0x12d598db}
+write_memory 0x12000004 32 {0xed2a6724}
+echo "PAIR 135 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 135 1 b [read_memory 0x12000104 32 1]"
+echo "PAIR 135 2 b [read_memory 0x12000104 32 1]"
+echo "PAIR 135 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 135 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 135 5 b [read_memory 0x12000104 32 1]"
+echo "PAIR 135 6 b [read_memory 0x12000104 32 1]"
+echo "PAIR 135 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000008 32 {0x11d39dd7}
+write_memory 0x12000108 32 {0xee2c6228}
+echo "PAIR 136 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 136 1 b [read_memory 0x12000108 32 1]"
+echo "PAIR 136 2 b [read_memory 0x12000108 32 1]"
+echo "PAIR 136 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 136 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 136 5 b [read_memory 0x12000108 32 1]"
+echo "PAIR 136 6 b [read_memory 0x12000108 32 1]"
+echo "PAIR 136 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000108 32 {0xee2c6228}
+write_memory 0x12000008 32 {0x11d39dd7}
+echo "PAIR 137 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 137 1 b [read_memory 0x12000108 32 1]"
+echo "PAIR 137 2 b [read_memory 0x12000108 32 1]"
+echo "PAIR 137 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 137 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 137 5 b [read_memory 0x12000108 32 1]"
+echo "PAIR 137 6 b [read_memory 0x12000108 32 1]"
+echo "PAIR 137 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000008 32 {0xee2c6228}
+write_memory 0x12000108 32 {0x11d39dd7}
+echo "PAIR 138 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 138 1 b [read_memory 0x12000108 32 1]"
+echo "PAIR 138 2 b [read_memory 0x12000108 32 1]"
+echo "PAIR 138 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 138 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 138 5 b [read_memory 0x12000108 32 1]"
+echo "PAIR 138 6 b [read_memory 0x12000108 32 1]"
+echo "PAIR 138 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000108 32 {0x11d39dd7}
+write_memory 0x12000008 32 {0xee2c6228}
+echo "PAIR 139 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 139 1 b [read_memory 0x12000108 32 1]"
+echo "PAIR 139 2 b [read_memory 0x12000108 32 1]"
+echo "PAIR 139 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 139 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 139 5 b [read_memory 0x12000108 32 1]"
+echo "PAIR 139 6 b [read_memory 0x12000108 32 1]"
+echo "PAIR 139 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x1200000c 32 {0x10d192d3}
+write_memory 0x1200010c 32 {0xef2e6d2c}
+echo "PAIR 140 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 140 1 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 140 2 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 140 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 140 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 140 5 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 140 6 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 140 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200010c 32 {0xef2e6d2c}
+write_memory 0x1200000c 32 {0x10d192d3}
+echo "PAIR 141 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 141 1 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 141 2 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 141 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 141 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 141 5 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 141 6 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 141 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200000c 32 {0xef2e6d2c}
+write_memory 0x1200010c 32 {0x10d192d3}
+echo "PAIR 142 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 142 1 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 142 2 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 142 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 142 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 142 5 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 142 6 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 142 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200010c 32 {0x10d192d3}
+write_memory 0x1200000c 32 {0xef2e6d2c}
+echo "PAIR 143 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 143 1 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 143 2 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 143 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 143 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 143 5 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 143 6 b [read_memory 0x1200010c 32 1]"
+echo "PAIR 143 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x12000480 32 {0x13d79e5f}
+write_memory 0x12000580 32 {0xec2861a0}
+echo "PAIR 144 0 a [read_memory 0x12000480 32 1]"
+echo "PAIR 144 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 144 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 144 3 a [read_memory 0x12000480 32 1]"
+echo "PAIR 144 4 a [read_memory 0x12000480 32 1]"
+echo "PAIR 144 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 144 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 144 7 a [read_memory 0x12000480 32 1]"
+write_memory 0x12000580 32 {0xec2861a0}
+write_memory 0x12000480 32 {0x13d79e5f}
+echo "PAIR 145 0 a [read_memory 0x12000480 32 1]"
+echo "PAIR 145 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 145 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 145 3 a [read_memory 0x12000480 32 1]"
+echo "PAIR 145 4 a [read_memory 0x12000480 32 1]"
+echo "PAIR 145 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 145 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 145 7 a [read_memory 0x12000480 32 1]"
+write_memory 0x12000480 32 {0xec2861a0}
+write_memory 0x12000580 32 {0x13d79e5f}
+echo "PAIR 146 0 a [read_memory 0x12000480 32 1]"
+echo "PAIR 146 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 146 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 146 3 a [read_memory 0x12000480 32 1]"
+echo "PAIR 146 4 a [read_memory 0x12000480 32 1]"
+echo "PAIR 146 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 146 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 146 7 a [read_memory 0x12000480 32 1]"
+write_memory 0x12000580 32 {0x13d79e5f}
+write_memory 0x12000480 32 {0xec2861a0}
+echo "PAIR 147 0 a [read_memory 0x12000480 32 1]"
+echo "PAIR 147 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 147 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 147 3 a [read_memory 0x12000480 32 1]"
+echo "PAIR 147 4 a [read_memory 0x12000480 32 1]"
+echo "PAIR 147 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 147 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 147 7 a [read_memory 0x12000480 32 1]"
+write_memory 0x12000484 32 {0x12d59d5b}
+write_memory 0x12000584 32 {0xed2a62a4}
+echo "PAIR 148 0 a [read_memory 0x12000484 32 1]"
+echo "PAIR 148 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 148 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 148 3 a [read_memory 0x12000484 32 1]"
+echo "PAIR 148 4 a [read_memory 0x12000484 32 1]"
+echo "PAIR 148 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 148 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 148 7 a [read_memory 0x12000484 32 1]"
+write_memory 0x12000584 32 {0xed2a62a4}
+write_memory 0x12000484 32 {0x12d59d5b}
+echo "PAIR 149 0 a [read_memory 0x12000484 32 1]"
+echo "PAIR 149 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 149 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 149 3 a [read_memory 0x12000484 32 1]"
+echo "PAIR 149 4 a [read_memory 0x12000484 32 1]"
+echo "PAIR 149 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 149 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 149 7 a [read_memory 0x12000484 32 1]"
+write_memory 0x12000484 32 {0xed2a62a4}
+write_memory 0x12000584 32 {0x12d59d5b}
+echo "PAIR 150 0 a [read_memory 0x12000484 32 1]"
+echo "PAIR 150 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 150 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 150 3 a [read_memory 0x12000484 32 1]"
+echo "PAIR 150 4 a [read_memory 0x12000484 32 1]"
+echo "PAIR 150 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 150 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 150 7 a [read_memory 0x12000484 32 1]"
+write_memory 0x12000584 32 {0x12d59d5b}
+write_memory 0x12000484 32 {0xed2a62a4}
+echo "PAIR 151 0 a [read_memory 0x12000484 32 1]"
+echo "PAIR 151 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 151 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 151 3 a [read_memory 0x12000484 32 1]"
+echo "PAIR 151 4 a [read_memory 0x12000484 32 1]"
+echo "PAIR 151 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 151 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 151 7 a [read_memory 0x12000484 32 1]"
+write_memory 0x12000488 32 {0x11d39857}
+write_memory 0x12000588 32 {0xee2c67a8}
+echo "PAIR 152 0 a [read_memory 0x12000488 32 1]"
+echo "PAIR 152 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 152 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 152 3 a [read_memory 0x12000488 32 1]"
+echo "PAIR 152 4 a [read_memory 0x12000488 32 1]"
+echo "PAIR 152 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 152 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 152 7 a [read_memory 0x12000488 32 1]"
+write_memory 0x12000588 32 {0xee2c67a8}
+write_memory 0x12000488 32 {0x11d39857}
+echo "PAIR 153 0 a [read_memory 0x12000488 32 1]"
+echo "PAIR 153 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 153 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 153 3 a [read_memory 0x12000488 32 1]"
+echo "PAIR 153 4 a [read_memory 0x12000488 32 1]"
+echo "PAIR 153 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 153 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 153 7 a [read_memory 0x12000488 32 1]"
+write_memory 0x12000488 32 {0xee2c67a8}
+write_memory 0x12000588 32 {0x11d39857}
+echo "PAIR 154 0 a [read_memory 0x12000488 32 1]"
+echo "PAIR 154 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 154 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 154 3 a [read_memory 0x12000488 32 1]"
+echo "PAIR 154 4 a [read_memory 0x12000488 32 1]"
+echo "PAIR 154 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 154 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 154 7 a [read_memory 0x12000488 32 1]"
+write_memory 0x12000588 32 {0x11d39857}
+write_memory 0x12000488 32 {0xee2c67a8}
+echo "PAIR 155 0 a [read_memory 0x12000488 32 1]"
+echo "PAIR 155 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 155 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 155 3 a [read_memory 0x12000488 32 1]"
+echo "PAIR 155 4 a [read_memory 0x12000488 32 1]"
+echo "PAIR 155 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 155 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 155 7 a [read_memory 0x12000488 32 1]"
+write_memory 0x1200048c 32 {0x10d19753}
+write_memory 0x1200058c 32 {0xef2e68ac}
+echo "PAIR 156 0 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 156 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 156 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 156 3 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 156 4 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 156 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 156 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 156 7 a [read_memory 0x1200048c 32 1]"
+write_memory 0x1200058c 32 {0xef2e68ac}
+write_memory 0x1200048c 32 {0x10d19753}
+echo "PAIR 157 0 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 157 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 157 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 157 3 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 157 4 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 157 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 157 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 157 7 a [read_memory 0x1200048c 32 1]"
+write_memory 0x1200048c 32 {0xef2e68ac}
+write_memory 0x1200058c 32 {0x10d19753}
+echo "PAIR 158 0 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 158 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 158 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 158 3 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 158 4 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 158 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 158 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 158 7 a [read_memory 0x1200048c 32 1]"
+write_memory 0x1200058c 32 {0x10d19753}
+write_memory 0x1200048c 32 {0xef2e68ac}
+echo "PAIR 159 0 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 159 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 159 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 159 3 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 159 4 a [read_memory 0x1200048c 32 1]"
+echo "PAIR 159 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 159 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 159 7 a [read_memory 0x1200048c 32 1]"
+write_memory 0x12000000 32 {0x13c79bdf}
+write_memory 0x12000200 32 {0xec386420}
+echo "PAIR 160 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 160 1 b [read_memory 0x12000200 32 1]"
+echo "PAIR 160 2 b [read_memory 0x12000200 32 1]"
+echo "PAIR 160 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 160 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 160 5 b [read_memory 0x12000200 32 1]"
+echo "PAIR 160 6 b [read_memory 0x12000200 32 1]"
+echo "PAIR 160 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000200 32 {0xec386420}
+write_memory 0x12000000 32 {0x13c79bdf}
+echo "PAIR 161 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 161 1 b [read_memory 0x12000200 32 1]"
+echo "PAIR 161 2 b [read_memory 0x12000200 32 1]"
+echo "PAIR 161 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 161 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 161 5 b [read_memory 0x12000200 32 1]"
+echo "PAIR 161 6 b [read_memory 0x12000200 32 1]"
+echo "PAIR 161 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000000 32 {0xec386420}
+write_memory 0x12000200 32 {0x13c79bdf}
+echo "PAIR 162 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 162 1 b [read_memory 0x12000200 32 1]"
+echo "PAIR 162 2 b [read_memory 0x12000200 32 1]"
+echo "PAIR 162 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 162 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 162 5 b [read_memory 0x12000200 32 1]"
+echo "PAIR 162 6 b [read_memory 0x12000200 32 1]"
+echo "PAIR 162 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000200 32 {0x13c79bdf}
+write_memory 0x12000000 32 {0xec386420}
+echo "PAIR 163 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 163 1 b [read_memory 0x12000200 32 1]"
+echo "PAIR 163 2 b [read_memory 0x12000200 32 1]"
+echo "PAIR 163 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 163 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 163 5 b [read_memory 0x12000200 32 1]"
+echo "PAIR 163 6 b [read_memory 0x12000200 32 1]"
+echo "PAIR 163 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000004 32 {0x12c598db}
+write_memory 0x12000204 32 {0xed3a6724}
+echo "PAIR 164 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 164 1 b [read_memory 0x12000204 32 1]"
+echo "PAIR 164 2 b [read_memory 0x12000204 32 1]"
+echo "PAIR 164 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 164 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 164 5 b [read_memory 0x12000204 32 1]"
+echo "PAIR 164 6 b [read_memory 0x12000204 32 1]"
+echo "PAIR 164 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000204 32 {0xed3a6724}
+write_memory 0x12000004 32 {0x12c598db}
+echo "PAIR 165 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 165 1 b [read_memory 0x12000204 32 1]"
+echo "PAIR 165 2 b [read_memory 0x12000204 32 1]"
+echo "PAIR 165 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 165 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 165 5 b [read_memory 0x12000204 32 1]"
+echo "PAIR 165 6 b [read_memory 0x12000204 32 1]"
+echo "PAIR 165 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000004 32 {0xed3a6724}
+write_memory 0x12000204 32 {0x12c598db}
+echo "PAIR 166 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 166 1 b [read_memory 0x12000204 32 1]"
+echo "PAIR 166 2 b [read_memory 0x12000204 32 1]"
+echo "PAIR 166 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 166 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 166 5 b [read_memory 0x12000204 32 1]"
+echo "PAIR 166 6 b [read_memory 0x12000204 32 1]"
+echo "PAIR 166 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000204 32 {0x12c598db}
+write_memory 0x12000004 32 {0xed3a6724}
+echo "PAIR 167 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 167 1 b [read_memory 0x12000204 32 1]"
+echo "PAIR 167 2 b [read_memory 0x12000204 32 1]"
+echo "PAIR 167 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 167 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 167 5 b [read_memory 0x12000204 32 1]"
+echo "PAIR 167 6 b [read_memory 0x12000204 32 1]"
+echo "PAIR 167 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000008 32 {0x11c39dd7}
+write_memory 0x12000208 32 {0xee3c6228}
+echo "PAIR 168 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 168 1 b [read_memory 0x12000208 32 1]"
+echo "PAIR 168 2 b [read_memory 0x12000208 32 1]"
+echo "PAIR 168 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 168 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 168 5 b [read_memory 0x12000208 32 1]"
+echo "PAIR 168 6 b [read_memory 0x12000208 32 1]"
+echo "PAIR 168 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000208 32 {0xee3c6228}
+write_memory 0x12000008 32 {0x11c39dd7}
+echo "PAIR 169 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 169 1 b [read_memory 0x12000208 32 1]"
+echo "PAIR 169 2 b [read_memory 0x12000208 32 1]"
+echo "PAIR 169 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 169 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 169 5 b [read_memory 0x12000208 32 1]"
+echo "PAIR 169 6 b [read_memory 0x12000208 32 1]"
+echo "PAIR 169 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000008 32 {0xee3c6228}
+write_memory 0x12000208 32 {0x11c39dd7}
+echo "PAIR 170 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 170 1 b [read_memory 0x12000208 32 1]"
+echo "PAIR 170 2 b [read_memory 0x12000208 32 1]"
+echo "PAIR 170 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 170 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 170 5 b [read_memory 0x12000208 32 1]"
+echo "PAIR 170 6 b [read_memory 0x12000208 32 1]"
+echo "PAIR 170 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000208 32 {0x11c39dd7}
+write_memory 0x12000008 32 {0xee3c6228}
+echo "PAIR 171 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 171 1 b [read_memory 0x12000208 32 1]"
+echo "PAIR 171 2 b [read_memory 0x12000208 32 1]"
+echo "PAIR 171 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 171 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 171 5 b [read_memory 0x12000208 32 1]"
+echo "PAIR 171 6 b [read_memory 0x12000208 32 1]"
+echo "PAIR 171 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x1200000c 32 {0x10c192d3}
+write_memory 0x1200020c 32 {0xef3e6d2c}
+echo "PAIR 172 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 172 1 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 172 2 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 172 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 172 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 172 5 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 172 6 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 172 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200020c 32 {0xef3e6d2c}
+write_memory 0x1200000c 32 {0x10c192d3}
+echo "PAIR 173 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 173 1 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 173 2 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 173 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 173 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 173 5 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 173 6 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 173 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200000c 32 {0xef3e6d2c}
+write_memory 0x1200020c 32 {0x10c192d3}
+echo "PAIR 174 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 174 1 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 174 2 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 174 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 174 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 174 5 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 174 6 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 174 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200020c 32 {0x10c192d3}
+write_memory 0x1200000c 32 {0xef3e6d2c}
+echo "PAIR 175 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 175 1 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 175 2 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 175 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 175 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 175 5 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 175 6 b [read_memory 0x1200020c 32 1]"
+echo "PAIR 175 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x12000580 32 {0x13c79e5f}
+write_memory 0x12000780 32 {0xec3861a0}
+echo "PAIR 176 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 176 1 b [read_memory 0x12000780 32 1]"
+echo "PAIR 176 2 b [read_memory 0x12000780 32 1]"
+echo "PAIR 176 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 176 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 176 5 b [read_memory 0x12000780 32 1]"
+echo "PAIR 176 6 b [read_memory 0x12000780 32 1]"
+echo "PAIR 176 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000780 32 {0xec3861a0}
+write_memory 0x12000580 32 {0x13c79e5f}
+echo "PAIR 177 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 177 1 b [read_memory 0x12000780 32 1]"
+echo "PAIR 177 2 b [read_memory 0x12000780 32 1]"
+echo "PAIR 177 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 177 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 177 5 b [read_memory 0x12000780 32 1]"
+echo "PAIR 177 6 b [read_memory 0x12000780 32 1]"
+echo "PAIR 177 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000580 32 {0xec3861a0}
+write_memory 0x12000780 32 {0x13c79e5f}
+echo "PAIR 178 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 178 1 b [read_memory 0x12000780 32 1]"
+echo "PAIR 178 2 b [read_memory 0x12000780 32 1]"
+echo "PAIR 178 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 178 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 178 5 b [read_memory 0x12000780 32 1]"
+echo "PAIR 178 6 b [read_memory 0x12000780 32 1]"
+echo "PAIR 178 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000780 32 {0x13c79e5f}
+write_memory 0x12000580 32 {0xec3861a0}
+echo "PAIR 179 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 179 1 b [read_memory 0x12000780 32 1]"
+echo "PAIR 179 2 b [read_memory 0x12000780 32 1]"
+echo "PAIR 179 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 179 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 179 5 b [read_memory 0x12000780 32 1]"
+echo "PAIR 179 6 b [read_memory 0x12000780 32 1]"
+echo "PAIR 179 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000584 32 {0x12c59d5b}
+write_memory 0x12000784 32 {0xed3a62a4}
+echo "PAIR 180 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 180 1 b [read_memory 0x12000784 32 1]"
+echo "PAIR 180 2 b [read_memory 0x12000784 32 1]"
+echo "PAIR 180 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 180 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 180 5 b [read_memory 0x12000784 32 1]"
+echo "PAIR 180 6 b [read_memory 0x12000784 32 1]"
+echo "PAIR 180 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000784 32 {0xed3a62a4}
+write_memory 0x12000584 32 {0x12c59d5b}
+echo "PAIR 181 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 181 1 b [read_memory 0x12000784 32 1]"
+echo "PAIR 181 2 b [read_memory 0x12000784 32 1]"
+echo "PAIR 181 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 181 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 181 5 b [read_memory 0x12000784 32 1]"
+echo "PAIR 181 6 b [read_memory 0x12000784 32 1]"
+echo "PAIR 181 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000584 32 {0xed3a62a4}
+write_memory 0x12000784 32 {0x12c59d5b}
+echo "PAIR 182 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 182 1 b [read_memory 0x12000784 32 1]"
+echo "PAIR 182 2 b [read_memory 0x12000784 32 1]"
+echo "PAIR 182 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 182 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 182 5 b [read_memory 0x12000784 32 1]"
+echo "PAIR 182 6 b [read_memory 0x12000784 32 1]"
+echo "PAIR 182 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000784 32 {0x12c59d5b}
+write_memory 0x12000584 32 {0xed3a62a4}
+echo "PAIR 183 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 183 1 b [read_memory 0x12000784 32 1]"
+echo "PAIR 183 2 b [read_memory 0x12000784 32 1]"
+echo "PAIR 183 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 183 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 183 5 b [read_memory 0x12000784 32 1]"
+echo "PAIR 183 6 b [read_memory 0x12000784 32 1]"
+echo "PAIR 183 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000588 32 {0x11c39857}
+write_memory 0x12000788 32 {0xee3c67a8}
+echo "PAIR 184 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 184 1 b [read_memory 0x12000788 32 1]"
+echo "PAIR 184 2 b [read_memory 0x12000788 32 1]"
+echo "PAIR 184 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 184 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 184 5 b [read_memory 0x12000788 32 1]"
+echo "PAIR 184 6 b [read_memory 0x12000788 32 1]"
+echo "PAIR 184 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000788 32 {0xee3c67a8}
+write_memory 0x12000588 32 {0x11c39857}
+echo "PAIR 185 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 185 1 b [read_memory 0x12000788 32 1]"
+echo "PAIR 185 2 b [read_memory 0x12000788 32 1]"
+echo "PAIR 185 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 185 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 185 5 b [read_memory 0x12000788 32 1]"
+echo "PAIR 185 6 b [read_memory 0x12000788 32 1]"
+echo "PAIR 185 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000588 32 {0xee3c67a8}
+write_memory 0x12000788 32 {0x11c39857}
+echo "PAIR 186 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 186 1 b [read_memory 0x12000788 32 1]"
+echo "PAIR 186 2 b [read_memory 0x12000788 32 1]"
+echo "PAIR 186 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 186 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 186 5 b [read_memory 0x12000788 32 1]"
+echo "PAIR 186 6 b [read_memory 0x12000788 32 1]"
+echo "PAIR 186 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000788 32 {0x11c39857}
+write_memory 0x12000588 32 {0xee3c67a8}
+echo "PAIR 187 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 187 1 b [read_memory 0x12000788 32 1]"
+echo "PAIR 187 2 b [read_memory 0x12000788 32 1]"
+echo "PAIR 187 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 187 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 187 5 b [read_memory 0x12000788 32 1]"
+echo "PAIR 187 6 b [read_memory 0x12000788 32 1]"
+echo "PAIR 187 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x1200058c 32 {0x10c19753}
+write_memory 0x1200078c 32 {0xef3e68ac}
+echo "PAIR 188 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 188 1 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 188 2 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 188 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 188 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 188 5 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 188 6 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 188 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200078c 32 {0xef3e68ac}
+write_memory 0x1200058c 32 {0x10c19753}
+echo "PAIR 189 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 189 1 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 189 2 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 189 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 189 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 189 5 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 189 6 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 189 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200058c 32 {0xef3e68ac}
+write_memory 0x1200078c 32 {0x10c19753}
+echo "PAIR 190 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 190 1 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 190 2 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 190 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 190 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 190 5 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 190 6 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 190 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200078c 32 {0x10c19753}
+write_memory 0x1200058c 32 {0xef3e68ac}
+echo "PAIR 191 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 191 1 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 191 2 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 191 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 191 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 191 5 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 191 6 b [read_memory 0x1200078c 32 1]"
+echo "PAIR 191 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x12000000 32 {0x13f79bdf}
+write_memory 0x12000400 32 {0xec086420}
+echo "PAIR 192 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 192 1 b [read_memory 0x12000400 32 1]"
+echo "PAIR 192 2 b [read_memory 0x12000400 32 1]"
+echo "PAIR 192 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 192 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 192 5 b [read_memory 0x12000400 32 1]"
+echo "PAIR 192 6 b [read_memory 0x12000400 32 1]"
+echo "PAIR 192 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000400 32 {0xec086420}
+write_memory 0x12000000 32 {0x13f79bdf}
+echo "PAIR 193 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 193 1 b [read_memory 0x12000400 32 1]"
+echo "PAIR 193 2 b [read_memory 0x12000400 32 1]"
+echo "PAIR 193 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 193 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 193 5 b [read_memory 0x12000400 32 1]"
+echo "PAIR 193 6 b [read_memory 0x12000400 32 1]"
+echo "PAIR 193 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000000 32 {0xec086420}
+write_memory 0x12000400 32 {0x13f79bdf}
+echo "PAIR 194 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 194 1 b [read_memory 0x12000400 32 1]"
+echo "PAIR 194 2 b [read_memory 0x12000400 32 1]"
+echo "PAIR 194 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 194 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 194 5 b [read_memory 0x12000400 32 1]"
+echo "PAIR 194 6 b [read_memory 0x12000400 32 1]"
+echo "PAIR 194 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000400 32 {0x13f79bdf}
+write_memory 0x12000000 32 {0xec086420}
+echo "PAIR 195 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 195 1 b [read_memory 0x12000400 32 1]"
+echo "PAIR 195 2 b [read_memory 0x12000400 32 1]"
+echo "PAIR 195 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 195 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 195 5 b [read_memory 0x12000400 32 1]"
+echo "PAIR 195 6 b [read_memory 0x12000400 32 1]"
+echo "PAIR 195 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000004 32 {0x12f598db}
+write_memory 0x12000404 32 {0xed0a6724}
+echo "PAIR 196 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 196 1 b [read_memory 0x12000404 32 1]"
+echo "PAIR 196 2 b [read_memory 0x12000404 32 1]"
+echo "PAIR 196 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 196 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 196 5 b [read_memory 0x12000404 32 1]"
+echo "PAIR 196 6 b [read_memory 0x12000404 32 1]"
+echo "PAIR 196 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000404 32 {0xed0a6724}
+write_memory 0x12000004 32 {0x12f598db}
+echo "PAIR 197 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 197 1 b [read_memory 0x12000404 32 1]"
+echo "PAIR 197 2 b [read_memory 0x12000404 32 1]"
+echo "PAIR 197 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 197 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 197 5 b [read_memory 0x12000404 32 1]"
+echo "PAIR 197 6 b [read_memory 0x12000404 32 1]"
+echo "PAIR 197 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000004 32 {0xed0a6724}
+write_memory 0x12000404 32 {0x12f598db}
+echo "PAIR 198 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 198 1 b [read_memory 0x12000404 32 1]"
+echo "PAIR 198 2 b [read_memory 0x12000404 32 1]"
+echo "PAIR 198 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 198 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 198 5 b [read_memory 0x12000404 32 1]"
+echo "PAIR 198 6 b [read_memory 0x12000404 32 1]"
+echo "PAIR 198 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000404 32 {0x12f598db}
+write_memory 0x12000004 32 {0xed0a6724}
+echo "PAIR 199 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 199 1 b [read_memory 0x12000404 32 1]"
+echo "PAIR 199 2 b [read_memory 0x12000404 32 1]"
+echo "PAIR 199 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 199 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 199 5 b [read_memory 0x12000404 32 1]"
+echo "PAIR 199 6 b [read_memory 0x12000404 32 1]"
+echo "PAIR 199 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000008 32 {0x11f39dd7}
+write_memory 0x12000408 32 {0xee0c6228}
+echo "PAIR 200 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 200 1 b [read_memory 0x12000408 32 1]"
+echo "PAIR 200 2 b [read_memory 0x12000408 32 1]"
+echo "PAIR 200 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 200 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 200 5 b [read_memory 0x12000408 32 1]"
+echo "PAIR 200 6 b [read_memory 0x12000408 32 1]"
+echo "PAIR 200 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000408 32 {0xee0c6228}
+write_memory 0x12000008 32 {0x11f39dd7}
+echo "PAIR 201 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 201 1 b [read_memory 0x12000408 32 1]"
+echo "PAIR 201 2 b [read_memory 0x12000408 32 1]"
+echo "PAIR 201 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 201 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 201 5 b [read_memory 0x12000408 32 1]"
+echo "PAIR 201 6 b [read_memory 0x12000408 32 1]"
+echo "PAIR 201 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000008 32 {0xee0c6228}
+write_memory 0x12000408 32 {0x11f39dd7}
+echo "PAIR 202 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 202 1 b [read_memory 0x12000408 32 1]"
+echo "PAIR 202 2 b [read_memory 0x12000408 32 1]"
+echo "PAIR 202 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 202 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 202 5 b [read_memory 0x12000408 32 1]"
+echo "PAIR 202 6 b [read_memory 0x12000408 32 1]"
+echo "PAIR 202 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000408 32 {0x11f39dd7}
+write_memory 0x12000008 32 {0xee0c6228}
+echo "PAIR 203 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 203 1 b [read_memory 0x12000408 32 1]"
+echo "PAIR 203 2 b [read_memory 0x12000408 32 1]"
+echo "PAIR 203 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 203 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 203 5 b [read_memory 0x12000408 32 1]"
+echo "PAIR 203 6 b [read_memory 0x12000408 32 1]"
+echo "PAIR 203 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x1200000c 32 {0x10f192d3}
+write_memory 0x1200040c 32 {0xef0e6d2c}
+echo "PAIR 204 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 204 1 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 204 2 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 204 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 204 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 204 5 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 204 6 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 204 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200040c 32 {0xef0e6d2c}
+write_memory 0x1200000c 32 {0x10f192d3}
+echo "PAIR 205 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 205 1 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 205 2 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 205 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 205 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 205 5 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 205 6 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 205 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200000c 32 {0xef0e6d2c}
+write_memory 0x1200040c 32 {0x10f192d3}
+echo "PAIR 206 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 206 1 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 206 2 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 206 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 206 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 206 5 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 206 6 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 206 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200040c 32 {0x10f192d3}
+write_memory 0x1200000c 32 {0xef0e6d2c}
+echo "PAIR 207 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 207 1 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 207 2 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 207 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 207 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 207 5 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 207 6 b [read_memory 0x1200040c 32 1]"
+echo "PAIR 207 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x12000180 32 {0x13f79e5f}
+write_memory 0x12000580 32 {0xec0861a0}
+echo "PAIR 208 0 a [read_memory 0x12000180 32 1]"
+echo "PAIR 208 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 208 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 208 3 a [read_memory 0x12000180 32 1]"
+echo "PAIR 208 4 a [read_memory 0x12000180 32 1]"
+echo "PAIR 208 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 208 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 208 7 a [read_memory 0x12000180 32 1]"
+write_memory 0x12000580 32 {0xec0861a0}
+write_memory 0x12000180 32 {0x13f79e5f}
+echo "PAIR 209 0 a [read_memory 0x12000180 32 1]"
+echo "PAIR 209 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 209 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 209 3 a [read_memory 0x12000180 32 1]"
+echo "PAIR 209 4 a [read_memory 0x12000180 32 1]"
+echo "PAIR 209 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 209 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 209 7 a [read_memory 0x12000180 32 1]"
+write_memory 0x12000180 32 {0xec0861a0}
+write_memory 0x12000580 32 {0x13f79e5f}
+echo "PAIR 210 0 a [read_memory 0x12000180 32 1]"
+echo "PAIR 210 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 210 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 210 3 a [read_memory 0x12000180 32 1]"
+echo "PAIR 210 4 a [read_memory 0x12000180 32 1]"
+echo "PAIR 210 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 210 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 210 7 a [read_memory 0x12000180 32 1]"
+write_memory 0x12000580 32 {0x13f79e5f}
+write_memory 0x12000180 32 {0xec0861a0}
+echo "PAIR 211 0 a [read_memory 0x12000180 32 1]"
+echo "PAIR 211 1 b [read_memory 0x12000580 32 1]"
+echo "PAIR 211 2 b [read_memory 0x12000580 32 1]"
+echo "PAIR 211 3 a [read_memory 0x12000180 32 1]"
+echo "PAIR 211 4 a [read_memory 0x12000180 32 1]"
+echo "PAIR 211 5 b [read_memory 0x12000580 32 1]"
+echo "PAIR 211 6 b [read_memory 0x12000580 32 1]"
+echo "PAIR 211 7 a [read_memory 0x12000180 32 1]"
+write_memory 0x12000184 32 {0x12f59d5b}
+write_memory 0x12000584 32 {0xed0a62a4}
+echo "PAIR 212 0 a [read_memory 0x12000184 32 1]"
+echo "PAIR 212 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 212 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 212 3 a [read_memory 0x12000184 32 1]"
+echo "PAIR 212 4 a [read_memory 0x12000184 32 1]"
+echo "PAIR 212 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 212 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 212 7 a [read_memory 0x12000184 32 1]"
+write_memory 0x12000584 32 {0xed0a62a4}
+write_memory 0x12000184 32 {0x12f59d5b}
+echo "PAIR 213 0 a [read_memory 0x12000184 32 1]"
+echo "PAIR 213 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 213 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 213 3 a [read_memory 0x12000184 32 1]"
+echo "PAIR 213 4 a [read_memory 0x12000184 32 1]"
+echo "PAIR 213 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 213 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 213 7 a [read_memory 0x12000184 32 1]"
+write_memory 0x12000184 32 {0xed0a62a4}
+write_memory 0x12000584 32 {0x12f59d5b}
+echo "PAIR 214 0 a [read_memory 0x12000184 32 1]"
+echo "PAIR 214 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 214 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 214 3 a [read_memory 0x12000184 32 1]"
+echo "PAIR 214 4 a [read_memory 0x12000184 32 1]"
+echo "PAIR 214 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 214 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 214 7 a [read_memory 0x12000184 32 1]"
+write_memory 0x12000584 32 {0x12f59d5b}
+write_memory 0x12000184 32 {0xed0a62a4}
+echo "PAIR 215 0 a [read_memory 0x12000184 32 1]"
+echo "PAIR 215 1 b [read_memory 0x12000584 32 1]"
+echo "PAIR 215 2 b [read_memory 0x12000584 32 1]"
+echo "PAIR 215 3 a [read_memory 0x12000184 32 1]"
+echo "PAIR 215 4 a [read_memory 0x12000184 32 1]"
+echo "PAIR 215 5 b [read_memory 0x12000584 32 1]"
+echo "PAIR 215 6 b [read_memory 0x12000584 32 1]"
+echo "PAIR 215 7 a [read_memory 0x12000184 32 1]"
+write_memory 0x12000188 32 {0x11f39857}
+write_memory 0x12000588 32 {0xee0c67a8}
+echo "PAIR 216 0 a [read_memory 0x12000188 32 1]"
+echo "PAIR 216 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 216 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 216 3 a [read_memory 0x12000188 32 1]"
+echo "PAIR 216 4 a [read_memory 0x12000188 32 1]"
+echo "PAIR 216 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 216 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 216 7 a [read_memory 0x12000188 32 1]"
+write_memory 0x12000588 32 {0xee0c67a8}
+write_memory 0x12000188 32 {0x11f39857}
+echo "PAIR 217 0 a [read_memory 0x12000188 32 1]"
+echo "PAIR 217 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 217 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 217 3 a [read_memory 0x12000188 32 1]"
+echo "PAIR 217 4 a [read_memory 0x12000188 32 1]"
+echo "PAIR 217 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 217 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 217 7 a [read_memory 0x12000188 32 1]"
+write_memory 0x12000188 32 {0xee0c67a8}
+write_memory 0x12000588 32 {0x11f39857}
+echo "PAIR 218 0 a [read_memory 0x12000188 32 1]"
+echo "PAIR 218 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 218 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 218 3 a [read_memory 0x12000188 32 1]"
+echo "PAIR 218 4 a [read_memory 0x12000188 32 1]"
+echo "PAIR 218 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 218 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 218 7 a [read_memory 0x12000188 32 1]"
+write_memory 0x12000588 32 {0x11f39857}
+write_memory 0x12000188 32 {0xee0c67a8}
+echo "PAIR 219 0 a [read_memory 0x12000188 32 1]"
+echo "PAIR 219 1 b [read_memory 0x12000588 32 1]"
+echo "PAIR 219 2 b [read_memory 0x12000588 32 1]"
+echo "PAIR 219 3 a [read_memory 0x12000188 32 1]"
+echo "PAIR 219 4 a [read_memory 0x12000188 32 1]"
+echo "PAIR 219 5 b [read_memory 0x12000588 32 1]"
+echo "PAIR 219 6 b [read_memory 0x12000588 32 1]"
+echo "PAIR 219 7 a [read_memory 0x12000188 32 1]"
+write_memory 0x1200018c 32 {0x10f19753}
+write_memory 0x1200058c 32 {0xef0e68ac}
+echo "PAIR 220 0 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 220 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 220 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 220 3 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 220 4 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 220 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 220 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 220 7 a [read_memory 0x1200018c 32 1]"
+write_memory 0x1200058c 32 {0xef0e68ac}
+write_memory 0x1200018c 32 {0x10f19753}
+echo "PAIR 221 0 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 221 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 221 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 221 3 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 221 4 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 221 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 221 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 221 7 a [read_memory 0x1200018c 32 1]"
+write_memory 0x1200018c 32 {0xef0e68ac}
+write_memory 0x1200058c 32 {0x10f19753}
+echo "PAIR 222 0 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 222 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 222 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 222 3 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 222 4 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 222 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 222 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 222 7 a [read_memory 0x1200018c 32 1]"
+write_memory 0x1200058c 32 {0x10f19753}
+write_memory 0x1200018c 32 {0xef0e68ac}
+echo "PAIR 223 0 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 223 1 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 223 2 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 223 3 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 223 4 a [read_memory 0x1200018c 32 1]"
+echo "PAIR 223 5 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 223 6 b [read_memory 0x1200058c 32 1]"
+echo "PAIR 223 7 a [read_memory 0x1200018c 32 1]"
+write_memory 0x12000000 32 {0x13e79bdf}
+write_memory 0x12000800 32 {0xec186420}
+echo "PAIR 224 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 224 1 b [read_memory 0x12000800 32 1]"
+echo "PAIR 224 2 b [read_memory 0x12000800 32 1]"
+echo "PAIR 224 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 224 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 224 5 b [read_memory 0x12000800 32 1]"
+echo "PAIR 224 6 b [read_memory 0x12000800 32 1]"
+echo "PAIR 224 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000800 32 {0xec186420}
+write_memory 0x12000000 32 {0x13e79bdf}
+echo "PAIR 225 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 225 1 b [read_memory 0x12000800 32 1]"
+echo "PAIR 225 2 b [read_memory 0x12000800 32 1]"
+echo "PAIR 225 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 225 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 225 5 b [read_memory 0x12000800 32 1]"
+echo "PAIR 225 6 b [read_memory 0x12000800 32 1]"
+echo "PAIR 225 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000000 32 {0xec186420}
+write_memory 0x12000800 32 {0x13e79bdf}
+echo "PAIR 226 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 226 1 b [read_memory 0x12000800 32 1]"
+echo "PAIR 226 2 b [read_memory 0x12000800 32 1]"
+echo "PAIR 226 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 226 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 226 5 b [read_memory 0x12000800 32 1]"
+echo "PAIR 226 6 b [read_memory 0x12000800 32 1]"
+echo "PAIR 226 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000800 32 {0x13e79bdf}
+write_memory 0x12000000 32 {0xec186420}
+echo "PAIR 227 0 a [read_memory 0x12000000 32 1]"
+echo "PAIR 227 1 b [read_memory 0x12000800 32 1]"
+echo "PAIR 227 2 b [read_memory 0x12000800 32 1]"
+echo "PAIR 227 3 a [read_memory 0x12000000 32 1]"
+echo "PAIR 227 4 a [read_memory 0x12000000 32 1]"
+echo "PAIR 227 5 b [read_memory 0x12000800 32 1]"
+echo "PAIR 227 6 b [read_memory 0x12000800 32 1]"
+echo "PAIR 227 7 a [read_memory 0x12000000 32 1]"
+write_memory 0x12000004 32 {0x12e598db}
+write_memory 0x12000804 32 {0xed1a6724}
+echo "PAIR 228 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 228 1 b [read_memory 0x12000804 32 1]"
+echo "PAIR 228 2 b [read_memory 0x12000804 32 1]"
+echo "PAIR 228 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 228 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 228 5 b [read_memory 0x12000804 32 1]"
+echo "PAIR 228 6 b [read_memory 0x12000804 32 1]"
+echo "PAIR 228 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000804 32 {0xed1a6724}
+write_memory 0x12000004 32 {0x12e598db}
+echo "PAIR 229 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 229 1 b [read_memory 0x12000804 32 1]"
+echo "PAIR 229 2 b [read_memory 0x12000804 32 1]"
+echo "PAIR 229 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 229 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 229 5 b [read_memory 0x12000804 32 1]"
+echo "PAIR 229 6 b [read_memory 0x12000804 32 1]"
+echo "PAIR 229 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000004 32 {0xed1a6724}
+write_memory 0x12000804 32 {0x12e598db}
+echo "PAIR 230 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 230 1 b [read_memory 0x12000804 32 1]"
+echo "PAIR 230 2 b [read_memory 0x12000804 32 1]"
+echo "PAIR 230 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 230 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 230 5 b [read_memory 0x12000804 32 1]"
+echo "PAIR 230 6 b [read_memory 0x12000804 32 1]"
+echo "PAIR 230 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000804 32 {0x12e598db}
+write_memory 0x12000004 32 {0xed1a6724}
+echo "PAIR 231 0 a [read_memory 0x12000004 32 1]"
+echo "PAIR 231 1 b [read_memory 0x12000804 32 1]"
+echo "PAIR 231 2 b [read_memory 0x12000804 32 1]"
+echo "PAIR 231 3 a [read_memory 0x12000004 32 1]"
+echo "PAIR 231 4 a [read_memory 0x12000004 32 1]"
+echo "PAIR 231 5 b [read_memory 0x12000804 32 1]"
+echo "PAIR 231 6 b [read_memory 0x12000804 32 1]"
+echo "PAIR 231 7 a [read_memory 0x12000004 32 1]"
+write_memory 0x12000008 32 {0x11e39dd7}
+write_memory 0x12000808 32 {0xee1c6228}
+echo "PAIR 232 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 232 1 b [read_memory 0x12000808 32 1]"
+echo "PAIR 232 2 b [read_memory 0x12000808 32 1]"
+echo "PAIR 232 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 232 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 232 5 b [read_memory 0x12000808 32 1]"
+echo "PAIR 232 6 b [read_memory 0x12000808 32 1]"
+echo "PAIR 232 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000808 32 {0xee1c6228}
+write_memory 0x12000008 32 {0x11e39dd7}
+echo "PAIR 233 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 233 1 b [read_memory 0x12000808 32 1]"
+echo "PAIR 233 2 b [read_memory 0x12000808 32 1]"
+echo "PAIR 233 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 233 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 233 5 b [read_memory 0x12000808 32 1]"
+echo "PAIR 233 6 b [read_memory 0x12000808 32 1]"
+echo "PAIR 233 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000008 32 {0xee1c6228}
+write_memory 0x12000808 32 {0x11e39dd7}
+echo "PAIR 234 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 234 1 b [read_memory 0x12000808 32 1]"
+echo "PAIR 234 2 b [read_memory 0x12000808 32 1]"
+echo "PAIR 234 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 234 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 234 5 b [read_memory 0x12000808 32 1]"
+echo "PAIR 234 6 b [read_memory 0x12000808 32 1]"
+echo "PAIR 234 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x12000808 32 {0x11e39dd7}
+write_memory 0x12000008 32 {0xee1c6228}
+echo "PAIR 235 0 a [read_memory 0x12000008 32 1]"
+echo "PAIR 235 1 b [read_memory 0x12000808 32 1]"
+echo "PAIR 235 2 b [read_memory 0x12000808 32 1]"
+echo "PAIR 235 3 a [read_memory 0x12000008 32 1]"
+echo "PAIR 235 4 a [read_memory 0x12000008 32 1]"
+echo "PAIR 235 5 b [read_memory 0x12000808 32 1]"
+echo "PAIR 235 6 b [read_memory 0x12000808 32 1]"
+echo "PAIR 235 7 a [read_memory 0x12000008 32 1]"
+write_memory 0x1200000c 32 {0x10e192d3}
+write_memory 0x1200080c 32 {0xef1e6d2c}
+echo "PAIR 236 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 236 1 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 236 2 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 236 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 236 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 236 5 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 236 6 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 236 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200080c 32 {0xef1e6d2c}
+write_memory 0x1200000c 32 {0x10e192d3}
+echo "PAIR 237 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 237 1 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 237 2 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 237 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 237 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 237 5 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 237 6 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 237 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200000c 32 {0xef1e6d2c}
+write_memory 0x1200080c 32 {0x10e192d3}
+echo "PAIR 238 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 238 1 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 238 2 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 238 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 238 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 238 5 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 238 6 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 238 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x1200080c 32 {0x10e192d3}
+write_memory 0x1200000c 32 {0xef1e6d2c}
+echo "PAIR 239 0 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 239 1 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 239 2 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 239 3 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 239 4 a [read_memory 0x1200000c 32 1]"
+echo "PAIR 239 5 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 239 6 b [read_memory 0x1200080c 32 1]"
+echo "PAIR 239 7 a [read_memory 0x1200000c 32 1]"
+write_memory 0x12000580 32 {0x13e79e5f}
+write_memory 0x12000d80 32 {0xec1861a0}
+echo "PAIR 240 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 240 1 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 240 2 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 240 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 240 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 240 5 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 240 6 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 240 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000d80 32 {0xec1861a0}
+write_memory 0x12000580 32 {0x13e79e5f}
+echo "PAIR 241 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 241 1 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 241 2 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 241 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 241 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 241 5 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 241 6 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 241 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000580 32 {0xec1861a0}
+write_memory 0x12000d80 32 {0x13e79e5f}
+echo "PAIR 242 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 242 1 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 242 2 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 242 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 242 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 242 5 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 242 6 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 242 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000d80 32 {0x13e79e5f}
+write_memory 0x12000580 32 {0xec1861a0}
+echo "PAIR 243 0 a [read_memory 0x12000580 32 1]"
+echo "PAIR 243 1 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 243 2 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 243 3 a [read_memory 0x12000580 32 1]"
+echo "PAIR 243 4 a [read_memory 0x12000580 32 1]"
+echo "PAIR 243 5 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 243 6 b [read_memory 0x12000d80 32 1]"
+echo "PAIR 243 7 a [read_memory 0x12000580 32 1]"
+write_memory 0x12000584 32 {0x12e59d5b}
+write_memory 0x12000d84 32 {0xed1a62a4}
+echo "PAIR 244 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 244 1 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 244 2 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 244 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 244 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 244 5 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 244 6 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 244 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000d84 32 {0xed1a62a4}
+write_memory 0x12000584 32 {0x12e59d5b}
+echo "PAIR 245 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 245 1 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 245 2 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 245 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 245 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 245 5 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 245 6 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 245 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000584 32 {0xed1a62a4}
+write_memory 0x12000d84 32 {0x12e59d5b}
+echo "PAIR 246 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 246 1 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 246 2 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 246 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 246 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 246 5 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 246 6 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 246 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000d84 32 {0x12e59d5b}
+write_memory 0x12000584 32 {0xed1a62a4}
+echo "PAIR 247 0 a [read_memory 0x12000584 32 1]"
+echo "PAIR 247 1 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 247 2 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 247 3 a [read_memory 0x12000584 32 1]"
+echo "PAIR 247 4 a [read_memory 0x12000584 32 1]"
+echo "PAIR 247 5 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 247 6 b [read_memory 0x12000d84 32 1]"
+echo "PAIR 247 7 a [read_memory 0x12000584 32 1]"
+write_memory 0x12000588 32 {0x11e39857}
+write_memory 0x12000d88 32 {0xee1c67a8}
+echo "PAIR 248 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 248 1 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 248 2 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 248 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 248 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 248 5 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 248 6 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 248 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000d88 32 {0xee1c67a8}
+write_memory 0x12000588 32 {0x11e39857}
+echo "PAIR 249 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 249 1 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 249 2 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 249 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 249 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 249 5 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 249 6 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 249 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000588 32 {0xee1c67a8}
+write_memory 0x12000d88 32 {0x11e39857}
+echo "PAIR 250 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 250 1 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 250 2 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 250 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 250 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 250 5 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 250 6 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 250 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x12000d88 32 {0x11e39857}
+write_memory 0x12000588 32 {0xee1c67a8}
+echo "PAIR 251 0 a [read_memory 0x12000588 32 1]"
+echo "PAIR 251 1 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 251 2 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 251 3 a [read_memory 0x12000588 32 1]"
+echo "PAIR 251 4 a [read_memory 0x12000588 32 1]"
+echo "PAIR 251 5 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 251 6 b [read_memory 0x12000d88 32 1]"
+echo "PAIR 251 7 a [read_memory 0x12000588 32 1]"
+write_memory 0x1200058c 32 {0x10e19753}
+write_memory 0x12000d8c 32 {0xef1e68ac}
+echo "PAIR 252 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 252 1 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 252 2 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 252 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 252 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 252 5 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 252 6 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 252 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x12000d8c 32 {0xef1e68ac}
+write_memory 0x1200058c 32 {0x10e19753}
+echo "PAIR 253 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 253 1 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 253 2 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 253 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 253 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 253 5 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 253 6 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 253 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x1200058c 32 {0xef1e68ac}
+write_memory 0x12000d8c 32 {0x10e19753}
+echo "PAIR 254 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 254 1 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 254 2 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 254 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 254 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 254 5 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 254 6 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 254 7 a [read_memory 0x1200058c 32 1]"
+write_memory 0x12000d8c 32 {0x10e19753}
+write_memory 0x1200058c 32 {0xef1e68ac}
+echo "PAIR 255 0 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 255 1 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 255 2 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 255 3 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 255 4 a [read_memory 0x1200058c 32 1]"
+echo "PAIR 255 5 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 255 6 b [read_memory 0x12000d8c 32 1]"
+echo "PAIR 255 7 a [read_memory 0x1200058c 32 1]"
+echo NEO_ADDRESS_PAIRS_COMPLETE
+shutdown

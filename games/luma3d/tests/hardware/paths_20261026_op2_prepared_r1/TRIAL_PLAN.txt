@@ -1,0 +1,57 @@
+OP2 — essai proposé, aucun accès matériel durant sa préparation
+
+Application exacte : amber_paths_20261026_r5 / ELF 8f750018…f18981.
+Repli unique : am1 / ELF62a9178d…616ee, sauvegarde V3 /tmp/op1-am1-recovery.save.
+Le PID historique n’est pas une autorisation : identité fraîche comm/cmdline,
+startticks et CRC de /proc/PID/exe, progression de l’affichage avant transfert,
+puis identité inchangée juste avant arrêt. Un seul argument --save est accepté.
+Le SIGTERM vise le PID constant validé ; la commande relit son starttime avant
+le signal, puis confirme son arrêt. Refus si autre programme/save/identité.
+
+Le contrôleur garde le verrou /tmp/prodock-diagnostic.lock et CDC11252024
+exclusifs. Il transfère en RAM de nouveaux noms op2, applique deux deltas
+entièrement vérifiés (am1→jeu, jeu→pilote), puis vérifie références/fixtures.
+FPGA G22r0 et noyau G3D1 restent inchangés. Aucun accès JTAG, SD ou flash.
+Toutes les entrées figées r4 et du FAIL op1 restent intactes.
+
+Séquence bornée, sans répétition opportuniste :
+1. Annonce10s, arrêt ciblé am1, capture/saveV3 initiale.
+2. Arrivée am1 → r5 → am1, 30 images +3chauffe chacune. Silence UART jusqu’à EXIT.
+   Garde de régression : ralentissement≤10%, dérive témoin≤5%, aucun gain annoncé.
+   Chaque image finale RGB565 et les deux banques HUD sont comparées exactement.
+3. Sept positions chargées : jardin, maison, cinq activités. Le pilote séparé
+   dessine3images fixes par fichier V4. Comparaison RGB565 pour scènes3D, indices
+   des deux banques pour toutes, descripteurs/palette CPU transmis comparés.
+   Aucune prétention de capture composite LCD ni de relecture palette matérielle.
+   Les quatre puzzles2D couvrent le framebuffer3D, qui n’est donc pas comparé.
+4. Pilote explicitement diagnostique : parcours physique par commandes normales,
+   deux routes, cinq défis gagnés via conseiller légal, cinq sauvegardes/reprises,
+   récompenses uniques, sortie secrète. Simulation accélérée, échantillonnée à
+   cinq images par seconde simulée (426images attendues). Ce n’est pas un FPS
+   tempsréel ni une durée humaine. AttenteEXIT≤600s sans commandesUART.
+5. Reprise d’un défi actif dans l’ELF utilisateur exact, une image, V4 et banque
+   comparés. La sauvegarde V3 am1 doit toujours être identique.
+6. Si tout passe, visite principale automatique r5 depuis l’arrivée d’ambre,
+   fichier /tmp/op2-live.save distinct, progression vérifiée et PID publié.
+   Les activités facultatives restent accessibles manuellement ; la visite
+   automatique ne prétend pas les parcourir. CDC/verrou sont ensuite libérés.
+
+Tout échec/interruption après arrêt : arrêt du PID précis, repli am1 depuis
+une copie de V3 dans /tmp/op2-am1-recovery.save. Un PID non publié/ambigu refuse
+un second lancement GPU. Le repli est armé avant son lancement ; si sa réponse
+ou son contrôle échoue, une seconde tentative contrôle le même PID sans le
+relancer ni écraser son fichier PID. Échec de transfert avant arrêt : abort du récepteur,
+jeu am1 préservé. Les preuves incomplètes restent FAIL, jamais PASS.
+Les /tmp sont volatils. Aucun stockage durable n’est qualifié par ce lot.
+
+Exécution uniquement après revue parent de ce paquet et retour campagne.
+
+Correction ciblée : caméra immédiate indépendante de la caméra précédente.
+Le vrai main et les fixtures sont désormais initialisés depuis la même vallée.
+Neuf captures RV32 sous QEMU confirment les commandes et la mémoire PC ;
+ces preuves locales ne remplacent pas l’essai GPU. Aucune tolérance pixel.
+
+La dernière ancre am1 est PID 1754 / startticks 12896276, mais le contrôleur
+exige une identité fraîche avant toute action. Sa sauvegarde active est
+/tmp/op1-am1-recovery.save ; elle reste intacte après arrêt, comme
+l’ancien /tmp/am1-live.save. Le paquet op1 consommé n’est pas réutilisé.

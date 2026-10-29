@@ -1,0 +1,111 @@
+{
+  "build": "/home/michael/console/tang/impl/console_neo_n56r3",
+  "constructor_exit_code": 0,
+  "hardware_access": false,
+  "loaded": false,
+  "reviewed_manifest_sha256": "02de071c5f52c4d9a91e04b53aa619bc59442e64b287f615112cf8d51fe86b4f",
+  "status": "FAIL",
+  "bitstream_sha256": "77a76cdc6d16aaa34a939296cc74ed7f6e29980682ac2756b6b2658ae443fbe2",
+  "timing_checks_ns": {
+    "setup": -0.453,
+    "hold": 0.124,
+    "recovery": 0.306,
+    "removal": 0.049
+  },
+  "violated_endpoints": {
+    "setup": 2,
+    "hold": 0
+  },
+  "negative_timing_summary": [
+    {
+      "line": 139,
+      "text": "1             -0.453       u_accel/u_v1/u_pixels/packet_25_s0/Q                                                          u_gpu_debug/observe_words_s1_57_s0/D                                                          ddr3_sys_clk:[R]   bus80_clk:[R]      8.000      -0.133       8.494"
+    },
+    {
+      "line": 140,
+      "text": "2             -0.278       u_accel/u_v1/u_pixels/packet_17_s0/Q                                                          u_gpu_debug/observe_words_s1_49_s0/D                                                          ddr3_sys_clk:[R]   bus80_clk:[R]      8.000      -0.129       8.314"
+    }
+  ],
+  "structural_audits": {
+    "copy": {
+      "passed": true
+    },
+    "scanout": {
+      "passed": true
+    },
+    "gpu_owner_replication": {
+      "passed": true,
+      "errors": []
+    },
+    "timing_closure": {
+      "passed": true,
+      "errors": []
+    },
+    "cpu_ddr_fifo_registers": {
+      "passed": true,
+      "errors": []
+    },
+    "gpu_reset_tree": {
+      "passed": false,
+      "errors": [
+        "Reset 4 still uses a global routing resource"
+      ]
+    },
+    "gpu_pixel_mask": {
+      "passed": true,
+      "errors": []
+    },
+    "gpu_pixel_mask_routed": {
+      "passed": true,
+      "errors": []
+    },
+    "gpu_pixel_selector": {
+      "passed": true,
+      "errors": []
+    },
+    "gpu_pixel_selector_routed": {
+      "passed": true,
+      "errors": []
+    }
+  },
+  "four_control_audit_passed": true,
+  "newly_global_nets": [
+    {
+      "net": "gpu_debug_state[48]",
+      "resource": "LW",
+      "drivers": [
+        {
+          "instance": "u_accel/engine_resetn_4_s0",
+          "kind": "DFFCE",
+          "pins": {
+            "D": "gpu_debug_state[42]",
+            "CLK": "gpu_clk",
+            "CE": "VCC",
+            "CLEAR": "u_gpu_debug/gowin_split_inv_from_n3932_s2_onet",
+            "Q": "gpu_debug_state[48]"
+          }
+        }
+      ],
+      "load_pin_counts": {
+        "D": 1,
+        "I1": 5,
+        "I0": 2,
+        "I": 1
+      }
+    }
+  ],
+  "removed_global_nets": [
+    {
+      "net": "u_accel/u_v1/n56864_3",
+      "resource": "LW"
+    }
+  ],
+  "sha256": {
+    "tang/impl/console_neo_n56r3/qualification.json": "d6c423d95de7d485cf3013b917c7ba53f955021970b6271c6d69c51b9e1dcf52",
+    "tang/impl/console_neo_n56r3/local_controls_audit.json": "14eada19cb818946c028cc2b80d9215b1f3e910e2218736853f2d1b99a45a150",
+    "tang/impl/console_neo_n56r3/build.log": "7e32a34aeb26f9e7cc1d25604bba6a26f269900dd1ee5503556f2f3d5287f2e0",
+    "tang/impl/console_neo_n56r3/sources.json": "fb4c64ee695abb7bec453377d9fdf229a6d2b355c3201d89ce9ad2fd9887ce02",
+    "tang/impl/console_neo_n56r3/console_neo.vg": "c05e9b7a4bcafba8cd31e4b985b4ba37ace8ecbd0e4b999745ac60d7a5fb461d"
+  },
+  "sandbox_launch_failure": "Initial sandbox attempt stopped before PnR: AF_NETLINK/hostid license access; preserved in n56r3_sandbox_license_failure. Same reviewed constructor relaunched outside sandbox."
+}

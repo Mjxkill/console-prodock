@@ -1,0 +1,493 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Revue contradictoire de composition du jardin et coût géométrique. Trois propositions minimales, code et faits seulement; aucune prétention de voir les images ou mesurer les FPS.
+
+EVIDENCE PACKET:
+CONTEXTE: candidat isolé Festival, pas de déploiement. Tu ne reçois PAS les PNG: aucune prétention de vision. Root intègre actuellement le ciel R3 et les textures GM1 existantes, donc tes modifications ne sont que propositions. Visuel observé par agent sur review_r2b/garden.png: grille beige/verte très régulière, stands en aplats, arbres pyramidaux, image peu vivante; nouvelle caméra plus basse + ciel pas encore capturés. Demande utilisateur: joli jardin avec plusieurs itinéraires, lune(s), forêt au fond, transparence; aucune accumulation artificielle de 16 couches. Pas de nouvelle réserve VRAM. Moteurs minijeux hors périmètre. Fournis trois corrections minimales classées par impact qui ne rajoutent PAS de nouvelles commandes par objet; masses/teintes/composition exploitant textures chargées: grass0,stone1,earth2,roof4,bark5,water6,leaf7. Revue performance: compte triangles approximativement depuis boucles, recherche gaspillage, absence de culling, précision perspective. Ne convertis pas cmd en FPS. Revue contre-exemples pour ton propre conseil. Code ne doit pas être modifié.
+
+FILE games/luma3d/candidates/table_games_20261027_r1/frontend/festival.c SHA256 172db2b2a7986478622d250d109f217d6d516e416a55b8123001cd72d8beed3b
+1: #include "l3_festival.h"
+2: #include "festival_art.h"
+3: #include "l3_table_progress.h"
+4: #include "sky_art.h"
+5: #include "generated.h"
+6: #include <math.h>
+7: #include <stdlib.h>
+8: #include <string.h>
+9: #define COUNT(a) (sizeof(a)/sizeof(*(a)))
+10: #define ATLAS (17u<<20)
+11: #define CHROMA (ATLAS+524288u)
+12: #define GEOMETRY (ATLAS+786432u)
+13: #define SKY ((18u<<20)+(1u<<19))
+14: _Static_assert(sizeof(sky_texture)+sizeof(sky_vertices)+sizeof(sky_faces)<(1u<<19),"Sky reservation overlaps hero atlas");
+15: static const float sites[4][2]={{-8,-8},{8,-8},{8,8},{-8,8}};
+16: static const char *names[4]={"OTHELLO - Le jardin des contraires","SOLITAIRE - Les cartes du voyageur","CHROMA - La ronde des couleurs","PENDU - Les mots des etoiles"};
+17: static unsigned rgb(unsigned r,unsigned g,unsigned b){return (r>>3)<<11|(g>>2)<<5|(b>>3);}
+18: static float clamp(float v,float a,float b){return fminf(b,fmaxf(a,v));}
+19: static float ease(float v){v=clamp(v,0,1);return v*v*(3-2*v);}
+20: static void reset_draw(L3Festival *f){f->revision++;f->base_ready[0]=f->base_ready[1]=0;f->ui_page[0]=f->ui_page[1]=0;f->poses_n=f->old_n=0;f->page_valid[0]=f->page_valid[1]=0;}
+21: L3Festival *l3_festival_create(int automatic){
+22:     L3Festival *f=calloc(1,sizeof(*f));if(!f)return NULL;
+23:     f->automatic=!!automatic;f->kind=L3_TABLE_COUNT;f->source=255;f->baked_kind=255;f->z=13;f->camera_z=21;f->revision=1;
+24:     for(unsigned k=0;k<L3_TABLE_COUNT;k++)if(!l3_table_init(&f->games[k],k,17+k*31)){free(f);return NULL;}
+25:     return f;
+26: }
+27: void l3_festival_destroy(L3Festival *f){if(f){free(f->ui);free(f->background);free(f);}}
+28: void l3_festival_enter(L3Festival *f,unsigned game){
+29:     if(!f)return;f->active=1;f->kind=game<L3_TABLE_COUNT?game:L3_TABLE_COUNT;
+30:     if(game<4&&f->automatic&&f->games[game].status)l3_table_init(&f->games[game],game,f->games[game].seed+1);
+31:     f->selection=f->row=f->turns=0;f->source=255;f->action_time=f->scene_time=0;f->transition=1;reset_draw(f);
+32:     if(game<L3_TABLE_COUNT){f->visited|=1u<<game;l3_table_view(&f->games[game],&f->view,0);}
+33: }
+34: void l3_festival_leave(L3Render *r,L3Festival *f){
+35:     if(!f)return;f->active=0;f->assets=0;r->sky_region=~0u;r->hud_stamp[0]=r->hud_stamp[1]=0;r->mini_stamp[0]=r->mini_stamp[1]=0;
+36:     reset_draw(f);
+37: }
+38: static int act(L3Festival *f,L3TableAction a){
+39:     if(f->kind>=L3_TABLE_COUNT)return 0;
+40:     if(!l3_table_action(&f->games[f->kind],a,&f->trace))return 0;
+41:     memcpy(f->old,f->poses,f->poses_n*sizeof(*f->old));f->old_n=f->poses_n;f->transition=0;
+42:     l3_table_view(&f->games[f->kind],&f->view,0);f->revision++;f->turns++;
+43:     if(f->view.status==L3_TABLE_WON)f->won|=1u<<f->kind;
+44:     return 1;
+45: }
+46: static unsigned nearest(const L3Festival *f){unsigned best=0;float distance=1e9f;for(unsigned k=0;k<4;k++){float d=hypotf(f->x-sites[k][0],f->z-sites[k][1]);if(d<distance){distance=d;best=k;}}return best;}
+47: static int garden_blocked(float x,float z){
+48:     if(fabsf(x)<2.65f&&fabsf(z)<2.65f)return 1;
+49:     for(unsigned k=0;k<4;k++){
+50:         float dx=x-sites[k][0],dz=z-sites[k][1];
+51:         if(fabsf(dx)<1.2f&&fabsf(dz)<.9f)return 1;
+52:         for(int a=-1;a<=1;a+=2)for(int b=-1;b<=1;b+=2)if(fabsf(dx-a*1.9f)<.425f&&fabsf(dz-b*1.9f)<.425f)return 1;
+53:     }return 0;
+54: }
+55: int l3_festival_save(const L3Festival *f,const char *path){
+56:     if(!f||!path)return 0;L3TableProgress p={0};memcpy(p.games,f->games,sizeof(p.games));
+57:     p.visited=f->visited;p.won=f->won;p.kind=f->kind;p.map=f->map;p.x_mm=(int32_t)lroundf(f->x*1000);p.z_mm=(int32_t)lroundf(f->z*1000);
+58:     return l3_table_progress_save(&p,path);
+59: }
+60: int l3_festival_load(L3Festival *f,const char *path){
+61:     if(!f||!path)return 0;L3TableProgress p;
+62:     if(!l3_table_progress_load(&p,path))return 0;
+63:     float x=p.x_mm/1000.0f,z=p.z_mm/1000.0f;if(garden_blocked(x,z))return 0;
+64:     memcpy(f->games,p.games,sizeof(f->games));f->visited=p.visited;f->won=p.won;f->map=p.map;f->x=x;f->z=z;
+65:     f->vx=f->vz=f->move_x=f->move_z=f->held_until=0;f->camera_x=x;f->camera_z=z+10;f->geometry_ready=0;
+66:     unsigned automatic=f->automatic;f->automatic=0;l3_festival_enter(f,p.kind);f->automatic=automatic;return 1;
+67: }
+68: void l3_festival_key(L3Render *r,L3Festival *f,int c){
+69:     if(!f||!f->active)return;
+70:     if(f->automatic){f->automatic=0;f->move_x=f->move_z=0;f->revision++;return;}
+71:     if(c==9 || (c=='q'&&f->kind!=L3_TABLE_HANGMAN)){
+72:         if(f->kind<4)l3_festival_enter(f,4);else l3_festival_leave(r,f);return;
+73:     }
+74:     if(c==27){f->escape=1;return;}
+75:     if(f->escape==1&&c=='['){f->escape=2;return;}
+76:     if(f->escape==2){c=c=='A'?'w':c=='B'?'s':c=='C'?'d':c=='D'?'a':0;f->escape=0;}
+77:     if(f->kind==4){
+78:         if(c=='m'||c=='M'){f->map^=1;f->geometry_ready=0;reset_draw(f);return;}
+79:         if(c=='e'||c=='E'||c==' '){unsigned k=nearest(f);if(hypotf(f->x-sites[k][0],f->z-sites[k][1])<3)l3_festival_enter(f,k);return;}
+80:         if(c=='w'||c=='a'||c=='s'||c=='d'){f->move_x=c=='a'?-1:c=='d'?1:0;f->move_z=c=='w'?-1:c=='s'?1:0;f->held_until=f->time+.18f;}return;
+81:     }
+82:     if(f->kind==L3_TABLE_HANGMAN){
+83:         if(c>='a'&&c<='z')c-=32;
+84:         if(c>='A'&&c<='Z'){act(f,(L3TableAction){.op=L3_TABLE_GUESS,.value=(uint8_t)c});return;}
+85:     }
+86:     if(c=='r'||c=='R'||((c==10||c==13)&&f->view.status)){
+87:         unsigned k=f->kind;l3_table_init(&f->games[k],k,f->games[k].seed+1);l3_festival_enter(f,k);return;
+88:     }
+89:     if(f->view.status)return;
+90:     if(f->kind==L3_TABLE_OTHELLO){
+91:         if(c=='a'&&f->selection%8)f->selection--;if(c=='d'&&f->selection%8<7)f->selection++;
+92:         if(c=='w'&&f->selection>=8)f->selection-=8;if(c=='s'&&f->selection<56)f->selection+=8;
+93:         if(c=='e'||c==' '||c==10||c==13){if(f->view.turn==0)act(f,(L3TableAction){.op=L3_TABLE_PLACE,.index=f->selection});}
+94:         if(c=='p'&&f->view.turn==0)act(f,(L3TableAction){.op=L3_TABLE_PASS});
+95:     }else if(f->kind==L3_TABLE_CHROMA){
+96:         unsigned n=f->view.data.chroma.count[0];
+97:         if(c=='a'&&f->selection)f->selection--;if(c=='d'&&f->selection+1<n)f->selection++;
+98:         if(c=='f')f->color=(f->color+1)%4;
+99:         if(f->view.turn==0){
+100:             if(c=='e'||c==' '||c==10||c==13)act(f,(L3TableAction){.op=L3_TABLE_PLAY,.index=f->selection,.value=f->color});
+101:             if(c=='p')act(f,(L3TableAction){.op=f->view.data.chroma.drew?L3_TABLE_PASS:L3_TABLE_DRAW});
+102:         }
+103:         n=f->view.data.chroma.count[0];if(n&&f->selection>=n)f->selection=n-1;else if(!n)f->selection=0;
+104:     }else if(f->kind==L3_TABLE_SOLITAIRE){
+105:         const L3Solitaire *s=&f->view.data.solitaire;
+106:         if(c=='a'&&f->selection)f->selection--;if(c=='d'&&f->selection<12)f->selection++;
+107:         if(c=='w'&&f->row)f->row--;if(c=='s'&&f->row<51)f->row++;
+108:         if(f->selection<7){if(!s->count[f->selection])f->row=0;else if(f->row>=s->count[f->selection])f->row=s->count[f->selection]-1;}
+109:         if(c=='p')act(f,(L3TableAction){.op=L3_TABLE_DRAW});
+110:         if(c=='f'){f->source=255;}
+111:         if(c=='e'||c==' '||c==10||c==13){
+112:             if(f->selection==8)act(f,(L3TableAction){.op=L3_TABLE_DRAW});
+113:             else if(f->source==255){f->source=f->selection;f->source_row=f->row;}
+114:             else if(act(f,(L3TableAction){.op=L3_TABLE_MOVE,.from=f->source,.to=f->selection,.index=f->source_row}))f->source=255;
+115:         }
+116:     }
+117:     f->revision++;
+118: }
+119: void l3_festival_step(L3Festival *f,float dt){
+120:     if(!f||!f->active||!isfinite(dt)||dt<=0)return;dt=fminf(dt,.1f);f->time+=dt;f->scene_time+=dt;f->transition=fminf(1,f->transition+dt/.32f);
+121:     if(f->kind==4){
+122:         float dx=f->time<f->held_until?f->move_x:0,dz=f->time<f->held_until?f->move_z:0;
+123:         if(f->automatic){dx=sites[f->stage%4][0]-f->x;dz=sites[f->stage%4][1]-f->z;float len=hypotf(dx,dz);
+124:             if(len<2.3f){l3_festival_enter(f,f->stage%4);return;}dx/=len;dz/=len;}
+125:         f->vx+=(dx*4-f->vx)*fminf(1,dt*8);f->vz+=(dz*4-f->vz)*fminf(1,dt*8);
+126:         float x=clamp(f->x+f->vx*dt,-14,14),z=clamp(f->z+f->vz*dt,-14,14);
+127:         /* Central fountain collision; a circular path exists on either side. */
+128:         if(!garden_blocked(x,f->z))f->x=x;
+129:         if(!garden_blocked(f->x,z))f->z=z;
+130:         if(hypotf(f->vx,f->vz)>.1f)f->yaw=atan2f(f->vx,f->vz);
+131:         f->camera_x+=(f->x-f->camera_x)*fminf(1,dt*3);f->camera_z+=(f->z+10-f->camera_z)*fminf(1,dt*3);
+132:         return;
+133:     }
+134:     f->action_time+=dt;
+135:     int opponent=(f->kind==L3_TABLE_OTHELLO||f->kind==L3_TABLE_CHROMA)&&f->view.turn!=0;
+136:     if((f->automatic||opponent)&&f->action_time>=.7f){
+137:         f->action_time=0;
+138:         if(f->view.status){if(f->automatic&&f->scene_time>4){f->stage=(f->stage+1)%4;if(!f->stage){f->map^=1;f->geometry_ready=0;}l3_festival_enter(f,4);}return;}
+139:         L3TableAction action;
+140:         if(l3_table_demo_action(&f->games[f->kind],&action)){if(!act(f,action))f->automatic=0;}
+141:         else if(f->automatic){f->stage=(f->stage+1)%4;l3_festival_enter(f,4);}
+142:         if(f->automatic&&f->turns>=96){f->stage=(f->stage+1)%4;l3_festival_enter(f,4);} /* bounded visit, unfinished games remain resumable */
+143:     }
+144: }
+145: static int expand(uint16_t *dst,unsigned pixels,const uint32_t *src,unsigned n){unsigned at=0;for(unsigned i=0;i<n;i++){unsigned k=src[i]>>16;if(!k||k>pixels-at)return 0;for(unsigned j=0;j<k;j++)dst[at++]=(uint16_t)src[i];}return at==pixels;}
+146: static void publish(L3Render *r,unsigned offset,const void *src,unsigned bytes){for(unsigned i=0;i<bytes;i+=4){uint32_t v;memcpy(&v,(const uint8_t*)src+i,4);*(volatile uint32_t*)(r->memory+offset+i)=v;}}
+147: static int art(L3Render *r,L3Festival *f){
+148:     if(f->assets)return 1;unsigned w=r->width*2,h=r->height*2;
+149:     if(!f->ui)f->ui=calloc(w,h);
+150:     if(!f->background)f->background=malloc(w*h*2);
+151:     uint16_t *work=malloc(524288);if(!work||!f->ui||!f->background){free(work);return 0;}
+152:     int ok=expand(work,262144,festival_classic,COUNT(festival_classic));if(ok)publish(r,ATLAS,work,524288);
+153:     ok=ok&&expand(work,131072,festival_chroma,COUNT(festival_chroma));if(ok)publish(r,CHROMA,work,262144);free(work);
+154:     ok=ok&&(w==800?expand(f->background,w*h,festival_table_800,COUNT(festival_table_800)):expand(f->background,w*h,festival_table_1280,COUNT(festival_table_1280)));
+155:     if(!ok)return 0;publish(r,SKY,sky_texture,sizeof(sky_texture));publish(r,SKY+sizeof(sky_texture),sky_vertices,sizeof(sky_vertices));publish(r,SKY+sizeof(sky_texture)+sizeof(sky_vertices),sky_faces,sizeof(sky_faces));publish(r,6u<<20,f->background,w*h*2);gpu_v1_invalidate(&r->gpu);f->assets=1;f->baked_kind=255;reset_draw(f);return 1;
+156: }
+157: static int __attribute__((unused)) rectangle(L3Render *r,int x,int y,int w,int h,unsigned color,unsigned alpha){
+158:     gpu_material m={.alpha=alpha,.color=color,.r=256,.g=256,.b=256};gpu_vertex q[4]={{.x=x,.y=y},{.x=x+w,.y=y},{.x=x+w,.y=y+h},{.x=x,.y=y+h}};
+159:     return gpu_v1_material(&r->gpu,&m)&&gpu_v1_quad(&r->gpu,q);
+160: }
+161: static void pose(L3Festival *f,int id,int tile,int chroma,float x,float y,float w,float h,float alpha){if(f->poses_n<COUNT(f->poses))f->poses[f->poses_n++]=(L3FestivalPose){id,tile,chroma,x,y,w,h,alpha};}
+162: static void positions(L3Festival *f){
+163:     f->poses_n=0;
+164:     if(f->kind==0){const L3Othello *s=&f->view.data.othello;
+165:         for(unsigned i=0;i<64;i++)if(f->view.legal[i])pose(f,2000+i,56,0,250+i%8*40,46+i/8*40,20,20,100);
+166:         pose(f,2200,56,0,240+f->selection%8*40,36+f->selection/8*40,40,40,160);
+167:         for(unsigned i=0;i<64;i++)if(s->board[i])pose(f,i,52+s->board[i],0,240+(i%8)*40,36+(i/8)*40,40,40,256);}
+168:     else if(f->kind==1){const L3Solitaire *s=&f->view.data.solitaire;
+169:         for(unsigned i=0;i<4;i++)pose(f,1500+i,i*13,0,349+i*83,8,58,78,48);
+170:         if(s->stock_count)pose(f,300,52,0,100,8,58,78,256);
+171:         if(s->waste_count){unsigned id=s->waste[s->waste_count-1];pose(f,id,id,0,183,8,58,78,256);}
+172:         for(unsigned i=0;i<4;i++)if(s->found[i]){unsigned id=i*13+s->found[i]-1;pose(f,id,id,0,349+i*83,8,58,78,256);}
+173:         for(unsigned c=0;c<7;c++)for(unsigned j=0;j<s->count[c];j++){
+174:             unsigned id=s->tableau[c][j];float gap=s->count[c]>15?13:17;
+175:             pose(f,j<s->hidden[c]?(int)(400+c*52+j):(int)id,j<s->hidden[c]?52:(int)id,0,100+c*83,106+j*gap,58,78,256);
+176:         }
+177:     }else if(f->kind==2){const L3Chroma *s=&f->view.data.chroma;
+178:         pose(f,300,52,0,280,100,68,92,256);
+179:         if(s->discard_count){unsigned id=s->discard[s->discard_count-1],co=l3_table_card_color(id),v=l3_table_card_value(id);pose(f,id,(co<4?co:s->color)*16+v,1,420,100,68,92,256);}
+180:         unsigned n=s->count[0];float gap=n>12?570.0f/fmaxf(1,(float)n-1):46;
+181:         float start=400-((n?n-1:0)*gap+58)/2;
+182:         for(unsigned i=0;i<n;i++){unsigned id=s->hands[0][i],co=l3_table_card_color(id),v=l3_table_card_value(id);pose(f,id,(co<4?co:f->color)*16+v,1,start+i*gap,274+(i==f->selection?-14:0),58,78,256);}
+183:         for(unsigned p=1;p<4;p++)for(unsigned i=0;i<s->count[p]&&i<12;i++)pose(f,400+p*108+i,52,0,p==2?295+i*15:p==1?56:690,p==2?4:80+i*12,44,58,256);
+184:     }else if(f->kind==3){for(unsigned i=0;i<7;i++)pose(f,2300+i,56,0,180+i*64,70+6*sinf(f->time*.3f+i),50,50,i<f->view.data.hangman.mistakes?35:220);}
+185: }
+186: static int textured(L3Render *r,const L3FestivalPose *p,float scale,unsigned alpha){
+187:     int tw=p->chroma?32:64,th=64,columns=p->chroma?16:8;
+188:     gpu_texture_level t={PRODOCK_GPU_BASE+(p->chroma?CHROMA:ATLAS),512,p->chroma?256:512,1024,GPU_ARGB4444,0,0,0};
+189:     gpu_material m={.flags=1,.alpha=alpha,.r=256,.g=256,.b=256};
+190:     int x=(int)lroundf(p->x*scale),y=(int)lroundf(p->y*scale),w=(int)lroundf(p->w*scale),h=(int)lroundf(p->h*scale);
+191:     if(w<1||h<1)return 1;int u=(p->texture%columns)*tw,v=(p->texture/columns)*th;
+192:     gpu_vertex a[4]={{x,y,u,v,0,65536,256,256,256},{x+w,y,u+tw,v,0,65536,256,256,256},{x+w,y+h,u+tw,v+th,0,65536,256,256,256},{x,y+h,u,v+th,0,65536,256,256,256}};
+193:     return gpu_v1_texture(&r->gpu,&t)&&gpu_v1_material(&r->gpu,&m)&&gpu_v1_quad(&r->gpu,a);
+194: }
+195: static void bake_board(L3Render *r,L3Festival *f,unsigned x,unsigned y,float scale){
+196:     unsigned w=r->width*2,h=r->height*2;
+197:     if(w==800)expand(f->background,w*h,festival_table_800,COUNT(festival_table_800));
+198:     else expand(f->background,w*h,festival_table_1280,COUNT(festival_table_1280));
+199:     if(f->kind==0){
+200:         int x0=(int)(x+232*scale),y0=(int)(y+28*scale),size=(int)(336*scale);
+201:         for(int yy=0;yy<size;yy++)for(int xx=0;xx<size;xx++){
+202:             unsigned color=rgb(122+((xx+yy)%9),87+((xx+yy)%9),46);
+203:             float bx=xx/scale-8,by=yy/scale-8;
+204:             if(bx>=0&&bx<320&&by>=0&&by<320){unsigned cx=(unsigned)bx/40,cy=(unsigned)by/40;int edge=(int)bx%40==0||(int)by%40==0;unsigned grain=(unsigned)(xx*13+yy*17)%4;
+205:                 color=edge?rgb(103,130,101):((cx+cy)%2)?rgb(31+grain,91+grain,76+grain):rgb(42+grain,107+grain,87+grain);}
+206:             f->background[(y0+yy)*w+x0+xx]=(uint16_t)color;
+207:         }
+208:     }
+209:     publish(r,6u<<20,f->background,w*h*2);f->baked_kind=f->kind;f->base_ready[0]=f->base_ready[1]=0;f->page_valid[0]=f->page_valid[1]=0;
+210: }
+211: static void bounds(const L3FestivalPose *p,float *x0,float *y0,float *x1,float *y1){
+212:     *x0=fminf(*x0,p->x-1);*y0=fminf(*y0,p->y-1);*x1=fmaxf(*x1,p->x+p->w+5);*y1=fmaxf(*y1,p->y+p->h+7);
+213: }
+214: static int same_pose(const L3FestivalPose *a,const L3FestivalPose *b){return a->id==b->id&&a->texture==b->texture&&a->chroma==b->chroma&&a->x==b->x&&a->y==b->y&&a->w==b->w&&a->h==b->h&&a->alpha==b->alpha;}
+215: static int board(L3Render *r,L3Festival *f,struct prodock_scene *scene){
+216:     unsigned w=r->width*2,h=r->height*2,page=r->frame&1,ww=w==800?800:960,hh=w==800?400:480,x=(w-ww)/2,y=(h-hh)/2;
+217:     float scale=ww/800.0f;
+218:     if(f->baked_kind!=f->kind)bake_board(r,f,x,y,scale);
+219:     if(!f->base_ready[page]){publish(r,page*r->page_bytes,f->background,w*h*2);f->base_ready[page]=1;}
+220:     unsigned offset=y*r->pitch+x*2;
+221:     gpu_target t={PRODOCK_GPU_BASE+page*r->page_bytes+offset,PRODOCK_GPU_BASE+2*r->page_bytes+offset,ww,hh,r->pitch,r->pitch};
+222:     gpu_target bg={PRODOCK_GPU_BASE+(6u<<20)+offset,t.depth,ww,hh,r->pitch,r->pitch};
+223:     positions(f);float e=ease(f->transition);
+224:     for(unsigned i=0;i<f->poses_n;i++){
+225:         L3FestivalPose *p=&f->poses[i];const L3FestivalPose *old=NULL;
+226:         for(unsigned j=0;j<f->old_n;j++)if(f->old[j].id==p->id){old=f->old+j;break;}
+227:         if(old&&f->transition<1){p->x=old->x+(p->x-old->x)*e;p->y=old->y+(p->y-old->y)*e;
+228:             if(f->kind==0&&old->texture!=p->texture){float shrink=fabsf(cosf(3.14159265f*f->transition));p->x+=p->w*(1-shrink)/2;p->w*=shrink;if(f->transition<.5f)p->texture=old->texture;}}
+229:         else if(!old&&f->old_n&&f->transition<1){p->alpha=64+192*e;p->y+=(1-e)*12;}
+230:     }
+231:     float x0=800,y0=400,x1=0,y1=0;
+232:     if(!f->page_valid[page]){x0=y0=0;x1=800;y1=400;}
+233:     else {
+234:         for(unsigned i=0;i<f->poses_n;i++){
+235:             const L3FestivalPose *p=&f->poses[i],*old=NULL;
+236:             for(unsigned j=0;j<f->page_n[page];j++)if(f->page_poses[page][j].id==p->id){old=&f->page_poses[page][j];break;}
+237:             if(!old||!same_pose(p,old)){bounds(p,&x0,&y0,&x1,&y1);if(old)bounds(old,&x0,&y0,&x1,&y1);}
+238:         }
+239:         for(unsigned j=0;j<f->page_n[page];j++){
+240:             const L3FestivalPose *p=&f->page_poses[page][j];unsigned i=0;
+241:             for(;i<f->poses_n;i++)if(f->poses[i].id==p->id)break;
+242:             if(i==f->poses_n)bounds(p,&x0,&y0,&x1,&y1);
+243:         }
+244:     }
+245:     int ix=(int)floorf(clamp(x0,0,800)*scale),iy=(int)floorf(clamp(y0,0,400)*scale),ex=(int)ceilf(clamp(x1,0,800)*scale),ey=(int)ceilf(clamp(y1,0,400)*scale);
+246:     if(ex>ix&&ey>iy){
+247:         if(!gpu_v1_target(&r->gpu,&t)||!gpu_v1_scissor(&r->gpu,ix,iy,ex-ix,ey-iy)||!gpu_v1_copy(&r->gpu,&bg,ix,iy,ix,iy,ex-ix,ey-iy))return 0;
+248:         for(unsigned pass=0;pass<2;pass++)for(unsigned i=0;i<f->poses_n;i++){
+249:             L3FestivalPose p=f->poses[i];
+250:             if(p.x+p.w+5<x0||p.x-1>x1||p.y+p.h+7<y0||p.y-1>y1)continue;
+251:             if(!pass){if(p.texture==56)continue;p.x+=3;p.y+=5;p.texture=55;p.chroma=0;if(!textured(r,&p,scale,90))return 0;}
+252:             else if(!textured(r,&p,scale,(unsigned)p.alpha))return 0;
+253:         }
+254:     }
+255:     memcpy(f->page_poses[page],f->poses,f->poses_n*sizeof(*f->poses));f->page_n[page]=f->poses_n;f->page_valid[page]=1;
+256:     scene->base=PRODOCK_GPU_BASE+page*r->page_bytes;scene->stride=r->pitch;scene->format=3;return 1;
+257: }
+258: 
+259: /* Static 3D garden. Each triangle is transformed/projected by G3D1. */
+260: typedef struct {gpu_geom_vertex v[240];gpu_geom_face f[240];unsigned nv,nf,at;L3Render *r;L3Festival *owner;} Mesh;
+261: static int mesh_flush(Mesh *m){
+262:     if(!m->nf)return 1;if(m->owner->mesh_count>=24||m->at+(m->nv+m->nf)*32>(18u<<20))return 0;
+263:     unsigned va=m->at;publish(m->r,m->at,m->v,m->nv*32);m->at+=m->nv*32;unsigned fa=m->at;publish(m->r,m->at,m->f,m->nf*32);m->at+=m->nf*32;
+264:     m->owner->meshes[m->owner->mesh_count++]=(gpu_geom_mesh){PRODOCK_GPU_BASE+va,PRODOCK_GPU_BASE+fa,m->nv,m->nf};m->nv=m->nf=0;return 1;
+265: }
+266: static int tri(Mesh *m,L3Vec3 a,L3Vec3 b,L3Vec3 c,unsigned red,unsigned green,unsigned blue){
+267:     if(m->nv+3>240||m->nf==240)if(!mesh_flush(m))return 0;
+268:     unsigned start=m->nv;L3Vec3 p[3]={a,b,c};
+269:     for(unsigned i=0;i<3;i++){gpu_geom_vertex v={0};if(!gpu_geom_fixed(p[i].x,&v.x)||!gpu_geom_fixed(p[i].y,&v.y)||!gpu_geom_fixed(p[i].z,&v.z))return 0;m->v[m->nv++]=v;}
+270:     gpu_geom_face f={{0}};f.words[0]=(3u<<24)|start|((start+1)<<8)|((start+2)<<16);f.words[4]=32767;f.words[6]=red|(green<<9)|(blue<<18);m->f[m->nf++]=f;return 1;
+271: }
+272: static int quad3(Mesh *m,L3Vec3 a,L3Vec3 b,L3Vec3 c,L3Vec3 d,unsigned r,unsigned g,unsigned bcol){return tri(m,a,b,c,r,g,bcol)&&tri(m,a,c,d,r,g,bcol);}
+273: static int box(Mesh *m,float x,float y,float z,float w,float h,float d,unsigned r,unsigned g,unsigned b){
+274:     L3Vec3 a={x-w/2,y,z-d/2},bb={x+w/2,y,z-d/2},c={x+w/2,y,z+d/2},dd={x-w/2,y,z+d/2};
+275:     L3Vec3 e=a,f=bb,gg=c,hh=dd;e.y=f.y=gg.y=hh.y=y+h;
+276:     return quad3(m,e,f,gg,hh,r,g,b)&&quad3(m,a,bb,f,e,r*3/4,g*3/4,b*3/4)&&quad3(m,bb,c,gg,f,r*7/8,g*7/8,b*7/8)&&quad3(m,c,dd,hh,gg,r*2/3,g*2/3,b*2/3)&&quad3(m,dd,a,e,hh,r*4/5,g*4/5,b*4/5);
+277: }
+278: static int garden_geometry(L3Render *r,L3Festival *f){
+279:     f->mesh_count=0;Mesh m={.at=GEOMETRY,.r=r,.owner=f};
+280:     if(!quad3(&m,(L3Vec3){-16,0,-16},(L3Vec3){16,0,-16},(L3Vec3){16,0,16},(L3Vec3){-16,0,16},60,112,91))return 0;
+281:     /* Grid tiles form four courts, a central ring and multiple connecting paths. */
+282:     for(int z=-14;z<14;z+=2)for(int x=-14;x<14;x+=2){
+283:         float a=(float)x+1,b=(float)z+1;
+284:         if(fabsf(a)>11||fabsf(b)>11||fabsf(a)<3||fabsf(b)<3||fabsf(fabsf(a)-7)<1.2f||fabsf(fabsf(b)-7)<1.2f){
+285:             unsigned c=(unsigned)((x+z+40)%5)*4;
+286:             if(!quad3(&m,(L3Vec3){x+.04f,.01f,z+.04f},(L3Vec3){x+1.96f,.01f,z+.04f},(L3Vec3){x+1.96f,.01f,z+1.96f},(L3Vec3){x+.04f,.01f,z+1.96f},160+c,151+c,124+c))return 0;
+287:         }
+288:     }
+289:     if(!box(&m,0,.02f,0,4.6f,.6f,4.6f,95,139,149)||!box(&m,0,.64f,0,3.7f,.03f,3.7f,53,155,173))return 0;
+290:     static const unsigned colors[4][3]={{200,162,88},{134,168,195},{174,87,105},{98,180,156}};
+291:     for(unsigned k=0;k<4;k++){
+292:         float x=sites[k][0],z=sites[k][1];const unsigned *c=colors[k];
+293:         if(!box(&m,x,0,z,2.8f,.2f,2.8f,195,180,142)||!box(&m,x,.2f,z,1.8f,.85f,1.2f,c[0],c[1],c[2]))return 0;
+294:         for(int i=-1;i<=1;i+=2)for(int j=-1;j<=1;j+=2)if(!box(&m,x+i*1.9f,0,z+j*1.9f,.25f,3.7f,.25f,180,164,126))return 0;
+295:         if(!box(&m,x,3.7f,z,4.5f,.18f,4.5f,c[0]*3/4,c[1]*3/4,c[2]*3/4))return 0;
+296:     }
+297:     /* Low-poly grove and mountains beyond the playable garden; no hidden collision mismatch. */
+298:     for(unsigned i=0;i<36;i++){
+299:         float angle=i*6.2831853f/36,radius=23+5*sinf(i*2.3f),x=sinf(angle)*radius,z=cosf(angle)*radius,h=4+(i%5);
+300:         if(!box(&m,x,0,z,.5f,h*.6f,.5f,92,75,64))return 0;
+301:         L3Vec3 top={x,h,z},a={x-2,h*.3f,z-2},b={x+2,h*.3f,z-2},c={x+2,h*.3f,z+2},d={x-2,h*.3f,z+2};
+302:         if(!tri(&m,a,b,top,47,99+i%3*10,91)||!tri(&m,b,c,top,59,125,100)||!tri(&m,c,d,top,44,91,83)||!tri(&m,d,a,top,54,116,94))return 0;
+303:     }
+304:     if(!mesh_flush(&m))return 0;f->geometry_ready=1;return 1;
+305: }
+306: static L3Vec3 sub3(L3Vec3 a,L3Vec3 b){return (L3Vec3){a.x-b.x,a.y-b.y,a.z-b.z};}
+307: static float dot3(L3Vec3 a,L3Vec3 b){return a.x*b.x+a.y*b.y+a.z*b.z;}
+308: static L3Vec3 unit3(L3Vec3 a){float q=sqrtf(dot3(a,a));return (L3Vec3){a.x/q,a.y/q,a.z/q};}
+309: static L3Vec3 cross3(L3Vec3 a,L3Vec3 b){return (L3Vec3){a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
+310: static int garden(L3Render *r,L3Festival *f,struct prodock_scene *scene){
+311:     if(!f->geometry_ready&&!garden_geometry(r,f))return 0;
+312:     gpu_target t={PRODOCK_GPU_BASE+(r->frame&1)*r->page_bytes,PRODOCK_GPU_BASE+2*r->page_bytes,r->width,r->height,r->pitch,r->pitch};
+313:     if(!gpu_v1_target(&r->gpu,&t)||!gpu_v1_scissor(&r->gpu,0,0,r->width,r->height)||!gpu_v1_clear(&r->gpu,3,f->map?rgb(25,39,73):rgb(112,163,194),65535,0,0,r->width,r->height))return 0;
+314:     L3Vec3 eye={f->camera_x,4.5f,f->camera_z},target={f->x,1.6f,f->z-5},forward=unit3(sub3(target,eye)),right=unit3(cross3(forward,(L3Vec3){0,1,0})),down=cross3(forward,right);
+315:     gpu_geom_camera camera={32768,100*65536,(int)(r->width*.82f*65536),(int)(r->width*.82f*65536),r->width/2,r->height/2};
+316:     gpu_geom_transform transform;L3Vec3 rows[3]={right,down,forward};
+317:     for(unsigned a=0;a<3;a++){if(!gpu_geom_fixed(rows[a].x,&transform.values[a*4])||!gpu_geom_fixed(rows[a].y,&transform.values[a*4+1])||!gpu_geom_fixed(rows[a].z,&transform.values[a*4+2])||!gpu_geom_fixed(-dot3(rows[a],eye),&transform.values[a*4+3]))return 0;}
+318:     gpu_geom_light light={0,32767,0,256,0};gpu_material mat={.flags=2|4,.alpha=256,.color=65535,.r=256,.g=256,.b=256};
+319:     if(!gpu_geom_set_camera(&r->gpu,&camera))return 0;
+320:     gpu_geom_transform sky_transform=transform;for(unsigned a=0;a<3;a++)sky_transform.values[a*4+3]=0;
+321:     gpu_texture_level sky={PRODOCK_GPU_BASE+SKY,512,256,1024,GPU_ARGB4444,0,0,0};
+322:     gpu_geom_mesh sky_mesh={PRODOCK_GPU_BASE+SKY+sizeof(sky_texture),PRODOCK_GPU_BASE+SKY+sizeof(sky_texture)+sizeof(sky_vertices),SKY_VERTEX_COUNT,SKY_FACE_COUNT};
+323:     gpu_material sky_mat={.flags=17,.alpha=256,.r=256,.g=256,.b=256};
+324:     if(!gpu_geom_set_transform(&r->gpu,&sky_transform)||!gpu_geom_set_light(&r->gpu,&light)||!gpu_v1_material(&r->gpu,&sky_mat)||!gpu_v1_texture(&r->gpu,&sky)||!gpu_geom_draw(&r->gpu,&sky_mesh,0))return 0;
+325:     r->draws++;r->triangles+=sky_mesh.face_count;
+326:     if(!gpu_geom_set_transform(&r->gpu,&transform)||!gpu_v1_material(&r->gpu,&mat))return 0;
+327:     for(unsigned i=0;i<f->mesh_count;i++){if(!gpu_geom_draw(&r->gpu,&f->meshes[i],0))return 0;r->draws++;r->triangles+=f->meshes[i].face_count;}
+328:     /* Hero's real six-part textured mesh, translated and rotated in real time. */
+329:     gpu_texture_level texture={r->hero_texture,256,256,512,GPU_RGB565,1,1,0};mat.flags=1|2|4|16;
+330:     if(!gpu_v1_texture(&r->gpu,&texture)||!gpu_v1_material(&r->gpu,&mat))return 0;
+331:     for(unsigned i=0;i<6;i++){
+332:         const L3AssetPart *part=&l3_asset_hero_parts[i];float speed=hypotf(f->vx,f->vz),gait=sinf(f->time*8)*.6f*fminf(1,speed/4);
+333:         float angle=part->kind==1||part->kind==4?gait:part->kind==2||part->kind==3?-gait:0;
+334:         float co=cosf(f->yaw),si=sinf(f->yaw),ca=cosf(angle),sa=sinf(angle);
+335:         L3Vec3 columns[3]={{co,0,-si},{si*sa,ca,co*sa},{si*ca,-sa,co*ca}};
+336:         L3Vec3 pivot={f->x+co*part->pivot.x+si*part->pivot.z,part->pivot.y,f->z-si*part->pivot.x+co*part->pivot.z};
+337:         for(unsigned a=0;a<3;a++){
+338:             for(unsigned b=0;b<3;b++)if(!gpu_geom_fixed(dot3(rows[a],columns[b]),&transform.values[a*4+b]))return 0;
+339:             if(!gpu_geom_fixed(dot3(rows[a],sub3(pivot,eye)),&transform.values[a*4+3]))return 0;
+340:         }
+341:         if(!gpu_geom_set_transform(&r->gpu,&transform)||!gpu_geom_draw(&r->gpu,&r->hero_mesh[i],0))return 0;r->draws++;r->triangles+=r->hero_mesh[i].face_count;
+342:     }
+343:     scene->base=t.color;scene->stride=t.stride;scene->format=7;return 1;
+344: }
+345: static void ui_text(L3Render *r,L3Festival *f,int x,int y,const char *s,unsigned color,unsigned width){l3_ui_text(f->ui,r->width*2,r->height*2,x,y,0,s,color,width);}
+346: static int overlay(L3Render *r,L3Festival *f,struct prodock_scene *scene){
+347:     unsigned w=r->width*2,h=r->height*2,page=r->frame&1;
+348:     unsigned key=f->revision*67+f->kind*5+(f->kind==4?nearest(f)*3:0);
+349:     if(f->ui_page[page]!=key){
+350:         memset(f->ui,0,w*h);char line[160];
+351:         const char *title=f->kind<4?names[f->kind]:f->map?"LUMA - Les terrasses de lune":"LUMA - Le jardin des constellations";
+352:         ui_text(r,f,85,12,title,78,w-170);
+353:         if(f->kind<4){
+354:             snprintf(line,sizeof(line),"%s  |  %u coups  |  %s",f->automatic?"VISITE AUTO":"A VOUS DE JOUER",f->view.moves,f->view.status==1?"VICTOIRE":f->view.status==2?"PARTIE TERMINEE":f->view.status==3?"EGALITE":f->view.turn?"L'adversaire reflechit":"Votre tour");
+355:             ui_text(r,f,85,31,line,74,w-170);
+356:             ui_text(r,f,85,h-31,f->kind==3?"A-Z : proposer une lettre  |  Tab : jardin  |  Entree : nouvelle partie":"WASD choisir / E jouer / P pioche / F option / R rejouer / Tab retour",74,w-170);
+357:             if(f->kind==3){
+358:                 char word[72];unsigned at=0;for(unsigned i=0;f->view.word[i]&&at+3<sizeof(word);i++){word[at++]=f->view.word[i];word[at++]=' ';word[at++]=' ';}word[at]=0;
+359:                 int x=(int)w/2-(int)at*4;ui_text(r,f,x,(int)h/2,word,78,w/2);
+360:                 char letters[80];at=0;for(unsigned i=0;i<26;i++){letters[at++]=f->view.data.hangman.guessed[i]?'.':(char)('A'+i);letters[at++]=' ';}letters[at]=0;
+361:                 ui_text(r,f,w/5,h*2/3,letters,74,w*3/5);
+362:                 ui_text(r,f,60,h/2-40,f->view.hint,74,w-120);
+363:             }
+364:             if(f->kind==0){snprintf(line,sizeof(line),"Vous %u  /  %u",f->view.scores[0],f->view.scores[1]);ui_text(r,f,58,h/2,line,78,180);}
+365:             if(f->kind==1){snprintf(line,sizeof(line),"Zone %u  Ligne %u  %s",f->selection+1,f->row+1,f->source==255?"Choisir une source":"Choisir destination");ui_text(r,f,40,h-54,line,78,w-80);}
+366:             if(f->kind==2){static const char *c[]={"rouge","or","vert","bleu"};snprintf(line,sizeof(line),"Carte %u  Joker : %s",f->selection+1,c[f->color]);ui_text(r,f,40,h-54,line,78,w-80);}
+367:         }else{
+368:             unsigned k=nearest(f);snprintf(line,sizeof(line),"%s  |  %u / 4 tables decouvertes",f->automatic?"PROMENADE AUTOMATIQUE":"EXPLORATION LIBRE",(unsigned)__builtin_popcount(f->visited));ui_text(r,f,85,31,line,74,w-170);
+369:             ui_text(r,f,40,h-50,names[k],78,w-80);ui_text(r,f,40,h-28,"WASD : marcher  E : table proche  M : ambiance  Tab : retour a l'aventure",74,w-80);
+370:         }
+371:         publish(r,(20u<<20)+page*(1u<<20),f->ui,w*h);f->ui_page[page]=key;r->hud_uploads++;r->hud_bytes+=w*h;
+372:     }
+373:     uint32_t *l=scene->layers[0];l[0]=PRODOCK_GPU_BASE+(20u<<20)+page*(1u<<20);l[1]=w|(h<<16);l[2]=0;l[3]=l[1];l[5]=w;l[6]=3;scene->layers_enabled=1;return 1;
+374: }
+375: int l3_festival_render(L3Render *r,L3Festival *f,struct prodock_scene *scene){
+376:     if(!r||!f||!scene||!f->active||!art(r,f))return 0;
+377:     if(f->kind<4){if(!l3_table_view(&f->games[f->kind],&f->view,0)||!board(r,f,scene))return 0;}
+378:     else if(!garden(r,f,scene))return 0;
+379:     return overlay(r,f,scene);
+380: }
+
+FILE games/luma3d/candidates/art_refresh_20261027/sky_world_r1/handoff_r3.json SHA256 7ce979f24a76e91b9ed3dc2eb8a09844e6fdc85da2bbf6cd7d3c08269ebbc2b1
+1: {
+2:   "candidate_only": true,
+3:   "hardware": false,
+4:   "header": "games/luma3d/candidates/art_refresh_20261027/sky_world_r1/prepared_r3/sky_art.h",
+5:   "header_sha256": "a15a9dcaaea3a0be01111a452c8d2f3b0ddf49fc0babda455ed04e7bef8ceaa0",
+6:   "texture": {
+7:     "symbol": "sky_texture",
+8:     "bytes": 262144,
+9:     "width": 512,
+10:     "height": 256,
+11:     "stride": 1024,
+12:     "format": "ARGB4444",
+13:     "alpha": "straight"
+14:   },
+15:   "vertices": {
+16:     "symbol": "sky_vertices",
+17:     "count": 56,
+18:     "stride": 32,
+19:     "bytes": 1792
+20:   },
+21:   "faces": {
+22:     "symbol": "sky_faces",
+23:     "count": 28,
+24:     "stride": 32,
+25:     "bytes": 896
+26:   },
+27:   "integration": {
+28:     "order": "After background CLEAR/COPY and CAMERA, before all opaque/transparent world objects",
+29:     "material_flags": 17,
+30:     "material_alpha": 256,
+31:     "ambient": 256,
+32:     "diffuse": 0,
+33:     "cull": 0,
+34:     "transform": "Rows right/down/forward; translation zero. Keep world directions and radius2; no eye translation.",
+35:     "per_frame_resource_updates": 0,
+36:     "commands_per_frame": 7
+37:   },
+38:   "festival_candidate_allocation": {
+39:     "owner": "Festival candidate only, root reservation; not active GM1",
+40:     "texture": [
+41:       19398656,
+42:       19660800
+43:     ],
+44:     "vertices": [
+45:       19660800,
+46:       19662592
+47:     ],
+48:     "faces": [
+49:       19662592,
+50:       19663488
+51:     ],
+52:     "end_exclusive": 19663488,
+53:     "limit_exclusive": 19922944,
+54:     "all_32byte_aligned": true
+55:   },
+56:   "independent_capture_result": "games/luma3d/candidates/art_refresh_20261027/sky_world_r1/review_r3/result.json",
+57:   "visual_panorama": "games/luma3d/candidates/art_refresh_20261027/sky_world_r1/review_r3/arrival_panorama_before_after.png",
+58:   "limitations": [
+59:     "Software integer model only; no hardware FPS or Neo qualification.",
+60:     "Actual GM1 lake-path views fully occlude the sky; raised view is a diagnostic camera.",
+61:     "No cloud animation yet. Generated black-background matte is inferred, not ground truth.",
+62:     "Full camera orbit and all future region frames remain to test."
+63:   ]
+64: }
+
+FILE games/luma3d/candidates/art_refresh_20261027/sky_world_r1/README.md SHA256 f6cf4f872f01488dc55ba44e331ea43fe76876307cc52a8970928645a8e37738
+1: # Ciel et horizon — candidat R3, 27 octobre2026
+2: 
+3: **Préparation et huit captures locales PASS. Non déployé.** Le GPU dessine lunes, nuages et horizon à partir des mêmes commandes que le jeu ; il ne lit aucune vidéo.
+4: 
+5: Deux images originales ont été générées avec Flux2Dev sur le ComfyUI de gx10-2 : quatre éléments célestes, puis trois strates de montagnes/forêts. Les originaux, workflows, seeds et historiques serveur sont conservés sous `jobs/`. Les strates lointaines sans parallaxe relative sont précomposées une seule fois dans l’atlas.
+6: 
+7: ## Intégration à reprendre
+8: 
+9: Le header retenu est `prepared_r3/sky_art.h`. Les champs et bornes exacts figurent dans `handoff_r3.json`. Atlas ARGB4444:512×256,262144octets ; géométrie:56sommets,28triangles,2688octets. Une seule soumission de maillage,7commandes, aucune mise à jour de ressource par image.
+10: 
+11: Après la copie du dégradé et la configuration caméra, avant les objets du monde, dessiner le maillage avec une matrice contenant les vecteurs right/down/forward et une translation nulle. Matériau17(texture+perspective), alpha256, lumière ambiante256, pas de Ztest/Zwrite. Le rayon2préserve la précision du réciproque de profondeur ; les directions restent fixes lorsque le joueur se déplace. Les vrais objets dessinés ensuite occultent normalement le ciel.
+12: 
+13: Pour le candidat Festival seulement, root propose la plage relative[18.5MiB,19MiB), soit textureà19398656, sommetsà19660800, facesà19662592, fin19663488. Toutes ces adresses sont alignées32octets. Le constructeur Festival doit vérifier cette réservation face à son inventaire réel ; le présent candidat hôte utilise une zone ajoutée ailleurs et ne prouve aucune réservation active sur carte.
+14: 
+15: ## Captures
+16: 
+17: | Vue | Caméra | Commandes ajoutées | Fragments supplémentaires du modèle | Pixels natifs modifiés |
+18: |---|---|---:|---:|---:|
+19: | arrival | GM1 exacte | 7 | 17625 | 9256 |
+20: | arrival_panorama | Panorama diagnostic relevé | 7 | 31984 | 76220 |
+21: | lake_path | GM1 exacte | 7 | 20043 | 0 |
+22: | lake_path_panorama | Panorama diagnostic relevé | 7 | 26506 | 0 |
+23: | arrival_720 | GM1 exacte | 7 | 38817 | 14626 |
+24: | arrival_panorama_720 | Panorama diagnostic relevé | 7 | 81619 | 186344 |
+25: | lake_path_720 | GM1 exacte | 7 | 48294 | 0 |
+26: | lake_path_panorama_720 | Panorama diagnostic relevé | 7 | 67288 | 0 |
+27: 
+28: Chaque paire emploie strictement la même caméra, le même terrain et les mêmes ressources du monde. Retirer seulement le bloc de commandes du ciel reproduit la totalité de la mémoire témoin ; la profondeur est identique après rendu. Les vues normales sans ciel ont zéro différence attendue. Le binaire refuse le mode carte avant toute ouverture/ioctl. Les captures panoramiques relèvent uniquement la visée pour examiner l’horizon : elles ne sont pas les caméras actuellement chargées.
+29: 
+30: ## Rejets et limites
+31: 
+32: R1 est rejetée : rayon100, UV grossiers et trop de raster caché (100777fragments supplémentaires à l’arrivée). R2 ramène le rayonà2, réduit les lunes/nuages et réunit les trois strates ; R3 retire les franges noires du détourage des crêtes. Les versions précédentes et leurs preuves restent présentes.
+33: 
+34: Le ciel est nettement plus riche dans la vue ouverte ; la vue du sentier est presque totalement fermée par les pentes, même visée relevée. Ajouter des textures de ciel ne résout pas ce cadrage. Pour le jardin Festival, une échappée vers l’horizon et une caméra moins plongeante permettront de voir la profondeur. Les deux variantes visuelles seules ne constituent pas deux nouvelles cartes de jeu.
+35: 
+36: Les captures ne mesurent pas le coût AE350/GPU réel, et aucun FPS n’est annoncé. Les nuages sont actuellement fixes, le détourage part d’un fond noir sans alpha de référence, et une rotation complète de caméra reste à valider. Le contenu visible et ses coûts doivent être contrôlés sur les nouvelles scènes avant essai matériel.

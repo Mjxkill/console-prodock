@@ -1,0 +1,26 @@
+-d /home/michael/console/tang/impl/prodock_sd_boot_20261029_r4/impl/gwsynthesis/console_prodock_sd_boot_20261029_r4.vg
+-p GW5AST-138B-FCPBGA676A-1
+-pn GW5AST-LV138FPG676AC1/I0
+-cst /home/michael/console/tang/impl/prodock_sd_boot_20261029_r4/constraints_resolved.cst
+-cfg /home/michael/console/tang/impl/prodock_sd_boot_20261029_r4/impl/pnr/device.cfg
+-sdc /home/michael/console/tang/impl/prodock_sd_boot_20261029_r4/source/diagnostics/timing_reports.sdc
+-bit
+-tr
+-ph
+-sdf
+-o
+-tt
+-timing
+-ireg_not_in_iob
+-oreg_not_in_iob
+-ioreg_not_in_iob
+-cst_error
+-convert_sdp32_36_to_sdp16_18
+-place_option 3
+-route_option 2
+-clock_route_order 0
+-correct_hold 1
+-route_maxfan 23
+-global_freq 100.000
+-enable_dsrm 0
+-inc_pnr /home/michael/console/tang/impl/prodock_sd_boot_20261029_r4/reference_g22r0.pr

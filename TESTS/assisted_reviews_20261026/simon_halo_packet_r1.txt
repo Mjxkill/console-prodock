@@ -1,0 +1,682 @@
+Implementer proposal requested, tools off. User wants ornate LUMA ancient memory instrument, four inset crystals, slowly rising light, soft expanding halo and fade-out; exact color sequence must remain clear. Art done via localComfy, FPGA actual V1 RGB565/ARGB4444 quads alpha; indexed scanout onlykeyzero notfractionalpha. NativeUI800x480/1280x720; no wholecanvasCPUredraweveryanimationframe. Need envelope helper C using bounded elapsed-time integer math and clear envelope separation even repeated samecolor. CurrentSimonlogic must not change rules/sequence/saves. Produce precise smallC and tests for enter/exit,pause,longdt,timerwrap,2samecolors. Owned integration agent luma_minigames. No fabricated visual inspection or FPS. Max1200words plus compactcode.
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_simon.c
+1: #include "l3_simon.h"
+2: #include <limits.h>
+3: #include <string.h>
+4: 
+5: enum { SV,SS,SEED,SRNG,ELAPSED,PHASE,REMAIN,LENGTH,INPUT,SHOW,FEEDBACK,ACTIVE,ROUNDS };
+6: static const uint32_t buttons[4]={L3_MINI_UP,L3_MINI_RIGHT,L3_MINI_DOWN,L3_MINI_LEFT};
+7: static const uint8_t palette[4]={12,10,9,14};
+8: static uint32_t rng(uint32_t *r)
+9: { *r^=*r<<13;*r^=*r>>17;*r^=*r<<5;return *r; }
+10: static uint32_t plus(uint32_t a,uint32_t b)
+11: { return UINT32_MAX-a<b?UINT32_MAX:a+b; }
+12: static void phase(L3SimonState *s,unsigned p,unsigned time,unsigned active)
+13: {s->words[PHASE]=p;s->words[REMAIN]=time;s->words[ACTIVE]=active;s->words[FEEDBACK]=0;}
+14: int l3_simon_init(L3SimonState *s,uint32_t seed)
+15: {
+16:     L3SimonState t;unsigned i;
+17:     if(!s)return 0;
+18:     memset(&t,0,sizeof(t));t.words[SV]=L3_SIMON_VERSION;t.words[SEED]=seed;
+19:     t.words[SRNG]=seed^0x6c756d61u;if(!t.words[SRNG])t.words[SRNG]=0x53494d4fu;
+20:     for(i=0;i<L3_SIMON_GOAL;++i)t.sequence[i]=(uint8_t)(rng(&t.words[SRNG])%4u);
+21:     t.words[LENGTH]=1;phase(&t,L3_SIMON_INTRO,600,4);*s=t;return 1;
+22: }
+23: int l3_simon_validate(const L3SimonState *s)
+24: {
+25:     L3SimonState initial;unsigned p,status,i,len,idx,rounds;
+26:     if(!s || s->words[SV]!=L3_SIMON_VERSION || s->words[SS]>L3_MINI_LOST)return 0;
+27:     p=s->words[PHASE];status=s->words[SS];len=s->words[LENGTH];idx=s->words[INPUT];rounds=s->words[ROUNDS];
+28:     if(p>L3_SIMON_COMPLETE || len<1 || len>L3_SIMON_GOAL || idx>len || rounds>L3_SIMON_GOAL || s->words[SHOW]>=len || s->words[ACTIVE]>4 || s->words[FEEDBACK]>240)return 0;
+29:     for(i=13;i<24;++i)if(s->words[i])return 0;
+30:     l3_simon_init(&initial,s->words[SEED]);
+31:     if(s->words[SRNG]!=initial.words[SRNG] || memcmp(s->sequence,initial.sequence,sizeof(s->sequence)))return 0;
+32:     if((status==L3_MINI_WON)!=(p==L3_SIMON_COMPLETE) || (status==L3_MINI_LOST)!=(p==L3_SIMON_ERROR))return 0;
+33:     if(p==L3_SIMON_COMPLETE)return len==8 && rounds==8 && idx==8 && s->words[REMAIN]==0 && s->words[ACTIVE]==4 && s->words[FEEDBACK]==0;
+34:     if(p==L3_SIMON_ROUND_OK)return rounds==len && len<8 && idx==len && s->words[REMAIN]>0 && s->words[REMAIN]<=600 && s->words[ACTIVE]==4 && s->words[FEEDBACK]==0;
+35:     if(rounds!=len-1u || idx>=len)return 0;
+36:     if(p==L3_SIMON_INTRO)return len==1 && idx==0 && s->words[SHOW]==0 && s->words[REMAIN]>0 && s->words[REMAIN]<=600 && s->words[ACTIVE]==4 && !s->words[FEEDBACK];
+37:     if(p==L3_SIMON_SHOW)return idx==0 && s->words[REMAIN]>0 && s->words[REMAIN]<=600 && s->words[ACTIVE]==s->sequence[s->words[SHOW]] && !s->words[FEEDBACK];
+38:     if(p==L3_SIMON_GAP)return idx==0 && s->words[REMAIN]>0 && s->words[REMAIN]<=250 && s->words[ACTIVE]==4 && !s->words[FEEDBACK];
+39:     if(p==L3_SIMON_ERROR)return !s->words[REMAIN] && !s->words[FEEDBACK] && s->words[ACTIVE]<4;
+40:     if(s->words[REMAIN] || s->words[SHOW]!=len-1u)return 0;
+41:     if(s->words[FEEDBACK])return idx>0 && s->words[ACTIVE]==s->sequence[idx-1u];
+42:     return s->words[ACTIVE]==4;
+43: }
+44: static void next_phase(L3SimonState *s)
+45: {
+46:     switch(s->words[PHASE]) {
+47:     case L3_SIMON_INTRO:phase(s,L3_SIMON_SHOW,600,s->sequence[0]);break;
+48:     case L3_SIMON_SHOW:phase(s,L3_SIMON_GAP,250,4);break;
+49:     case L3_SIMON_GAP:
+50:         if(s->words[SHOW]+1u<s->words[LENGTH]){++s->words[SHOW];phase(s,L3_SIMON_SHOW,600,s->sequence[s->words[SHOW]]);}
+51:         else phase(s,L3_SIMON_INPUT,0,4);
+52:         break;
+53:     case L3_SIMON_ROUND_OK:
+54:         ++s->words[LENGTH];s->words[INPUT]=0;s->words[SHOW]=0;phase(s,L3_SIMON_SHOW,600,s->sequence[0]);break;
+55:     default:break;
+56:     }
+57: }
+58: uint32_t l3_simon_step(L3SimonState *s,uint32_t pressed,uint32_t held,uint32_t dt)
+59: {
+60:     L3SimonState before;unsigned color,count=0,chosen=0;
+61:     if(!l3_simon_validate(s) || ((pressed|held)&~L3_MINI_INPUT_MASK))return L3_MINI_EVENT_INVALID;
+62:     if(pressed&L3_MINI_BACK)return L3_MINI_EVENT_EXIT;
+63:     if(s->words[SS]!=L3_MINI_RUNNING)return 0;
+64:     before=*s;
+65:     if(s->words[PHASE]==L3_SIMON_INPUT) {
+66:         for(color=0;color<4;++color)if(pressed&buttons[color]){chosen=color;++count;}
+67:         if(count) {
+68:             if(count!=1 || chosen!=s->sequence[s->words[INPUT]]) {
+69:                 s->words[SS]=L3_MINI_LOST;phase(s,L3_SIMON_ERROR,0,chosen);
+70:                 return L3_MINI_EVENT_CHANGED|L3_MINI_EVENT_LOST;
+71:             }
+72:             ++s->words[INPUT];s->words[ACTIVE]=chosen;s->words[FEEDBACK]=240;
+73:             if(s->words[INPUT]==s->words[LENGTH]) {
+74:                 ++s->words[ROUNDS];
+75:                 if(s->words[ROUNDS]==L3_SIMON_GOAL){s->words[SS]=L3_MINI_WON;phase(s,L3_SIMON_COMPLETE,0,4);return L3_MINI_EVENT_CHANGED|L3_MINI_EVENT_WON;}
+76:                 phase(s,L3_SIMON_ROUND_OK,600,4);
+77:             }
+78:         }
+79:     }
+80:     if(dt>L3_MINI_MAX_DT_MS)dt=L3_MINI_MAX_DT_MS;
+81:     s->words[ELAPSED]=plus(s->words[ELAPSED],dt);
+82:     while(dt) {
+83:         unsigned step=dt;
+84:         if(s->words[PHASE]==L3_SIMON_INPUT) {
+85:             if(s->words[FEEDBACK]>dt)s->words[FEEDBACK]-=dt;
+86:             else {s->words[FEEDBACK]=0;s->words[ACTIVE]=4;}
+87:             break;
+88:         }
+89:         if(step>s->words[REMAIN])step=s->words[REMAIN];
+90:         s->words[REMAIN]-=step;dt-=step;
+91:         if(!s->words[REMAIN])next_phase(s);
+92:     }
+93:     return memcmp(&before,s,sizeof(before))?L3_MINI_EVENT_CHANGED:0;
+94: }
+95: int l3_simon_view(const L3SimonState *s,L3SimonView *out)
+96: {
+97:     L3SimonView v;unsigned i;
+98:     if(!out || !l3_simon_validate(s))return 0;
+99:     memset(&v,0,sizeof(v));v.grid.kind=5;v.grid.status=s->words[SS];v.grid.width=2;v.grid.height=2;
+100:     v.grid.score=s->words[ROUNDS]*100u;v.grid.target=L3_SIMON_GOAL;v.grid.progress=(uint16_t)s->words[ROUNDS];
+101:     v.grid.elapsed_ms=s->words[ELAPSED];v.grid.cursor_x=-1;v.grid.cursor_y=-1;
+102:     v.grid.title="Carillon des quatre couleurs";
+103:     v.grid.help="Haut rouge, droite vert, bas bleu, gauche jaune. Repeter apres le signal.";
+104:     v.grid.objective="Memoriser puis repeter les couleurs dans l'ordre, jusqu'a 8 notes.";
+105:     v.phase=(uint8_t)s->words[PHASE];v.active_color=(uint8_t)s->words[ACTIVE];
+106:     v.sequence_length=(uint8_t)s->words[LENGTH];v.input_index=(uint8_t)s->words[INPUT];
+107:     v.phase_ms=(uint16_t)s->words[REMAIN];v.feedback_ms=(uint16_t)s->words[FEEDBACK];
+108:     for(i=0;i<4;++i){L3MiniCell *c=&v.grid.cells[(i/2u)*20u+i%2u];
+109:         c->kind=L3_MINI_CELL_BLOCK;c->color=palette[i];c->value=(uint16_t)i;
+110:         c->glyph=(uint8_t)(i==0?'^':i==1?'>':i==2?'v':'<');
+111:         if(i==s->words[ACTIVE])c->flags=L3_MINI_FLAG_ACTIVE;
+112:     }
+113:     *out=v;return 1;
+114: }
+115: static void write32(uint8_t *p,uint32_t v)
+116: {unsigned i;for(i=0;i<4;++i)p[i]=(uint8_t)(v>>(8u*i));}
+117: static uint32_t read32(const uint8_t *p)
+118: {return (uint32_t)p[0]|((uint32_t)p[1]<<8)|((uint32_t)p[2]<<16)|((uint32_t)p[3]<<24);}
+119: static uint32_t checksum(const uint8_t *p)
+120: {unsigned i;uint32_t h=2166136261u;for(i=0;i<L3_SIMON_SAVE_BYTES;++i)if(i<12 || i>=16){h^=p[i];h*=16777619u;}return h;}
+121: size_t l3_simon_encode(const L3SimonState *s,void *out,size_t cap)
+122: {
+123:     uint8_t bytes[L3_SIMON_SAVE_BYTES];unsigned i;
+124:     if(!l3_simon_validate(s))return 0;
+125:     if(!out)return sizeof(bytes);
+126:     if(cap<sizeof(bytes))return 0;
+127:     memcpy(bytes,"L3SM",4);write32(bytes+4,L3_SIMON_VERSION);write32(bytes+8,112);write32(bytes+12,0);
+128:     for(i=0;i<24;++i)write32(bytes+16u+4u*i,s->words[i]);
+129:     memcpy(bytes+112,s->sequence,16);write32(bytes+12,checksum(bytes));memcpy(out,bytes,sizeof(bytes));return sizeof(bytes);
+130: }
+131: int l3_simon_decode(L3SimonState *s,const void *in,size_t size)
+132: {
+133:     const uint8_t *p=(const uint8_t *)in;L3SimonState t;unsigned i;
+134:     if(!s || !p || size!=L3_SIMON_SAVE_BYTES || memcmp(p,"L3SM",4) || read32(p+4)!=L3_SIMON_VERSION || read32(p+8)!=112 || read32(p+12)!=checksum(p))return 0;
+135:     memset(&t,0,sizeof(t));for(i=0;i<24;++i)t.words[i]=read32(p+16u+4u*i);memcpy(t.sequence,p+112,16);
+136:     if(!l3_simon_validate(&t))return 0;
+137:     *s=t;return 1;
+138: }
+139: int l3_simon_demo_input(const L3SimonState *s,uint32_t *pressed,uint32_t *held,uint32_t *dt)
+140: {
+141:     if(!pressed || !held || !dt || !l3_simon_validate(s) || s->words[SS]!=L3_MINI_RUNNING)return 0;
+142:     *pressed=0;*held=0;*dt=0;
+143:     if(s->words[PHASE]==L3_SIMON_INPUT)*pressed=buttons[s->sequence[s->words[INPUT]]];
+144:     else *dt=s->words[REMAIN]>L3_MINI_MAX_DT_MS?L3_MINI_MAX_DT_MS:s->words[REMAIN];
+145:     return 1;
+146: }
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_simon.h
+1: #ifndef L3_SIMON_H
+2: #define L3_SIMON_H
+3: #include "l3_minigames.h"
+4: 
+5: #define L3_SIMON_VERSION 1u
+6: #define L3_SIMON_SAVE_BYTES 128u
+7: #define L3_SIMON_GOAL 8u
+8: typedef enum L3SimonPhase {
+9:     L3_SIMON_INTRO, L3_SIMON_SHOW, L3_SIMON_GAP, L3_SIMON_INPUT,
+10:     L3_SIMON_ROUND_OK, L3_SIMON_ERROR, L3_SIMON_COMPLETE
+11: } L3SimonPhase;
+12: typedef struct L3SimonState { uint32_t words[24]; uint8_t sequence[16]; } L3SimonState;
+13: typedef struct L3SimonView {
+14:     L3MiniView grid; /*2x2, stride20, cells corresponding to colors0,1,2,3 */
+15:     uint16_t phase_ms,feedback_ms;
+16:     uint8_t phase,active_color,sequence_length,input_index;
+17:     /* Colors0/1/2/3: up/right/down/left = red/green/blue/yellow.
+18:      * active_color=4 means no lit button. */
+19: } L3SimonView;
+20: int l3_simon_init(L3SimonState *state,uint32_t seed);
+21: uint32_t l3_simon_step(L3SimonState *state,uint32_t pressed,uint32_t held,uint32_t dt_ms);
+22: int l3_simon_view(const L3SimonState *state,L3SimonView *view);
+23: int l3_simon_validate(const L3SimonState *state);
+24: size_t l3_simon_encode(const L3SimonState *state,void *output,size_t capacity);
+25: int l3_simon_decode(L3SimonState *state,const void *input,size_t size);
+26: int l3_simon_demo_input(const L3SimonState *state,uint32_t *pressed,uint32_t *held,uint32_t *dt_ms);
+27: /* Same front/BACK/freeze/dt<=250 contract as v1. Edges during demonstration
+28:  * are ignored. A held button never becomes a new color at INPUT transition.
+29:  * Eight seeded rounds, 600ms flashes,250ms gaps,240ms input feedback. */
+30: #endif
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_minigames.h
+1: #ifndef L3_MINIGAMES_H
+2: #define L3_MINIGAMES_H
+3: 
+4: #include <stddef.h>
+5: #include <stdint.h>
+6: 
+7: #ifdef __cplusplus
+8: extern "C" {
+9: #endif
+10: 
+11: #define L3_MINI_VERSION 1u
+12: #define L3_MINI_STRIDE 20u
+13: #define L3_MINI_CELLS 400u
+14: #define L3_MINI_SAVE_BYTES 1008u
+15: #define L3_MINI_MAX_DT_MS 250u
+16: 
+17: typedef enum L3MiniKind {
+18:     L3_MINI_CIRCUIT, L3_MINI_BLOCKS, L3_MINI_SHAPES,
+19:     L3_MINI_MERGE1024, L3_MINI_MAZE, L3_MINI_KIND_COUNT
+20: } L3MiniKind;
+21: 
+22: typedef enum L3MiniStatus {
+23:     L3_MINI_RUNNING, L3_MINI_WON, L3_MINI_LOST,
+24:     L3_MINI_PLAYING = L3_MINI_RUNNING
+25: } L3MiniStatus;
+26: 
+27: enum {
+28:     L3_MINI_UP = 1u, L3_MINI_DOWN = 2u,
+29:     L3_MINI_LEFT = 4u, L3_MINI_RIGHT = 8u,
+30:     L3_MINI_ACT = 16u, L3_MINI_ROTATE = 32u, L3_MINI_BACK = 64u,
+31:     L3_MINI_INPUT_MASK = 127u
+32: };
+33: enum {
+34:     L3_MINI_EVENT_CHANGED = 1u, L3_MINI_EVENT_WON = 2u,
+35:     L3_MINI_EVENT_LOST = 4u, L3_MINI_EVENT_EXIT = 8u,
+36:     L3_MINI_EVENT_INVALID = 16u
+37: };
+38: typedef enum L3MiniCellKind {
+39:     L3_MINI_CELL_EMPTY, L3_MINI_CELL_WALL, L3_MINI_CELL_WIRE,
+40:     L3_MINI_CELL_BLOCK, L3_MINI_CELL_TARGET, L3_MINI_CELL_NUMBER,
+41:     L3_MINI_CELL_PLAYER, L3_MINI_CELL_ENEMY, L3_MINI_CELL_PELLET,
+42:     L3_MINI_CELL_POWER, L3_MINI_CELL_START, L3_MINI_CELL_FINISH
+43: } L3MiniCellKind;
+44: enum {
+45:     L3_MINI_FLAG_CURSOR = 1u, L3_MINI_FLAG_ACTIVE = 2u,
+46:     L3_MINI_FLAG_CONNECTED = 4u, L3_MINI_FLAG_GHOST = 8u
+47: };
+48: 
+49: /* Opaque to callers: use view/encode/decode, never write these members.
+50:  * Integer storage is naturally aligned, has no pointers or compiler unions.
+51:  * sizeof is 992 on supported C ABIs, always <=4096. Not a wire format. */
+52: typedef struct L3MiniState {
+53:     uint32_t meta[16];
+54:     uint32_t data[32];
+55:     uint8_t board[L3_MINI_CELLS];
+56:     uint8_t aux[L3_MINI_CELLS];
+57: } L3MiniState;
+58: 
+59: typedef struct L3MiniCell {
+60:     uint16_t value; /* wire N/E/S/W bits 1/2/4/8; number actual 2..1024 */
+61:     uint8_t kind, color, flags, glyph; /* color is a logical index 0..15 */
+62: } L3MiniCell;
+63: 
+64: typedef struct L3MiniView {
+65:     L3MiniCell cells[L3_MINI_CELLS]; /* index y*L3_MINI_STRIDE+x */
+66:     uint32_t kind, status, score, target, moves, elapsed_ms;
+67:     uint16_t width, height;
+68:     int16_t cursor_x, cursor_y; /* -1 if no cursor */
+69:     uint16_t lives, progress;
+70:     const char *title, *help, *objective; /* static French strings */
+71: } L3MiniView;
+72: 
+73: /* Invalid arguments return 0 and leave destination intact. seed=0 is valid. */
+74: int l3_mini_init(L3MiniState *state, L3MiniKind kind, uint32_t seed);
+75: /* dt_ms is clamped to250. Internally fixed60Hz with saved fractional phase.
+76:  * Fronts execute once immediately, even at dt=0. held never synthesizes fronts.
+77:  * BACK has priority and returns EXIT with byte-identical state, no time spent.
+78:  * Finished states stay frozen. Restart via init(kind,seed); resume by retaining
+79:  * state. Integration must release/latch buttons before entering/restarting. */
+80: uint32_t l3_mini_step(L3MiniState *state, uint32_t pressed,
+81:                       uint32_t held, uint32_t dt_ms);
+82: int l3_mini_view(const L3MiniState *state, L3MiniView *view);
+83: int l3_mini_validate(const L3MiniState *state);
+84: /* Fixed portable LE format, checksum and strict semantic validation.
+85:  * Decode is transactional: dst unchanged on every failure, exact length only.
+86:  * Encode returns byte count or0; NULL output returns required size if valid. */
+87: size_t l3_mini_encode(const L3MiniState *state, void *output, size_t capacity);
+88: int l3_mini_decode(L3MiniState *state, const void *input, size_t size);
+89: /* Deterministic demo adviser; returns ordinary inputs, never changes state.
+90:  * Calling step with these inputs obeys precisely the human game's rules.
+91:  * Does not guarantee victory for arbitrary already-damaged positions. */
+92: int l3_mini_demo_input(const L3MiniState *state, uint32_t *pressed,
+93:                        uint32_t *held, uint32_t *dt_ms);
+94: 
+95: #ifdef __cplusplus
+96: }
+97: #endif
+98: #endif
+
+FILE games/luma3d/candidates/puzzle_motion_r1/include/l3_puzzle_motion.h
+1: #ifndef L3_PUZZLE_MOTION_H
+2: #define L3_PUZZLE_MOTION_H
+3: #include "l3_minigames.h"
+4: 
+5: /* Presentation only; never encoded with game saves. All coordinates are in
+6:  * Q16 board cells and alpha/scale in Q8 (256=opaque/unit). Each event follows
+7:  * one real engine step, including no-render steps. No engine data is changed.
+8:  * The integration owns this context and must invalidate on enter/exit/load. */
+9: #define L3_MOTION_QUEUE 8u
+10: #define L3_MOTION_TRACKS 128u
+11: #define L3_MOTION_POSES 160u
+12: enum { L3_MOTION_KEEP, L3_MOTION_SLIDE, L3_MOTION_MERGE,
+13:        L3_MOTION_SPAWN, L3_MOTION_CLEAR, L3_MOTION_GHOST };
+14: enum { L3_MOTION_EVENT_MERGE, L3_MOTION_EVENT_PIECE, L3_MOTION_EVENT_LOCK };
+15: enum { L3_MOTION_INVALID=-1, L3_MOTION_UNCHANGED=0,
+16:        L3_MOTION_ANIMATED=1, L3_MOTION_SNAPPED=2 };
+17: typedef struct {
+18:     int16_t from_x,from_y,via_x,via_y,to_x,to_y;
+19:     uint16_t value,result_value;
+20:     uint8_t color,result_color,kind,active;
+21: } L3MotionTrack;
+22: typedef struct {
+23:     L3MiniView before,after;
+24:     L3MotionTrack tracks[L3_MOTION_TRACKS];
+25:     unsigned count,kind,duration_ms;
+26:     double start;
+27: } L3MotionEvent;
+28: typedef struct {
+29:     L3MotionEvent queue[L3_MOTION_QUEUE];
+30:     L3MiniView latest,settled;
+31:     double last_time;
+32:     uint32_t epoch;
+33:     unsigned head,count,valid;
+34:     unsigned observations,events,overflows,discontinuities,unsupported;
+35: } L3PuzzleMotion;
+36: typedef struct {
+37:     int32_t x_q16,y_q16;
+38:     uint16_t value,alpha_q8,scale_q8;
+39:     uint8_t color,kind,active,reserved;
+40: } L3MotionPose;
+41: typedef struct {
+42:     /* Render immutable board wells and HUD from logical, then these poses.
+43:      * At rest, settled=1: compose cached original R6 tile/cell patches for
+44:      * exact pixels. Never call the full R6 raster at every completed move.
+45:      * During motion, erase moving pieces from the cached background once;
+46:      * the GPU restores dirty rectangles, blends shadows/ghosts, draws bodies.
+47:      * No claim that an indexed layer provides fractional alpha. */
+48:     L3MiniView logical;
+49:     L3MotionPose poses[L3_MOTION_POSES];
+50:     unsigned count,settled,event_kind,progress_q16;
+51: } L3MotionFrame;
+52: 
+53: void l3_puzzle_motion_reset(L3PuzzleMotion *context);
+54: /* Time must be finite, nonnegative and monotone across observe/sample.
+55:  * Epoch or view discontinuity snaps to the actual after view. A full queue
+56:  * also snaps and counts overflow: visual history may drop, game inputs never.
+57:  * Other game kinds snap for now; this first lot covers 1024 and blocks only.
+58:  * The caller supplies the same pressed/held used by the real engine step. */
+59: int l3_puzzle_motion_observe(L3PuzzleMotion *,const L3MiniView *before,
+60:                             const L3MiniView *after,uint32_t pressed,
+61:                             uint32_t held,double monotone_seconds,uint32_t epoch);
+62: int l3_puzzle_motion_sample(L3PuzzleMotion *,double monotone_seconds,L3MotionFrame *);
+63: #endif
+
+FILE games/luma3d/candidates/puzzle_motion_r1/src/puzzle_motion.c
+1: #include "l3_puzzle_motion.h"
+2: #include <math.h>
+3: #include <string.h>
+4: 
+5: static int view_ok(const L3MiniView *v)
+6: {
+7:     if(!v || !v->width || !v->height || v->width>20 || v->height>20 ||
+8:        v->kind>=L3_MINI_KIND_COUNT || v->status>L3_MINI_LOST)return 0;
+9:     if(v->kind==L3_MINI_MERGE1024 && (v->width!=4 || v->height!=4))return 0;
+10:     if(v->kind==L3_MINI_BLOCKS && (v->width!=8 || v->height!=14))return 0;
+11:     unsigned active=0;
+12:     for(unsigned i=0;i<400;i++){
+13:         if(v->cells[i].kind>L3_MINI_CELL_FINISH)return 0;
+14:         if(v->kind==L3_MINI_BLOCKS && (v->cells[i].flags&L3_MINI_FLAG_ACTIVE)){
+15:             if(i%20>=8 || i/20>=14 || v->cells[i].kind!=L3_MINI_CELL_BLOCK)return 0;
+16:             active++;
+17:         }
+18:     }
+19:     if(v->kind==L3_MINI_BLOCKS && (v->status==L3_MINI_RUNNING?active!=4:active!=0))return 0;
+20:     return 1;
+21: }
+22: static int equal(const L3MiniView *a,const L3MiniView *b)
+23: {
+24:     return a->kind==b->kind && a->status==b->status && a->score==b->score &&
+25:            a->moves==b->moves && a->width==b->width && a->height==b->height &&
+26:            a->progress==b->progress && !memcmp(a->cells,b->cells,sizeof(a->cells));
+27: }
+28: static void snap(L3PuzzleMotion *m,const L3MiniView *v,double now,uint32_t epoch)
+29: {
+30:     m->head=m->count=0;m->valid=1;m->epoch=epoch;m->last_time=now;
+31:     m->latest=m->settled=*v;
+32: }
+33: void l3_puzzle_motion_reset(L3PuzzleMotion *m){if(m)memset(m,0,sizeof(*m));}
+34: static void retire(L3PuzzleMotion *m,double now)
+35: {
+36:     while(m->count){
+37:         L3MotionEvent *e=&m->queue[m->head];
+38:         if(now<e->start+(double)e->duration_ms/1000.0)break;
+39:         m->settled=e->after;m->head=(m->head+1)%L3_MOTION_QUEUE;m->count--;
+40:     }
+41: }
+42: static L3MotionTrack *track(L3MotionEvent *e,unsigned q,unsigned dest,
+43:                             const L3MiniCell *cell,unsigned kind)
+44: {
+45:     if(e->count==L3_MOTION_TRACKS)return NULL;
+46:     L3MotionTrack *t=&e->tracks[e->count++];memset(t,0,sizeof(*t));
+47:     t->from_x=(int16_t)(q%20);t->from_y=(int16_t)(q/20);
+48:     t->via_x=t->from_x;t->via_y=t->from_y;
+49:     t->to_x=(int16_t)(dest%20);t->to_y=(int16_t)(dest/20);
+50:     t->value=t->result_value=cell->value;t->color=t->result_color=cell->color;
+51:     t->kind=(uint8_t)kind;t->active=!!(cell->flags&L3_MINI_FLAG_ACTIVE);
+52:     return t;
+53: }
+54: static unsigned index_dir(unsigned d,unsigned line,unsigned p)
+55: {
+56:     return d==0?p*20+line:d==1?line*20+3-p:d==2?(3-p)*20+line:line*20+p;
+57: }
+58: static int merge_plan(L3MotionEvent *e,uint32_t pressed)
+59: {
+60:     static const unsigned keys[4]={L3_MINI_UP,L3_MINI_RIGHT,L3_MINI_DOWN,L3_MINI_LEFT};
+61:     unsigned d=0,expected[400]={0},score=0,spawns=0;
+62:     const L3MiniView *a=&e->before,*b=&e->after;
+63:     while(d<4 && !(pressed&keys[d]))d++;
+64:     if(d==4 || b->moves!=a->moves+1u)return 0;
+65:     for(unsigned line=0;line<4;line++){
+66:         unsigned packed[4],n=0,k=0;
+67:         for(unsigned p=0;p<4;p++){
+68:             unsigned q=index_dir(d,line,p),v=a->cells[q].value;
+69:             if(v){if(a->cells[q].kind!=L3_MINI_CELL_NUMBER || v<2 || v>1024 || (v&(v-1)))return 0;packed[n++]=q;}
+70:         }
+71:         for(unsigned i=0;i<n;){
+72:             unsigned q=packed[i++],dest=index_dir(d,line,k++),v=a->cells[q].value;
+73:             int merge=i<n && a->cells[packed[i]].value==v;
+74:             L3MotionTrack *t=track(e,q,dest,&a->cells[q],merge?L3_MOTION_MERGE:q==dest?L3_MOTION_KEEP:L3_MOTION_SLIDE);
+75:             if(!t)return 0;
+76:             if(merge){
+77:                 unsigned other=packed[i++];v*=2;
+78:                 t->active=2; /* primary result of this two-source merge */
+79:                 L3MotionTrack *u=track(e,other,dest,&a->cells[other],L3_MOTION_MERGE);
+80:                 if(!u)return 0;
+81:                 t->result_value=u->result_value=(uint16_t)v;
+82:                 t->result_color=u->result_color=b->cells[dest].color;score+=v;
+83:             }
+84:             expected[dest]=v;
+85:         }
+86:     }
+87:     for(unsigned y=0;y<4;y++)for(unsigned x=0;x<4;x++){
+88:         unsigned q=y*20+x,v=b->cells[q].value;
+89:         if(expected[q]){if(v!=expected[q] || b->cells[q].kind!=L3_MINI_CELL_NUMBER)return 0;}
+90:         else if(v){
+91:             if((v!=2 && v!=4) || b->cells[q].kind!=L3_MINI_CELL_NUMBER || ++spawns!=1)return 0;
+92:             if(!track(e,q,q,&b->cells[q],L3_MOTION_SPAWN))return 0;
+93:         }
+94:     }
+95:     if(spawns!=1 || b->score-a->score!=score)return 0;
+96:     e->kind=L3_MOTION_EVENT_MERGE;e->duration_ms=160;return 1;
+97: }
+98: static unsigned active_cells(const L3MiniView *v,unsigned out[4])
+99: {
+100:     unsigned n=0;
+101:     for(unsigned y=0;y<v->height;y++)for(unsigned x=0;x<v->width;x++){
+102:         unsigned q=y*20+x;
+103:         if(v->cells[q].flags&L3_MINI_FLAG_ACTIVE){if(n==4)return 5;out[n++]=q;}
+104:     }
+105:     return n;
+106: }
+107: static int solid(const L3MiniCell *c)
+108: {return c->kind==L3_MINI_CELL_BLOCK && !(c->flags&L3_MINI_FLAG_ACTIVE);}
+109: static int same_static(const L3MiniView *a,const L3MiniView *b)
+110: {
+111:     for(unsigned y=0;y<14;y++)for(unsigned x=0;x<8;x++){
+112:         unsigned q=y*20+x;
+113:         if(solid(&a->cells[q])!=solid(&b->cells[q]))return 0;
+114:         if(solid(&a->cells[q]) && a->cells[q].color!=b->cells[q].color)return 0;
+115:     }
+116:     return 1;
+117: }
+118: static unsigned ghost_distance(const L3MiniView *v,const unsigned cells[4])
+119: {
+120:     unsigned d=0;
+121:     for(unsigned next=1;next<14;next++){
+122:         int fit=1;
+123:         for(unsigned i=0;i<4;i++){
+124:             unsigned q=cells[i]+next*20;
+125:             if(q/20>=14 || solid(&v->cells[q])){fit=0;break;}
+126:         }
+127:         if(!fit)break;
+128:         d=next;
+129:     }
+130:     return d;
+131: }
+132: static int positions_fit(const L3MiniView *v,const int x[4],const int y[4],unsigned out[4])
+133: {
+134:     for(unsigned i=0;i<4;i++){
+135:         if(x[i]<0 || x[i]>=8 || y[i]<0 || y[i]>=14)return 0;
+136:         unsigned q=(unsigned)y[i]*20+(unsigned)x[i];
+137:         if(solid(&v->cells[q]))return 0;
+138:         for(unsigned j=0;j<i;j++)if(out[j]==q)return 0;
+139:         out[i]=q;
+140:     }
+141:     return 1;
+142: }
+143: static void commanded_positions(const L3MiniView *v,const unsigned original[4],uint32_t pressed,unsigned out[4])
+144: {
+145:     static const unsigned keys[4]={L3_MINI_UP,L3_MINI_RIGHT,L3_MINI_DOWN,L3_MINI_LEFT};
+146:     unsigned d=0,candidate[4];int x[4],y[4];
+147:     memcpy(out,original,4*sizeof(*out));
+148:     while(d<4 && !(pressed&keys[d]))d++;
+149:     if(d==1 || d==3){
+150:         for(unsigned i=0;i<4;i++){x[i]=(int)(out[i]%20)+(d==1?1:-1);y[i]=(int)(out[i]/20);}
+151:         if(positions_fit(v,x,y,candidate))memcpy(out,candidate,sizeof(candidate));
+152:     }
+153:     if(d==0 || (pressed&L3_MINI_ROTATE)){
+154:         int cx=99,cy=99,max_y=0;
+155:         for(unsigned i=0;i<4;i++){if((int)(out[i]%20)<cx)cx=(int)(out[i]%20);if((int)(out[i]/20)<cy)cy=(int)(out[i]/20);}
+156:         for(unsigned i=0;i<4;i++)if((int)(out[i]/20)-cy>max_y)max_y=(int)(out[i]/20)-cy;
+157:         for(int kick=0;kick>=-2;kick--){
+158:             for(unsigned i=0;i<4;i++){
+159:                 x[i]=cx+kick+max_y-((int)(out[i]/20)-cy);
+160:                 y[i]=cy+(int)(out[i]%20)-cx;
+161:             }
+162:             if(positions_fit(v,x,y,candidate)){memcpy(out,candidate,sizeof(candidate));break;}
+163:         }
+164:     }
+165: }
+166: static int block_plan(L3MotionEvent *e,uint32_t pressed)
+167: {
+168:     const L3MiniView *a=&e->before,*b=&e->after;
+169:     unsigned ac[4],bc[4],an=active_cells(a,ac),bn=active_cells(b,bc);
+170:     if(an!=4 || bn>4 || (bn!=4 && b->status==L3_MINI_RUNNING))return 0;
+171:     if(a->moves==b->moves && same_static(a,b) && bn==4){
+172:         int dx=b->cursor_x-a->cursor_x,dy=b->cursor_y-a->cursor_y;
+173:         unsigned map[4]={0},used=0;
+174:         /* Exact translations first. Rotations use the unique four endpoints
+175:          * supplied by the actual engine, with a minimum-distance assignment. */
+176:         int translation=1;
+177:         for(unsigned i=0;i<4;i++){
+178:             int dest=(int)ac[i]+dy*20+dx;unsigned j=0;
+179:             while(j<4 && (int)bc[j]!=dest)j++;
+180:             if(j==4){translation=0;break;}map[i]=j;
+181:         }
+182:         if(!translation){
+183:             unsigned best=~0u;
+184:             for(unsigned p=0;p<256;p++){
+185:                 unsigned mask=0,cost=0;int valid=1;
+186:                 for(unsigned i=0;i<4;i++){
+187:                     unsigned j=(p>>(i*2))&3u;
+188:                     if(mask&(1u<<j)){valid=0;break;}mask|=1u<<j;
+189:                     int xx=(int)(ac[i]%20)-(int)(bc[j]%20),yy=(int)(ac[i]/20)-(int)(bc[j]/20);
+190:                     cost+=(unsigned)(xx*xx+yy*yy);
+191:                 }
+192:                 if(valid && cost<best){best=cost;for(unsigned i=0;i<4;i++)map[i]=(p>>(i*2))&3u;}
+193:             }
+194:         }
+195:         for(unsigned y=0;y<14;y++)for(unsigned x=0;x<8;x++){
+196:             unsigned q=y*20+x;
+197:             if(solid(&a->cells[q]) && !track(e,q,q,&a->cells[q],L3_MOTION_KEEP))return 0;
+198:         }
+199:         for(unsigned i=0;i<4;i++){
+200:             if((used&(1u<<map[i])) || a->cells[ac[i]].color!=b->cells[bc[map[i]]].color)return 0;
+201:             used|=1u<<map[i];
+202:             if(!track(e,ac[i],bc[map[i]],&a->cells[ac[i]],L3_MOTION_SLIDE))return 0;
+203:         }
+204:         e->kind=L3_MOTION_EVENT_PIECE;e->duration_ms=75;return 1;
+205:     }
+206:     if(b->moves!=a->moves+1u)return 0;
+207:     /* Apply only observed geometric input, then verify every settled cell
+208:      * against the real after view. No RNG, scoring, time or engine writes. */
+209:     unsigned positioned[4];commanded_positions(a,ac,pressed,positioned);
+210:     uint8_t board[280]={0};unsigned drop=ghost_distance(a,positioned),cleared[14]={0},lines=0;
+211:     for(unsigned y=0;y<14;y++)for(unsigned x=0;x<8;x++){
+212:         unsigned q=y*20+x;if(solid(&a->cells[q]))board[q]=a->cells[q].color;
+213:     }
+214:     for(unsigned i=0;i<4;i++)board[positioned[i]+20*drop]=a->cells[ac[i]].color;
+215:     for(unsigned y=0;y<14;y++){
+216:         int full=1;for(unsigned x=0;x<8;x++)if(!board[y*20+x])full=0;
+217:         cleared[y]=(unsigned)full;lines+=(unsigned)full;
+218:     }
+219:     if(b->progress<a->progress || lines!=(unsigned)(b->progress-a->progress))return 0;
+220:     int dest_y=13;
+221:     for(int y=13;y>=0;y--){
+222:         if(cleared[y])continue;
+223:         for(unsigned x=0;x<8;x++){
+224:             unsigned q=(unsigned)y*20+x,dest=(unsigned)dest_y*20+x;
+225:             if(board[q]!=(solid(&b->cells[dest])?b->cells[dest].color:0))return 0;
+226:         }
+227:         dest_y--;
+228:     }
+229:     for(;dest_y>=0;dest_y--)for(unsigned x=0;x<8;x++)if(solid(&b->cells[(unsigned)dest_y*20+x]))return 0;
+230:     for(unsigned y=0;y<14;y++)for(unsigned x=0;x<8;x++){
+231:         unsigned q=y*20+x;if(!board[q])continue;
+232:         unsigned below=0;for(unsigned yy=y+1;yy<14;yy++)below+=cleared[yy];
+233:         unsigned src=q;const L3MiniCell *cell=&a->cells[q];
+234:         for(unsigned i=0;i<4;i++)if(positioned[i]+20*drop==q){src=ac[i];cell=&a->cells[src];break;}
+235:         L3MotionTrack *t=track(e,src,q+20*below,cell,cleared[y]?L3_MOTION_CLEAR:L3_MOTION_SLIDE);
+236:         if(!t)return 0;
+237:         t->via_x=(int16_t)x;t->via_y=(int16_t)y;
+238:     }
+239:     for(unsigned i=0;i<bn;i++)if(!track(e,bc[i],bc[i],&b->cells[bc[i]],L3_MOTION_SPAWN))return 0;
+240:     e->kind=L3_MOTION_EVENT_LOCK;e->duration_ms=lines?220:110;return 1;
+241: }
+242: int l3_puzzle_motion_observe(L3PuzzleMotion *m,const L3MiniView *before,const L3MiniView *after,
+243:                             uint32_t pressed,uint32_t held,double now,uint32_t epoch)
+244: {
+245:     if(!m || !view_ok(before) || !view_ok(after) || !isfinite(now) || now<0 ||
+246:        ((pressed|held)&~L3_MINI_INPUT_MASK) || (m->valid && now<m->last_time))return L3_MOTION_INVALID;
+247:     m->observations++;retire(m,now);m->last_time=now;
+248:     if(!m->valid || m->epoch!=epoch){snap(m,after,now,epoch);return L3_MOTION_SNAPPED;}
+249:     if(!equal(&m->latest,before)){
+250:         m->discontinuities++;snap(m,after,now,epoch);return L3_MOTION_SNAPPED;
+251:     }
+252:     if(equal(before,after)){m->latest=*after;return L3_MOTION_UNCHANGED;}
+253:     if(m->count==L3_MOTION_QUEUE){m->overflows++;snap(m,after,now,epoch);return L3_MOTION_SNAPPED;}
+254:     L3MotionEvent *e=&m->queue[(m->head+m->count)%L3_MOTION_QUEUE];memset(e,0,sizeof(*e));
+255:     e->before=*before;e->after=*after;
+256:     int valid=before->kind==after->kind && (after->kind==L3_MINI_MERGE1024?merge_plan(e,pressed):after->kind==L3_MINI_BLOCKS?block_plan(e,pressed):0);
+257:     if(!valid){m->unsupported++;snap(m,after,now,epoch);return L3_MOTION_SNAPPED;}
+258:     e->start=now;
+259:     if(m->count){L3MotionEvent *prev=&m->queue[(m->head+m->count-1)%L3_MOTION_QUEUE];e->start=prev->start+(double)prev->duration_ms/1000.0;}
+260:     m->latest=*after;m->count++;m->events++;return L3_MOTION_ANIMATED;
+261: }
+262: static unsigned fraction(double elapsed,unsigned start,unsigned duration)
+263: {
+264:     double p=(elapsed*1000.0-start)/(double)duration;
+265:     return p<=0?0:p>=1?65536u:(unsigned)(p*65536.0);
+266: }
+267: static unsigned easing(unsigned p)
+268: {return (unsigned)(((uint64_t)p*p*(196608u-2u*p))>>32);}
+269: static int32_t lerp(int a,int b,unsigned p)
+270: {return a*65536+(int32_t)(((int64_t)b-a)*(int64_t)p);}
+271: static int add_pose(L3MotionFrame *f,const L3MotionTrack *t,unsigned p,unsigned alpha,
+272:                     unsigned scale,unsigned result,int via)
+273: {
+274:     if(f->count==L3_MOTION_POSES)return 0;
+275:     L3MotionPose *o=&f->poses[f->count++];memset(o,0,sizeof(*o));
+276:     o->x_q16=lerp(via?t->via_x:t->from_x,t->to_x,p);
+277:     o->y_q16=lerp(via?t->via_y:t->from_y,t->to_y,p);
+278:     o->value=result?t->result_value:t->value;o->color=result?t->result_color:t->color;
+279:     o->kind=t->kind;o->active=t->active&1u;o->alpha_q8=(uint16_t)alpha;o->scale_q8=(uint16_t)scale;return 1;
+280: }
+281: int l3_puzzle_motion_sample(L3PuzzleMotion *m,double now,L3MotionFrame *f)
+282: {
+283:     if(!m || !f || !m->valid || !isfinite(now) || now<m->last_time)return 0;
+284:     retire(m,now);m->last_time=now;memset(f,0,sizeof(*f));
+285:     if(!m->count){f->logical=m->latest;f->settled=1;f->progress_q16=65536;return 1;}
+286:     L3MotionEvent *e=&m->queue[m->head];double elapsed=now-e->start;
+287:     f->logical=e->after;f->event_kind=e->kind;f->progress_q16=fraction(elapsed,0,e->duration_ms);
+288:     for(unsigned i=0;i<e->count;i++){
+289:         L3MotionTrack *t=&e->tracks[i];unsigned alpha=256,scale=256,result=0,p=65536;int via=0;
+290:         if(e->kind==L3_MOTION_EVENT_MERGE){
+291:             p=easing(fraction(elapsed,0,100));
+292:             if(t->kind==L3_MOTION_MERGE && p==65536){
+293:                 if(!(t->active&2u))continue;
+294:                 result=1;
+295:                 unsigned pulse=fraction(elapsed,100,60);scale=256+(pulse<32768?pulse:65536-pulse)/1024;
+296:             }
+297:             if(t->kind==L3_MOTION_SPAWN){alpha=fraction(elapsed,100,60)>>8;scale=192+alpha/4;}
+298:         }else if(e->kind==L3_MOTION_EVENT_PIECE)p=easing(fraction(elapsed,0,75));
+299:         else{
+300:             unsigned land=easing(fraction(elapsed,0,70));
+301:             if(land<65536){
+302:                 L3MotionTrack tmp=*t;tmp.to_x=t->via_x;tmp.to_y=t->via_y;
+303:                 if(t->kind==L3_MOTION_SPAWN)alpha=0;
+304:                 if(!add_pose(f,&tmp,land,alpha,scale,result,0))return 0;
+305:                 continue;
+306:             }
+307:             via=1;p=easing(fraction(elapsed,110,e->duration_ms>110?e->duration_ms-110:1));
+308:             if(t->kind==L3_MOTION_CLEAR)alpha=256-(fraction(elapsed,70,70)>>8);
+309:             if(t->kind==L3_MOTION_SPAWN)alpha=fraction(elapsed,e->duration_ms>110?150:70,40)>>8;
+310:         }
+311:         if(!add_pose(f,t,p,alpha,scale,result,via))return 0;
+312:     }
+313:     if(e->after.kind==L3_MINI_BLOCKS){
+314:         unsigned cells[4];if(active_cells(&e->after,cells)==4){unsigned drop=ghost_distance(&e->after,cells);
+315:             unsigned old_cells[4],old_drop=active_cells(&e->before,old_cells)==4?ghost_distance(&e->before,old_cells):0;
+316:             if(drop)for(unsigned i=0;i<4;i++){
+317:                 L3MotionTrack t;memset(&t,0,sizeof(t));t.to_x=(int16_t)(cells[i]%20);t.to_y=(int16_t)(cells[i]/20+drop);
+318:                 t.color=e->after.cells[cells[i]].color;t.kind=L3_MOTION_GHOST;
+319:                 unsigned p=65536,alpha=80;
+320:                 if(e->kind==L3_MOTION_EVENT_PIECE){
+321:                     for(unsigned j=0;j<e->count;j++){
+322:                         const L3MotionTrack *src=e->tracks+j;
+323:                         if(src->active && src->to_x==t.to_x && src->to_y==(int16_t)(cells[i]/20)){
+324:                             t.from_x=src->from_x;t.from_y=(int16_t)(src->from_y+(int)old_drop);break;
+325:                         }
+326:                     }
+327:                     p=easing(fraction(elapsed,0,75));
+328:                 }else alpha=(80*fraction(elapsed,e->duration_ms>110?150:70,40))>>16;
+329:                 if(!add_pose(f,&t,p,alpha,256,0,0))return 0;
+330:             }
+331:         }
+332:     }
+333:     return 1;
+334: }

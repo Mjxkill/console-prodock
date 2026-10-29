@@ -1,0 +1,178 @@
+{
+  "schema": 1,
+  "status": "proposal_only_not_applied",
+  "world": 2,
+  "world_id": "marées",
+  "narrative": "Iria retrouve le trajet des réponses ; la lettre de Lise devient un service pour les prochains voyageurs. La lumière permet de livrer le courrier tout en préservant les refuges nocturnes.",
+  "phase_one": {
+    "append_worlds": [
+      "reflections_candidate/reflections_01.json",
+      "reflections_candidate/reflections_02.json",
+      "reflections_candidate/reflections_03.json",
+      "reflections_candidate/reflections_04.json",
+      "reflections_candidate/reflections_05.json",
+      "reflections_candidate/reflections_06.json",
+      "reflections_candidate/reflections_07.json",
+      "reflections_candidate/reflections_08.json",
+      "reflections_candidate/reflections_09.json",
+      "reflections_candidate/reflections_10.json"
+    ],
+    "add_entities": [
+      {
+        "id": "reflections_entry",
+        "kind": "door",
+        "x": 1808,
+        "y": 1360,
+        "name": "La Poste des Reflets",
+        "text": "Les lettres du phare attendent leurs réponses. La pierre du jardin sud garde le signe qui ouvre la poste.",
+        "after": "Un miroir donne une direction au courrier ; une caisse peut garder une fenêtre dans l'ombre.",
+        "requires": 256,
+        "grants": 0,
+        "cost": 0,
+        "vehicle": 0,
+        "art": "portal",
+        "target_world": 26
+      },
+      {
+        "id": "post_gallery_west",
+        "kind": "door",
+        "x": 592,
+        "y": 1296,
+        "name": "La galerie des facteurs — quai du village",
+        "text": "La galerie reliait ce quai à celui des coquilles. Les réponses de la Poste des Reflets permettront à Iria de la rouvrir.",
+        "after": "La galerie est de nouveau ouverte. Les prochains courriers éviteront le détour des ponts.",
+        "requires": 512,
+        "grants": 0,
+        "cost": 0,
+        "vehicle": 0,
+        "art": "portal",
+        "target_world": 2,
+        "target_x": 1872,
+        "target_y": 944
+      },
+      {
+        "id": "post_gallery_east",
+        "kind": "door",
+        "x": 1840,
+        "y": 944,
+        "name": "La galerie des facteurs — quai des coquilles",
+        "text": "Derrière la grille, la galerie rejoint le quai du village. Il manque les réponses de la Poste des Reflets.",
+        "after": "Le trajet rejoint le quai du village. Le courrier peut maintenant circuler dans les deux sens.",
+        "requires": 512,
+        "grants": 0,
+        "cost": 0,
+        "vehicle": 0,
+        "art": "portal",
+        "target_world": 2,
+        "target_x": 592,
+        "target_y": 1328
+      }
+    ],
+    "replace_mission": {
+      "old_id": "c16",
+      "new": {
+        "id": "c17_reflections",
+        "title": "Les réponses ont aussi une adresse",
+        "text": "Après la pierre du jardin sud, entrer dans la Poste des Reflets, à l'ouest du phare vivant. Retrouver les réponses en conduisant la lumière vers les disques et en protégeant les lampes des oiseaux. Revenir au quai pour rouvrir la galerie des facteurs.",
+        "type": "dungeon",
+        "requires": [
+          "c15"
+        ],
+        "target_world": 35,
+        "complete_flags": 32,
+        "reward": {
+          "flags": 512,
+          "crystals": 2
+        },
+        "required": false
+      }
+    },
+    "return_position": {
+      "x": 1808,
+      "y": 1392
+    },
+    "migration": {
+      "no_completion_transfer": [
+        "c16 -> c17_reflections"
+      ],
+      "unchanged_mission_ids": [
+        "c01",
+        "c02",
+        "c03",
+        "c04",
+        "c05",
+        "c06",
+        "c07",
+        "c08",
+        "c09",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15"
+      ],
+      "preserve_existing_entities": true,
+      "preserve_chest_ids": [
+        "sidequest_reward"
+      ],
+      "preserve_inventory": true,
+      "preserve_vehicle_unlocks": true,
+      "completed_old_c16_reward": "Keep its previously granted two crystals. c17 is new optional content with its own reward; do not revoke or replay c16."
+    },
+    "consequence": {
+      "id": "post_gallery",
+      "kind": "two_way_local_shortcut",
+      "requires": 512,
+      "endpoints": [
+        "post_gallery_west",
+        "post_gallery_east"
+      ],
+      "old_foot_route_tiles": 52,
+      "behavior": "The dungeon mission grants local flag 512 after returning outdoors; both existing quays then connect through the gallery. Arrival stays one tile off the opposite door."
+    }
+  },
+  "later_separate_phase": [
+    {
+      "id": "post_archive",
+      "kind": "visible_locked_annex",
+      "proposed_entry": {
+        "x": 1872,
+        "y": 1424
+      },
+      "requires": 512,
+      "story": "Jade, l'apprentie des cartes, garde les réponses qui n'ont pas encore de destinataire. Elle invite à comparer deux tracés du même rivage et à rapporter une observation à Iria.",
+      "design": "A visible closed archive and a short authored interior, with an observation puzzle and a new letter. Separate map, solution witness and migration check required before adding any door.",
+      "status": "not_built_no_world_index_reserved"
+    },
+    {
+      "id": "post_reply",
+      "kind": "return_conversation",
+      "requires": 512,
+      "story": "Revenir voir Lise pour lui montrer une réponse : son message a permis de rétablir un trajet pour quelqu'un d'autre. Ollo peut citer un courrier qui a emprunté la galerie.",
+      "design": "Use a new conditional reply or a new letter entity; never reset the existing sidequest chest or claim an old visit completed the new exchange.",
+      "status": "proposal_only_requires_dialogue_contract"
+    }
+  ],
+  "integration_gate": "Wait for the engine owner's signal. Preserve current campaign and art while preview/input validation is completed; then update durable generators and check migration 26 to 36 maps.",
+  "duration": {
+    "human_playtest": null,
+    "claimed_hours": null
+  },
+  "inputs": {
+    "campaign.json": "6ed0e5b504998ce78daa0351c7a480f167a6f479e3cbbcc30e7209a0864d14f7",
+    "campaign_arcs.json": "9cb6015f695fc51a084797e3be0663a22e485798c0dfcc119cd4553019afe48f",
+    "world_03.json": "976494764e71ac4d4ceba117e9fcbff8d735b5f2de05fc6c5286761f6d50febe",
+    "reflections_candidate/reflections_01.json": "d9d7b61fae2f3ed186faf3c23e74989acb3201c81b100527c292d523e3091460",
+    "reflections_candidate/reflections_02.json": "70560df7fd5f7dfe48f3102488ae2147cf069b31360e3a6aca113922ebdceb6d",
+    "reflections_candidate/reflections_03.json": "8197339b617ebde0518a972348e7159ba8450d218d7cbb3f3577761803ae6d60",
+    "reflections_candidate/reflections_04.json": "4dc9ad29f20b87b9b882b8544594d224fa6e82c6817b3c22d2dd434073b46996",
+    "reflections_candidate/reflections_05.json": "64038bb929ee6f06bb07bd8af95e6d29a9324f1f4e50da0dbbf3408f16c8c307",
+    "reflections_candidate/reflections_06.json": "270f8aa5c35bf007b9ada85ccde0d150b1dde307b8a913ce6ef5788166e4b101",
+    "reflections_candidate/reflections_07.json": "34eb0dfedab615bb0ac0300855bf17ff752251a2e147d6a1671650dd9aa7c549",
+    "reflections_candidate/reflections_08.json": "7f0d5a7e93022041a0f407cdbed4f5d436b9552465cbc3ece376acc8200c4752",
+    "reflections_candidate/reflections_09.json": "88525d4f5553528c588a2fb3f069877794695154b7d35dea317ef6a5220e513b",
+    "reflections_candidate/reflections_10.json": "355caaf220d7954847d22dee7e24c05dff0d92cb0b29c02f0cc2cc6e48966957",
+    "reflections_candidate/solutions.json": "1f85e06bcd4203e8e4a889be25ff9cd3cd585271f41043327da29331f4dc4093"
+  }
+}

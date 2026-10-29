@@ -1,0 +1,93 @@
+I'll start by reading the contract and test files to understand the task.Now I understand the architecture. Let me check the key geometry/observe path and confirm signal availability before writing the bench.Now I'll implement the bench with seed-driven clocks, the four faults, hierarchical diagnostics, and bounded watchdogs.## Objective
+- Implement fault/reset modes and clock/stall seeds in `bench.sv`, run the protected `test_bench.py`, fix failures, and write a measured `ANALYSIS.md`.
+- Preserve exact RTL read-only; make no hardware/causal claims about FIFO/timing/DDR without reproduced evidence.
+
+## Important Details
+- Owner/root: `/root/game_visual_followup`; only `bench.sv` and `ANALYSIS.md` may be edited.
+- Protected files include `CONTRACT.md`, `test_bench.py`, `INPUTS.json`, `HARDWARE_RUN03.md`, and all `.v` RTL files.
+- Baseline compiles and healthy CLEAR works; adversarial modes are currently unimplemented.
+- Hardware context: CLEAR reached blitter (`ext_active=1`, `busy=1`, state `0x20`, opcode `0x1c`, ext word0 `0x1c000000`); native ACK still unobserved; CPU128B readback PASS; TARGET16x1 done1/rejected0; CLEAR16x1 done remains1/busy1 after ~2s.
+- Contract requirements:
+  - Seeds `1` and `8` must differ in actual relative clock phase/period or stall phase.
+  - Count native writes externally, command words, and stalls; healthy run requires `accepted=1 words=16 stalls=[1-9]`, `done2`, `busy0`, no rejection, no late duplicate.
+  - `fault1`: hold `m_ready` low after TARGET; must yield bounded `CHECK_FAIL COMPLETION` with `accepted=0`.
+  - `fault2`: hold `m_wr_ready` low after TARGET; must yield bounded `CHECK_FAIL COMPLETION` with `accepted=0`.
+  - `fault3`: suppress acceptance feedback to GPU while arbiter can accept (intercept bench connection only); detect bounded mismatch/duplicate/missing completion and print observed `accepted>=1`.
+  - `fault4`: reset while CLEAR pending with native ready withheld; after reset no stale command/write may replay; restore readiness, submit fresh TARGET/CLEAR; require exact footprint, `done2`, idle; print `RESET_RECOVERY_PASS`.
+  - Each failure must emit coherent hierarchy/public state including captured packet word0, blitter `ext_active`, `v1_pending`, arbiter `take_blitter`, `full`, readiness, and accepted count.
+  - Own bounded per-access/global watchdog; do not treat simulator crash as coverage.
+- Protected harness command: `/usr/bin/verilator --binary --timing -j 2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0 --top-module bench --Mdir <tmp>/obj bench.sv <all *.v>`.
+- Harness cases: `[(1,0),(8,0),(1,1),(1,2),(1,3),(1,4)]`; per-case timeout 3s; compile timeout 48s.
+- Baseline regex: `BASELINE_PASS accepted=1 words=16 stalls=[1-9]`; fault1/2 regex: nonzero return, `CHECK_FAIL COMPLETION`, `accepted=0`; fault3 regex: nonzero return, `CHECK_FAIL`, `accepted=[1-9]`; fault4 regex: return0 + `RESET_RECOVERY_PASS`.
+- Do not explore/install tools; full compile in actual sandbox is prevalidated.
+- Newly authored source must stay `<=1000` lines.
+- `CLEAR` opcode `0x1c` = 28 selects extended V1 engine, not blitter raster; extended engine produces one native write at `0x04800008`, mask `0`, data `16*0x6b4d`.
+- `gpu_accel.debug_state` mapping: `done_count[15:0]`, `ext_active[32]`, `ext_start[33]`, `blitter_busy[34]`, `command_full[35]`, `command_we[36]`, `queue_pop[37]`, `queue_valid[38]`, `command_word[41:39]`, `mrst[43:42]`, `engine_resetn[55:44]`, `command_lost[79:64]`, `command_bad[95:80]`, `debug_blitter[191:96]`, `queue_data[223:192]`, `ext_command[255:224]`.
+- `gpu_geometry.observe_packet_words = {observe_pixel_word0, captured_command[31:0]}`; `gpu_accel` output is currently unconnected in `bench.sv`.
+- Existing TARGET/CLEAR words in `bench.sv`: TARGET `0x00100001` width/height payload; CLEAR word0 `0x1c000000`.
+
+## Work State
+### Completed
+- Read `CONTRACT.md`, `test_bench.py`, `HARDWARE_RUN03.md`, `INPUTS.json`, `bench.sv`, `ANALYSIS.md`, and key RTL.
+- Ran baseline tests first: `FULL_CHAIN_COMPILE_PASS`; seed1/seed8 healthy pass with `BASELINE_PASS accepted=1 words=16 stalls=3`; faults1-4 return0 (unimplemented), so harness `passed=false`.
+- Confirmed current `bench.sv` uses fixed clocks (`hclk` half 6.25ns, `mem_clk` 6.667ns offset 0.371ns) and periodic `mrdy=(tick%7!=0 && tick%7!=1)`, `mwrdy=(tick%5!=0)`.
+- Confirmed `ANALYSIS.md` is only placeholder: `# Pending model implementation and measured test results`.
+
+### Active
+- Designing/writing full `bench.sv` implementation with seed-driven clocks, fault injection, diagnostics, bounded watchdogs, and reset recovery.
+- Planned seed config: seed8 uses `hclk_half=5`, `memclk_half=8`, `memclk_phase=3`, `stall_offset=3`; default/seed1 uses `6`, `7`, `1`, `0`.
+- Planned bench split: `arb_b_ready` from arbiter; `gpu_native_ready = (fault==3 && suppress_feedback) ? 0 : arb_b_ready`; gate `mrdy` after TARGET for fault1, `mwrdy` for fault2; `hold_all` for fault4.
+- Planned counters: `accepted` only on write acceptance (`men && mrdy && mcmd==0 && mwrdy`), `received` on `gpu.command_we`, `stalls` when `valid && !gpu_native_ready`.
+- Planned diagnostics task `dump_state()` printing seed/fault/time/accepted/words/stalls/done/busy, packet words, ext_command0, blitter_ext_active, `gpu.v1_pending`, `arb.take_blitter`, `arb.full`, `mrdy`, `mwrdy`, `arb_b_ready`, `gpu_native_ready`, `queue_valid`, `command_we`.
+- Planned bounded `access` guard (>256 cycles), `wait_done` max 400 polls, pending loop max 2000, global watchdog ~400000ns.
+- Planned fault4: `hold_all=1`; send CLEAR; wait for `valid && !gpu_native_ready`; assert `resetn=0` on negedge for 8 cycles; zero counters; release; quarantine 80 cycles; require no accepted/received/valid/ext_active/done; restore readiness; fresh TARGET+CLEAR; check idle/footprint/late duplicate.
+
+### Blocked
+- Hierarchical references to internal signals `gpu.v1_pending`, `arb.take_blitter`, `arb.full` are planned but not yet compile-validated; may require fallback to public `debug_state`/`valid` if Verilator rejects them.
+- Need to verify seed8 healthy run still produces `stalls` in `1..9` and all commands complete under harness 3s timeout.
+
+## Next Move
+1. Write the full `bench.sv` implementation as planned, then run `taskbox_run_tests` and inspect compile/run failures.
+2. Fix compile/timeout/behavior issues, confirm all six harness cases pass, then write measured `ANALYSIS.md` with exact observed results and explicit non-causal limitations.
+
+## Relevant Files
+- `/root/game_visual_followup/bench.sv`: only implementation file; currently partial fixed-clock baseline.
+- `/root/game_visual_followup/ANALYSIS.md`: must contain final measured results and caveats.
+- `/root/game_visual_followup/test_bench.py`: protected harness defining commands, cases, regexes, timeouts.
+- `/root/game_visual_followup/CONTRACT.md`: protected exact task requirements.
+- `/root/game_visual_followup/HARDWARE_RUN03.md`: fresh hardware context; native ACK still unobserved.
+- `/root/game_visual_followup/INPUTS.json`: immutable RTL source hashes.
+- `/root/game_visual_followup/gpu_accel.v`: command FIFO, `debug_state`, ports `valid/write/addr/wr_data/wr_mask/ready`, `observe_packet_words`.
+- `/root/game_visual_followup/ddr_gpu_arb.v`: arbiter; relevant `take_blitter`, `full`, `b_ready`, `m_en`, `m_cmd`, `m_ready`, `m_wr_ready`.
+- `/root/game_visual_followup/blitter.v`: `ext_start/ext_active/ext_command`, diagnostic `debug_state`, CLEAR extended opcode path.
+- `/root/game_visual_followup/gpu_geometry.v`: `observe_packet_words`, extended engine native request path.
+- `/root/game_visual_followup/ddr_dcfifo.v`: async FIFO reset semantics; relevant for stale replay.
+- `/root/game_visual_followup/ahb_exts_bridge.v`, `/root/game_visual_followup/video_bus_stage.v`: exact AHB stages under test; read-only.Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.All six protected cases pass. Now the measured analysis, with explicit non-causal limits.Implemented and verified.
+
+## Files changed
+- **`bench.sv`** (489 lines): seed-dependent clocks/stall phases, full chain, exact-footprint accounting, four fault modes, bounded watchdogs, reset/recovery, and coherent diagnostic dumps.
+- **`ANALYSIS.md`** (168 lines): measured results from the protected harness with explicit simulation-only limitations.
+
+No protected RTL, contract, harness, input, or hardware-report files were edited.
+
+## Tests observed
+`taskbox_run_tests` returned **`passed=true`**:
+
+```text
+FULL_CHAIN_COMPILE_PASS
+seed=1 fault=0 -> BASELINE_PASS accepted=1 words=16 stalls=1
+seed=8 fault=0 -> BASELINE_PASS accepted=1 words=16 stalls=3
+seed=1 fault=1 -> CHECK_FAIL COMPLETION accepted=0
+seed=1 fault=2 -> CHECK_FAIL COMPLETION accepted=0
+seed=1 fault=3 -> CHECK_FAIL duplicate_native_write accepted=2 (state printed accepted=1)
+seed=1 fault=4 -> RESET_RECOVERY_PASS, accepted=1 words=16 stalls=1
+```
+
+Observed recovery in fault 4: quarantine showed no stale `valid`, `ext_active`, `done`, accepted writes, or received words; the fresh TARGET/CLEAR then reached `done=2` and idle without a late duplicate.
+
+## Limitations
+- Native DDR ACK is modeled by the bench; real controller handshake remains unobserved.
+- Seed 1/8 stall-count difference is observed under two timing models, not causally attributed.
+- Fault 3 is a bench-side feedback cut, demonstrating detection coverage rather than real arbiter behavior.
+- Fault 4 uses a TB reset and synthetic pending window; hardware reset sequencing is not reproduced.
+- Hierarchical signals are simulation diagnostics only.

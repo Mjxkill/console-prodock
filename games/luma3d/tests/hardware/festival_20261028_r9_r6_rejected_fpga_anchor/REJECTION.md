@@ -1,0 +1,1 @@
+Root rejected this local candidate before any execution: global name replacement f9e->f9f altered FPGA_SHA inside a 64-hex literal. Its self-referential tests passed incorrectly. This directory is evidence only, MUST NOT be executed. Corrected prepared_r6 uses a separately copied external Pro Dock reference and tests against the protected bitstream file.

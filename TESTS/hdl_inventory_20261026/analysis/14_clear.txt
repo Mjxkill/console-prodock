@@ -1,0 +1,121 @@
+tang/rtl/usb/usb2_0_softphy.v
+     1 //
+     2 //Written by GowinSynthesis
+     3 //Tool Version "V1.9.10.03 (64-bit)"
+     4 //Mon Nov 11 00:22:04 2024
+     5 
+     6 //Source file index table:
+     7 //file0 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/USBTwoSoftPHY/data/usb2_0_softphy_top.v"
+     8 //file1 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/USBTwoSoftPHY/data/usb2_0_softphy.v"
+     9 `timescale 100 ps/100 ps
+  4689 module USB2_0_SoftPHY_Top (
+  4690   clk_i,
+  4691   rst_i,
+  4692   fclk_i,
+  4693   pll_locked_i,
+  4694   utmi_data_out_i,
+  4695   utmi_txvalid_i,
+  4696   utmi_op_mode_i,
+  4697   utmi_xcvrselect_i,
+  4698   utmi_termselect_i,
+  4699   utmi_data_in_o,
+  4700   utmi_txready_o,
+  4701   utmi_rxvalid_o,
+  4702   utmi_rxactive_o,
+  4703   utmi_rxerror_o,
+  4704   utmi_linestate_o,
+  4705   usb_dxp_io,
+  4706   usb_dxn_io,
+  4707   usb_rxdp_i,
+  4708   usb_rxdn_i,
+  4709   usb_pullup_en_o,
+  4710   usb_term_dp_io,
+  4711   usb_term_dn_io
+  4712 )
+  4713 ;
+  4714 input clk_i;
+  4715 input rst_i;
+  4716 input fclk_i;
+  4717 input pll_locked_i;
+  4718 input [7:0] utmi_data_out_i;
+  4719 input utmi_txvalid_i;
+  4720 input [1:0] utmi_op_mode_i;
+  4721 input [1:0] utmi_xcvrselect_i;
+  4722 input utmi_termselect_i;
+  4723 output [7:0] utmi_data_in_o;
+  4724 output utmi_txready_o;
+  4725 output utmi_rxvalid_o;
+  4726 output utmi_rxactive_o;
+  4727 output utmi_rxerror_o;
+  4728 output [1:0] utmi_linestate_o;
+  4729 inout usb_dxp_io;
+  4730 inout usb_dxn_io;
+  4731 input usb_rxdp_i;
+  4732 input usb_rxdn_i;
+  4733 output usb_pullup_en_o;
+  4734 inout usb_term_dp_io;
+  4735 inout usb_term_dn_io;
+  4736 wire usb_term_dp_io_in;
+  4737 wire usb_term_dn_io_in;
+  4738 wire n19_6;
+  4739 wire pullup_en_5;
+  4740 wire usb_dp_io_5;
+  4741 wire n12_5;
+  4742 wire n6_5;
+  4743 wire VCC;
+  4744 wire GND;
+  4745   IOBUF usb_term_dp_io_iobuf (
+  4746     .O(usb_term_dp_io_in),
+  4747     .IO(usb_term_dp_io),
+  4748     .I(n6_5),
+  4749     .OEN(usb_dp_io_5) 
+  4750 );
+  4751   IOBUF usb_term_dn_io_iobuf (
+  4752     .O(usb_term_dn_io_in),
+  4753     .IO(usb_term_dn_io),
+  4754     .I(n12_5),
+  4755     .OEN(usb_dp_io_5) 
+  4756 );
+  4757   TBUF usb_pullup_en_o_s0 (
+  4758     .O(usb_pullup_en_o),
+  4759     .I(n19_6),
+  4760     .OEN(pullup_en_5) 
+  4761 );
+  4762   \~usb2_0_softphy.USB2_0_SoftPHY_Top  usb2_0_softphy (
+  4763     .rst_i(rst_i),
+  4764     .fclk_i(fclk_i),
+  4765     .utmi_termselect_i(utmi_termselect_i),
+  4766     .clk_i(clk_i),
+  4767     .utmi_txvalid_i(utmi_txvalid_i),
+  4768     .pll_locked_i(pll_locked_i),
+  4769     .usb_rxdp_i(usb_rxdp_i),
+  4770     .usb_rxdn_i(usb_rxdn_i),
+  4771     .usb_term_dn_io_in(usb_term_dn_io_in),
+  4772     .usb_term_dp_io_in(usb_term_dp_io_in),
+  4773     .utmi_xcvrselect_i(utmi_xcvrselect_i[1:0]),
+  4774     .utmi_op_mode_i(utmi_op_mode_i[1:0]),
+  4775     .utmi_data_out_i(utmi_data_out_i[7:0]),
+  4776     .utmi_txready_o(utmi_txready_o),
+  4777     .utmi_rxvalid_o(utmi_rxvalid_o),
+  4778     .utmi_rxactive_o(utmi_rxactive_o),
+  4779     .utmi_rxerror_o(utmi_rxerror_o),
+  4780     .n19_6(n19_6),
+  4781     .pullup_en_5(pullup_en_5),
+  4782     .usb_dp_io_5(usb_dp_io_5),
+  4783     .n12_5(n12_5),
+  4784     .n6_5(n6_5),
+  4785     .utmi_data_in_o(utmi_data_in_o[7:0]),
+  4786     .utmi_linestate_o(utmi_linestate_o[1:0]),
+  4787     .usb_dxp_io(usb_dxp_io),
+  4788     .usb_dxn_io(usb_dxn_io)
+  4789 );
+  4790   VCC VCC_cZ (
+  4791     .V(VCC)
+  4792 );
+  4793   GND GND_cZ (
+  4794     .G(GND)
+  4795 );
+  4796   GSR GSR (
+  4797     .GSRI(VCC) 
+  4798 );
+  4799 endmodule /* USB2_0_SoftPHY_Top */

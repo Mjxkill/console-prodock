@@ -1,0 +1,49 @@
+```c
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include "festival_cull.h"
+
+int main(void)
+{
+    static const struct {
+        double x, y, z, r;
+        int expected;
+    } vectors[] = {
+        { 0, 0, 10, 1, 1 },
+        { 20, 0, 10, 1, 0 },
+        { -20, 0, 10, 1, 0 },
+        { 0, 20, 10, 1, 0 },
+        { 0, -20, 10, 1, 0 },
+        { 10, 0, 10, 2, 1 },
+        { -10, 0, 10, 2, 1 },
+        { 10.01, 0, 10, 2, 0 },
+        { 0, 10, 10, 2, 1 },
+        { 0, -10, 10, 2, 1 },
+        { 0, 10.01, 10, 2, 0 },
+        { 0, 0, -.5, 1, 1 },
+        { 0, 0, -.51, 1, 0 },
+        { 0, 0, 101, 1, 1 },
+        { 0, 0, 101.01, 1, 0 },
+        { 7.5, 0, 10, 0, 1 },
+        { NAN, 0, 10, 1, 1 },
+        { INFINITY, 0, 10, 1, 1 },
+        { 0, 0, 10, -1, 1 }
+    };
+    const unsigned count = (unsigned)(sizeof vectors / sizeof vectors[0]);
+    unsigned i;
+    int passed = 0;
+
+    for (i = 0; i < count; ++i) {
+        int got = festival_sphere_visible(
+            vectors[i].x, vectors[i].y, vectors[i].z, vectors[i].r,
+            .5, 100, .75, .75);
+        assert(got == vectors[i].expected);
+        if (got == vectors[i].expected)
+            ++passed;
+    }
+
+    printf("%d\n", passed);
+    return 0;
+}
+```

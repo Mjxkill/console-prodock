@@ -1,0 +1,145 @@
+tang/boards/neo/ddr6_400/ddr3_standalone.v
+     1 //
+     2 //Written by GowinSynthesis
+     3 //Tool Version "V1.9.12.03"
+     4 //Sat Oct 17 22:35:17 2026
+     5 
+     6 //Source file index table:
+     7 //file0 "\/home/michael/gowin/IDE/ipcore/DDR3/data/ddr3_1_4code_hs/ddr3_1_4code_hs.v"
+     8 //file1 "\/home/michael/gowin/IDE/ipcore/DDR3/data/ddr3_1_4code_hs/DDR3_TOP.v"
+     9 `timescale 100 ps/100 ps
+ 32509 module DDR3_Memory_Interface_Top (
+ 32510   clk,
+ 32511   pll_stop,
+ 32512   memory_clk,
+ 32513   pll_lock,
+ 32514   rst_n,
+ 32515   clk_out,
+ 32516   ddr_rst,
+ 32517   init_calib_complete,
+ 32518   cmd_ready,
+ 32519   cmd,
+ 32520   cmd_en,
+ 32521   addr,
+ 32522   wr_data_rdy,
+ 32523   wr_data,
+ 32524   wr_data_en,
+ 32525   wr_data_end,
+ 32526   wr_data_mask,
+ 32527   rd_data,
+ 32528   rd_data_valid,
+ 32529   rd_data_end,
+ 32530   sr_req,
+ 32531   ref_req,
+ 32532   sr_ack,
+ 32533   ref_ack,
+ 32534   burst,
+ 32535   O_ddr_addr,
+ 32536   O_ddr_ba,
+ 32537   O_ddr_cs_n,
+ 32538   O_ddr_ras_n,
+ 32539   O_ddr_cas_n,
+ 32540   O_ddr_we_n,
+ 32541   O_ddr_clk,
+ 32542   O_ddr_clk_n,
+ 32543   O_ddr_cke,
+ 32544   O_ddr_odt,
+ 32545   O_ddr_reset_n,
+ 32546   O_ddr_dqm,
+ 32547   IO_ddr_dq,
+ 32548   IO_ddr_dqs,
+ 32549   IO_ddr_dqs_n
+ 32550 )
+ 32551 ;
+ 32552 input clk;
+ 32553 output pll_stop;
+ 32554 input memory_clk;
+ 32555 input pll_lock;
+ 32556 input rst_n;
+ 32557 output clk_out;
+ 32558 output ddr_rst;
+ 32559 output init_calib_complete;
+ 32560 output cmd_ready;
+ 32561 input [2:0] cmd;
+ 32562 input cmd_en;
+ 32563 input [28:0] addr;
+ 32564 output wr_data_rdy;
+ 32565 input [255:0] wr_data;
+ 32566 input wr_data_en;
+ 32567 input wr_data_end;
+ 32568 input [31:0] wr_data_mask;
+ 32569 output [255:0] rd_data;
+ 32570 output rd_data_valid;
+ 32571 output rd_data_end;
+ 32572 input sr_req;
+ 32573 input ref_req;
+ 32574 output sr_ack;
+ 32575 output ref_ack;
+ 32576 input burst;
+ 32577 output [14:0] O_ddr_addr;
+ 32578 output [2:0] O_ddr_ba;
+ 32579 output O_ddr_cs_n;
+ 32580 output O_ddr_ras_n;
+ 32581 output O_ddr_cas_n;
+ 32582 output O_ddr_we_n;
+ 32583 output O_ddr_clk;
+ 32584 output O_ddr_clk_n;
+ 32585 output O_ddr_cke;
+ 32586 output O_ddr_odt;
+ 32587 output O_ddr_reset_n;
+ 32588 output [3:0] O_ddr_dqm;
+ 32589 inout [31:0] IO_ddr_dq;
+ 32590 inout [3:0] IO_ddr_dqs;
+ 32591 inout [3:0] IO_ddr_dqs_n;
+ 32592 wire VCC;
+ 32593 wire GND;
+ 32594   \~GW_DDR3_PHY_MC.DDR3_Memory_Interface_Top  gw3_top (
+ 32595     .memory_clk(memory_clk),
+ 32596     .clk(clk),
+ 32597     .rst_n(rst_n),
+ 32598     .pll_lock(pll_lock),
+ 32599     .cmd_en(cmd_en),
+ 32600     .sr_req(sr_req),
+ 32601     .wr_data_end(wr_data_end),
+ 32602     .wr_data_en(wr_data_en),
+ 32603     .cmd(cmd[2:0]),
+ 32604     .addr(addr[27:0]),
+ 32605     .wr_data(wr_data[255:0]),
+ 32606     .wr_data_mask(wr_data_mask[31:0]),
+ 32607     .clk_out(clk_out),
+ 32608     .ddr_rst(ddr_rst),
+ 32609     .pll_stop(pll_stop),
+ 32610     .O_ddr_clk(O_ddr_clk),
+ 32611     .O_ddr_clk_n(O_ddr_clk_n),
+ 32612     .O_ddr_reset_n(O_ddr_reset_n),
+ 32613     .O_ddr_cs_n(O_ddr_cs_n),
+ 32614     .O_ddr_ras_n(O_ddr_ras_n),
+ 32615     .O_ddr_cas_n(O_ddr_cas_n),
+ 32616     .O_ddr_we_n(O_ddr_we_n),
+ 32617     .O_ddr_cke(O_ddr_cke),
+ 32618     .O_ddr_odt(O_ddr_odt),
+ 32619     .init_calib_complete(init_calib_complete),
+ 32620     .rd_data_valid(rd_data_valid),
+ 32621     .cmd_ready(cmd_ready),
+ 32622     .ref_ack(ref_ack),
+ 32623     .sr_ack(sr_ack),
+ 32624     .wr_data_rdy(wr_data_rdy),
+ 32625     .O_ddr_dqm(O_ddr_dqm[3:0]),
+ 32626     .O_ddr_addr(O_ddr_addr[14:0]),
+ 32627     .O_ddr_ba(O_ddr_ba[2:0]),
+ 32628     .rd_data(rd_data[255:0]),
+ 32629     .IO_ddr_dqs(IO_ddr_dqs[3:0]),
+ 32630     .IO_ddr_dqs_n(IO_ddr_dqs_n[3:0]),
+ 32631     .IO_ddr_dq(IO_ddr_dq[31:0])
+ 32632 );
+ 32633   VCC VCC_cZ (
+ 32634     .V(VCC)
+ 32635 );
+ 32636   GND GND_cZ (
+ 32637     .G(GND)
+ 32638 );
+ 32639   GSR GSR (
+ 32640     .GSRI(VCC) 
+ 32641 );
+ 32642 assign rd_data_end = rd_data_valid;
+ 32643 endmodule /* DDR3_Memory_Interface_Top */

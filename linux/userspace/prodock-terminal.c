@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include "prodock-uapi.h"
 #include "prodock-dashboard.h"
+static struct prodock_display_geometry geometry;
 static volatile sig_atomic_t stopping;
 static void stop(int sig) { (void)sig; stopping = 1; }
 static double now(void)
@@ -55,7 +56,7 @@ static int debug_update(int display,struct prodock_display_info *previous,struct
     struct prodock_debug_text text;
     struct pd_sd_stats sd=sd_stats();
     if(ioctl(display,PRODOCK_DISPLAY_INFO,&s))return -1;
-    pd_dashboard(&text,&s,previous,&sd,old_sd,dt);
+    pd_dashboard_geometry(&text,&s,previous,&sd,old_sd,dt,&geometry);
     if(ioctl(display,PRODOCK_DEBUG_TEXT,&text))return -1;
     *previous=s;*old_sd=sd;
     return 0;
@@ -65,6 +66,7 @@ int main(void)
     int display = open("/dev/prodock-display", O_RDWR | O_CLOEXEC);
     int lcd = open("/dev/tty1", O_WRONLY | O_NOCTTY | O_CLOEXEC);
     if (display < 0 || lcd < 0) { perror("hardware terminal"); return 1; }
+    if(ioctl(display,PRODOCK_DISPLAY_GEOMETRY,&geometry) && errno!=ENOTTY) { perror("display geometry");return 1; }
     int master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC);
     if (master < 0 || grantpt(master) || unlockpt(master)) { perror("PTY"); return 1; }
     char slave_name[128];

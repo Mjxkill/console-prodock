@@ -3,15 +3,17 @@
 import argparse,hashlib,json,os,re,shutil,subprocess
 from pathlib import Path
 from build_gpu import resolve_constraints
+from gowin_toolchain import IDE, environment
+from board_contract import before_build, record_build
 ROOT=Path(__file__).resolve().parents[1]
 BASE=ROOT/'tang/impl/gpu_sdusb_c37'
 TEMPLATE=ROOT/'tang/impl/gpu_sdusb_c28'
-IDE=Path('/home/michael/gowin/Gowin_V1.9.12_linux/IDE')
 def nonplacement_constraints(text):
  # INS_LOC is consumed by P&R, not synthesis. All pin/bank/clock records
  # must remain byte-for-byte identical after whitespace/comment stripping.
- lines=[s.split('//',1)[0].strip() for s in text.splitlines()]
- return [s for s in lines if s and not s.startswith('INS_LOC ')]
+ clean='\n'.join(s.split('//',1)[0] for s in text.splitlines())
+ statements=[' '.join(part.split()) for part in clean.split(';')]
+ return [s for s in statements if s and not s.startswith('INS_LOC ')]
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--name',required=True)
  p.add_argument('--reuse-synthesis',type=Path,help='Route an identical, verified geometry netlist without resynthesis')
@@ -20,13 +22,21 @@ def main():
  p.add_argument('--place-option',type=int,choices=range(5),default=3)
  p.add_argument('--route-option',type=int,choices=range(3),default=2)
  p.add_argument('--replicate-resources',type=int,choices=(0,1),default=0,help='Allow physical replication of high-fanout logic')
+ p.add_argument('--candidate',action='store_true',help='Explicit Pro Dock candidate; dual-board local checks required, hardware validation pending')
  a=p.parse_args()
  if not re.fullmatch('[a-zA-Z0-9_]+',a.name):p.error('Invalid build name')
  if not 200<=a.timing_paths<=5000:p.error('timing-paths must be 200..5000')
+ contract=before_build('prodock',candidate=a.candidate)
  stage=ROOT/'tang/impl'/a.name;stage.mkdir(exist_ok=False)
+ record_build(stage,contract)
  shutil.copytree(BASE/'source',stage/'source');shutil.copytree(BASE/'rtl',stage/'rtl')
  extra=['tang/rtl/video/gpu_geometry.v','tang/rtl/video/gpu_geom_div.v','tang/rtl/video/video_bus_stage.v']
  changed=['tang/rtl/console_top.v','tang/rtl/board/ddr_gpu_arb.v','tang/rtl/usb/usb_msc_port.v','tang/rtl/video/gpu_line_reader.v','tang/rtl/video/gpu_accel.v','tang/rtl/video/blitter.v','tang/rtl/video/gpu_blit_dma.v',*extra,'tang/rtl/video/gpu_perspective.v','tang/rtl/video/gpu_v1.v','tang/rtl/video/gpu_texture_cache.v']
+ # Shared RTL must follow the working tree on both boards. Keeping these
+ # files frozen at C37 silently omitted later scanout, bus and raster fixes.
+ changed += ['tang/rtl/board/ae350_soc.v','tang/rtl/board/ahb_exts_bridge.v',
+             'tang/rtl/video/gpu_scanout.v','tang/rtl/video/gpu_rgb_reader.v',
+             'tang/rtl/video/gpu_raster.v','tang/rtl/video/gpu_copy565.v']
  for rel in changed:shutil.copy2(ROOT/rel,stage/'source'/rel)
  # The registered peripheral stage replaces the two combinational HREADY
  # LUTs pinned by C37. Their synthesized names/functions no longer exist.
@@ -40,6 +50,35 @@ def main():
   if len(matches)!=1:raise RuntimeError('Expected one baseline placement: '+cell)
   removed_placements+=matches
   constraint_text=re.sub(pattern,'// G3D1: release obsolete HREADY / relocated raster placement.',constraint_text,flags=re.M)
+ # The one-hot EXTS bridge merges HREADY with IDLE. Replace only its old
+ # binary-machine anchors, keeping the accepted hard-macro neighborhood.
+ for cell in ('m_hready_s0','st_0_s0','st_1_s5','n47_s2'):
+  pattern=r'^INS_LOC "u_soc/u_bridge/'+cell+r'" [^\n]+;\s*$'
+  matches=re.findall(pattern,constraint_text,re.M)
+  if len(matches)!=1:raise RuntimeError('Expected one old bridge placement: '+cell)
+  removed_placements+=matches
+  constraint_text=re.sub(pattern,'// Dual board: replaced binary EXTS bridge anchor.',constraint_text,flags=re.M)
+ constraint_text=constraint_text.replace('// @driver module=ahb_exts_bridge instance=m_hready_s0 pin=D','// Dual board: HREADY is the one-hot IDLE register.')
+ constraint_text+='''
+// One-hot EXTS control adjacent to the AE350 hard macro.
+INS_LOC "u_soc/u_bridge/st_0_s1" R4C150[0][A];
+INS_LOC "u_soc/u_bridge/st_1_s0" R4C150[1][A];
+// @driver module=ahb_exts_bridge instance=st_0_s1 pin=CE
+INS_LOC "u_soc/u_bridge/st_0_s3" R4C150[0][B];
+// @driver module=ahb_exts_bridge instance=st_1_s0 pin=D
+INS_LOC "u_soc/u_bridge/n50_s0" R4C150[1][B];
+'''
+ # Retain the qualified HS receiver neighborhood, without freezing the
+ # unrelated GPU placement. A whole-design G22 hint no longer routes the
+ # changed geometry netlist; the encrypted PHY itself is unchanged.
+ usb_placements=ROOT/'tang/constr/prodock_softusb_placement.cst'
+ if usb_placements.exists():
+  supplemental=usb_placements.read_text()
+  for cell in re.findall(r'^INS_LOC "([^"]+)"',supplemental,re.M):
+   constraint_text=re.sub(r'^INS_LOC "'+re.escape(cell)+r'" [^\n]+;\s*$',
+                          '// HS receiver anchor supplied below.',constraint_text,flags=re.M)
+  constraint_text+='\n'+supplemental
+  shutil.copy2(usb_placements,stage/'source/tang/constr/prodock_softusb_placement.cst')
  constraint_source.write_text(constraint_text)
  tcl=(TEMPLATE/'build.tcl').read_text().replace(str(TEMPLATE),str(stage)).replace('console_gpu_sdusb_c28','console_'+a.name)
  for option,value in [('place_option',a.place_option),('route_option',a.route_option),('replicate_resources',a.replicate_resources)]:
@@ -53,7 +92,10 @@ def main():
  report_sdc=stage/'source/diagnostics/timing_reports.sdc'
  report_sdc.write_text(re.sub(r'(?<=-max_paths )200\b',str(a.timing_paths),report_sdc.read_text()))
  manifest={str(f.relative_to(stage/'source')):hashlib.sha256(f.read_bytes()).hexdigest() for f in (stage/'source').rglob('*') if f.is_file()}
- provenance=dict(baseline=str(BASE),changes=changed,clocks_changed=False,usb_datapath_changed=False,usb_endpoint_reset_decode_registered=True,peripheral_bus_staged=True,timing_paths=a.timing_paths,removed_placements=removed_placements,place_option=a.place_option,route_option=a.route_option,replicate_resources=a.replicate_resources)
+ provenance=dict(baseline=str(BASE),ide=str(IDE),changes=changed,clocks_changed=False,
+                 usb_datapath_changed=any((ROOT/rel).read_bytes() != (BASE/'source'/rel).read_bytes()
+                                         for rel in changed if rel.startswith('tang/rtl/usb/')),
+                 usb_endpoint_reset_decode_registered=True,peripheral_bus_staged=True,timing_paths=a.timing_paths,removed_placements=removed_placements,place_option=a.place_option,route_option=a.route_option,replicate_resources=a.replicate_resources)
  if a.reuse_synthesis:
   parent=a.reuse_synthesis.resolve(strict=True)
   old_manifest=json.loads((parent/'sources.json').read_text())
@@ -85,7 +127,7 @@ def main():
  shutil.copyfile(Path(__file__),stage/'build_driver.py')
  (stage/'sources.json').write_text(json.dumps(manifest,indent=2)+'\n')
  (stage/'geometry_build.json').write_text(json.dumps(provenance,indent=2)+'\n')
- env=dict(os.environ,LD_LIBRARY_PATH=str(IDE/'lib'),QT_QPA_PLATFORM='offscreen',DISPLAY='')
+ env=environment()
  print(stage,flush=True)
  with (stage/'build.log').open('w') as log:r=subprocess.run([str(IDE/'bin/gw_sh'),'build.tcl'],cwd=stage,env=env,stdout=log,stderr=log)
  if r.returncode or re.search(r'^ERROR', (stage/'build.log').read_text(),re.M):raise RuntimeError('Gowin build failed: '+str(stage/'build.log'))

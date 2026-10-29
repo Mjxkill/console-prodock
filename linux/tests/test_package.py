@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import hashlib
 import json
+import os
 from pathlib import Path
-p = Path(__file__).resolve().parents[1] / 'build'
+p = Path(__file__).resolve().parents[1] / ('build-neo' if os.environ.get('CONSOLE_BOARD')=='neo' else 'build')
 m = json.loads((p / 'manifest.json').read_text())
 if m['load'] != 0x07c00000 or m['kernel'] != 0x08000000:
     raise SystemExit('Wrong Pro Dock load addresses')

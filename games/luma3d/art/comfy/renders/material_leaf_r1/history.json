@@ -1,0 +1,198 @@
+{
+  "b4d7b255-0424-407e-b79f-4290b226c3c5": {
+    "prompt": [
+      63,
+      "b4d7b255-0424-407e-b79f-4290b226c3c5",
+      {
+        "unet": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "clip": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+            "type": "qwen_image",
+            "device": "default"
+          }
+        },
+        "vae": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "qwen_image_vae.safetensors"
+          }
+        },
+        "shift": {
+          "class_type": "ModelSamplingAuraFlow",
+          "inputs": {
+            "model": [
+              "lora",
+              0
+            ],
+            "shift": 3.0
+          }
+        },
+        "latent": {
+          "class_type": "EmptySD3LatentImage",
+          "inputs": {
+            "width": 1024,
+            "height": 1024,
+            "batch_size": 1
+          }
+        },
+        "positive": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "clip",
+              0
+            ],
+            "text": "Original hand-painted albedo texture for a beautiful stylized 3D fantasy adventure, painterly brushwork with carefully designed large and medium shapes and small accents. An exactly flat orthographic material surface covering the entire square, a continuous repeating surface rather than an object or a scene. Soft diffuse intrinsic material colors, no directional light, no cast shadow, no ambient-occlusion frame, no gradient across the image, no vignette, no border, no text. Seamless on all four edges. Restrained contrast suited to viewing at 128 by 128 pixels; quiet broad areas between clusters, no gritty photographic noise. Dense overlapping softly rounded fantasy oak leaves filling the square edge to edge, celadon, forest green, pale warm yellow-green accents and delicate blue-green shadows. Small stylized botanical leaf shapes arranged in loose irregular clusters with calm broad color masses. No black empty gaps, no individual tree or isolated branch, no border. Charming painterly foliage texture for a volumetric tree canopy."
+          }
+        },
+        "negative": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "clip",
+              0
+            ],
+            "text": ""
+          }
+        },
+        "sample": {
+          "class_type": "KSampler",
+          "inputs": {
+            "model": [
+              "shift",
+              0
+            ],
+            "seed": 20261024107,
+            "steps": 4,
+            "cfg": 1.0,
+            "sampler_name": "euler",
+            "scheduler": "simple",
+            "positive": [
+              "positive",
+              0
+            ],
+            "negative": [
+              "negative",
+              0
+            ],
+            "latent_image": [
+              "latent",
+              0
+            ],
+            "denoise": 1.0
+          }
+        },
+        "decode": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "sample",
+              0
+            ],
+            "vae": [
+              "vae",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "decode",
+              0
+            ],
+            "filename_prefix": "luma3d/material_leaf_r1"
+          }
+        },
+        "lora": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": [
+              "unet",
+              0
+            ],
+            "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+            "strength_model": 1.0
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792840840095
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "material_leaf_r1_00001_.png",
+            "subfolder": "luma3d",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 1024,
+              "height": 1024
+            },
+            "id": "e10c8bef-1778-4c20-8daf-3e4efdf94ea5"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "b4d7b255-0424-407e-b79f-4290b226c3c5",
+            "timestamp": 1792840840095
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "unet",
+              "clip",
+              "vae",
+              "shift",
+              "latent",
+              "negative",
+              "lora"
+            ],
+            "prompt_id": "b4d7b255-0424-407e-b79f-4290b226c3c5",
+            "timestamp": 1792840840096
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "b4d7b255-0424-407e-b79f-4290b226c3c5",
+            "timestamp": 1792840847705
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+Je vais relire le paquet R21 sous l'angle du câblage concret, sans outil ni exécution.
+
+## Verdict
+
+Le câblage est cohérent entre contract.json, le builder et observation.diff : ordre `mem_events`, indices `sample`, D/Q, nibble 0xD, bits 59:56 et polarités LUT sont tous vérifiés ci-dessous. Je n'ai pas trouvé d'inversion d'index. Deux points concrets méritent un correctif avant PnR : des déclarations de fils après usage, et plusieurs noms de nets utilisés sans assertion d'existence ou de sens.
+
+## Faits vérifiés
+
+- **Ordre mem_events.** `build_memory_capture.py:160` câble `{trace_mem_events[2:0],native_issue}` et `:172` câble `{v1_accepted,v1_pending,trace_pixel_valid}`. Résultat : bit0 native_issue, bit1 pixel valid, bit2 v1_pending, bit3 v1_accepted. Identique à `contract.json:20-25` et `assembly.json:244-249`.
+- **Inversion NOR.** `n5020_s1` INIT 8'h01 sur trois valids (`build_memory_capture.py:169-170`) est un NOR. L'INV de `observation.diff:133` donne bien `native|cache|copy`.
+- **Nibble et bits 59:56 dans held.** `observation.diff:1521-1529` met `ready` sur held[60], `:2796-2797` recopient held[60] sur 62 et 63, held[61]=GND. Avec ready=1 cela donne 0xD. held[59..56] prennent `n360_6..n363_6`, chacun `ready & (mem_seen[k]|mem_events[k])` (INIT 8'hE0, `:713-740`). Bit 56 = mem_events[0] = native_issue, LSB-first comme annoncé.
+- **ARM gagne.** `n205_7` = ready & (arm_sync[1]==arm_ack) (INIT 8'h90). Les D de mem_seen (`:918-945`) sont masqués par ce terme, donc effacement sur ARM, pas d'accumulation ce cycle. Le CE de held (`snap_ack_s7`, INIT 16'h007D, `:1272-1280`) est nul quand ARM est en attente. Conforme au RTL `neo_capture_memory.v:41-58`.
+- **Ordre sample et D/Q.** `low` (`build_memory_capture.py:140-141`) donne bits 7:0 = packet[80..87] (entrée D), 15:8 = packet_0[80..87] (sortie Q), vérifié par l'assertion DFFRE `:136`. at_event[k] reçoit sample[k] via `n(229-k)_9` (`observation.diff:1038-1247`), sans décalage. INIT 16'h9000 = sample & ready & pas d'ARM.
+- **held[50]=held[49].** valid[1] et complete sont toujours posés et effacés ensemble (`neo_capture_memory.v:44-52`), la fusion est correcte. Le parser doit l'accepter.
+- **Largeurs de ports.** 24, 3, 4 bits cohérents à chaque niveau (`observation.diff:15,71,108,149`).
+
+## Erreurs concrètes et correctifs minimaux
+
+1. **Fils déclarés après usage.** `wire [23:0] trace_copy_sample;` arrive à `observation.diff:92`, après les usages aux lignes 79 et 88. `wire trace_pixel_valid;` arrive à `:132`, après l'usage à `:124`. Un sélecteur de bits sur un identifiant non encore déclaré n'est pas une déclaration implicite. Icarus tolère, le lecteur de netlist Gowin n'est pas qualifié dans le paquet. Correctif : dans `build_memory_capture.py:163` et `:173`, insérer la déclaration à l'endroit où `add_ports` insère les ports (avant le premier `input`), au lieu de `append_logic`.
+
+2. **Nets utilisés sans assertion d'existence.** `copy_bad`, `copy_done` et `state_0[0..3]` sont référencés à `:141` et `:146` sans aucune vérification. `l_31_18` existe (`:137`) mais son pilote n'est pas vérifié. Ajouter avant l'assemblage :
+
+```python
+for n in ['copy_bad','copy_done','trace_copy_sample','trace_copy_idle','trace_copy_low_one']:
+    assert (n in ('copy_bad','copy_done')) == bool(re.search(r'\b'+n+r'\b', copy)), n
+assert re.search(r'^output copy_bad;', copy, re.M) and re.search(r'^output copy_done;', copy, re.M)
+drv=[n for n,(k,p) in copycells.items() if p.get('F')=='l_31_18']; assert len(drv)==1
+assert copycells[drv[0]][1]=={'F':'l_31_18','I0':'state_0[0]','I1':'state_0[1]','I2':'state_0[2]','I3':'state_0[3]'}
+assert params(copy)[drv[0]+'.INIT']=="16'h0001"
+```
+Les deux dernières lignes encodent l'hypothèse IDLE = state_0==0. Si elles échouent, le sens des bits 19 à 21 du contrat est faux.
+
+3. **Collisions de noms non testées.** `add_ports` ne vérifie pas que `trace_copy_sample`, `trace_mem_events`, `trace_pixel_valid` n'existent pas déjà dans le module cible. L'audit `:195` ne compare que les noms d'instances. Une collision de net passerait l'audit. Ajouter `assert not re.search(r'\btrace_pixel_valid\b', accel)` et équivalents.
+
+4. **build.tcl non fourni.** `:92` recopie le build.tcl parent avec substitution de chemin. Si ce script resynthétise depuis `source/`, la netlist assemblée est ignorée et le helper RTL copié `:78` est resynthétisé avec toute l'application. À vérifier : build.tcl doit consommer `console_neo.vg` directement.
+
+## Hypothèses et preuves manquantes
+
+- **gpu_debug_state[50] dans le CE.** `n7630_6 = l_31_18 & state[41] & gpu_debug_state[50] & !state_0[4]` (`:137-138`, INIT 16'h4000). Ce terme n'est pas observé isolément. Si at_event a bit18=1, bit19=1, bit16=0, c'est par élimination le seul coupable. Direction et pilote de ce signal absents du paquet.
+- **Sens de n577_9.** Seule la RESET de `descriptor_bad_0_s0` est vérifiée (`:139`). Rien ne prouve que les registres d'état COPY partagent ce reset. "Reset moteur COPY" reste une hypothèse.
+- **native_valid dans gpu_accel.** Rien n'atteste que le `native_valid` de `n5020_s1` est le Q de `native_valid_s1` de gpu_v1 remonté via gpu_geometry. L'assertion `:156` ne vérifie ni CE ni RESET de ce flop. Sans cela, la paire (bit56=1, bit57=0) n'est pas interprétable.
+- **Bits 87:80 = poids faibles de la largeur.** Non vérifiable sans la carte du descripteur.
+- **Parser.** Aucune source de parser fournie. Il doit accepter 0xD, décoder 59:56 LSB-first et tolérer held[50]=held[49].
+
+## Tests discriminants sur la netlist assemblée
+
+- **Position des bits de largeur :** largeurs 0x001, 0x080, 0x100. Attendus at_event[7:0] = 01, 80, 00. Un décalage d'un bit donne 02/00/00 ou 00/40/80.
+- **D contre Q :** déclencher avec CE forcé à 0 puis à 1. Avec CE=0, after_event[15:8] doit garder l'ancien packet_0. Avec CE=1, after_event[15:8] doit valoir at_event[7:0].
+- **Ordre mem_events à travers trois hiérarchies :** forcer successivement native_issue dans gpu_v1, native_valid dans gpu_accel, v1_pending, v1_accepted. Attendus held[56], [57], [58], [59] un seul à la fois.
+- **Angle mort ARM :** impulsion mem_events sur le cycle exact d'ARM, puis le cycle suivant. Attendu : absent puis présent.
+
+## Limites du delta observation
+
+Les deux fronts à COPY_START voient le latch, pas la validation. Si after_event[15:8]=0x10 avec bit16=1, le latch est sain et le rejet R19 est en aval, hors portée de R21. Les bits 20 à 23 sont presque toujours nuls sur ces deux fronts, comme le contrat l'admet. Les primitives sont intactes au niel netlist, mais chaque net observé reçoit un fanout supplémentaire : packet[87:80] combinatoires, le CE `n7630_6`, `l_31_18`, `state_0[4:0]`, `n5020_4`. Placement et timing ne sont donc pas invariants, et un symptôme R19 d'origine physique peut bouger. Le paquet le dit déjà dans `assembly.json:264-268`.

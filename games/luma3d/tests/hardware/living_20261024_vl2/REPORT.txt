@@ -1,0 +1,83 @@
+VALLÉE VIVANTE ART3 — ESSAI PRO DOCK TERMINÉ
+
+Résultat fonctionnel : PASS. Version laissée visible en visite automatique.
+Processus : PID 635, /tmp/luma3d-vl2, startticks 3631917.
+Ancre : /tmp/luma3d-live.pid. Journal actif : /tmp/vl2_live.log.
+CDC11252024 et /tmp/prodock-diagnostic.lock ont été libérés ; aucun autre essai.
+R3 /tmp/luma3d-b3v2 reste disponible en RAM, sans relance de NEBULA.
+
+Identités
+ELF SHA256 : 7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882
+ELF : 4 560 732 octets, CRC32 97482905.
+Manifeste transport : 5b715832c8728116d052f14a2453387c60db61cb5f895992823c094482972710
+FPGA G22r0 conservé par continuité, aucun accès JTAG ni modification.
+Linux : 6.12.112-prodock-luma3d-g3d1-r1, inchangé.
+Aucune écriture de FPGA, noyau, SD ou flash. Fichiers runtime seulement dans /tmp.
+
+Ce qui est réellement chargé
+Vallée 3D GPU, matières ComfyUI du pack valley_pack_r3, maisons différenciées,
+couronnes élargies, eau et cascade animées, arbres proches oscillants, trois
+oiseaux en vol, héros articulé. Maëlle, Silo et Iria ont des silhouettes distinctes.
+Mission du courrier : dialogues, quatre lettres, relais Terre/Vent/Ciel, remise
+à Iria, retour libre. HUD compact, bande haute masquée pendant les dialogues.
+Ce sont les mêmes logique, géométrie et ressources que les aperçus locaux.
+
+Validation matérielle
+Une pose R3 et six poses nouvelles : 30 images mesurées après trois de chauffe.
+Pour chaque scène, les 96 000 pixels 3D correspondent exactement au modèle.
+Les indices des deux banques HUD sont exacts dans les six scènes et à la fin
+du parcours. Ce contrôle n'est pas une photo LCD et ne lit pas sa palette ;
+descripteurs et palette sont couverts par les tests locaux du producteur natif.
+Commandes, batches et compteurs de géométrie attendus sont vérifiés.
+
+R3 arrivée          8.74 FPS, 81 DRAW, 356 commandes/image
+Art3 arrivée        7.31 FPS, 93 DRAW, 419 commandes/image
+Maëlle             10.34 FPS, 40 DRAW, 182 commandes/image
+Silo / village     10.65 FPS, 36 DRAW, 167 commandes/image
+Relais             11.97 FPS, 29 DRAW, 133 commandes/image
+Iria / ruines      12.82 FPS, 20 DRAW,  95 commandes/image
+Retour              7.44 FPS, 80 DRAW, 375 commandes/image
+
+La nouvelle arrivée est 16,4 % plus lente en débit que R3 : la scène ajoute les
+habitants, le HUD et les animations, et ne constitue pas un A/B renderer seul.
+Le coût passe de 6 à 7 batches et de 4,202 à 5,259 millions de cycles GPU/image.
+Les rendus sont plus riches ; ce lot ne constitue pas une amélioration de FPS.
+La fluidité de 7 à 13 FPS sur ces poses reste insuffisante pour la cible de jeu.
+
+Parcours réel
+Fenêtre de 120 secondes sans commande UART après le contrôle de démarrage.
+Processus vivant au terme de cette fenêtre. Total d'exécution : 1 236 images,
+165,868 secondes, moyenne 7,45 FPS. Cette moyenne comprend le démarrage et les
+contrôles autour de la fenêtre ; elle ne prouve ni un p95 ni 30 FPS stables.
+Les moyennes de fenêtres d’environ cinq secondes vont de 1,96 à 12,52 FPS.
+Cette plage inclut les contrôles UART avant et après la fenêtre silencieuse ;
+elle ne mesure donc pas exclusivement le débit pendant ces 120 secondes.
+Les fenêtres basses restent conservées dans analysis.json, sans attribution
+causale à la géométrie ni prétention de temps d’image.
+Simulation : 147,56 secondes. Mission terminée : phase 4, relais 3, découverte 1,
+quatre lettres et complete=1. Les deux banques du HUD de conclusion sont exactes.
+Erreurs GPU, underflows, fault et geometry_errors : tous à zéro.
+Un triangle trop fin a été rejeté pendant le mouvement (slivers=1), conservé
+comme observation ; les sept poses fixes ont slivers=0.
+Affichage final : presents=316106, erreurs/uf/invalid/sprites/fault tous nuls.
+
+Limites
+Cette première mission est courte : l'automate local la termine en 61,87 s simulées,
+dont 30 s de dialogues automatiques. Pas de sauvegarde 3D durable, combat, véhicules
+ou campagne de plusieurs heures. Le relief de rendu simplifié hérite de l'écart
+R3 hors du chemin testé ; les données physiques, route et colliders n'ont pas changé.
+Le profil 1280×720 passe localement ; aucun essai Neo de ce lot n'est revendiqué.
+
+Historique conservé
+Le préflight vl1 a échoué avant tout transfert ou arrêt de R3 : INFO était interrogé
+pendant la possession exclusive du GPU, et geometry n'existe pas dans prodockctl R17.
+Le contrôleur vl2 corrige cet ordre. Le premier échec reste dans le dossier frère
+living_20261024_vl1_reviewed/trial ; il n'est pas effacé ni transformé en PASS.
+Le transfert CRC total a pris environ 11,2 min ; 52 retransmissions ont été récupérées.
+Aucun bloc corrompu n'a été exécuté. R3 est resté visible pendant tout le transfert.
+
+Preuves
+trial/result.json SHA256 : dd9ff5d5f7b79bd39e346baa472c784ae9fc734bd4fa31a306c98eaaf8d48d8d
+trial/ : journaux exacts de conduite, benchmark, pixels, HUD, progression et PID.
+analysis.json : métriques extraites et fenêtres de débit, sans conclusion p95.
+Build et aperçus : games/luma3d/build/valley_living_20261024_art3/.

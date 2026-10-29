@@ -1,0 +1,185 @@
+REVUE DES 16 FICHIERS HDL DE PLUS DE 1 000 LIGNES — 26 OCTOBRE 2026
+
+Portée
+======
+Inventaire ownership.json, sources du projet, comparaison aux copies figées
+Neo N56r19 et Pro Dock G22r0. Les copies de build et les netlists de mapping
+ne sont pas comptées comme nouveaux fichiers source. Le tableau machine
+review.json donne les 16 chemins, les empreintes, les lignes protégées et
+lisibles, la présence dans chaque snapshot et une appréciation par fichier.
+
+14 fichiers contiennent des blocs chiffrés Gowin. Leur interface, leurs
+configurations et leur intégration ont été examinées ; le chiffrement n'a
+pas été contourné. Il serait faux de revendiquer une revue de leur logique
+interne à partir de ces fichiers. Les deux fichiers entièrement lisibles
+sont usb_fifo.v (1857 lignes) et l'ancien gw_ahb_ddr3.v (1046 lignes).
+
+F01 — DÉFAUT REPRODUIT : purge EP1 incomplète selon l'endpoint sélectionné
+=======================================================================
+Priorité : élevée pour la récupération du stockage USB (MSC).
+Source : tang/rtl/usb/sync_fifo/usb_fifo.v:351-371, 705-714.
+Ce fichier est byte-identique dans les snapshots R19 et G22r0.
+
+La purge i_ep1_flush remet la FIFO de paquets à zéro, mais ne remet
+tx_pending[1] à zéro que si i_usb_endpt==1. Si un paquet EP1 a été commencé
+sans ACK, puis que la purge arrive pendant EP0 (requête de contrôle BOT)
+ou EP2 (CDC), l'ancien tx_saved_len reste réservé. À la prochaine sélection
+d'EP1, la longueur réservée est proposée même si la FIFO a été vidée.
+
+Reproduction sur les sources actuelles, sans substitution de la FIFO :
+  - écrire 13 octets A0..AC et les valider ;
+  - commencer la lecture sans ACK pour créer une reprise en attente ;
+  - sélectionner EP0 ou EP2, purger pendant 64 cycles, committed=0 ;
+  - revenir sur EP1 et laisser les registres de longueur se stabiliser.
+
+Résultat : pending=1, packet_ram_count=0, offered=13, cork=0,
+retained_data=A0. Le test échoue sur l'invariant « pas d'offre après purge ».
+Le contrôle avec EP1 sélectionné pendant la même purge passe : pending=0,
+offered=0, cork=1. Les journaux d'échec sont conservés, pas convertis en PASS.
+
+Preuves : ep1_flush_review_tb.sv, ep1_flush_review.json,
+ep1_flush_compile.log. Le banc pilote l'interface du contrôleur, sans modèle
+de transaction USB ni PHY : il prouve le défaut logique de purge, pas une
+capture de corruption sur le câble. L'intégration permet cette situation :
+usb_uart_config produit le reset BOT depuis EP0 ; usb_msc_port transforme
+ce reset en handback_active/ep_flush (lignes128-141).
+
+Correction proposée, non appliquée : la purge EP1 doit invalider l'état de
+reprise et l'offre de cet endpoint indépendamment du multiplexeur courant,
+et bloquer l'offre/pop durant la purge. Préserver les paquets EP2 et les
+reprises ordinaires sans ACK. Compléter les essais BOT avec perte d'ACK,
+changement d'endpoint, purge, puis nouveau paquet. Les tests existants
+continuellement centrés sur EP1 ne couvrent pas cette combinaison.
+
+Ce défaut USB n'explique pas le blocage CLEAR du GPU Neo. Aucun lien causal
+avec ce blocage n'a été démontré par cette revue.
+
+F02 — INCOMPATIBILITÉ CONFIRMÉE DANS UN ANCIEN PONT DDR NON UTILISÉ
+================================================================
+Source : tang/rtl/ae350/ddr3_memory/gw_ahb_ddr3.v:191-196,339-358.
+Le pont manipule128 bits et16 bits de masque ; l'IP adjacente expose256 bits
+et32 bits de masque. L'élaboration Icarus confirme les extensions/troncatures.
+Un masque haut étendu par zéro ne protège pas les16 octets supplémentaires
+sur une interface DDR dont un bit de masque à1 inhibe l'écriture.
+L'adresse {3'b000,cmd_addr[25:1]} est en outre une adaptation historique
+au chemin128 bits, pas un adaptateur complet x32/1Go.
+
+Preuve : historical_ddr_widths.log, stubs de ports tirés de l'interface
+lisible réelle. Ces stubs n'émulent pas la DDR ; seul le câblage des largeurs
+est vérifié. Le contrôle de flux fait aussi traverser directement des
+indicateurs entre HCLK et lpddr_clk : à revoir si ce pont est réutilisé
+avec deux horloges indépendantes.
+
+Portée essentielle : ce fichier n'est ni dans R19 ni dans G22r0. Ceux-ci
+utilisent tang/rtl/board/sipeed/gw_ahb_ddr3.v, séparé de l'IP et entouré
+d'un adaptateur d'interface. Le problème de cet ancien fichier n'est donc
+pas une preuve sur la panne actuelle. Ne pas le sélectionner par son nom
+identique au pont actif.
+
+F03 — LIMITE DE ROBUSTESSE : SATURATION TX NON SIGNALÉE À L'APPLICATION
+=====================================================================
+Source : usb_fifo.v:1423,1433-1442,1478,1496-1511.
+Les sorties Full des FIFO TX ne sont pas exploitées ; l'application émet
+une impulsion dval, sans entrée ready ni compteur de pertes dans ce bloc.
+Le petit FIFO est vidé vers le FIFO paquet sans considérer son état plein.
+Si l'hôte cesse de retirer les données alors que l'UART continue, des octets
+peuvent être abandonnés à saturation. La FIFO paquet EP2 vaut4 096 octets.
+Le pont UART2, à débit fixe 115 200 et 8N1, n'a pas de retour CTS vers le CPU.
+Ce point est une limite structurelle, pas une corruption reproduite sur carte
+dans cette revue ; ce n'est pas un défaut du calcul des pointeurs Gray.
+
+À traiter selon le contrat console : contrôle de flux bout en bout, ou
+compteur de débordement et perte explicitement signalée. Un tampon fini
+seul ne garantit pas l'absence de pertes quand le consommateur s'arrête.
+
+F04 — MAINTENABILITÉ ET BRANCHES NON QUALIFIÉES
+=============================================
+usb_fifo.v contient surtout la répétition des endpoints 1 à 15. Seuls 1 et 2
+sont activés dans ce profil. Les branches OUT14 et OUT15 emploient des noms de
+macros ASIZE/AFULL sans accent grave ; elles ne constituent pas des
+extensions prêtes à activer. Les net implicites pkt_fifo_rd_pktfin,
+pkt_fifo_rd_act, pkt_fifo_empty, arempty_val et awfull_val sont signalés
+par -Wall ; ils ont ici la largeur 1 attendue, donc pas un défaut de largeur
+prouvé dans les chemins actifs. Les déclarer explicitement et factoriser
+les endpoints serait utile, dans une modification distincte et testée.
+
+FIFO ET HORLOGES : CE QUI A EFFECTIVEMENT ÉTÉ TESTÉ
+================================================
+EP1 active P_SYNC=1 : suppression de la petite FIFO asynchrone, transactions
+du module MSC dans phy_clk. Le passage vers l'AHB est assuré ailleurs.
+EP2 conserve P_SYNC=0 et deux clk_cross_fifo. Dans les top Pro Dock et Neo,
+i_ep2_tx_clk, i_ep2_rx_clk et i_clk sont tous phy_clk : cette paire n'est
+pas, dans cette intégration, deux oscillateurs indépendants. La FIFO reste
+capable de gérer deux horloges selon le modèle numérique testé.
+
+check_usb_cdc_sim.py a été rejoué avec les sources identifiées par SHA :
+18 cas de débit/phase :125/124,5,124,5/125,60/59,94,60/60,80/60,60/80 MHz,
+chacun aux phases 0, 0,317 et 3,713 ns. PASS, avec bouclage de pointeurs, états
+plein/vide, trafic aléatoire, reset et arrêt/reprise d'horloges. Chaque cas
+vérifie plus de 59 000 octets. Le témoin de reset ancien échoue comme attendu ;
+le reset commun avec modèle officiel du contrôleur passe.
+Preuve : usb_cdc_result.json (20 cas dont le témoin négatif attendu).
+
+Limites : pas de métastabilité, pas de skew de routage Gray, pas de
+recovery/removal physique, pas de certification HS analogique. Le protocole
+exige un reset cohérent des deux côtés ; la possibilité de resets séparés
+dans le module générique ne valide pas une réinitialisation unilatérale.
+
+REVUE DES AUTRES BLOCS / USAGE RÉEL
+==================================
+Les huit fichiers DDR protégés ont 144 lignes lisibles chacun. Leurs ports
+natifs/DDR, leur division 1:4 et les configurations voisines sont inventoriés.
+La variante x16 a128 bits côté utilisateur ; les variantes x32 ont256 bits.
+Les wrappers x32 n'envoient que addr[27:0] au coeur : avec 15 rangées,
+10 colonnes,3 banques et un mot32 bits, cela représente 1 Go. La largeur
+externe 29 bits ne constitue donc pas à elle seule un bit d'adresse perdu.
+rd_data_end est un alias de rd_data_valid dans ces wrappers, pas une
+confirmation de fin de commande AHB. ref_req/burst ne sont pas transmis
+au coeur dans ces configurations ; ne pas les traiter comme commandes
+dynamiques disponibles sans vérifier le mode généré.
+
+Les quatre fichiers Neo DDR6 appartiennent aux expériences antérieures,
+pas à R19. Les profils 300/325/400 définissent explicitement les paramètres
+et remplacements PLL. Le profil initial DDR6 garde une configuration 400 MHz
+et une PLL 300 MHz : déjà historique, il n'est pas une base cohérente à
+reprendre sans correction du profil. R19 et G22r0 utilisent byte pour byte
+la même IP DDR5.9 x32. Son gwmc_param conserve tCK = 2500 ps alors que la PLL
+est utilisée à 300 MHz. C'est une limite de configuration historique à
+examiner sur les temporisations générées, particulièrement le refresh ;
+la lecture du wrapper chiffré ne permet pas d'en déduire une période de
+refresh mesurée, ni la cause du CLEAR bloqué. Aucun changement d'IP ici.
+
+Les trois AE350 représentent trois interfaces différentes. Le wrapper
+EXTS/GPIO/SPI séparés de 4838 lignes est celui de G22r0. R19 contient à ce
+chemin un autre fichier de 946 lignes ; ne pas lui appliquer les conclusions
+sur le reset de l'ancienne netlist protégée. L'horloge DDR_HCLK est reliée
+directement à DDR_CLK ; EXTS_HCLK, quand il existe, à AHB_CLK. La présence
+d'une horloge sur ces ports ne prouve pas la libération d'un reset interne.
+
+Le diviseur Integer_Division_Top compte 13 928 lignes dont 13 884 protégées ;
+configuration 32/32 non signée, 37 cycles, 3 bits fractionnels. Ses 44 lignes visibles
+ne justifient pas une réécriture du diviseur. Il figure dans les snapshots
+mais son module/instance n'apparaît dans aucune des netlists R19/G22r0.
+Le pont UART2 réellement utilisé est à diviseur constant. Ce fichier ne
+constitue donc pas une consommation FPGA active de ces deux versions.
+
+Le PHY et le contrôleur USB sont actifs dans R19, avec wrappers UTMI 8 bits
+et horloges de l'intégration 60/960 MHz. Les fichiers IP actuels ne sont pas
+byte-identiques aux IP archivées dans G22r0 : leurs résultats matériels ne
+doivent pas être fusionnés. Le modèle officiel employé par le test de reset
+est vérifié contre le fichier actuel du contrôleur avant simulation.
+Leur logique interne reste hors de cette revue de sources protégées.
+
+Suite proposée
+==============
+1. Corriger F01 dans une modification partagée distincte, avec tests de
+   récupération BOT/ACK/CDC, régressions complètes et deux candidats.
+2. Documenter/traiter la saturation TX ; ne pas assimiler les pertes de
+   tampon à un erratum matériel FIFO.
+3. Marquer les sources historiques incompatibles et nettoyer les branches
+   inactives sans modifier les archives protégées.
+4. Poursuivre séparément le diagnostic GPU Neo sur son handshake effectif.
+
+Aucune source HDL de production modifiée. Aucun routage, chargement FPGA,
+accès matériel, écriture SD/flash ou modification des références Pro Dock
+n'a été effectué pour cette revue. La revue ne conclut pas « sans défaut ».

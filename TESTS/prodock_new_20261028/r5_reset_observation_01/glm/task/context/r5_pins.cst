@@ -1,0 +1,712 @@
+// gpu.cst — brochage Tang Mega 138K Pro Dock (schéma 4071f rev 1.2).
+// Sources : rgb_screen/480_272_screen.cst (LCD + clk P16), usb_ref.cst (soft USB + LEDs + uart V22).
+// Device : GW5AST-LV138FPG676AC1/I0 (gw5ast138b-007).
+
+// ---------- horloge ----------
+IO_LOC  "clk" P16;
+IO_PORT "clk" PULL_MODE=NONE DRIVE=OFF BANK_VCCIO=3.3;
+
+// ---------- LCD 800×480 (RGB666 SYNC-DE) ----------
+IO_LOC  "lcd_r[0]" K17;
+IO_LOC  "lcd_r[1]" J18;
+IO_LOC  "lcd_r[2]" H18;
+IO_LOC  "lcd_r[3]" G25;
+IO_LOC  "lcd_r[4]" J19;
+IO_LOC  "lcd_r[5]" H19;
+IO_LOC  "lcd_g[0]" G20;
+IO_LOC  "lcd_g[1]" G21;
+IO_LOC  "lcd_g[2]" G22;
+IO_LOC  "lcd_g[3]" F22;
+IO_LOC  "lcd_g[4]" K15;
+IO_LOC  "lcd_g[5]" J16;
+IO_LOC  "lcd_b[0]" M16;
+IO_LOC  "lcd_b[1]" M17;
+IO_LOC  "lcd_b[2]" F18;
+IO_LOC  "lcd_b[3]" F19;
+IO_LOC  "lcd_b[4]" G19;
+IO_LOC  "lcd_b[5]" F20;
+IO_LOC  "lcd_en" A24;
+IO_LOC  "lcd_hs" H22;   // MIPI_DPI.HS  (broche 32 du FPC-40)
+IO_LOC  "lcd_vs" A23;   // MIPI_DPI.VS  (broche 33 du FPC-40)
+IO_LOC  "lcd_bl" F25;   // LCD_BL       (broche 47) : enable du driver de rétroéclairage LP3320
+IO_LOC  "lcd_clk" H21;
+IO_PORT "lcd_en" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_hs" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_vs" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_bl" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_clk" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[0]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[1]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[2]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[3]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[4]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_r[5]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[0]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[1]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[2]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[3]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[4]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_g[5]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[0]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[1]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[2]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[3]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[4]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "lcd_b[5]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+// ---------- LEDs utilisateurs ----------
+IO_LOC  "led[0]" J14;   // NOTE carte : LED.0 sur banque 2 (J14)
+IO_LOC  "led[1]" R26;
+IO_LOC  "led[2]" L20;
+IO_LOC  "led[3]" M25;
+IO_LOC  "led[4]" N21;
+IO_LOC  "led[5]" N23;
+IO_PORT "led[0]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[1]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[2]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[3]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[4]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "led[5]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+// ---------- soft USB (port SOFT-USB) ----------
+IO_LOC  "usb_dxp_io" M21,M22;
+IO_PORT "usb_dxp_io" IO_TYPE=LVPECL33E PULL_MODE=NONE DIFF_RESISTOR=OFF DRIVE=12 BANK_VCCIO=3.3 CTLE=MEDIUM;
+
+IO_LOC  "usb_pullup_en_o" M19;
+IO_PORT "usb_pullup_en_o" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+IO_LOC  "usb_term_dp_io" T19;
+IO_PORT "usb_term_dp_io" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC  "usb_term_dn_io" U19;
+IO_PORT "usb_term_dn_io" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+IO_LOC  "usb_rxdp_i" U21,V21;
+IO_PORT "usb_rxdp_i" IO_TYPE=LVDS25 PULL_MODE=NONE DIFF_RESISTOR=OFF BANK_VCCIO=3.3 CTLE=MEDIUM;
+IO_LOC  "usb_rxdn_i" T20,U20;
+IO_PORT "usb_rxdn_i" IO_TYPE=LVDS25 PULL_MODE=NONE DIFF_RESISTOR=OFF BANK_VCCIO=3.3 CTLE=MEDIUM;
+
+// ---------- UART physique (debug scope, J22 ?) : broche de l'exemple ----------
+// ---------- contraintes de placement des PLL (diagnostic énumération, 2026-09-25) ----------
+// La PLL_USB et la PLL_LCD se disputaient une ressource proche (non mesurable : .p chiffrés, V4 § 1).
+// MUG1030 §2.6.4 : CORE_CLK du cœur AE350 exige CLKOUT1 de PLL_R[0].
+// La PLL USB F occupe R[2] pour laisser cette liaison dédiée au CPU.
+INS_LOC "u_pll_f/PLL_inst" PLL_R[2];
+INS_LOC "u_pll_b/PLL_inst" PLL_R[1];
+INS_LOC "u_pll_lcd/PLL_inst" PLL_L[1];
+INS_LOC "u_pll_ae350/u_pll/PLL_inst" PLL_R[0];
+
+// ---------- DDR3 (pro_ddr_test Sipeed, noms renommés) ----------
+
+// ---------- contraintes horloges (mesuré E1 : sans ça clk_d tombe en LW) ----------
+CLOCK_LOC "clk_d" BUFG[0] = CLK;
+CLOCK_LOC "phy_clk" BUFG[1] = CLK;
+CLOCK_LOC "fclk_960m" BUFG[2] = CLK;
+CLOCK_LOC "clk48" BUFG[3] = CLK;
+CLOCK_LOC "lcd_clk_d" BUFG[4] = CLK;
+CLOCK_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk" BUFG[7] = CLK;
+// bus80/core : sorties PLL CLKOUT : le PnR les route sur les SPINEs de la PLL elle-même
+
+// ---------- placement PLL : USB à droite (côté du pin 50 MHz), LCD à gauche ----------
+
+// ---------- DDR3 : DDL et fclkdiv côté gauche (Sipeed pro.cst) ----------
+
+
+
+IO_LOC "ddr_bank[2]" K3;
+IO_PORT "ddr_bank[2]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_bank[1]" L5;
+IO_PORT "ddr_bank[1]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_bank[0]" M4;
+IO_PORT "ddr_bank[0]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+//IO_LOC "ddr_addr[15]" M6;
+//IO_PORT "ddr_addr[15]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[14]" U5;
+IO_PORT "ddr_addr[14]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[13]" U2;
+IO_PORT "ddr_addr[13]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[12]" N3;
+IO_PORT "ddr_addr[12]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[11]" P4;
+IO_PORT "ddr_addr[11]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[10]" M1;
+IO_PORT "ddr_addr[10]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[9]" T3;
+IO_PORT "ddr_addr[9]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[8]" T4;
+IO_PORT "ddr_addr[8]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[7]" U1;
+IO_PORT "ddr_addr[7]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[6]" N4;
+IO_PORT "ddr_addr[6]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[5]" T2;
+IO_PORT "ddr_addr[5]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[4]" P1;
+IO_PORT "ddr_addr[4]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[3]" N2;
+IO_PORT "ddr_addr[3]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[2]" R2;
+IO_PORT "ddr_addr[2]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[1]" R1;
+IO_PORT "ddr_addr[1]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_addr[0]" N1;
+IO_PORT "ddr_addr[0]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_odt" J1;
+IO_PORT "ddr_odt" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_cke" L3;
+IO_PORT "ddr_cke" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=4 BANK_VCCIO=1.5;
+IO_LOC "ddr_we" J3;
+IO_PORT "ddr_we" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_cas" H1;
+IO_PORT "ddr_cas" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_ras" H2;
+IO_PORT "ddr_ras" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_cs" L4;
+IO_PORT "ddr_cs" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_reset_n" N8;
+IO_PORT "ddr_reset_n" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_ck" M2,L2;
+IO_PORT "ddr_ck" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+IO_LOC "ddr_dm[3]" A3;
+IO_PORT "ddr_dm[3]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dm[2]" E3;
+IO_PORT "ddr_dm[2]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dm[1]" H9;
+IO_PORT "ddr_dm[1]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dm[0]" F4;
+IO_PORT "ddr_dm[0]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[31]" D1;
+IO_PORT "ddr_dq[31]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[30]" G1;
+IO_PORT "ddr_dq[30]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[29]" E2;
+IO_PORT "ddr_dq[29]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[28]" F2;
+IO_PORT "ddr_dq[28]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[27]" C2;
+IO_PORT "ddr_dq[27]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[26]" G2;
+IO_PORT "ddr_dq[26]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[25]" A2;
+IO_PORT "ddr_dq[25]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[24]" E1;
+IO_PORT "ddr_dq[24]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[23]" D4;
+IO_PORT "ddr_dq[23]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[22]" A4;
+IO_PORT "ddr_dq[22]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[21]" D5;
+IO_PORT "ddr_dq[21]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[20]" D3;
+IO_PORT "ddr_dq[20]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[19]" E5;
+IO_PORT "ddr_dq[19]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[18]" B4;
+IO_PORT "ddr_dq[18]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[17]" F3;
+IO_PORT "ddr_dq[17]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[16]" C4;
+IO_PORT "ddr_dq[16]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[15]" F7;
+IO_PORT "ddr_dq[15]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[14]" G6;
+IO_PORT "ddr_dq[14]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[13]" F8;
+IO_PORT "ddr_dq[13]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[12]" D6;
+IO_PORT "ddr_dq[12]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[11]" G8;
+IO_PORT "ddr_dq[11]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[10]" H6;
+IO_PORT "ddr_dq[10]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[9]" H8;
+IO_PORT "ddr_dq[9]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[8]" E6;
+IO_PORT "ddr_dq[8]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[7]" K6;
+IO_PORT "ddr_dq[7]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[6]" K8;
+IO_PORT "ddr_dq[6]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[5]" J5;
+IO_PORT "ddr_dq[5]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[4]" K7;
+IO_PORT "ddr_dq[4]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[3]" G5;
+IO_PORT "ddr_dq[3]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[2]" L8;
+IO_PORT "ddr_dq[2]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[1]" J6;
+IO_PORT "ddr_dq[1]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dq[0]" G4;
+IO_PORT "ddr_dq[0]" IO_TYPE=SSTL15 PULL_MODE=NONE DRIVE=12 BANK_VCCIO=1.5;
+IO_LOC "ddr_dqs[3]" C1,B1;
+IO_PORT "ddr_dqs[3]" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+IO_LOC "ddr_dqs[2]" B5,A5;
+IO_PORT "ddr_dqs[2]" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+IO_LOC "ddr_dqs[1]" H7,G7;
+IO_PORT "ddr_dqs[1]" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+IO_LOC "ddr_dqs[0]" J4,H4;
+IO_PORT "ddr_dqs[0]" IO_TYPE=SSTL15D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=1.5;
+// ---------- E2 : JTAG du AE350 sur PMOD1 (J7), câblage J-Link de Michael (session E0) ----------
+IO_LOC "ae350_tms" E25;  IO_PORT "ae350_tms" IO_TYPE=LVCMOS33 PULL_MODE=UP;    // J7 IO1 (J-Link TMS)
+IO_LOC "ae350_tck" C24;  IO_PORT "ae350_tck" IO_TYPE=LVCMOS33 PULL_MODE=DOWN;  // J7 IO0 (J-Link TCK)
+IO_LOC "ae350_tdo" H14;  IO_PORT "ae350_tdo" IO_TYPE=LVCMOS33 DRIVE=8;         // J7 IO3 (J-Link TDO)
+IO_LOC "ae350_tdi" L18;  IO_PORT "ae350_tdi" IO_TYPE=LVCMOS33 PULL_MODE=UP;    // J7 IO6 (J-Link TDI)
+IO_LOC "ae350_tx_pin" H15;  IO_PORT "ae350_tx_pin" IO_TYPE=LVCMOS33 DRIVE=8;   // J7 IO7 : espion UART2 TX (mesurable)
+// ---------- carte microSD du dock, mode SPI (schéma 4071f : SDIO.CLK D23, CMD D24, D0 H23, D1 J23, D2 A25, D3 B25, détection J15) ----------
+IO_LOC "sd_clk" D23;  IO_PORT "sd_clk" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "sd_cmd" D24;  IO_PORT "sd_cmd" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;      // MOSI
+IO_LOC "sd_d0"  H23;  IO_PORT "sd_d0"  IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;              // MISO
+IO_LOC "sd_d1"  J23;  IO_PORT "sd_d1"  IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "sd_d2"  A25;  IO_PORT "sd_d2"  IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "sd_d3"  B25;  IO_PORT "sd_d3"  IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;      // CS
+IO_LOC "sd_det" J15;  IO_PORT "sd_det" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+
+// ---------- E2 : CLOCK_LOC du socle analyseur (la16.cst V3, adapté : u_soc) ----------
+CLOCK_LOC "u_soc/hrst_sync[1]" LOCAL_CLOCK;
+CLOCK_LOC "u_soc/exts_hrstn" LOCAL_CLOCK;   // reset du pont EXTS : figé à 0 sur LW sinon (la16.cst)
+CLOCK_LOC "u_soc/ddr3_init_completed" LOCAL_CLOCK;
+// exts_hrstn : optimisé hors synthèse dans ce design (pas de CLOCK_LOC possible)
+CLOCK_LOC "rtc_clk" LOCAL_CLOCK;
+// ---------- E2 : PLL DDR3 (socle analyseur) à gauche, près du PHY DDR3 ----------
+INS_LOC "u_soc/u_pll_ddr3/u_pll/PLL_inst" PLL_L[0];
+// ---------- E2 : u_dll/fclkdiv du PHY DDR3 standalone (chemins la16.cst, adapté) ----------
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_dll" DDRDLLM_BL;
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv" LEFTSIDE[4];
+
+// G3: ITCM placement adapted from logic_analyser_wifi la16_usbV5_p24.
+// Same GW5AST-138B and ITCM_SIZE=14; hierarchy prefix only is renamed.
+// Pin/PLL constraints above are the validated console E2 configuration.
+// Fix the encrypted CPU memory cells before placing the graphics caches.
+// G4: address/read/write decode moved towards the hard CPU to shorten the
+// direct ROM_HADDR/HWRITE/HTRANS -> fabric LUT -> ITCM control paths.
+// C5 : rapprocher les 16 décodeurs combinatoires du CPU R0C160. C3
+// dépensait jusqu’à 6,147 ns avant la première LUT (R24C88..92).
+// C6 : sites R11C112..116 (la rangée 10 de C5 est une rangée BSRAM,
+// refusée pour les LUT). Aucune cellule ni latence IP modifiée.
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_10_s12" R11C114[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_11_s12" R11C114[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_12_s12" R11C114[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_13_s12" R11C114[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_14_s12" R11C115[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_15_s12" R11C115[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_2_s12" R11C112[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_3_s12" R11C112[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_4_s12" R11C112[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_5_s12" R11C112[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_6_s12" R11C113[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_7_s12" R11C113[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_8_s12" R11C113[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMADDR_9_s12" R11C113[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ILMBYTEWR_0_s" R11C116[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_0_s1" R27C70[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_10_s0" R6C57[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_11_s0" R6C77[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_12_s0" R27C69[3][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_13_s0" R6C62[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_14_s0" R20C80[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_15_s0" R27C69[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_16_s0" R6C62[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_17_s0" R20C80[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_18_s0" R7C74[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_19_s0" R16C75[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_1_s0" R26C66[3][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_20_s0" R20C80[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_21_s0" R29C68[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_22_s0" R24C64[3][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_23_s0" R6C80[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_24_s0" R20C73[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_25_s0" R9C74[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_26_s0" R20C65[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_27_s0" R6C57[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_28_s0" R6C80[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_29_s0" R6C58[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_2_s0" R34C57[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_30_s0" R30C64[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_31_s0" R6C57[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_3_s0" R23C75[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_4_s0" R6C76[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_5_s0" R7C74[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_6_s0" R26C61[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_7_s0" R20C80[3][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_8_s0" R20C59[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ROM_HRDATA_9_s0" R20C80[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ahb_read_s1" R11C116[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/ahb_write_s0" R24C92[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_0_s0" R22C94[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_10_s0" R26C93[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_11_s0" R22C94[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_12_s0" R26C94[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_13_s0" R26C95[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_14_s0" R21C96[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_15_s0" R21C95[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_16_s0" R21C95[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_17_s0" R22C95[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_18_s0" R21C96[3][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_19_s0" R21C96[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_1_s0" R22C94[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_20_s0" R21C96[3][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_21_s0" R21C96[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_22_s0" R20C96[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_23_s0" R21C96[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_24_s0" R17C101[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_25_s0" R22C98[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_26_s0" R21C97[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_27_s0" R17C101[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_28_s0" R21C97[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_29_s0" R24C95[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_2_s0" R22C94[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_3_s0" R22C93[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_4_s0" R25C96[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_5_s0" R22C95[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_6_s0" R26C94[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_7_s0" R21C95[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_8_s0" R26C93[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_9_s0" R26C93[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_data_en_s0" R26C97[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_hit_nxt_s2" R24C97[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_hit_s1" R24C97[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_pend_nxt_s1" R12C101[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_pend_s0" R12C101[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_we_3_s1" R13C97[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n233_s0" R25C91[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n234_s0" R25C91[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n235_s0" R25C91[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n236_s0" R25C91[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n237_s0" R25C91[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n238_s0" R25C91[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n239_s0" R25C92[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n240_s0" R25C92[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n241_s0" R25C92[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n242_s0" R25C92[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n243_s0" R25C92[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n244_s0" R25C92[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n245_s0" R25C93[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n246_s0" R25C93[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n247_s0" R25C93[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n248_s0" R25C93[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n249_s0" R25C93[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n250_s0" R25C93[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n251_s0" R25C94[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n252_s0" R25C94[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n253_s0" R25C94[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n254_s0" R25C94[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n255_s0" R25C94[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n256_s0" R25C94[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n257_s0" R25C95[0][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n258_s0" R25C95[0][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n259_s0" R25C95[1][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n260_s0" R25C95[1][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n261_s0" R25C95[2][A];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/n262_s0" R25C95[2][B];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s" BSRAM_R28[22];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_1_s" BSRAM_R28[21];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_3_s" BSRAM_R46[37];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_4_s" BSRAM_R10[21];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_5_s" BSRAM_R10[14];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_6_s" BSRAM_R28[23];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_7_s" BSRAM_R46[22];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_0_s" BSRAM_R46[23];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_2_s" BSRAM_R46[20];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_3_s" BSRAM_R46[17];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_5_s" BSRAM_R46[21];
+// SD/USB (7 octobre 2026, r609) : les deux mémoires ITCM les plus à gauche de la rangée 28 rataient de 0,74 et
+// 0,12 ns (fil de 7 ns depuis la LUT d'écriture R24C92) ; déplacées sur deux sites libres à droite, côté processeur.
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_6_s" BSRAM_R28[35];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_2_s" BSRAM_R10[15];
+// (7 octobre 2026, r618 à r620 : échanger des sites ITCM/sprites a fait passer le bus en routage 2 (r619) mais a
+// déplacé la logique du lecteur de lignes ou congestionné la rangée 10 ; non retenu. En routage 1 (R31), l'ITCM
+// tient sans cela : r617, bus à 91 MHz.)
+// SD/USB (6 octobre 2026) : les deux mémoires ITCM les plus éloignées de la LUT d'adresse (R24C90) rataient de
+// 0,96 ns dans r605 (fil de 7,7 ns) ; déplacées sur deux emplacements libres de la rangée 10, plus proches.
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_3_s" BSRAM_R10[24];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_4_s" BSRAM_R46[18];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_5_s" BSRAM_R10[25];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_7_s" BSRAM_R10[18];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_0_s" BSRAM_R10[22];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_4_s" BSRAM_R10[19];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_6_s" BSRAM_R10[23];
+
+// G4: reserve the remaining ITCM banks near the existing CPU memory cluster.
+// The sprite cache must not displace these banks towards distant BSRAM columns.
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_2_s" BSRAM_R28[15];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_1_s" BSRAM_R28[20];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_4_s" BSRAM_R28[16];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memB_memB_0_7_s" BSRAM_R46[15];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_0_s" BSRAM_R10[20];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_1_s" BSRAM_R46[19];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memC_memC_0_6_s" BSRAM_R28[17];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_1_s" BSRAM_R28[19];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_2_s" BSRAM_R10[16];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_3_s" BSRAM_R28[18];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_5_s" BSRAM_R46[16];
+INS_LOC "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memD_memD_0_7_s" BSRAM_R10[17];
+
+// GPU V1 r27: the EXTS ready FF now has a complete next-value expression.
+// Its former clock-enable LUT no longer exists; let placement locate the
+// new data path. Clock frequencies and timing exceptions remain unchanged.
+// r29: keep the small AHB control loop beside the hard core (R0C160).
+// r27 placed HREADY at R15C73 and state at R31C36: the round trip through
+// hard-core HSEL spent 10.728 ns on wires, failing by 0.407 ns at 80 MHz.
+INS_LOC "u_soc/u_bridge/m_hready_s0" R4C150[0][A];
+INS_LOC "u_soc/u_bridge/st_0_s0" R4C150[1][A];
+INS_LOC "u_soc/u_bridge/st_1_s5" R4C150[2][A];
+// SD/USB (6 octobre 2026, r606/r607) : le multiplexeur HREADY des esclaves vidéo et la LUT qui alimente
+// m_hready s'étaient posés en C86 et C112, loin de l'affichage (C140) et de m_hready (R4C150) : 0,31 ns en
+// défaut, dont 4,3 ns sur le dernier fil. Tenus au milieu de leurs trois extrémités (accélérateur C60,
+// affichage C140, pont R4C150) ; en C148 le côté accélérateur ratait (r607).
+// C17 : le décodage HREADY/HSEL a été factorisé (équivalence C16).
+// L'ancienne LUT vid_hready_s1 n'existe plus ; laisser placer le nouveau
+// réseau HREADY avec ses consommateurs, sans ancrages nominaux hérités.
+// C18 : C17 place les deux LUT du retour vers le CPU en R17C83, entre
+// le contrôle vidéo R35C153 et le pont R21C141 : 4,854 + 2,866 ns de fil,
+// marge -0,687 ns. Regrouper ce nouveau mux près de ces deux extrémités.
+// Instances et fonctions vérifiées dans la netlist figée de C17.
+// C19 : C132 corrige le retour CPU mais éloigne trop le retour HSEL MSC
+// (C18 : C59 -> C132 -> C72 -> C48, marge -0,694 ns). C110 conserve
+// une position intermédiaire entre les contrôles de gauche et le pont CPU.
+// C28 : avec le garde BOT, C27 place la source GPU en R62 et le retour
+// AHB en R50. L'ancien ancrage R20 impose deux détours verticaux.
+// G3D1: release obsolete HREADY / relocated raster placement.
+// G3D1: release obsolete HREADY / relocated raster placement.
+// @driver module=ahb_exts_bridge instance=m_hready_s0 pin=D
+INS_LOC "u_soc/u_bridge/n47_s2" R4C150[0][B];
+
+// G4: all 32 banks use rows 10/28/46, columns 13..23,
+// around the relocated address decoder; distant outliers caused marginal paths.
+
+// G4: the ITCM address/data buffer registers follow the relocated control
+// cluster. This removes long ahb_write -> buffer D/CE nets seen in r10.
+
+// L11: block RAM locations of the validated build gpu_fast_r2 (tang/impl/gpu_fast_r2,
+// replayed with the post-place file). Without them, adding logic moved the GPU and
+// DDR memories across the device and a different old path failed in every build.
+// The tile layer memories are left to the placer. A memory renamed or removed by a
+// later change makes the build stop on its line: update or delete that line.
+INS_LOC "u_accel/u_blitter/bank0_bank0_0_0_s" BSRAM_R28[14][B];
+INS_LOC "u_accel/u_blitter/bank1_bank1_0_0_s" BSRAM_R46[14][B];
+INS_LOC "u_accel/u_blitter/cmem_cmem_0_0_s" BSRAM_R46[12][A];
+INS_LOC "u_accel/u_blitter/gowin_add_SDPB_cmem_cmem_0_0_s" BSRAM_R46[19][B];
+INS_LOC "u_accel/u_blitter/zoom_cache_zoom_cache_0_0_s" BSRAM_R46[16][B];
+INS_LOC "u_accel/u_commands/gowin_add_SDPB_mem_mem_0_0_s" BSRAM_R46[18][B];
+INS_LOC "u_accel/u_commands/mem_mem_0_0_s" BSRAM_R46[12][B];
+INS_LOC "u_accel/u_font/mem_mem_0_0_s" BSRAM_R28[16][B];
+INS_LOC "u_accel/u_font/mem_mem_0_1_s" BSRAM_R28[12][B];
+INS_LOC "u_gpu/descriptors_descriptors_0_0_s" BSRAM_R28[21][B];
+INS_LOC "u_gpu/gowin_add_SDPB_descriptors_descriptors_0_0_s" BSRAM_R28[19][B];
+INS_LOC "u_gpu/gowin_add_SDPB_lines_lines_0_0_s" BSRAM_R64[25][B];
+INS_LOC "u_gpu/gowin_add_SDPB_lines_lines_0_1_s" BSRAM_R46[25][B];
+INS_LOC "u_gpu/gowin_add_SDPB_lines_lines_0_2_s" BSRAM_R82[24];
+INS_LOC "u_gpu/gowin_add_SDPB_lines_lines_0_3_s" BSRAM_R46[27][A];
+INS_LOC "u_gpu/gowin_add_SDPB_lines_lines_0_4_s" BSRAM_R46[26];
+INS_LOC "u_gpu/gowin_add_SDPB_lines_lines_0_5_s" BSRAM_R64[27][A];
+INS_LOC "u_gpu/gowin_add_SDPB_lines_lines_0_6_s" BSRAM_R46[25][A];
+INS_LOC "u_gpu/gowin_add_SDPB_lines_lines_0_7_s" BSRAM_R64[23][A];
+INS_LOC "u_gpu/gowin_add_SDPB_sprite_descriptors_sprite_descriptors_0_0_s" BSRAM_R64[18][A];
+INS_LOC "u_gpu/lines_lines_0_0_s" BSRAM_R46[28];
+INS_LOC "u_gpu/lines_lines_0_1_s" BSRAM_R64[26];
+INS_LOC "u_gpu/lines_lines_0_2_s" BSRAM_R82[25][A];
+INS_LOC "u_gpu/lines_lines_0_3_s" BSRAM_R46[27][B];
+INS_LOC "u_gpu/lines_lines_0_4_s" BSRAM_R64[25][A];
+INS_LOC "u_gpu/lines_lines_0_5_s" BSRAM_R46[24];
+INS_LOC "u_gpu/lines_lines_0_6_s" BSRAM_R64[24];
+INS_LOC "u_gpu/lines_lines_0_7_s" BSRAM_R28[24];
+INS_LOC "u_gpu/palette_palette_0_0_s" BSRAM_R64[16][B];
+INS_LOC "u_gpu/sprite_descriptors_sprite_descriptors_0_0_s" BSRAM_R64[17];
+INS_LOC "u_gpu/u_reader/composed_composed_0_0_s" BSRAM_R64[21][B];
+INS_LOC "u_gpu/u_reader/composed_composed_0_1_s" BSRAM_R64[18][B];
+INS_LOC "u_gpu/u_reader/composed_composed_0_2_s" BSRAM_R64[21][A];
+INS_LOC "u_gpu/u_reader/composed_composed_0_3_s" BSRAM_R82[21][A];
+INS_LOC "u_gpu/u_reader/composed_composed_0_4_s" BSRAM_R64[19][A];
+INS_LOC "u_gpu/u_reader/composed_composed_0_5_s" BSRAM_R64[22];
+INS_LOC "u_gpu/u_reader/composed_composed_0_6_s" BSRAM_R64[19][B];
+INS_LOC "u_gpu/u_reader/composed_composed_0_7_s" BSRAM_R64[23][B];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_0_s" BSRAM_R82[26];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_1_s" BSRAM_R100[29];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_2_s" BSRAM_R64[30];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_3_s" BSRAM_R64[29][A];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_4_s" BSRAM_R64[27][B];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_5_s" BSRAM_R100[30][A];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_6_s" BSRAM_R64[34];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_even_source_even_0_7_s" BSRAM_R64[31][B];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_odd_source_odd_0_0_s" BSRAM_R82[27][A];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_odd_source_odd_0_1_s" BSRAM_R100[28][B];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_odd_source_odd_0_2_s" BSRAM_R64[31][A];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_odd_source_odd_0_3_s" BSRAM_R46[29][A];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_odd_source_odd_0_4_s" BSRAM_R64[28];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_odd_source_odd_0_5_s" BSRAM_R100[30][B];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_odd_source_odd_0_6_s" BSRAM_R64[33][B];
+INS_LOC "u_gpu/u_reader/gowin_add_SDPB_source_odd_source_odd_0_7_s" BSRAM_R64[36];
+INS_LOC "u_gpu/u_reader/source_even_source_even_0_0_s" BSRAM_R82[29][A];
+INS_LOC "u_gpu/u_reader/source_even_source_even_0_1_s" BSRAM_R82[29][B];
+INS_LOC "u_gpu/u_reader/source_even_source_even_0_2_s" BSRAM_R82[27][B];
+INS_LOC "u_gpu/u_reader/source_even_source_even_0_3_s" BSRAM_R64[29][B];
+INS_LOC "u_gpu/u_reader/source_even_source_even_0_4_s" BSRAM_R64[35][B];
+INS_LOC "u_gpu/u_reader/source_even_source_even_0_5_s" BSRAM_R46[29][B];
+INS_LOC "u_gpu/u_reader/source_even_source_even_0_6_s" BSRAM_R64[33][A];
+INS_LOC "u_gpu/u_reader/source_even_source_even_0_7_s" BSRAM_R46[31][A];
+INS_LOC "u_gpu/u_reader/source_odd_source_odd_0_0_s" BSRAM_R82[25][B];
+INS_LOC "u_gpu/u_reader/source_odd_source_odd_0_1_s" BSRAM_R82[32];
+INS_LOC "u_gpu/u_reader/source_odd_source_odd_0_2_s" BSRAM_R82[28];
+INS_LOC "u_gpu/u_reader/source_odd_source_odd_0_3_s" BSRAM_R64[32];
+INS_LOC "u_gpu/u_reader/source_odd_source_odd_0_4_s" BSRAM_R64[35][A];
+INS_LOC "u_gpu/u_reader/source_odd_source_odd_0_5_s" BSRAM_R46[30];
+INS_LOC "u_gpu/u_reader/source_odd_source_odd_0_6_s" BSRAM_R82[31][A];
+INS_LOC "u_gpu/u_reader/source_odd_source_odd_0_7_s" BSRAM_R46[31][B];
+// Revue USB/L11 : laisser placer les quatre banques de descripteurs de
+// sprites près du lecteur. Les anciens ancrages R10/R28/R46 imposaient
+// jusqu’à 5,668 ns de routage avant son calcul de bord (build usb_r7).
+INS_LOC "u_gpu/u_sprites/textures_textures_0_0_s" BSRAM_R28[28];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_10_s" BSRAM_R10[28][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_11_s" BSRAM_R46[33][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_12_s" BSRAM_R46[34];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_13_s" BSRAM_R10[33];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_14_s" BSRAM_R10[26][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_15_s" BSRAM_R10[32][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_16_s" BSRAM_R10[31];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_17_s" BSRAM_R28[27][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_18_s" BSRAM_R10[26][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_19_s" BSRAM_R10[30][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_1_s" BSRAM_R28[27][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_20_s" BSRAM_R28[25][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_21_s" BSRAM_R28[30];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_22_s" BSRAM_R28[33][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_23_s" BSRAM_R28[25][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_24_s" BSRAM_R28[29][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_25_s" BSRAM_R10[28][B];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_26_s" BSRAM_R10[30][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_27_s" BSRAM_R10[32][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_28_s" BSRAM_R10[34][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_2_s" BSRAM_R28[26];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_3_s" BSRAM_R28[31][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_4_s" BSRAM_R46[32];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_5_s" BSRAM_R46[35][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_6_s" BSRAM_R28[29][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_7_s" BSRAM_R46[33][A];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_8_s" BSRAM_R10[29];
+INS_LOC "u_gpu/u_sprites/textures_textures_0_9_s" BSRAM_R10[27];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[0].u_ddr_phy_data_lane/u_in_fifo/gowin_add_SDPB_mem0_mem0_0_0_s" BSRAM_R64[4][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[0].u_ddr_phy_data_lane/u_in_fifo/gowin_add_SDPB_mem0_mem0_0_1_s" BSRAM_R46[3];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[0].u_ddr_phy_data_lane/u_in_fifo/mem0_mem0_0_0_s" BSRAM_R64[3];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[0].u_ddr_phy_data_lane/u_in_fifo/mem0_mem0_0_1_s" BSRAM_R64[2][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[1].u_ddr_phy_data_lane/u_in_fifo/gowin_add_SDPB_mem0_mem0_0_0_s" BSRAM_R82[6][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[1].u_ddr_phy_data_lane/u_in_fifo/gowin_add_SDPB_mem0_mem0_0_1_s" BSRAM_R82[6][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[1].u_ddr_phy_data_lane/u_in_fifo/mem0_mem0_0_0_s" BSRAM_R64[8][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[1].u_ddr_phy_data_lane/u_in_fifo/mem0_mem0_0_1_s" BSRAM_R64[7];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[2].u_ddr_phy_data_lane/u_in_fifo/gowin_add_SDPB_mem0_mem0_0_0_s" BSRAM_R82[4][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[2].u_ddr_phy_data_lane/u_in_fifo/gowin_add_SDPB_mem0_mem0_0_1_s" BSRAM_R82[7];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[2].u_ddr_phy_data_lane/u_in_fifo/mem0_mem0_0_0_s" BSRAM_R82[8][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[2].u_ddr_phy_data_lane/u_in_fifo/mem0_mem0_0_1_s" BSRAM_R82[5];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_in_fifo/gowin_add_SDPB_mem0_mem0_0_0_s" BSRAM_R64[4][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_in_fifo/gowin_add_SDPB_mem0_mem0_0_1_s" BSRAM_R64[6][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_in_fifo/mem0_mem0_0_0_s" BSRAM_R64[5];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_in_fifo/mem0_mem0_0_1_s" BSRAM_R64[6][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/gowin_add_SDPX9B_mem_mem_0_0_s" BSRAM_R64[10][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/gowin_add_SDPX9B_mem_mem_0_1_s" BSRAM_R46[5];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/gowin_add_SDPX9B_mem_mem_0_2_s" BSRAM_R46[4][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/gowin_add_SDPX9B_mem_mem_0_3_s" BSRAM_R46[6][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/gowin_add_SDPX9B_mem_mem_0_4_s" BSRAM_R64[8][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/gowin_add_SDPX9B_mem_mem_0_5_s" BSRAM_R64[11];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/gowin_add_SDPX9B_mem_mem_0_6_s" BSRAM_R46[8][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/gowin_add_SDPX9B_mem_mem_0_7_s" BSRAM_R46[10][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/mem_mem_0_0_s" BSRAM_R46[9];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/mem_mem_0_1_s" BSRAM_R46[8][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/mem_mem_0_2_s" BSRAM_R64[9];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/mem_mem_0_3_s" BSRAM_R46[10][A];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/mem_mem_0_4_s" BSRAM_R46[6][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/mem_mem_0_5_s" BSRAM_R64[10][B];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/mem_mem_0_6_s" BSRAM_R46[7];
+INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_gwmc_top/gw_wr_data0/wr_fifo/mem_mem_0_7_s" BSRAM_R46[11];
+INS_LOC "u_usb_fifo/usb_rx_buf_ep2/sync_rx_pkt_fifo/RAM_RAM_0_0_s" BSRAM_R46[36];
+INS_LOC "u_usb_fifo/usb_rx_buf_ep2/sync_rx_pkt_fifo/RAM_RAM_0_1_s" BSRAM_R46[35][B];
+INS_LOC "u_usb_fifo/usb_tx_buf_ep2/sync_tx_pkt_fifo/RAM_RAM_0_0_s" BSRAM_R28[32];
+INS_LOC "u_usb_fifo/usb_tx_buf_ep2/sync_tx_pkt_fifo/RAM_RAM_0_0_s0" BSRAM_R28[33][A];
+INS_LOC "u_usb_fifo/usb_tx_buf_ep2/sync_tx_pkt_fifo/RAM_RAM_0_1_s" BSRAM_R28[31][B];
+INS_LOC "u_usb_fifo/usb_tx_buf_ep2/sync_tx_pkt_fifo/RAM_RAM_0_1_s0" BSRAM_R28[34];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/fifo_rx_pkt/fifo_4to8_sub_inst/Equal.mem_Equal.mem_0_0_s" BSRAM_R82[30];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_tx_phy/u_fifo_8to4/fifo_8to4_sub_inst/Small.mem_Small.mem_0_0_s" BSRAM_R82[31][B];
+
+// C11 : le reset FIFO PHY hérité de L12 n'est plus fixé à R72C172.
+// En C9 ses pointeurs se trouvent près de R22C166 ; le fil de 4,054 ns
+// dépasse le budget du trajet entre front descendant et front montant.
+// L12 diagnostic r16: the unchanged blitter's shared row-end decode drove
+// 45 loads through a 5.145 ns net from R20C134 to the state machine near
+// R32C121. Place its final LUT beside those loads; no logic/timing exception.
+// Synthesized instance checked against the frozen r16 blitter netlist.
+// r17: rw[1]'s final mux was at R24C156, its destination at R26C102
+// (2.996 ns net). Place the destination between that mux and its consumers.
+// C11 : le multiplexeur sprite/image est placé avec ses 262 destinations.
+// L'ancrage R70C110 imposait en C9 un détour de 5,863 + 7,158 ns entre
+// la commande R53C176 et les registres proches de R61C170.
+
+// r28: triangle signed step decode at R24C108 drove the DSP input path
+// near R40C140 through a 4.565 ns net, after another 2.347 ns from R38C143.
+// Bring the unchanged decode near that arithmetic cluster (r29).
+// Cell verified in the frozen r28 blitter netlist; no timing exception.
+
+// C9 : laisser placer la validation shadow_base avec ses registres.
+// L'ancien point R85C120 les éloignait en C7 (registres R26C158),
+// avec 7,043 ns de fil final et une marge de -2,773 ns.
+
+// C11 : TXREADY est lui aussi libéré de l'ancrage de CDC r3.
+// En C9, la liaison R8C165 -> R38C142 -> R8C107 perdait 6,316 ns de fil,
+// pour une marge de -1,988 ns. Aucune logique fournisseur n'est changée.
+
+// C9 : retirer aussi l'ancrage d'alignement du PHY hérité de Perspective r9.
+// Le contrôle est désormais autour de R12C174 ; la bascule imposée R45C176
+// donnait -0,954 ns en C7. La logique fournisseur reste inchangée.
+
+// GPU V1 r9: RXACTIVE's 34-load output at R17C171 reached the controller
+// at R7C126 through a 5.461 ns wire (setup -1.059 ns). Place this output
+// mux between PHY and controller. Only placement changes; no vendor logic,
+// USB speed selection, clock period or timing exception is modified.
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/utmi_rxactive_o_d_s" R12C148[0][A];
+
+// (7 octobre 2026, r615/r616 : tenir l'arbitre DDR au milieu, ou seulement la LUT de demande de l'affichage,
+// a déplacé les défauts vers l'ITCM ou le reste du GPU ; non retenu, l'état des contraintes est celui de r614.)
+
+// C22 : chaîne d'alignement RX 120 MHz, trois extrémités négatives en C20.
+// Huit LUT simples vérifiées dans la netlist de simulation officielle C20,
+// dispersées de R14C173 à R16C173 et C175. Regrouper la chaîne pour
+// raccourcir ses sept liaisons internes ; aucun changement de logique IP.
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s19" R15C171[0][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s16" R15C171[0][B];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s10" R15C171[1][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s14" R15C171[1][B];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n2989_s8" R15C171[2][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n3096_s4" R15C171[2][B];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n3096_s1" R15C171[3][A];
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/hs_rx_sel_3_s3" R15C171[3][B];
+
+// C28 : rapprocher le suivi des octets UTMI de TXREADY (PHY à C172).
+// C27 le place à C80, ajoutant 5,415 ns sur le retour TXREADY -> CE.
+// Les cellules et leur fonction sont vérifiées dans la netlist C27.
+INS_LOC "u_usb_msc_guard/in_packet_s0" R8C159[0][A];
+INS_LOC "u_usb_msc_guard/patch_status_s0" R8C159[1][A];
+INS_LOC "u_usb_msc_guard/tx_index_0_s0" R8C159[2][A];
+INS_LOC "u_usb_msc_guard/tx_index_1_s0" R8C159[2][B];
+INS_LOC "u_usb_msc_guard/tx_index_2_s0" R8C159[3][A];
+
+INS_LOC "u_usb_msc_guard/n2443_s1" R8C159[1][B];
+
+INS_LOC "u_usb_msc_guard/PHY_DATAOUT_2_s" R9C145[1][A];
+
+// G3D1: release obsolete HREADY / relocated raster placement.
+// G3D1: release obsolete HREADY / relocated raster placement.
+INS_LOC "u_usb_msc_guard/PHY_DATAOUT_5_s0" R9C145[0][A];
+
+INS_LOC "u_usb_msc_guard/tx_index_2_s2" R8C159[3][B];
+
+// G3D1: release obsolete HREADY / relocated raster placement.
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s7" R16C171[1][A];
+
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/bit_align_wr_act_s4" R16C171[2][A];
+
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/bit_align_wr_act_s1" R16C171[2][B];
+
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s20" R16C171[0][A];
+
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/hs_rx_sel_2_s6" R16C171[1][B];
+
+INS_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/i_rx_phy/u_cdr_serdes_x8_dx/n668_s22" R16C171[0][B];
+
+INS_LOC "u_usb_fifo/usb_rx_buf_ep1/sync_rx_pkt_fifo/RAM_s6" R66C72[0][A];

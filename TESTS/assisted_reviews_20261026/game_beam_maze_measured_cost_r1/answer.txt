@@ -1,0 +1,427 @@
+## 1. Verdict de revue
+
+MO1 est **FAIL final conservé** (`measurement_summary.json:2`, `README.md:3`, `wall_guard_failed`), mais ses quatre fenêtres A/B sont complètes et réutilisables pour une analyse de coûts. Le gain du candidat maison vient principalement de la **préparation CPU** (`60,836 ms → 22,599 ms`, soit `-62,8 %`), pas du GPU : `SUBMIT` reste quasi identique (`40,499 → 39,784 ms`) et `PRESENT` augmente légèrement (`14,703 → 15,124 ms`). Le vrai goulot est donc déjà visible dans `SUBMIT` + `PRESENT` (`≈ 54,9 ms` sur `≈ 80,7 ms` de trame candidat).
+
+R4 reprend **exactement** le rendu/cache maison du candidat, puis ajoute deux chemins 3D non mesurés par MO1 : `L3_ARCADE_PLATFORM` et `L3_ARCADE_SIMON` (`maze_render.c:153-219`). Il ne faut pas transporter les chiffres maison à ces modes sans mesure ciblée. Aucune modification FPGA/noyau n’est justifiée par ces données ; l’instrumentation proposée reste côté hôte.
+
+---
+
+## 2. Faits mesurés réutilisables (MO1)
+
+| Activité / variante | Images | FPS | Prep CPU/image | SIM | SUBMIT | PRESENT | p95 ≤ | p99 ≤ | Max |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Maison témoin | 360 | 8,371 | 60,836 | 3,264 | 40,499 | 14,703 | 276 ms | 312 ms | 557,752 |
+| Maison candidat | 360 | 12,391 | 22,599 | 2,974 | 39,784 | 15,124 | 116 ms | 148 ms | 713,744 |
+| Shooter candidat | 600 | 45,914 | 4,041 | 2,289 | 0,000 | 15,312 | 40 ms | 76 ms | 543,012 |
+| Shooter témoin | 600 | 37,850 | 8,605 | 2,409 | 0,000 | 15,254 | 48 ms | 220 ms | 398,835 |
+
+Source : `measurement_summary.json:7-97`, `README.md:25-31`.
+
+Faits défensifs déjà établis :
+- CRC état identique par paire : maison `c5384401`, shooter `e84b1a71` (`README.md:37-39`, `measurement_summary.json:20,37,54,71`).
+- 8 322 commandes, 782 424 octets UI maison ; 0 commande raster/3D, 785 320 octets UI shooter.
+- Aucune erreur GPU, sous-débordement ou sliver dans les fenêtres (`README.md:39-42`).
+- Vies des windows : histogramme 4 ms, maxima plus hauts pour le candidat, localisation des trames longues **non fournie** (`README.md:32-35`).
+- Course murale maison : 161 images, `p95≈116 ms`, `p99≈388 ms`, max trame `665,969 ms`, `moves=0` à cause du reset de sortie (`measurement_summary.json:98-99`, `README.md:47-53`).
+
+---
+
+## 3. Validation arithmétique des budgets
+
+### 3.1 Cadre maison candidat
+
+Trame moyenne :
+
+\[
+\frac{1}{12{,}390854} = 80{,}7047\ \text{ms}
+\]
+
+Somme des composantes publiées :
+
+\[
+22{,}5993 + 39{,}7841 + 15{,}1245 + 2{,}9737 = 80{,}4816\ \text{ms}
+\]
+
+Résidu :
+
+\[
+80{,}7047 - 80{,}4816 = 0{,}2231\ \text{ms}\ (0{,}28\ \%)
+\]
+
+Témoin :
+
+\[
+\frac{1000}{8{,}371482} = 119{,}4532\ \text{ms}, \qquad
+60{,}8361 + 40{,}4987 + 14{,}7028 + 3{,}2637 = 119{,}3013
+\]
+
+Résidu :
+
+\[
+119{,}4532 - 119{,}3013 = 0{,}1519\ \text{ms}
+\]
+
+**Validation** : les budgets sont internationalement cohérents à mieux que 0,3 %. La différence est compatible avec l’arrondi des moyennes, le coût d’observation, ou la cadence réelle.
+
+### 3.2 Part du budget candidat
+
+| Composante | ms/trame | % de 80,7047 |
+|---|---:|---:|
+| Préparation CPU | 22,5993 | 28,0 |
+| SUBMIT (driver) | 39,7841 | 49,3 |
+| PRESENT | 15,1245 | 18,7 |
+| Simulation | 2,9737 | 3,7 |
+| Résidu | 0,2231 | 0,3 |
+
+Le témoin est différent : préparation 51,0 %, SUBMIT 33,9 %, PRESENT 12,3 %, simulation 2,7 %. Donc la candidate améliore le CPU, mais le goulot absolu est `SUBMIT`.
+
+### 3.3 Course murale, 161 images
+
+Moyenne wall :
+
+\[
+\frac{13{,}413568}{161} = 83{,}3141\ \text{ms}
+\]
+
+| Composante | Total s | ms/trame |
+|---|---:|---:|
+| Simulation | 0{,}726166 | 4,510 |
+| Préparation CPU | 4,133588 | 25,674 |
+| SUBMIT | 6,344732 | 39,408 |
+| PRESENT | 2,175626 | 13,513 |
+| Somme | 13,380112 | 83,106 |
+| Résidu vs `frame_sum` | 0,026146 | 0,162 |
+
+Sous-composition UI déjà présente dans `mini_ui.c` :
+
+\[
+\frac{0{,}938336}{161}=5{,}828\ \text{ms UI raster}, \qquad
+\frac{1{,}074552}{161}=6{,}674\ \text{ms UI publish}
+\]
+
+Résidu CPU non-UI, pour ce lot de 161 trames :
+
+\[
+25{,}674 - 5{,}828 - 6{,}674 = 13{,}172\ \text{ms}
+\]
+
+C’est une **borne indicative**, pas une mesure de géométrie pure : cette préparation inclut aussi vues, mouvement, scène, compteurs et l’entrée avec HUD non chauffé.
+
+### 3.4 Publications UI
+
+Images candidate UI :
+- Maison : `782424 / 360 = 2173,4 octets/image`.
+- Shooter : `785320 / 600 = 1308,9 octets/image`.
+
+Canvas CPU :
+
+\[
+800 \times 480 = 384\,000\ \text{octets}
+\]
+
+Donc une image maison candidat publie en moyenne
+
+\[
+\frac{2173{,}4}{384000}=0{,}566\ \%
+\]
+
+du canvas, c’est-à-dire une publication diff très fine. La course murale donne :
+
+\[
+\frac{820\,988}{161}=5099{,}3\ \text{octets/image}
+\]
+
+pour la publication, plus :
+
+\[
+\frac{2\,847\,040}{161}=17\,683{,}5\ \text{octets/image}
+\]
+
+pour la scanification et :
+
+\[
+\frac{1\,011\,648}{161}=6283{,}5\ \text{octets/image}
+\]
+
+pour la restauration du chrome. Le coût temporel associé (`5,828 + 6,674 = 12,502 ms`) reste comparable au Raster UI complet attendu, ce qui montre que le CPU passe du temps à dessiner le canvas, pas seulement à mover des octets.
+
+### 3.5 Commandes et géométrie exactes connues
+
+Une image offline de référence fournit un instantané, non une timing matérielle :
+
+- `measure_probe_r2/candidate_4_800.reference.json` : 400 × 240, `commands=25`, `draws=14`, `triangles=774`, `submitted_triangles=1654`, `vertices=3324`, `clipped=0`, `culled=880`, `fragments=54755`, `model_seconds=0,118909863`.
+- Le lot maison MO1 donne `8322 commandes / 360 = 23,117` commandes/trame en moyenne.
+- Course murale : `3428 / 161 = 21,292` commandes/trame.
+
+La différence `25` vs `23,1` vs `21,3` n’est pas un bug en soi : le nombre de commandes varie avec l’état (`maze_static_count`, pellets restants, caches de commandes, chrome), et la moyenne n’est jamais le pire cas. Exactement ce point explique la priorité p99/max.
+
+---
+
+## 4. R4 maison + ajout plateaux/Simon
+
+### 4.1 Ce que R4 garde exactement
+
+R4 reprend le même candidat maison :
+- même rendu G3D1 métrique (`maze_render.c:9-12`),
+- même cache de chrome et publication diff (`mini_ui.c:277-339`, `render.c:317-318`),
+- mêmes compteurs `mini_raster_seconds`, `mini_publish_seconds`, `feed_seconds`, `present_seconds`.
+
+La trame maison suit exactement ce chemin (`render.c:302-319`) :
+
+1. `l3_presentation_prepare` (`presentation.c:32-44`) ;
+2. si changement de mode, reset des géométries statiques (`render.c:306`) ;
+3. `l3_maze_render`, puis `flush` (`render.c:308-309`) ;
+4. si `L3_MINI_MAZE + 1`, `l3_mini_ui_prepare`, puis `flush` (`render.c:317-318`) ;
+5. `PRODOCK_PRESENT` et incrément `frame` (`render.c:319`).
+
+### 4.2 Ce que R4 ajoute (non couvert par MO1)
+
+Modes `L3_ARCADE_PLATFORM` et `L3_ARCADE_SIMON` passent par `l3_arcade_3d_render` (`maze_render.c:153-219`), pas par `l3_maze_render`. Ce code :
+- reconstruit une géométrie statique plateforme ou graine Simon selon `maze_static_count == 0` ;
+- reconstruit une géométrie dynamique à chaque trame (`Builder offset (26+page)<<20`, puis `seal`) ;
+- utilise le même pipeline `target/scissor/clear/camera/transform/light/material/texture`, puis dessin des meshes statiques puis dynamiques (`maze_render.c:208-218`) ;
+- partage les mêmes infrastructures driver `flush`, `PRODOCK_SUBMIT`, `PRODOCK_PRESENT`.
+
+**Aucune donnée MO1 ne mesure ces modes**. Leur publication UI reste proche (`scene_hud`, `hud_rects` avec 1 ou 2 rectangles), mais le nombre de triangles, de meshes, de commandes et le temps de géométrie dynamique doivent être mesurés, pas déduits des 12,39 FPS maison.
+
+### 4.3 Géométrie dynamique CPU : inventaire exact à chronométrer
+
+`geometry()` maison (`maze_render.c:73-106`) inclut :
+- sol statique : quads par pas de `4 × 4`, scellés en un ou plusieurs meshes ;
+- murs : `box` = 5 quads = 10 triangles de masque par cellule mur ;
+- pellets/powers : `box` dynamique ;
+- courier : 9 `box` + anneau guide de 8 `quad` (`courier`, `maze_render.c:65-72`) ;
+- fantômes : 8 segments comportant chacun un `quad` + un `triangle`, plus 2 quads pour les yeux (`phantom`, `maze_render.c:49-64`) ;
+- `seal` recopie les vertices/faces vers la mémoire mappée GPU (`maze_render.c:24-28`) ;
+
+Donc le coût CPU dynamique est dominé par :
+1. appels trigonométriques ;
+2. remplissage de buffers temporaires ;
+3. `seal` et copies mémoire ;
+4. augmentation du travail avec les pellets restants et avec le nombre d’acteurs.
+
+Le mouvement interpolé (`maze_motion.c:40-54`) fait au plus 3 acteurs et quelques segments interpolés : il est structurellement peu coûteux, mais ne doit pas être exoneré par hypothèse. Il faut le chronométrer.
+
+Le mouvement logique (`maze_motion.c:18-39`) contient les événements critiques d’entrée/régime :
+- `m->resets` ;
+- `m->moves` ;
+- `m->teleports` ;
+- `m->overflows` ;
+- `settle()` lors d’entrée, téléportation, segment saturé.
+
+Ces compteurs doivent être échantillonnés par trame.
+
+---
+
+## 5. Publications CPU : ce qui est déjà instrumentable
+
+`l3_mini_ui_prepare` (`mini_ui.c:307-339`) expose déjà :
+- `mini_raster_seconds` (canvas) ;
+- `mini_publish_seconds` (scan/upload) ;
+- `mini_scan_bytes` (octets comparés) ;
+- `mini_restore_bytes` (octets restaurés) ;
+- `mini_uploads`, `mini_bytes` (mutations réelles) ;
+- `mini_chrome_rebuilds`, `mini_canvas_stamp`, `mini_stamp[2]`.
+
+Le cache (`mini_ui.c:289-306`) fait trois choses distinguables :
+1. si page non initialisée, force une publication complète ;
+2. si même chrome, publication limitée aux rectangles dirty ;
+3. comparaison octet par octet par bloc de 4 octets avant écriture ;
+4. mise à jour des shadows.
+
+`hud_rects` (`mini_ui.c:277-282`) donne les ROI exacts :
+- shooter : 2 rectangles latéraux `136 × 292` ;
+- modes arcade hors shooter : 1 rectangle de texte plus 1 zone de vies (sauf Simon : 1 seul).
+
+Donc une instrumentation crédible doit distinguer :
+- **raster canvas** : temps de dessin ;
+- **scan** : temps de comparaison ;
+- **mutation** : octets écrits ;
+- **chrome rebuild** : événement d’entrée ;
+- **page force** : première publication ou changement de page.
+
+---
+
+## 6. SUBMIT et PRESENT : ce que le code prouve et ce qu’il ne prouve pas
+
+`flush()` (`render.c:39-43`) :
+
+```c
+double t=clock_seconds();call(r,PRODOCK_SUBMIT,&r->batch);
+r->feed_seconds+=clock_seconds()-t;r->total_flushes++;r->batch.count=0;
+```
+
+`PRODOCK_SUBMIT` est donc chronométré comme un mur unique. Il ne décompose pas :
+- remplissage/prération du batch côté hôte ;
+- copie dans le driver ;
+- attente d’acceptation ;
+- rasterisation GPU éventuelle ;
+- retour.
+
+La deuxième chronométrie (`render.c:319`) autour de `PRODOCK_PRESENT` mesure l’attente de présentation. Sur le dataset wall :
+
+\[
+\frac{6.344732}{161}=39,408\ \text{ms/trame SUBMIT}, \qquad
+\frac{2.175626}{161}=13,513\ \text{ms/trame PRESENT}
+\]
+
+**Ne pas attribuer** `SUBMIT` à l’alpha, à la DDR, à la triangulation CPU ou à un seul composant. Le temps publié inclut la frontière hôte/noyau/GPU. Pour le décomposer, il faut ajouter des compteurs côté pilote ou des points de retour, ce qui dépasse le scope “sans changer FPGA” et n’est pas dans le paquet. On peut cependant mesurer et corréler côté hôte :
+- `triangles` ;
+- `draws` ;
+- `commands` ;
+- `maze_static_count`, `maze_dynamic_count` ;
+- `mini_bytes`, `mini_scan_bytes` ;
+- événements mouvement.
+
+Ce sont des variables explicatives, pas des preuves de causalité.
+
+---
+
+## 7. Limites déjà connues et à conserver
+
+1. **Une seule paire prédéfinie par activité** ; pas de claim statistique (`measurement_summary.json:85,95`, `README.md:35`).
+2. **p99/max sont des bornes histogramme 4 ms**, donc quantifiés et supérieurs à la vraie valeur (`README.md:32`).
+3. **Pas d’indice de trame** : on ne sait pas si les maxima sont à l’entrée, au régime, à une téléportation ou au HUD (`README.md:33-35`).
+4. **Les fenêtres incluent la première publication HUD sans chauffe** (`README.md:24`).
+5. **La course murale est FAIL** : `moves=0` à cause du `l3_maze_motion_reset` appelé au retour, donc pas de preuve anti-débordement antérieur (`README.md:47-56`).
+6. **R4 ajoute plateaux/Simon non mesurés** par MO1.
+7. **Aucune exécution possible par le reviewer** ; les valeurs sont celles du paquet.
+
+---
+
+## 8. Instrumentation ciblée proposée
+
+### 8.1 Objectif mesurable
+
+Ajouter une instrumentation **hôte seulement**, compilable par option (ex. `L3_PERF=1`), qui répond à quatre questions :
+1. Quelles trames sont dans le top 5 de durée ?
+2. Quelle phase (entrée, événement, régime) leur correspond ?
+3. Quelles variables CPU/GPU accompagnent ces trames ?
+4. Les plateaux/Simon ont-ils le même goulot que la maison ?
+
+### 8.2 Compteurs et chronomètres à ajouter
+
+Dans `L3Render` (`luma3d_render.h`) :
+
+```c
+double geom_static_seconds, geom_dynamic_seconds;
+double motion_observe_seconds, motion_sample_seconds;
+double scene_seconds;
+uint32_t perf_entry_frames, perf_event_frames, perf_steady_frames;
+uint32_t worst_frame_index[5];
+uint64_t worst_frame_ns[5];
+uint32_t worst_frame_flags[5];
+```
+
+Dans le code :
+- `maze_render.c:73-106`, encadrer séparément :
+  - reconstruction statique (`if(!r->maze_static_count)`),
+  - builder dynamique,
+  - `seal`;
+- `maze_render.c:107-128`, encadrer :
+  - `l3_mini_view`,
+  - `l3_mini_actors`,
+  - `l3_maze_motion_observe` / `l3_maze_motion_sample`,
+  - géométrie,
+  - commande caméra/matériel/textures,
+  - boucles de dessin statiques/dynamiques ;
+- `render.c:39-43`, garder `feed_seconds`, mais aussi stocker la durée par trame dans un top-5 ;
+- `render.c:319`, stocker la durée `PRESENT` par trame ;
+- `mini_ui.c:321-337`, garder `mini_raster_seconds`, `mini_publish_seconds`.
+
+Mémoire statique minimale : seulement top 5, donc pas d’impact temps/mémoire significatif.
+
+### 8.3 Tags de phase par trame
+
+Dans `l3_render_frame`, après calc des durées, classifier la trame avec des flags :
+
+| Flag | Condition exacte |
+|---|---|
+| `COLD_STATIC` | `maze_static_count` reconstruit ce coup-là |
+| `FIRST_PUBLISH` | `mini_stamp[page] == 0` avant publication |
+| `CHROME_REBUILD` | `mini_chrome_rebuilds` incrémenté |
+| `CANVAS_MISS` | `mini_canvas_stamp != stamp` |
+| `MOTION_EVENT` | `moves`, `teleports`, `overflows` ou `resets` a incrémenté |
+| `ENTRY_WINDOW` | moins de 30 trames depuis changement de mode (`activity_mode`/`frame` local) |
+| `STEADY` | au moins 120 trames sans flag ci-dessus |
+
+Ces flags ne changent pas le rendu ; ils sont dérivés de compteurs déjà présents.
+
+### 8.4 Instrumentation minimale proposée (pseudo-patch)
+
+```c
+// render.c, début l3_render_frame
+double frame_start = clock_seconds();
+unsigned mode = r->activity_mode;
+...
+// après scene/geometry
+double geometry_done = clock_seconds();
+...
+// après PRODOCK_PRESENT
+double frame_end = clock_seconds();
+perf_record_frame(r, r->frame, (uint64_t)((frame_end-frame_start)*1e9),
+                 components, flags);
+```
+
+```c
+void perf_record_frame(...) {
+  // mise à jour top-5 par durée totale ;
+  // mise à jour de compteurs agrégés par flags ;
+  // aucune IO disque pendant la trame.
+}
+```
+
+Au dump final (sur sortie maîtrisée), écrire top-5 et agrégats. La sortie disque doit être hors boucle chaude.
+
+### 8.5 Gestion du FAIL couplé
+
+Le correctif prévu dans `README.md:57-59` doit conserver les compteurs de mouvement **tout au long du diagnostic**, sans modifier le reset de présentation ni les règles. Mon recommandation indépendante :
+- dans `presentation.c:8-12`, distinguer `L3_ARCADE_RESTART` (reset voulu) et BACK/SORTIE ;
+- au retour/sortie de maison, faire une copie gelée des compteurs mouvement pour le diagnostic, au lieu de `l3_maze_motion_reset` avant impression ;
+- imprimer à la fois `moves_live`, `moves_frozen`, `teleports`, `overflows`, `resets`, `queue_overflow_seen`.
+
+Cela rend la garde `moves>0` valide sans toucher FPGA.
+
+---
+
+## 9. Tests discriminants à exécuter (futurs, pas exécutés par le reviewer)
+
+### T0 — Overhead d’instrumentation
+Prendre 100 trames régime avec `L3_PERF=0` puis `1`, comparer moyennes et p99. Accepter uniquement si surcharge < 1 ms/trame ou documentée.
+
+### T1 — Cold/entrée
+Démarrer un processus neuf, ouvrir la maison, enregistrer 60 trames sans entrée.  
+Si les top 5 tombent dans `{COLD_STATIC, FIRST_PUBLISH, ENTRY_WINDOW}`, alors les maxima observés sont liés à l’entrée/cache. Sinon éliminer cette hypothèse sans y revenir.
+
+### T2 — Régime
+Passer 120 trames sans événements, puis enregistrer 300 trames. Comparer p99 régime contre p99 MO1 (`148 ms` candidate), après exclusion des flags d’entrée.
+
+### T3 — Événements
+Scripter une téléportation/réapparition toutes les 20 trames (compteurs mouvement incrémentés). Comparer p99 des trames `MOTION_EVENT` contre régime. Si le p99 augmente nettement, le tail est événementiel.
+
+### T4 — HUD
+Forcer des changements de chrome/status/showcase (réapparition de panneaux) et mesurer `CHROME_REBUILD`. Si les trames longues coïncident, le problème est côté publication/cache, pas GPU.
+
+### T5 — R4 ajouté
+Exécuter plateaux et Simon avec le même T1/T2. Comparer :
+- commandes/trame ;
+- triangles logiques (`triangles`) ;
+- dessins (`draws`) ;
+- ms SUBMIT ;
+- ms géométrie dynamique ;
+- p99/max.
+
+Si R4 plateaux utilise moins de triangles mais même `SUBMIT`, le goulot n’est pas la quantité triangle. Si `SUBMIT` monte avec `draws`, le coût est plutôt charges commandes/noyau.
+
+### T6 — Localisation
+Imprimer le top 5 par trame avec `frame index`, `mode`, flags, compteurs de commandes/dessins/triangles et durées. C’est le seul moyen de transformer “maxima non localisés” en décision.
+
+---
+
+## 10. Conclusion opérationnelle
+
+- Le candidat maison a gagné sur le CPU, pas sur le driver : préparation `22,60 ms` contre SUBMIT `39,78 ms`.
+- Les coûts CPU et publication sont déjà partiellement visibles, mais le découpage géométrie dynamique / mouvement / scène / feed n’existe pas encore.
+- La géométrie dynamique maison est structurellement coûteuse par trame (pellets + courrier + fantômes), tandis que la publication est fine (`≈ 2173 octets/trame`) ; 12,50 ms/trame restent néanmoins dépensés en raster/scan.
+- Les trames les plus longues (`713,744 ms`) ne peuvent pas être attribuées à l’entrée dans l’état actuel ; l’instrumentation proposée résout cela sans toucher FPGA.
+- R4 doit être évalué comme un ensemble nouveau pour plateaux/Simon : on ne peut pas réutiliser le 12,391 FPS maison comme preuve. Les comptes déjà disponibles (`commands`, `draws`, `triangles`, dirty bytes) suffisent à produire un calcul exact après la prochaine mesure, mais pas à conclure aujourd’hui.

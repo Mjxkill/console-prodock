@@ -1,0 +1,65 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Test Python exécutable conversion RGB565 exhaustive et négatif uint8 ; aucun seuil qualité artistique, max450mots.
+
+EVIDENCE PACKET:
+Revue implementation concrete max450mots. Produis un test Python bref pour les helpers actuels rgb565/rgb888/periodic ci-dessous : exhaustif65536 codes RGB565 decode->encode; couleurs limites dont blanc0xffff (bit15 parfaitement valide); constantesperiodic etopposedgesidentiques; un NEGATIF quantizernaifuint8 doit être rejeté. Pas de seuilartistiqueseam inventé, pas de modificationUV/shading/runtime. Ce lot monde possède3PNGFlux2, importfullsource128, atlasGPUbudget4MiBexact ; commentairesbeauté exigentcaptures séparées, nepaslesinventer. Scriptattendu runnable max45lignes, signalercontre-exempleexactsihelpercassé.
+"""Offline material math retained from the valley authoring pipeline."""
+
+import math
+
+import numpy as np
+
+from scipy.ndimage import gaussian_filter, map_coordinates
+
+
+
+def rgb565(a):
+    a = np.clip(np.rint(a), 0, 255).astype(np.uint32)
+    return (((a[..., 0] * 31 + 127) // 255 << 11) |
+            ((a[..., 1] * 63 + 127) // 255 << 5) |
+            ((a[..., 2] * 31 + 127) // 255)).astype('<u2')
+
+def rgb888(a):
+    a = a.astype(np.uint32)
+    return np.stack(((a >> 11) * 255 // 31, ((a >> 5) & 63) * 255 // 63,
+                     (a & 31) * 255 // 31), axis=-1).astype('uint8')
+
+def periodic(a):
+    """Periodic-plus-smooth decomposition; remove edge discontinuity, not color."""
+    h, w, _ = a.shape
+    boundary = np.zeros_like(a)
+    boundary[0] += a[-1] - a[0]
+    boundary[-1] -= a[-1] - a[0]
+    boundary[:, 0] += a[:, -1] - a[:, 0]
+    boundary[:, -1] -= a[:, -1] - a[:, 0]
+    yy, xx = np.meshgrid(np.arange(h), np.arange(w), indexing='ij')
+    denominator = 2 * np.cos(2 * math.pi * xx / w) + 2 * np.cos(2 * math.pi * yy / h) - 4
+    denominator[0, 0] = 1
+    smooth = np.fft.fft2(boundary, axes=(0, 1)) / denominator[..., None]
+    smooth[0, 0] = 0
+    result = a - np.fft.ifft2(smooth, axes=(0, 1)).real
+    # The nearest-neighbor GPU benefits from exact duplicated boundary samples.
+    result[0] = result[-1] = (result[0] + result[-1]) / 2
+    result[:, 0] = result[:, -1] = (result[:, 0] + result[:, -1]) / 2
+    return np.clip(result, 0, 255)
+
+def height(h, x, z):
+    xx = np.clip(x / 2, 0, 79.999999); zz = np.clip(z / 2, 0, 79.999999)
+    ix = xx.astype(int); iz = zz.astype(int); u = xx - ix; v = zz - iz
+    a, b, c, d = h[iz, ix], h[iz, ix + 1], h[iz + 1, ix + 1], h[iz + 1, ix]
+    return np.where(u >= v, a + (b - a) * u + (c - b) * v, a + (c - d) * u + (d - a) * v)
+
+def smoothstep(a, b, value):
+    t = np.clip((value - a) / (b - a), 0, 1)
+    return t * t * (3 - 2 * t)
+
+def distance_path(x, z, points):
+    result = np.full(x.shape, 10000.)
+    for a, b in zip(points, points[1:]):
+        ax, az = a[0], a[-1]; bx, bz = b[0], b[-1]
+        dx, dz = bx - ax, bz - az
+        t = np.clip(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1)
+        result = np.minimum(result, np.hypot(x - ax - t * dx, z - az - t * dz))
+    return result

@@ -1,0 +1,328 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Relecture BORNÉE : max700mots total, zéro recopie du code. Donne au plus2contre-exemples prouvés ou dis aucun. Puis UN test C additionnel <=45lignes réellement discriminant pour même couleur à nouveau, pause ou reprisefeedback. Ne recopier ni analyse ligneparligne ni explication générique. Le précédent output était tronqué INCOMPLETE_LENGTH.
+
+EVIDENCE PACKET:
+Nouvelle tâche code exact (pas conception abstraite) : fournir tests C additionnels discriminants pour l3_simon_light ci-dessous, et patch minimal si contreexemple. Banc existant exécuté strictPASS2301checks, 8dernièresréponses réelles mais pas encoreASan/captureGPU. Chercher pause/reprise, monotonie, entrée sauvegarde au milieu SHOW/feedback, deux mêmes couleurs consécutives, erreur/fin, démonstration held ignoré. Helper passé avait NULLdereference/overflow/clamp250ms impropreprésentation; celui-ci est nouveau et n’en dérive pas. Les niveauxalimenterontmaterial.alphaQ8 avec texturehalodiffuseARGB4444, corpsRGB565 séparé; pasKEYZEROalpha. Attendu petit banc fonctionnel à intégrer, aucun accès outils/source et pas simulationinventée.
+
+FILE games/luma3d/candidates/puzzle_motion_r1/include/l3_simon_light.h
+#ifndef L3_SIMON_LIGHT_H
+#define L3_SIMON_LIGHT_H
+#include "l3_simon.h"
+/* Presentation only. No fields are added to engine/save. Time is monotone
+ * seconds, independent of engine dt; sampling never clamps elapsed time. */
+typedef struct {
+    double start[4],last_time,pause_time;
+    unsigned duration[4],gain[4],epoch,valid,paused,triggers;
+    L3SimonView latest;
+} L3SimonLight;
+typedef struct {
+    unsigned level_q8[4],radius_q8[4],press_q8[4];
+    unsigned phase,length,index,status;
+} L3SimonLightFrame;
+void l3_simon_light_reset(L3SimonLight *);
+int l3_simon_light_observe(L3SimonLight *,const L3SimonView *before,const L3SimonView *after,
+                         uint32_t pressed,double seconds,uint32_t epoch);
+int l3_simon_light_sample(L3SimonLight *,double seconds,L3SimonLightFrame *);
+int l3_simon_light_pause(L3SimonLight *,int paused,double seconds);
+#endif
+
+FILE games/luma3d/candidates/puzzle_motion_r1/src/simon_light.c
+#include "l3_simon_light.h"
+#include <math.h>
+#include <string.h>
+static int view_ok(const L3SimonView *v)
+{
+    if(!v || v->phase>L3_SIMON_COMPLETE || v->active_color>4 || v->phase_ms>600 || v->feedback_ms>240 ||
+       !v->sequence_length || v->sequence_length>8 || v->input_index>v->sequence_length || v->grid.status>L3_MINI_LOST)return 0;
+    if(v->phase==L3_SIMON_SHOW && (v->active_color>=4 || !v->phase_ms))return 0;
+    if(v->feedback_ms && (v->phase!=L3_SIMON_INPUT || v->active_color>=4))return 0;
+    return 1;
+}
+void l3_simon_light_reset(L3SimonLight *c){if(c)memset(c,0,sizeof(*c));}
+static void trigger(L3SimonLight *c,unsigned color,unsigned duration,unsigned elapsed,unsigned gain,double now)
+{
+    c->start[color]=now-(double)elapsed*.001;c->duration[color]=duration;c->gain[color]=gain;c->triggers++;
+}
+int l3_simon_light_observe(L3SimonLight *c,const L3SimonView *a,const L3SimonView *b,uint32_t pressed,double now,uint32_t epoch)
+{
+    if(!c || !view_ok(b) || !isfinite(now) || now<0 || (c->valid && now<c->last_time))return 0;
+    int fresh=!c->valid || c->epoch!=epoch || !view_ok(a);
+    if(fresh){l3_simon_light_reset(c);c->valid=1;c->epoch=epoch;}
+    if(c->paused)return 0;
+    if(b->phase==L3_SIMON_SHOW){
+        unsigned color=b->active_color,elapsed=600-b->phase_ms;
+        int begins=fresh || a->phase!=L3_SIMON_SHOW || a->active_color!=color || b->phase_ms>a->phase_ms;
+        /* Resuming a saved mid-flash starts at its real phase, never at zero. */
+        if(begins)trigger(c,color,600,elapsed,256,now);
+        else c->start[color]=now-(double)elapsed*.001;
+    }else if(b->phase==L3_SIMON_INPUT && b->feedback_ms){
+        unsigned color=b->active_color,elapsed=240-b->feedback_ms;
+        if(fresh || a->phase!=b->phase || a->input_index!=b->input_index || b->feedback_ms>a->feedback_ms)
+            trigger(c,color,240,elapsed,256,now);
+        else c->start[color]=now-(double)elapsed*.001;
+    }
+    /* The engine clears active_color on the last correct input. Recover that
+     * accepted front only from the real INPUT->ROUND_OK/COMPLETE transition. */
+    if(!fresh && a->phase==L3_SIMON_INPUT && (b->phase==L3_SIMON_ROUND_OK || b->phase==L3_SIMON_COMPLETE)){
+        static const uint32_t keys[4]={L3_MINI_UP,L3_MINI_RIGHT,L3_MINI_DOWN,L3_MINI_LEFT};
+        unsigned count=0,color=0;for(unsigned i=0;i<4;i++)if(pressed&keys[i]){count++;color=i;}
+        if(count==1)trigger(c,color,240,b->phase==L3_SIMON_ROUND_OK?600-b->phase_ms:0,256,now);
+    }
+    if(b->phase==L3_SIMON_ERROR && (fresh || a->phase!=L3_SIMON_ERROR) && b->active_color<4)trigger(c,b->active_color,360,0,220,now);
+    /* SHOW never spills into the 250ms separation, including delayed frames. */
+    if(!fresh && a->phase==L3_SIMON_SHOW && b->phase!=L3_SIMON_SHOW && a->active_color<4)c->duration[a->active_color]=0;
+    c->latest=*b;c->last_time=now;return 1;
+}
+static unsigned smooth(double x)
+{
+    if(x<=0)return 0;if(x>=1)return 256;return (unsigned)(x*x*(3-2*x)*256+.5);
+}
+int l3_simon_light_sample(L3SimonLight *c,double now,L3SimonLightFrame *f)
+{
+    if(!c || !f || !c->valid || !isfinite(now) || now<c->last_time)return 0;
+    double sample=c->paused?c->pause_time:now;memset(f,0,sizeof(*f));
+    for(unsigned i=0;i<4;i++)f->radius_q8[i]=192;
+    for(unsigned i=0;i<4;i++)if(c->duration[i]){
+        double elapsed=(sample-c->start[i])*1000;unsigned attack=c->duration[i]==600?100:40;
+        unsigned release=c->duration[i]==600?120:100,level=0;
+        if(elapsed>=0 && elapsed<c->duration[i]){
+            if(elapsed<attack)level=smooth(elapsed/attack);
+            else if(elapsed>c->duration[i]-release)level=256-smooth((elapsed-(c->duration[i]-release))/release);
+            else level=256;
+        }
+        f->level_q8[i]=level*c->gain[i]/256;
+        f->radius_q8[i]=level?192+level/4:192;
+        f->press_q8[i]=level;
+    }
+    f->phase=c->latest.phase;f->length=c->latest.sequence_length;f->index=c->latest.input_index;f->status=c->latest.grid.status;c->last_time=now;return 1;
+}
+int l3_simon_light_pause(L3SimonLight *c,int paused,double now)
+{
+    if(!c || !c->valid || !isfinite(now) || now<c->last_time)return 0;
+    if(paused && !c->paused)c->pause_time=now;
+    if(!paused && c->paused){double shift=now-c->pause_time;for(unsigned i=0;i<4;i++)c->start[i]+=shift;}
+    c->paused=!!paused;c->last_time=now;return 1;
+}
+
+FILE games/luma3d/candidates/puzzle_motion_r1/tests/test_simon_light.c
+#include "l3_simon_light.h"
+#include <assert.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+static unsigned checks;
+#define CHECK(x) do{checks++;assert(x);}while(0)
+static void step(L3SimonState *s,L3SimonLight *l,unsigned p,unsigned dt,double now)
+{L3SimonView a,b;CHECK(l3_simon_view(s,&a));CHECK(!(l3_simon_step(s,p,p,dt)&L3_MINI_EVENT_INVALID));CHECK(l3_simon_view(s,&b));CHECK(l3_simon_light_observe(l,&a,&b,p,now,1));}
+int main(void)
+{
+    L3SimonState s;CHECK(l3_simon_init(&s,17));L3SimonView v;CHECK(l3_simon_view(&s,&v));L3SimonLight l={0};CHECK(l3_simon_light_observe(&l,0,&v,0,0,1));
+    step(&s,&l,0,250,.25);step(&s,&l,0,250,.5);step(&s,&l,0,100,.6);CHECK(l3_simon_view(&s,&v));unsigned color=v.active_color;CHECK(color<4);
+    L3SimonLight copy=l;L3SimonLightFrame a,b;
+    CHECK(l3_simon_light_sample(&l,.65,&a));CHECK(a.level_q8[color]==128);
+    for(unsigned i=1;i<=6;i++)CHECK(l3_simon_light_sample(&copy,.6+i/120.,&b));CHECK(!memcmp(&a,&b,sizeof(a)));
+    CHECK(l3_simon_light_sample(&l,.7,&a));CHECK(a.level_q8[color]==256);
+    CHECK(l3_simon_light_sample(&l,1.14,&a));CHECK(a.level_q8[color]==128);
+    CHECK(l3_simon_light_sample(&l,3,&a));CHECK(!a.level_q8[color]); /* no 250ms presentation clamp */
+    l=copy;CHECK(l3_simon_light_pause(&l,1,.65));CHECK(l3_simon_light_sample(&l,50,&a));CHECK(a.level_q8[color]==128);
+    CHECK(l3_simon_light_pause(&l,0,50));CHECK(l3_simon_light_sample(&l,50.05,&a));CHECK(a.level_q8[color]==256);
+    L3SimonLight saved=l;CHECK(!l3_simon_light_sample(&l,NAN,&a));CHECK(!l3_simon_light_pause(&l,0,40));CHECK(!memcmp(&saved,&l,sizeof(l)));
+    /* Real save and resume inside flash: 250ms already consumed. */
+    l3_simon_step(&s,0,0,250);uint8_t bytes[L3_SIMON_SAVE_BYTES];CHECK(l3_simon_encode(&s,bytes,sizeof(bytes))==sizeof(bytes));L3SimonState resumed;CHECK(l3_simon_decode(&resumed,bytes,sizeof(bytes)));CHECK(l3_simon_view(&resumed,&v));
+    l3_simon_light_reset(&l);CHECK(l3_simon_light_observe(&l,0,&v,0,10,2));CHECK(l3_simon_light_sample(&l,10,&a));CHECK(a.level_q8[color]==256);
+    /* Whole legal seeded game with true engine fronts; the last answer lights
+       even though engine view immediately changes to ROUND_OK. */
+    CHECK(l3_simon_init(&s,77));l3_simon_light_reset(&l);double now=0;unsigned finals=0;
+    for(unsigned i=0;i<20000;i++){
+        L3SimonView before,after;CHECK(l3_simon_view(&s,&before));unsigned p,h,dt;CHECK(l3_simon_demo_input(&s,&p,&h,&dt));
+        now+=dt*.001;CHECK(!(l3_simon_step(&s,p,h,dt)&L3_MINI_EVENT_INVALID));CHECK(l3_simon_view(&s,&after));
+        CHECK(l3_simon_light_observe(&l,&before,&after,p,now,3));CHECK(l3_simon_light_sample(&l,now,&a));
+        for(unsigned k=0;k<4;k++)CHECK(a.level_q8[k]<=256 && a.radius_q8[k]>=192 && a.radius_q8[k]<=256);
+        if(before.phase==L3_SIMON_INPUT && (after.phase==L3_SIMON_ROUND_OK||after.phase==L3_SIMON_COMPLETE)){finals++;CHECK(l.triggers>0);}
+        if(after.grid.status!=L3_MINI_RUNNING){CHECK(after.grid.status==L3_MINI_WON);break;}
+        CHECK(i!=19999);
+    }
+    CHECK(finals==8);printf("PASS SIMON_LIGHT checks=%u accepted_last_answers=%u\n",checks,finals);return 0;
+}
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_simon.h
+#ifndef L3_SIMON_H
+#define L3_SIMON_H
+#include "l3_minigames.h"
+
+#define L3_SIMON_VERSION 1u
+#define L3_SIMON_SAVE_BYTES 128u
+#define L3_SIMON_GOAL 8u
+typedef enum L3SimonPhase {
+    L3_SIMON_INTRO, L3_SIMON_SHOW, L3_SIMON_GAP, L3_SIMON_INPUT,
+    L3_SIMON_ROUND_OK, L3_SIMON_ERROR, L3_SIMON_COMPLETE
+} L3SimonPhase;
+typedef struct L3SimonState { uint32_t words[24]; uint8_t sequence[16]; } L3SimonState;
+typedef struct L3SimonView {
+    L3MiniView grid; /*2x2, stride20, cells corresponding to colors0,1,2,3 */
+    uint16_t phase_ms,feedback_ms;
+    uint8_t phase,active_color,sequence_length,input_index;
+    /* Colors0/1/2/3: up/right/down/left = red/green/blue/yellow.
+     * active_color=4 means no lit button. */
+} L3SimonView;
+int l3_simon_init(L3SimonState *state,uint32_t seed);
+uint32_t l3_simon_step(L3SimonState *state,uint32_t pressed,uint32_t held,uint32_t dt_ms);
+int l3_simon_view(const L3SimonState *state,L3SimonView *view);
+int l3_simon_validate(const L3SimonState *state);
+size_t l3_simon_encode(const L3SimonState *state,void *output,size_t capacity);
+int l3_simon_decode(L3SimonState *state,const void *input,size_t size);
+int l3_simon_demo_input(const L3SimonState *state,uint32_t *pressed,uint32_t *held,uint32_t *dt_ms);
+/* Same front/BACK/freeze/dt<=250 contract as v1. Edges during demonstration
+ * are ignored. A held button never becomes a new color at INPUT transition.
+ * Eight seeded rounds, 600ms flashes,250ms gaps,240ms input feedback. */
+#endif
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_simon.c
+#include "l3_simon.h"
+#include <limits.h>
+#include <string.h>
+
+enum { SV,SS,SEED,SRNG,ELAPSED,PHASE,REMAIN,LENGTH,INPUT,SHOW,FEEDBACK,ACTIVE,ROUNDS };
+static const uint32_t buttons[4]={L3_MINI_UP,L3_MINI_RIGHT,L3_MINI_DOWN,L3_MINI_LEFT};
+static const uint8_t palette[4]={12,10,9,14};
+static uint32_t rng(uint32_t *r)
+{ *r^=*r<<13;*r^=*r>>17;*r^=*r<<5;return *r; }
+static uint32_t plus(uint32_t a,uint32_t b)
+{ return UINT32_MAX-a<b?UINT32_MAX:a+b; }
+static void phase(L3SimonState *s,unsigned p,unsigned time,unsigned active)
+{s->words[PHASE]=p;s->words[REMAIN]=time;s->words[ACTIVE]=active;s->words[FEEDBACK]=0;}
+int l3_simon_init(L3SimonState *s,uint32_t seed)
+{
+    L3SimonState t;unsigned i;
+    if(!s)return 0;
+    memset(&t,0,sizeof(t));t.words[SV]=L3_SIMON_VERSION;t.words[SEED]=seed;
+    t.words[SRNG]=seed^0x6c756d61u;if(!t.words[SRNG])t.words[SRNG]=0x53494d4fu;
+    for(i=0;i<L3_SIMON_GOAL;++i)t.sequence[i]=(uint8_t)(rng(&t.words[SRNG])%4u);
+    t.words[LENGTH]=1;phase(&t,L3_SIMON_INTRO,600,4);*s=t;return 1;
+}
+int l3_simon_validate(const L3SimonState *s)
+{
+    L3SimonState initial;unsigned p,status,i,len,idx,rounds;
+    if(!s || s->words[SV]!=L3_SIMON_VERSION || s->words[SS]>L3_MINI_LOST)return 0;
+    p=s->words[PHASE];status=s->words[SS];len=s->words[LENGTH];idx=s->words[INPUT];rounds=s->words[ROUNDS];
+    if(p>L3_SIMON_COMPLETE || len<1 || len>L3_SIMON_GOAL || idx>len || rounds>L3_SIMON_GOAL || s->words[SHOW]>=len || s->words[ACTIVE]>4 || s->words[FEEDBACK]>240)return 0;
+    for(i=13;i<24;++i)if(s->words[i])return 0;
+    l3_simon_init(&initial,s->words[SEED]);
+    if(s->words[SRNG]!=initial.words[SRNG] || memcmp(s->sequence,initial.sequence,sizeof(s->sequence)))return 0;
+    if((status==L3_MINI_WON)!=(p==L3_SIMON_COMPLETE) || (status==L3_MINI_LOST)!=(p==L3_SIMON_ERROR))return 0;
+    if(p==L3_SIMON_COMPLETE)return len==8 && rounds==8 && idx==8 && s->words[REMAIN]==0 && s->words[ACTIVE]==4 && s->words[FEEDBACK]==0;
+    if(p==L3_SIMON_ROUND_OK)return rounds==len && len<8 && idx==len && s->words[REMAIN]>0 && s->words[REMAIN]<=600 && s->words[ACTIVE]==4 && s->words[FEEDBACK]==0;
+    if(rounds!=len-1u || idx>=len)return 0;
+    if(p==L3_SIMON_INTRO)return len==1 && idx==0 && s->words[SHOW]==0 && s->words[REMAIN]>0 && s->words[REMAIN]<=600 && s->words[ACTIVE]==4 && !s->words[FEEDBACK];
+    if(p==L3_SIMON_SHOW)return idx==0 && s->words[REMAIN]>0 && s->words[REMAIN]<=600 && s->words[ACTIVE]==s->sequence[s->words[SHOW]] && !s->words[FEEDBACK];
+    if(p==L3_SIMON_GAP)return idx==0 && s->words[REMAIN]>0 && s->words[REMAIN]<=250 && s->words[ACTIVE]==4 && !s->words[FEEDBACK];
+    if(p==L3_SIMON_ERROR)return !s->words[REMAIN] && !s->words[FEEDBACK] && s->words[ACTIVE]<4;
+    if(s->words[REMAIN] || s->words[SHOW]!=len-1u)return 0;
+    if(s->words[FEEDBACK])return idx>0 && s->words[ACTIVE]==s->sequence[idx-1u];
+    return s->words[ACTIVE]==4;
+}
+static void next_phase(L3SimonState *s)
+{
+    switch(s->words[PHASE]) {
+    case L3_SIMON_INTRO:phase(s,L3_SIMON_SHOW,600,s->sequence[0]);break;
+    case L3_SIMON_SHOW:phase(s,L3_SIMON_GAP,250,4);break;
+    case L3_SIMON_GAP:
+        if(s->words[SHOW]+1u<s->words[LENGTH]){++s->words[SHOW];phase(s,L3_SIMON_SHOW,600,s->sequence[s->words[SHOW]]);}
+        else phase(s,L3_SIMON_INPUT,0,4);
+        break;
+    case L3_SIMON_ROUND_OK:
+        ++s->words[LENGTH];s->words[INPUT]=0;s->words[SHOW]=0;phase(s,L3_SIMON_SHOW,600,s->sequence[0]);break;
+    default:break;
+    }
+}
+uint32_t l3_simon_step(L3SimonState *s,uint32_t pressed,uint32_t held,uint32_t dt)
+{
+    L3SimonState before;unsigned color,count=0,chosen=0;
+    if(!l3_simon_validate(s) || ((pressed|held)&~L3_MINI_INPUT_MASK))return L3_MINI_EVENT_INVALID;
+    if(pressed&L3_MINI_BACK)return L3_MINI_EVENT_EXIT;
+    if(s->words[SS]!=L3_MINI_RUNNING)return 0;
+    before=*s;
+    if(s->words[PHASE]==L3_SIMON_INPUT) {
+        for(color=0;color<4;++color)if(pressed&buttons[color]){chosen=color;++count;}
+        if(count) {
+            if(count!=1 || chosen!=s->sequence[s->words[INPUT]]) {
+                s->words[SS]=L3_MINI_LOST;phase(s,L3_SIMON_ERROR,0,chosen);
+                return L3_MINI_EVENT_CHANGED|L3_MINI_EVENT_LOST;
+            }
+            ++s->words[INPUT];s->words[ACTIVE]=chosen;s->words[FEEDBACK]=240;
+            if(s->words[INPUT]==s->words[LENGTH]) {
+                ++s->words[ROUNDS];
+                if(s->words[ROUNDS]==L3_SIMON_GOAL){s->words[SS]=L3_MINI_WON;phase(s,L3_SIMON_COMPLETE,0,4);return L3_MINI_EVENT_CHANGED|L3_MINI_EVENT_WON;}
+                phase(s,L3_SIMON_ROUND_OK,600,4);
+            }
+        }
+    }
+    if(dt>L3_MINI_MAX_DT_MS)dt=L3_MINI_MAX_DT_MS;
+    s->words[ELAPSED]=plus(s->words[ELAPSED],dt);
+    while(dt) {
+        unsigned step=dt;
+        if(s->words[PHASE]==L3_SIMON_INPUT) {
+            if(s->words[FEEDBACK]>dt)s->words[FEEDBACK]-=dt;
+            else {s->words[FEEDBACK]=0;s->words[ACTIVE]=4;}
+            break;
+        }
+        if(step>s->words[REMAIN])step=s->words[REMAIN];
+        s->words[REMAIN]-=step;dt-=step;
+        if(!s->words[REMAIN])next_phase(s);
+    }
+    return memcmp(&before,s,sizeof(before))?L3_MINI_EVENT_CHANGED:0;
+}
+int l3_simon_view(const L3SimonState *s,L3SimonView *out)
+{
+    L3SimonView v;unsigned i;
+    if(!out || !l3_simon_validate(s))return 0;
+    memset(&v,0,sizeof(v));v.grid.kind=5;v.grid.status=s->words[SS];v.grid.width=2;v.grid.height=2;
+    v.grid.score=s->words[ROUNDS]*100u;v.grid.target=L3_SIMON_GOAL;v.grid.progress=(uint16_t)s->words[ROUNDS];
+    v.grid.elapsed_ms=s->words[ELAPSED];v.grid.cursor_x=-1;v.grid.cursor_y=-1;
+    v.grid.title="Carillon des quatre couleurs";
+    v.grid.help="Haut rouge, droite vert, bas bleu, gauche jaune. Repeter apres le signal.";
+    v.grid.objective="Memoriser puis repeter les couleurs dans l'ordre, jusqu'a 8 notes.";
+    v.phase=(uint8_t)s->words[PHASE];v.active_color=(uint8_t)s->words[ACTIVE];
+    v.sequence_length=(uint8_t)s->words[LENGTH];v.input_index=(uint8_t)s->words[INPUT];
+    v.phase_ms=(uint16_t)s->words[REMAIN];v.feedback_ms=(uint16_t)s->words[FEEDBACK];
+    for(i=0;i<4;++i){L3MiniCell *c=&v.grid.cells[(i/2u)*20u+i%2u];
+        c->kind=L3_MINI_CELL_BLOCK;c->color=palette[i];c->value=(uint16_t)i;
+        c->glyph=(uint8_t)(i==0?'^':i==1?'>':i==2?'v':'<');
+        if(i==s->words[ACTIVE])c->flags=L3_MINI_FLAG_ACTIVE;
+    }
+    *out=v;return 1;
+}
+static void write32(uint8_t *p,uint32_t v)
+{unsigned i;for(i=0;i<4;++i)p[i]=(uint8_t)(v>>(8u*i));}
+static uint32_t read32(const uint8_t *p)
+{return (uint32_t)p[0]|((uint32_t)p[1]<<8)|((uint32_t)p[2]<<16)|((uint32_t)p[3]<<24);}
+static uint32_t checksum(const uint8_t *p)
+{unsigned i;uint32_t h=2166136261u;for(i=0;i<L3_SIMON_SAVE_BYTES;++i)if(i<12 || i>=16){h^=p[i];h*=16777619u;}return h;}
+size_t l3_simon_encode(const L3SimonState *s,void *out,size_t cap)
+{
+    uint8_t bytes[L3_SIMON_SAVE_BYTES];unsigned i;
+    if(!l3_simon_validate(s))return 0;
+    if(!out)return sizeof(bytes);
+    if(cap<sizeof(bytes))return 0;
+    memcpy(bytes,"L3SM",4);write32(bytes+4,L3_SIMON_VERSION);write32(bytes+8,112);write32(bytes+12,0);
+    for(i=0;i<24;++i)write32(bytes+16u+4u*i,s->words[i]);
+    memcpy(bytes+112,s->sequence,16);write32(bytes+12,checksum(bytes));memcpy(out,bytes,sizeof(bytes));return sizeof(bytes);
+}
+int l3_simon_decode(L3SimonState *s,const void *in,size_t size)
+{
+    const uint8_t *p=(const uint8_t *)in;L3SimonState t;unsigned i;
+    if(!s || !p || size!=L3_SIMON_SAVE_BYTES || memcmp(p,"L3SM",4) || read32(p+4)!=L3_SIMON_VERSION || read32(p+8)!=112 || read32(p+12)!=checksum(p))return 0;
+    memset(&t,0,sizeof(t));for(i=0;i<24;++i)t.words[i]=read32(p+16u+4u*i);memcpy(t.sequence,p+112,16);
+    if(!l3_simon_validate(&t))return 0;
+    *s=t;return 1;
+}
+int l3_simon_demo_input(const L3SimonState *s,uint32_t *pressed,uint32_t *held,uint32_t *dt)
+{
+    if(!pressed || !held || !dt || !l3_simon_validate(s) || s->words[SS]!=L3_MINI_RUNNING)return 0;
+    *pressed=0;*held=0;*dt=0;
+    if(s->words[PHASE]==L3_SIMON_INPUT)*pressed=buttons[s->sequence[s->words[INPUT]]];
+    else *dt=s->words[REMAIN]>L3_MINI_MAX_DT_MS?L3_MINI_MAX_DT_MS:s->words[REMAIN];
+    return 1;
+}

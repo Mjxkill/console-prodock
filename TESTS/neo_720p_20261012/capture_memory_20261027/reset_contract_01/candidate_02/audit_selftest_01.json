@@ -1,0 +1,92 @@
+{
+  "passed": true,
+  "mode": "parser and boundary self-test only; no candidate routed result",
+  "routed_cells": 143620,
+  "helper_flat_cells": 321,
+  "helper_output_labels": {
+    "('u_reset_trial/release_request_d_s', 'F')": [
+      "$helper_port",
+      "release_request"
+    ],
+    "('u_reset_trial/rtc_div_7_s0', 'Q')": [
+      "$helper_port",
+      "rtc_tick"
+    ],
+    "('u_reset_trial/command_epoch_3_s2', 'Q')": [
+      "$helper_port",
+      "command_epoch[3]"
+    ],
+    "('u_reset_trial/command_epoch_2_s1', 'Q')": [
+      "$helper_port",
+      "command_epoch[2]"
+    ],
+    "('u_reset_trial/command_epoch_1_s1', 'Q')": [
+      "$helper_port",
+      "command_epoch[1]"
+    ],
+    "('u_reset_trial/command_epoch_0_s1', 'Q')": [
+      "$helper_port",
+      "command_epoch[0]"
+    ],
+    "('u_reset_trial/delay_done_s2', 'Q')": [
+      "$helper_port",
+      "delay_done"
+    ],
+    "('u_reset_trial/ahb_div_7_s0', 'Q')": [
+      "$helper_port",
+      "ahb_tick"
+    ],
+    "('u_reset_trial/delay_mode_s3', 'Q')": [
+      "$helper_port",
+      "delay_mode"
+    ],
+    "('u_reset_trial/holding_s8', 'Q')": [
+      "$helper_port",
+      "holding"
+    ]
+  },
+  "control_cells": {
+    "ae350_rst_sync_0_s0": [
+      "DFFPE",
+      {
+        "D": "GND",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "PRESET": "n4009_7",
+        "Q": "ae350_rst_sync[0]"
+      }
+    ],
+    "ae350_rst_sync_1_s0": [
+      "DFFPE",
+      {
+        "D": "ae350_rst_sync[0]",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "PRESET": "n4009_7",
+        "Q": "ae350_rst_sync[1]"
+      }
+    ],
+    "u_soc/init_sync_0_s0": [
+      "DFFCE",
+      {
+        "D": "trial_request",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "ae350_rst_sync[1]",
+        "Q": "u_soc/init_sync[0]"
+      }
+    ],
+    "u_soc/init_sync_1_s0": [
+      "DFFCE",
+      {
+        "D": "u_soc/init_sync[0]",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "ae350_rst_sync[1]",
+        "Q": "soc_dbg[0]"
+      }
+    ]
+  },
+  "primitive_library_sha256": "7db6e9953af24f1233dbc8f58352a1673e91d01bb69656a16ae893a68089f85d",
+  "script_sha256": "a8e2bdab64b1c5a1a027d05711818c9871538008c27ead5c74300d88fa5b02c0"
+}

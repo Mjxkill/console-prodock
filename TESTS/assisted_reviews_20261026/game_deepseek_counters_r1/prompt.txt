@@ -1,0 +1,506 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Audit ciblé des nouvelles mesuresFPS/paractivité, p95/p99, max, tempsCPU/SUBMIT/PRESENT et octetspubliés. Cherche erreur de normalisation, doublecomptage, mauvaisefenêtre, overflowRV32 ou biais decapture. Propose correctionsprécises et tests déterministes, sans affirmer un gainFPS nonmesuré.
+
+EVIDENCE PACKET:
+READ-ONLY REVIEW OF ACTIVITY COST/HISTOGRAM PATCH. Do not execute hardware/edit shared files. Candidate on RV32 AE350 G22r0, unchanged kernel. Source main below is current candidate; needs technical review, no FPS claimed. Metrics: peractivity simulation includes advice, adviser separate subset; prepare excludes blockingSUBMIT andPRESENT; wall frame interval completion-to-completion includes normal telemetry/input previousframe. Histogram4ms bins0..254, >=1020ms overflowbin255, p95/p99 upper0 with overflowflag1 when unbounded. Initial assetupload measured separately by GRAPHICS_READY. Benchmark resets all cost/histograms afterwarmup; tests check frames/commands/batches. Does attribution or interval math mislead? Any C/RV32 overflow or invaliddivision? Identify concrete bugs, minimalpatch+tests, no broad rewrites.
+
+NEBULA historical600frames47.71FPS and10000frames44.24FPS are differentworkload. SC1 mixed10.81FPS over834.917s, during1024 ~4.3–4.9FPS, PRESENT0.5–0.65s per5s (10–13%, notdominant). Avoid averages as stability proof. UI/shooter assets new, camera/logic unchanged. New UI shadows reduce bytes but performance unmeasured. Reviewonlycountercode; no duplicate proposedUIcache (agentworkingonit).
+
+=== games/luma3d/candidates/arcade_polish_r1/src/main.c SHA256=fd989e23c926b7064178dea48fad7abc22e8fa097802464ea874a6825b85f153 ===
+#define _POSIX_C_SOURCE 200809L
+#include "luma3d_render.h"
+#include "luma3d_progress.h"
+#include "luma3d_activities.h"
+#include "luma3d_showcase.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
+
+/* Stable content identity: VAL1 / letter_01..letter_04. Bump the semantic
+ * version before reinterpreting mission phases or route indices. */
+static const uint32_t letter_ids[]={0x4c455431,0x4c455432,0x4c455433,0x4c455434};
+static const L3ProgressSchema progress_schema={0x56414c31,5,4,letter_ids};
+static volatile sig_atomic_t stop;
+static void signal_stop(int n) {(void)n;stop=1;}
+static double seconds(void) {struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return t.tv_sec+t.tv_nsec*1e-9;}
+static int number(const char *s,unsigned *out) {char *end;errno=0;unsigned long x=strtoul(s,&end,10);if(errno||!*s||*end||x>1000000)return 0;*out=(unsigned)x;return 1;}
+int main(int argc,char **argv) {
+    int host=0,wide=0,automatic=1,benchmark=0,warmup_set=0,showcase=0,showcase_once=0;
+    unsigned frames=0,advance=0,warmup=3;const char *capture=NULL,*save_path=NULL;
+    for(int i=1;i<argc;i++) {
+        if(!strcmp(argv[i],"--host"))host=1;
+        else if(!strcmp(argv[i],"--720p"))wide=1;
+        else if(!strcmp(argv[i],"--showcase"))showcase=1;
+        else if(!strcmp(argv[i],"--showcase-once")){showcase=1;showcase_once=1;}
+        else if(!strcmp(argv[i],"--manual"))automatic=0;
+        else if(!strcmp(argv[i],"--benchmark"))benchmark=1;
+        else if(!strcmp(argv[i],"--save")&&i+1<argc) {save_path=argv[++i];if(!*save_path)return 2;}
+        else if(!strcmp(argv[i],"--warmup")&&i+1<argc) {warmup_set=1;if(!number(argv[++i],&warmup)||warmup<2)return 2;}
+        else if(!strcmp(argv[i],"--frames")&&i+1<argc) {if(!number(argv[++i],&frames))return 2;}
+        else if(!strcmp(argv[i],"--advance")&&i+1<argc) {if(!number(argv[++i],&advance))return 2;}
+        else if(!strcmp(argv[i],"--capture")&&i+1<argc)capture=argv[++i];
+        else {fprintf(stderr,"Usage: %s [--host] [--720p] [--manual] [--frames N] [--advance simulation_steps] [--capture prefix] [--benchmark --warmup N] [--save path] [--showcase | --showcase-once]\n",argv[0]);return 2;}
+    }
+    if(showcase&&(save_path||benchmark||!automatic||(!host&&advance))) {fputs("Showcase starts a separate fresh game, without save, benchmark, manual or hardware fast-forward\n",stderr);return 2;}
+    if(benchmark&&save_path) {fputs("Save is unavailable in benchmark mode\n",stderr);return 2;}
+    if((benchmark&&!frames)||(warmup_set&&!benchmark)||(benchmark&&capture)) {fputs("Benchmark requires --frames N; --warmup requires benchmark, without capture\n",stderr);return 2;}
+    if(host&&!frames)frames=1;
+    if(capture&&(!host||frames!=1)) {fputs("Capture requires --host --frames 1\n",stderr);return 2;}
+    L3World world;L3Game game;L3Render renderer;l3_world_init(&world);
+    if(!l3_game_init(&game,&world,automatic)) {fputs("Invalid world\n",stderr);return 1;}
+    if(save_path) {
+        errno=0;int loaded=l3_progress_read(save_path,&game,&progress_schema);
+        if(loaded==L3_PROGRESS_OK) {puts("LUMA3D_SAVE loaded");fflush(stdout);}
+        else if(loaded==L3_PROGRESS_IO&&errno==ENOENT) {
+            if(l3_progress_write(save_path,&game,&progress_schema)!=L3_PROGRESS_OK) {perror("Cannot create save");return 1;}
+            puts("LUMA3D_SAVE created");fflush(stdout);
+        } else {fputs("Save invalid, incompatible or unreadable; file preserved\n",stderr);return 1;}
+    }
+    L3Showcase tour={0};
+    if(showcase)l3_showcase_init(&tour,&game,showcase_once);
+    for(unsigned i=0;i<advance;i++) {
+        if(showcase) {l3_showcase_step(&tour,&game,1.0f/60);if(!(i%10))l3_showcase_presented(&tour);}
+        else l3_game_step(&game,NULL,1.0f/60);
+    }
+    if(showcase&&advance)printf("LUMA3D_SHOWCASE_FIXTURE advance=%u simulated_present_every=10 actual_rendering=0\n",advance);
+    if(showcase) {printf("LUMA3D_SHOWCASE_START stage=%u simulated=%.3f once=%d saves=disabled\n",tour.stage,tour.elapsed,showcase_once);fflush(stdout);}
+    double graphics_start=seconds();
+    if(!l3_render_open(&renderer,host,wide)) {fputs("GPU initialization failed; G3D1 Linux candidate required\n",stderr);l3_render_close(&renderer);return 1;}
+    printf("LUMA3D_GRAPHICS_READY seconds=%.6f all_static_art_loaded=1 hardware=%d\n",seconds()-graphics_start,!host);fflush(stdout);
+    char path[1024];
+    if(capture) {
+        if(snprintf(path,sizeof(path),"%s.commands",capture)>=(int)sizeof(path)) {l3_render_close(&renderer);return 1;}
+        renderer.capture=fopen(path,"wb");if(!renderer.capture) {perror(path);l3_render_close(&renderer);return 1;}
+    }
+    signal(SIGINT,signal_stop);signal(SIGTERM,signal_stop);
+    struct termios saved,raw;int terminal=!host&&!benchmark&&isatty(STDIN_FILENO)&&!tcgetattr(STDIN_FILENO,&saved);
+    int stdin_flags=-1;
+    if(terminal) {raw=saved;raw.c_lflag&=~(ICANON|ECHO);raw.c_cc[VMIN]=raw.c_cc[VTIME]=0;
+        if(tcsetattr(STDIN_FILENO,TCSANOW,&raw))terminal=0;
+        else {stdin_flags=fcntl(STDIN_FILENO,F_GETFL);if(stdin_flags>=0)fcntl(STDIN_FILENO,F_SETFL,stdin_flags|O_NONBLOCK);}}
+    puts("LUMA3D — Le Val des Courriers. WASD move, IUKL camera, J journal, space jump, E interact, T auto, Q quit.");fflush(stdout);
+    double start=seconds(),previous=start,accumulator=0,held_until=0,look_until=0,mini_until=0,report=start;
+    double tour_started=start;unsigned tour_stage=tour.stage,tour_status=tour.status,tour_loops=tour.loops;
+    double last_save=start;unsigned saved_revision=game.story.revision;
+    unsigned report_frames=0,report_commands=0;int escape_state=0;L3Input input={0};int ok=1;
+    struct prodock_geometry_info previous_gpu=renderer.initial_geometry;
+    struct prodock_display_info previous_display=renderer.initial;
+    struct prodock_geometry_info benchmark_gpu=renderer.initial_geometry;
+    struct prodock_display_info benchmark_display=renderer.initial;
+    uint64_t geometry_cycles_total=0;
+    unsigned measured_frame=0,measured_commands=0,measured_batches=0;
+    double measured_feed=0,measured_present=0;
+    struct {unsigned frames,slow_frames,histogram[256],max_sprites,max_layers,max_draws;unsigned long long bytes,commands,batches,triangles;
+        double sim,prepare,feed,present,adviser,max_frame,frame_sum;} activity_cost[9]={{0}};
+    double last_frame_done=start;
+    if(benchmark) {printf("LUMA3D_BENCHMARK pose=%u warmup=%u measured_frames=%u fixed_pose=1 hardware=%d\n",advance,warmup,frames,!host);fflush(stdout);}
+    while(!stop&&(!frames||renderer.frame<frames+(benchmark?warmup:0))) {
+        if(benchmark&&renderer.frame==warmup) {
+            /* Both pages and the sky cache have been exercised. Start the
+             * measurement after counter reads; keep this exact pose frozen. */
+            if(!host&&(ioctl(renderer.fd,PRODOCK_GEOMETRY_INFO,&previous_gpu)||ioctl(renderer.display,PRODOCK_DISPLAY_INFO,&previous_display))) {perror("LUMA3D benchmark counters");ok=0;break;}
+            benchmark_gpu=previous_gpu;benchmark_display=previous_display;
+            measured_frame=report_frames=renderer.frame;
+            measured_commands=report_commands=renderer.total_commands;
+            measured_batches=renderer.total_flushes;
+            measured_feed=renderer.feed_seconds;measured_present=renderer.present_seconds;
+            geometry_cycles_total=0;
+            memset(activity_cost,0,sizeof(activity_cost));
+            start=previous=report=last_frame_done=seconds();
+        }
+        double now=seconds(),dt=now-previous;previous=now;
+        if(terminal) {
+            unsigned char bytes[64];ssize_t n=read(STDIN_FILENO,bytes,sizeof(bytes));
+            for(ssize_t j=0;j<n;j++) {
+                int c=bytes[j];
+                if(tour.status) {
+                    /* The first recognized key takes control without also
+                     * answering a puzzle or rotating a mechanism. */
+                    if(c=='q'||c=='Q'){stop=1;continue;}
+                    if(c==27||strchr("eEwWaAsSdDiIuUkKlLjJtTfFrR ",c)) {
+                        l3_showcase_cancel(&tour,&game);memset(&input,0,sizeof(input));escape_state=0;
+                        puts("LUMA3D_SHOWCASE_MANUAL control_returned=1 saves=disabled");fflush(stdout);
+                        break;
+                    }
+                }
+                if(game.activities.arcade.active){
+                    unsigned button=0;
+                    if(c==27){escape_state=1;continue;}
+                    if(escape_state==1&&c=='['){escape_state=2;continue;}
+                    if(escape_state==2){button=c=='A'?L3_MINI_UP:c=='B'?L3_MINI_DOWN:c=='C'?L3_MINI_RIGHT:c=='D'?L3_MINI_LEFT:0;escape_state=0;}
+                    else button=c=='w'||c=='W'?L3_MINI_UP:c=='s'||c=='S'?L3_MINI_DOWN:c=='a'||c=='A'?L3_MINI_LEFT:c=='d'||c=='D'?L3_MINI_RIGHT:c=='e'||c=='E'||c==' '?L3_MINI_ACT:c=='f'||c=='F'?L3_MINI_ROTATE:c=='r'||c=='R'?L3_MINI_RESTART:c=='q'||c=='Q'?L3_MINI_BACK:0;
+                    input.mini_pressed|=button;
+                    if(game.activities.arcade.active>=L3_ARCADE_SHOOTER+1&&(button&(L3_MINI_UP|L3_MINI_DOWN|L3_MINI_LEFT|L3_MINI_RIGHT|L3_MINI_ACT))){
+                        unsigned axis=(button&(L3_MINI_UP|L3_MINI_DOWN))?(L3_MINI_UP|L3_MINI_DOWN):(button&(L3_MINI_LEFT|L3_MINI_RIGHT))?(L3_MINI_LEFT|L3_MINI_RIGHT):L3_MINI_ACT;
+                        input.mini_held=(input.mini_held&~axis)|button;mini_until=now+.16;
+                    }
+                    continue;
+                }
+                if(c=='q'||c=='Q')stop=1;
+                else if(c=='t'||c=='T')input.pressed|=L3_TOGGLE_AUTO;
+                else if(c==' ')input.pressed|=L3_JUMP;
+                else if(c=='e'||c=='E')input.pressed|=L3_INTERACT;
+                else if(c=='j'||c=='J')input.pressed|=L3_JOURNAL;
+                else if(c=='i'||c=='u'||c=='k'||c=='l') {
+                    input.look_x=c=='u'?-1:c=='l'?1:0;
+                    input.look_y=c=='i'?-1:c=='k'?1:0;look_until=now+.16;
+                }
+                else if(c=='w'||c=='W'||c=='s'||c=='S'||c=='a'||c=='A'||c=='d'||c=='D') {
+                    input.move_x=(c=='a'||c=='A')?-1:(c=='d'||c=='D')?1:0;
+                    input.move_z=(c=='w'||c=='W')?1:(c=='s'||c=='S')?-1:0;held_until=now+.16;
+                    input.held=c>='A'&&c<='Z'?L3_SPRINT:0;
+                }
+            }
+            if(now>mini_until||!game.activities.arcade.active)input.mini_held=0;
+            if(now>held_until) {input.move_x=input.move_z=0;input.held=0;}
+            if(now>look_until)input.look_x=input.look_y=0;
+        }
+        double sim_started=seconds(),adviser_started=tour.adviser_seconds;
+        if(benchmark) { /* Deliberately no game/camera/animation advancement. */ }
+        else if(tour.status&&renderer.frame==0) { /* Publish the exact initial state before accepting elapsed time. */ }
+        else if(host) {if(renderer.frame){if(tour.status)l3_showcase_step(&tour,&game,1.0f/60);else l3_game_step(&game,&input,1.0f/60);}}
+        else {
+            if(dt>.25)dt=.25;accumulator+=dt;
+            while(accumulator>=1.0/60) {if(tour.status)l3_showcase_step(&tour,&game,1.0f/60);else l3_game_step(&game,&input,1.0f/60);input.pressed=0;input.mini_pressed=0;accumulator-=1.0/60;}
+        }
+        if(save_path&&((game.story.revision!=saved_revision&&now-last_save>=2)||now-last_save>=15)) {
+            if(l3_progress_write(save_path,&game,&progress_schema)!=L3_PROGRESS_OK) {fputs("Save failed; previous file preserved if replacement did not complete\n",stderr);ok=0;break;}
+            last_save=now;saved_revision=game.story.revision;
+        }
+        if(tour.status==1&&now-tour_started>3600) {
+            tour.status=game.showcase_status=3;game.story.revision++;game.activities.revision++;
+            fputs("LUMA3D_SHOWCASE_TIMEOUT wall_limit=3600\n",stderr);
+        }
+        double sim_elapsed=seconds()-sim_started,render_started=seconds();
+        double feed_before=renderer.feed_seconds,present_before=renderer.present_seconds;
+        unsigned bytes_before=renderer.mini_bytes,mode_cost=game.activities.arcade.active;
+        unsigned commands_before=renderer.total_commands,batches_before=renderer.total_flushes;
+        if(!l3_render_frame(&renderer,&game)) {ok=0;break;}
+        double frame_done=seconds(),feed_delta=renderer.feed_seconds-feed_before,present_delta=renderer.present_seconds-present_before;
+        if(mode_cost<9){
+            activity_cost[mode_cost].frames++;
+            activity_cost[mode_cost].sim+=sim_elapsed;
+            activity_cost[mode_cost].adviser+=tour.adviser_seconds>=adviser_started?tour.adviser_seconds-adviser_started:0;
+            activity_cost[mode_cost].prepare+=frame_done-render_started-feed_delta-present_delta;
+            activity_cost[mode_cost].feed+=feed_delta;activity_cost[mode_cost].present+=present_delta;
+            activity_cost[mode_cost].bytes+=(uint32_t)(renderer.mini_bytes-bytes_before);
+            activity_cost[mode_cost].commands+=renderer.total_commands-commands_before;
+            activity_cost[mode_cost].batches+=renderer.total_flushes-batches_before;
+            activity_cost[mode_cost].triangles+=renderer.triangles;
+            if(renderer.sprite_count>activity_cost[mode_cost].max_sprites)activity_cost[mode_cost].max_sprites=renderer.sprite_count;
+            if(renderer.draws>activity_cost[mode_cost].max_draws)activity_cost[mode_cost].max_draws=renderer.draws;
+            unsigned layers=0;for(unsigned layer=0;layer<12;layer++)layers+=!!(renderer.last_scene.layers[layer][6]&1);
+            if(layers>activity_cost[mode_cost].max_layers)activity_cost[mode_cost].max_layers=layers;
+            /* Completion-to-completion intervals include normal log/input work.
+             * Histogram bins are4ms; final bin is overflow, reported explicitly.
+             * All static artwork was loaded separately before the first frame. */
+            double frame=frame_done-last_frame_done;
+            unsigned bin=frame>=1.02?255:(unsigned)(frame*250);
+            activity_cost[mode_cost].histogram[bin]++;activity_cost[mode_cost].frame_sum+=frame;
+            if(frame>1.0/30)activity_cost[mode_cost].slow_frames++;
+            if(frame>activity_cost[mode_cost].max_frame)activity_cost[mode_cost].max_frame=frame;
+        }
+        last_frame_done=frame_done;
+        if(tour.status)l3_showcase_presented(&tour);
+        if(tour.stage!=tour_stage||tour.status!=tour_status||tour.loops!=tour_loops) {
+            printf("LUMA3D_SHOWCASE stage=%u status=%u loops=%u simulated=%.3f wall=%.3f visited=%02x won=%02x commands=%u title=%s\n",tour.stage,tour.status,tour.loops,tour.elapsed,seconds()-tour_started,tour.visited,tour.won,tour.commands,l3_showcase_title(tour.stage));fflush(stdout);
+            if(tour.loops!=tour_loops&&tour.status==1)tour_started=seconds();
+            tour_stage=tour.stage;tour_status=tour.status;tour_loops=tour.loops;
+        }
+        if(showcase_once&&(tour.status==2||tour.status==3)){if(tour.status==3)ok=0;break;}
+        double finished=seconds();
+        if(!host&&(!benchmark||measured_frame)&&finished-report>=5) {
+            printf("LUMA3D_PERF fps=%.2f cmd_s=%.0f draws=%u triangles_in=%u objects=%u collected=%u/4 auto=%d sim=%.2f\n",(renderer.frame-report_frames)/(finished-report),(renderer.total_commands-report_commands)/(finished-report),renderer.draws,renderer.triangles,renderer.instances,game.collected_count,game.autopilot,game.time);fflush(stdout);
+            report_frames=renderer.frame;report_commands=renderer.total_commands;report=finished;
+            struct prodock_geometry_info gpu;struct prodock_display_info display;
+            if(ioctl(renderer.fd,PRODOCK_GEOMETRY_INFO,&gpu)||ioctl(renderer.display,PRODOCK_DISPLAY_INFO,&display)) {perror("LUMA3D counters");ok=0;break;}
+            uint32_t cycles=gpu.cycles-previous_gpu.cycles;geometry_cycles_total+=cycles;
+            printf("LUMA3D_WINDOW cycles=%u cycles_accumulated=%llu vertices=%u raster_triangles=%u culled=%u intersections=%u slivers=%u feed_us=%u wait_us=%u cache_us=%u present_us=%u\n",cycles,(unsigned long long)geometry_cycles_total,gpu.vertices-previous_gpu.vertices,gpu.triangles-previous_gpu.triangles,gpu.culled-previous_gpu.culled,gpu.intersections-previous_gpu.intersections,gpu.slivers-previous_gpu.slivers,display.feed_us-previous_display.feed_us,display.wait_us-previous_display.wait_us,display.cache_us-previous_display.cache_us,display.present_us-previous_display.present_us);fflush(stdout);
+            previous_gpu=gpu;previous_display=display;
+        }
+    }
+    for(unsigned k=0;k<9;k++)if(activity_cost[k].frames){
+        unsigned p95=0,p99=0,total=0;
+        for(unsigned bin=0;bin<256;bin++){total+=activity_cost[k].histogram[bin];
+            if(!p95&&(uint64_t)total*100>=(uint64_t)activity_cost[k].frames*95)p95=(bin+1)*4;
+            if(!p99&&(uint64_t)total*100>=(uint64_t)activity_cost[k].frames*99)p99=(bin+1)*4;
+        }
+        printf("LUMA3D_ACTIVITY_COST mode=%u frames=%u simulation=%.6f adviser=%.6f preparation=%.6f submit=%.6f present=%.6f ui_bytes=%llu commands=%llu batches=%llu triangles=%llu max_sprites=%u max_layers=%u max_draws=%u frame_sum=%.6f p95_upper_ms=%u p99_upper_ms=%u p95_overflow=%u p99_overflow=%u over_1020ms=%u over_33ms=%u max_frame=%.6f hardware=%d\n",k,activity_cost[k].frames,activity_cost[k].sim,activity_cost[k].adviser,activity_cost[k].prepare,activity_cost[k].feed,activity_cost[k].present,activity_cost[k].bytes,activity_cost[k].commands,activity_cost[k].batches,activity_cost[k].triangles,activity_cost[k].max_sprites,activity_cost[k].max_layers,activity_cost[k].max_draws,activity_cost[k].frame_sum,p95==1024?0:p95,p99==1024?0:p99,p95==1024,p99==1024,activity_cost[k].histogram[255],activity_cost[k].slow_frames,activity_cost[k].max_frame,!host);
+    }
+    if(showcase)printf("LUMA3D_SHOWCASE_RESULT status=%u stage=%u loops=%u simulated=%.3f wall=%.3f visited=%02x won=%02x commands=%u boss=%u checkpoint=%u crystals=%u hardware=%d\n",tour.status,tour.stage,tour.loops,tour.elapsed,seconds()-tour_started,tour.visited,tour.won,tour.commands,tour.boss_seen,tour.checkpoint_seen,tour.crystal_seen,!host);
+    double elapsed=seconds()-start;
+    if(benchmark&&!host&&measured_frame) {
+        struct prodock_geometry_info gpu;struct prodock_display_info display;
+        if(ioctl(renderer.fd,PRODOCK_GEOMETRY_INFO,&gpu)||ioctl(renderer.display,PRODOCK_DISPLAY_INFO,&display)) {perror("LUMA3D final benchmark counters");ok=0;}
+        else {
+            geometry_cycles_total+=(uint32_t)(gpu.cycles-previous_gpu.cycles);
+            printf("LUMA3D_BENCHMARK_COUNTERS cycles=%llu vertices=%u raster_triangles=%u culled=%u intersections=%u slivers=%u feed_us=%u wait_us=%u cache_us=%u present_us=%u\n",(unsigned long long)geometry_cycles_total,gpu.vertices-benchmark_gpu.vertices,gpu.triangles-benchmark_gpu.triangles,gpu.culled-benchmark_gpu.culled,gpu.intersections-benchmark_gpu.intersections,gpu.slivers-benchmark_gpu.slivers,display.feed_us-benchmark_display.feed_us,display.wait_us-benchmark_display.wait_us,display.cache_us-benchmark_display.cache_us,display.present_us-benchmark_display.present_us);
+        }
+    }
+    if(capture) {if(fclose(renderer.capture))ok=0;renderer.capture=NULL;if(!l3_render_dump(&renderer,capture))ok=0;}
+    unsigned completed=renderer.frame-measured_frame;
+    if(benchmark&&(!measured_frame||completed!=frames))ok=0;
+    printf("LUMA3D_STORY phase=%u relay=%u discovered=%u collected=%u complete=%d sim=%.2f auto=%d\n",game.story.phase,game.story.relay_step,game.story.discovered,game.collected_count,game.objective_complete,game.time,game.autopilot);
+    printf("LUMA3D_AMBER region=%u phase=%u point=%u intake=%u sluice=%u\n",game.story.region,game.story.amber_phase,game.story.amber_point,game.story.amber_intake,game.story.amber_sluice);
+    printf("LUMA3D_WORKSHOP phase=%u mode=%u point=%u copper=%u blue=%u\n",game.story.workshop_phase,game.story.workshop_mode,game.story.workshop_point,game.story.wind_a,game.story.wind_b);
+    printf("LUMA3D_RESULT frames=%u elapsed=%.3f fps=%.2f commands=%u batches=%u feed_seconds=%.3f present_seconds=%.3f draws_last=%u triangles_last=%u benchmark=%d hardware=%d warmup=%u\n",completed,elapsed,elapsed>0?completed/elapsed:0,renderer.total_commands-measured_commands,renderer.total_flushes-measured_batches,renderer.feed_seconds-measured_feed,renderer.present_seconds-measured_present,renderer.draws,renderer.triangles,benchmark,!host,benchmark?warmup:0);fflush(stdout);
+    if(terminal) {tcsetattr(STDIN_FILENO,TCSANOW,&saved);if(stdin_flags>=0)fcntl(STDIN_FILENO,F_SETFL,stdin_flags);}
+    if(save_path) {
+        if(l3_progress_write(save_path,&game,&progress_schema)!=L3_PROGRESS_OK) {fputs("Final save failed\n",stderr);ok=0;}
+        else {puts("LUMA3D_SAVE saved");fflush(stdout);}
+    }
+    if(!l3_render_close(&renderer))ok=0;return !ok;
+}
+
+=== games/luma3d/candidates/arcade_polish_r1/include/luma3d_render.h SHA256=a4f45811943f5aa4c5e5707b13b7f86920de766ff56a12aab782726cec6e4371 ===
+#ifndef LUMA3D_RENDER_H
+#define LUMA3D_RENDER_H
+#include "luma3d_game.h"
+#include "gpu_geometry.h"
+#include "prodock-uapi.h"
+#include <stdio.h>
+
+/* Same command producer for native GPU and independent model capture. */
+#define L3_MAP_BYTES (32U*1024*1024)
+#define L3_ASSET_OFFSET (8U*1024*1024)
+typedef struct {
+    int fd, display, host, failed;
+    unsigned width, height, pitch, page_bytes, frame;
+    unsigned commands, draws, triangles, instances, culled, uploaded;
+    unsigned total_commands, total_flushes;
+    double feed_seconds, present_seconds;
+    uint8_t *memory;
+    struct prodock_batch batch;
+    gpu_command state_cache[6]; /* matrix rows, light, material, texture */
+    unsigned state_valid;
+    struct prodock_display_info initial;
+    struct prodock_geometry_info initial_geometry;
+    gpu_v1_context gpu;
+    gpu_geom_mesh *meshes;
+    uint32_t *textures;
+    uint8_t *water_kind;
+    uint32_t *water_faces[2];
+    unsigned static_end,water_texture,animated_bytes,sky_region;
+    unsigned arcade_texture;
+    gpu_geom_mesh bird_mesh[2];
+    int ambient_active;
+    L3Vec3 bird_position;
+    unsigned tint[3];
+    gpu_geom_mesh npc_mesh[3][7];
+    gpu_geom_mesh hero_mesh[6];
+    unsigned hero_texture;
+    int hero_part;
+    int npc_character,npc_part;
+    uint8_t *hud;
+    gpu_geom_mesh maze_static[24], maze_dynamic[24];
+    unsigned maze_static_count, maze_dynamic_count;
+    uint8_t *mini_pixels;
+    uint8_t *mini_shadow[2]; /* cached CPU copies of the two displayed UI pages */
+    unsigned activity_mode, activity_stage, shooter_ready, sprite_count, sprite_limit;
+    unsigned shooter_upload_bytes;
+    L3ShooterView shooter_previous;
+    struct {int32_t x256,y256;uint32_t started;unsigned active;} shooter_bursts[8];
+    unsigned cosmetic_dropped;
+    unsigned mini_stamp[2], mini_uploads, mini_bytes;
+    unsigned mini_canvas_stamp, mini_rasterizations;
+    unsigned hud_stamp[2],hud_height,hud_uploads,hud_bytes;
+    struct prodock_palette hud_palette;
+    struct prodock_scene last_scene;
+    FILE *capture;
+    L3Vec3 right, down, forward;
+    float focal, near_z, far_z;
+} L3Render;
+int l3_render_open(L3Render *, int host, int wide);
+int l3_render_frame(L3Render *, const L3Game *);
+int l3_render_dump(L3Render *, const char *prefix);
+int l3_render_close(L3Render *);
+void l3_world_init(L3World *world);
+int l3_hud_open(L3Render *r);
+int l3_hud_prepare(L3Render *r,const L3Game *g,struct prodock_scene *scene);
+int l3_hud_dump(L3Render *r,const char *prefix);
+int l3_arcade_3d_render(L3Render *,const L3Game *);
+int l3_shooter_render(L3Render *,const L3Game *,struct prodock_scene *);
+int l3_shooter_art_open(L3Render *);
+int l3_maze_render(L3Render *,const L3Game *);
+int l3_mini_ui_open(L3Render *);
+int l3_mini_ui_prepare(L3Render *,const L3Game *,struct prodock_scene *);
+void l3_mini_ui_close(L3Render *);
+int l3_activity_art_open(L3Render *);
+int l3_ui_text(uint8_t *,unsigned,unsigned,int,int,unsigned,const char *,unsigned,unsigned);
+#endif
+
+=== RENDER timing helpers ===
+static int call(L3Render *r,unsigned long op,void *v) {
+    if(r->failed)return 0;
+    if(!r->host&&ioctl(op==PRODOCK_LAYOUT||op==PRODOCK_DISPLAY_INFO?r->display:r->fd,op,v)) {
+        perror("LUMA3D GPU");r->failed=1;return 0;
+    }return 1;
+}
+static void flush(L3Render *r) {
+    if(!r->batch.count||r->failed)return;
+    double t=clock_seconds();call(r,PRODOCK_SUBMIT,&r->batch);
+    r->feed_seconds+=clock_seconds()-t;r->total_flushes++;r->batch.count=0;
+}
+static void emit(const gpu_command *c) {
+    L3Render *r=active;
+    if(!r||r->failed)return;
+    if(prodock_command(c->words)) {fprintf(stderr,"Invalid G3D command %u\n",c->words[0]>>24);r->failed=1;return;}
+    unsigned op=c->words[0]>>24;
+    int slot=op==31?(int)c->words[1]:op==33?3:op==25?4:op==24?5:-1;
+    /* G3D DRAW restores MATERIAL and retains MATRIX/LIGHT/TEXTURE. COPY
+     * invalidates texture contents, not its descriptor. Keep all descriptors
+     * explicit again after TARGET; do not cache raster interpolation planes. */
+    if(op==22)r->state_valid=0;
+    if(slot>=0&&(r->state_valid&(1U<<slot))&&!memcmp(c,&r->state_cache[slot],sizeof(*c)))return;
+    if(r->batch.count==PRODOCK_BATCH_MAX)flush(r);
+    if(r->failed)return;
+    memcpy(r->batch.commands[r->batch.count++],c->words,32);r->commands++;r->total_commands++;
+    if(slot>=0) {r->state_cache[slot]=*c;r->state_valid|=1U<<slot;}
+    if(r->capture&&fwrite(c->words,32,1,r->capture)!=1)r->failed=1;
+}
+
+=== CLI tests excerpt ===
+def cli_contract(out):
+    """Run the production CLI against fake ioctl devices, never real hardware."""
+    records = []
+
+    def invoke(name, arguments, expected=0, failure=None, delay=False):
+        stream = out / (name+'.commands')
+        env = dict(os.environ, ASAN_OPTIONS='detect_leaks=0', UBSAN_OPTIONS='halt_on_error=1',
+                   L3_TEST_STREAM=str(stream))
+        if delay:env['L3_TEST_FIRST_DELAY']='1'
+        if failure is not None:
+            env['L3_TEST_FAIL_SUBMIT'] = str(failure)
+        result = subprocess.run([str(out/'harness'), '--cli', *arguments], env=env,
+                                text=True, capture_output=True, timeout=60)
+        (out/(name+'.log')).write_text(result.stdout+result.stderr)
+        assert result.returncode == expected, (name, result.returncode, result.stdout, result.stderr)
+        return result.stdout, stream.read_bytes()
+
+    def fields(line):
+        return dict(re.findall(r'(\w+)=([^\s]+)', line))
+
+    for wide in (False, True):
+        for pose, warmup, count in ((0, 3, 5), (1600, 2, 4)):
+            args = ['--benchmark', '--frames', str(count), '--advance', str(pose)]
+            if warmup != 3:
+                args += ['--warmup', str(warmup)]
+            if wide:
+                args += ['--720p']
+            name = f'cli_{1280 if wide else 800}_{pose}'
+            output, raw = invoke(name, args)
+            result = fields(next(s for s in output.splitlines() if s.startswith('LUMA3D_RESULT ')))
+            io = fields(next(s for s in output.splitlines() if s.startswith('CLI_IO ')))
+            frames = [fields(s) for s in output.splitlines() if s.startswith('CLI_FRAME ')]
+            assert int(result['frames']) == count and int(result['warmup']) == warmup
+            assert result['benchmark'] == result['hardware'] == '1'
+            assert int(io['presents']) == len(frames) == count+warmup
+            assert io['failed_ioctls'] == '0'
+            offsets = [0]+[int(f['bytes']) for f in frames]
+            batches = [0]+[int(f['batches']) for f in frames]
+            assert offsets[-1] == len(raw)
+            assert int(result['commands']) == (len(raw)-offsets[warmup])//32
+            assert int(result['batches']) == batches[-1]-batches[warmup]
+            cost_rows=[fields(s) for s in output.splitlines() if s.startswith('LUMA3D_ACTIVITY_COST ')]
+            assert len(cost_rows)==1 and cost_rows[0]['mode']=='0'
+            cost=cost_rows[0]
+            assert int(cost['frames'])==count
+            assert cost['commands']==result['commands'] and cost['batches']==result['batches']
+            assert 0<=int(cost['over_33ms'])<=count and 0<=int(cost['over_1020ms'])<=count
+            for key in ['simulation','adviser','preparation','submit','present','frame_sum','max_frame']:
+                assert math.isfinite(float(cost[key])) and float(cost[key])>=0,(key,cost[key])
+            assert float(cost['frame_sum'])>=float(cost['max_frame'])
+            for percentile in ['p95','p99']:
+                upper=int(cost[percentile+'_upper_ms']);overflow=int(cost[percentile+'_overflow'])
+                assert (overflow==1 and upper==0) or (overflow==0 and 4<=upper<=1020 and upper%4==0)
+            counters = fields(next(s for s in output.splitlines() if s.startswith('LUMA3D_BENCHMARK_COUNTERS ')))
+            measured = list(struct.iter_unpack('<8I', raw[offsets[warmup]:]))
+            draws = sum(c[0] >> 24 == 34 for c in measured)
+            assert int(counters['cycles']) == (draws*1000003) & 0xffffffff
+            assert int(counters['vertices']) == draws*3
+            assert int(counters['raster_triangles']) == draws
+            for key, multiplier in [('feed_us', 3), ('wait_us', 7), ('cache_us', 2)]:
+                assert int(counters[key]) == (batches[-1]-batches[warmup])*multiplier
+            assert int(counters['present_us']) == count*11
+            by_page = {}
+            for i in range(warmup, count+warmup):
+                commands = raw[offsets[i]:offsets[i+1]]
+                target = struct.unpack_from('<8I', commands)
+                assert target[0] >> 24 == 22
+                page = target[1]
+                if page in by_page:
+                    assert commands == by_page[page], (name, i, 'pose/animation or state drift')
+                by_page[page] = commands
+            assert len(by_page) == 2
+            # A failure in the first measured batch must not publish a partial
+            # frame, nor report successful completion after a valid warmup.
+            failed, _ = invoke(name+'_failure', args, expected=1, failure=batches[warmup]+1)
+            failed_result = fields(next(s for s in failed.splitlines() if s.startswith('LUMA3D_RESULT ')))
+            failed_io = fields(next(s for s in failed.splitlines() if s.startswith('CLI_IO ')))
+            assert failed_result['frames'] == '0' and int(failed_io['presents']) == warmup
+            assert failed_io['failed_ioctls'] == '1'
+            records.append(dict(display_width=1280 if wide else 800, pose=pose,
+                                warmup=warmup, measured_frames=count,
+                                presents=len(frames), measured_commands=int(result['commands']),
+                                stable_commands_per_page=True, measured_failure_fenced=True))
+    invalid = [
+        ['--benchmark'], ['--benchmark', '--frames', '0'],
+        ['--warmup', '3'], ['--benchmark', '--frames', '1', '--warmup', '1'],
+        ['--benchmark', '--frames', '1', '--warmup', '0'],
+        ['--benchmark', '--frames', '1', '--warmup'], ['--frames'],
+        ['--frames', '-1'], ['--frames', '1000001'], ['--frames', '1x'],
+        ['--advance', '-1'], ['--advance', '1000001'],
+        ['--benchmark', '--host', '--frames', '1', '--capture', 'unused'],
+        ['--not-an-option'],
+        ['--showcase','--save','/tmp/forbidden-showcase.save'],
+        ['--showcase-once','--manual'],
+        ['--showcase','--benchmark','--frames','1'],
+        ['--showcase','--advance','1'],
+    ]
+    for i, args in enumerate(invalid):
+        output, raw = invoke(f'cli_invalid_{i:02}', args, expected=2)
+        io = fields(next(s for s in output.splitlines() if s.startswith('CLI_IO ')))
+        assert not raw and io['device_opens'] == io['submits'] == io['presents'] == '0'
+    _,first=invoke('showcase_first',['--showcase','--frames','1'])
+    delayed,second=invoke('showcase_first_delayed',['--showcase','--frames','1'],delay=True)
+    assert first==second and 'sim=0.00' in delayed
+    output,raw=invoke('showcase_no_save',['--showcase','--frames','2'])
+    io=fields(next(s for s in output.splitlines() if s.startswith('CLI_IO ')))
+    assert io['data_opens']=='0' and io['presents']=='2' and 'LUMA3D_SAVE ' not in output
+    # Exercise the actual terminal parser and signal handler against fake GPU
+    # devices. E must consume the takeover key; Q then exits the real main.
+    import pty,select,time,signal
+    terminal_cases=[]
+    for action in ('takeover','signal'):
+        master,slave=pty.openpty();path=out/('terminal_'+action+'.commands')
+        env=dict(os.environ,ASAN_OPTIONS='detect_leaks=0',UBSAN_OPTIONS='halt_on_error=1',L3_TEST_STREAM=str(path))
+        proc=subprocess.Popen([str(out/'harness'),'--cli','--showcase'],stdin=slave,stdout=slave,stderr=slave,env=env);os.close(slave);data=b''
+        def wait_for(marker):
+            nonlocal data
+            until=time.monotonic()+20
+            while marker not in data:
+                assert time.monotonic()<until,(action,'terminal timeout',data[-2000:])
+                if select.select([master],[],[],.1)[0]:data+=os.read(master,65536)
+        try:
+            wait_for(b'WASD move')
+            if action=='takeover':
+                os.write(master,b'e');wait_for(b'LUMA3D_SHOWCASE_MANUAL control_returned=1 saves=disabled');os.write(master,b'q')
+            else:proc.send_signal(signal.SIGTERM)
+            wait_for(b'CLI_IO ');proc.wait(timeout=20);assert proc.returncode==0
+            assert b'LUMA3D_SAVE ' not in data and re.search(rb'data_opens=0',data)
+            if action=='takeover':assert re.search(rb'LUMA3D_STORY [^\r\n]*auto=0',data)
+            (out/('terminal_'+action+'.log')).write_bytes(data);terminal_cases.append(action)
+        finally:
+            if proc.poll() is None:proc.kill();proc.wait()
+            os.close(master)
+    return dict(passed=True, fake_devices=True, hardware_validation=False,
+                cases=records, invalid_argument_cases=len(invalid),showcase_save_opens=0,terminal_cases=terminal_cases)
+

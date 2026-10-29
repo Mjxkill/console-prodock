@@ -1,0 +1,443 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-vérifier le banc réel et les traces Icarus/RTL exact, surtout la release transitoire POR pendantdone0 surperteLOCK pourtantéchantillonnée. Audit ordredesNBA, capturetransitoires, attentesdecompteurs parphase etlimites ; aucunpatch nihardware. Ne pas confondrePASSreproductionavecPASSdesign.
+
+EVIDENCE PACKET:
+Contre-revue du banc EXÉCUTÉ de la chaîne reset exacte R19/R21. Aucune carte, modèleCPU ou PLLphysique. Les deux sources sont identiques. Première exécution Icarus4états etVerilator a confirmé lepulse6..14ns, puis a échoué àl'assertion COMPTAGE car une release supplémentaire inattendue apparaît pour16..24ns traversantclk50. Lelogoriginal etsontrace sontconservés; DUTn'a pasétéchangé. Le bancv2 compte etvérifie cette2epanne pourphases1/3.125ns maispas11ns. Il démarre réellement50ms, neforceaucunétatDUT. Lespropriétésdequalification2ms/50ms sontmarquéesviolées; REPRODUCTION_PASSsignifie banc détecte correctementléchec, pasDUTPASS.
+Question : vérifierextractionetstimuli, NBA/monitor etcomparaisonphase ; expliquerou réfuterla release d'un seulcycleAHB pendantdone=0. Signaler erreurs éventuelles dubanc, pas proposerpatch ni hardware. Distinguer exigences2msLOCK etpolitique50ms. Produirecritique courteavec lignesprécises, sansprétendreexécution supplémentaire.
+
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/simulation_01/exact_chain.sv SHA256 989778dcc2e0178bae3e04dce36bd00798d8f1874ed691bc7eded075a0e578a0
+1: `timescale 1ns/1ps
+2: `default_nettype none
+3: // Exact extracted fabric reset blocks. NO hard CPU or PLL behavioral substitute.
+4: module exact_soc_reset(input wire ahb_clk, rst_key_n, trial_release, output wire por_n);
+5:     reg  [1:0] init_sync = 2'b00;
+6:     always @(posedge ahb_clk or negedge rst_key_n)
+7:         if (!rst_key_n) init_sync <= 2'b00;
+8:         else init_sync <= {init_sync[0], trial_release};
+9:     wire ae350_rstn = init_sync[1];
+10:     assign por_n=ae350_rstn;
+11: endmodule
+12: module exact_chain(input wire clk, bus80_clk, rtc_clk, pll_ae350_lock, ddr_init, uart_rx,
+13:  output wire por_n, trial_done_o, trial_holding_o);
+14:  wire ahb_clk=bus80_clk;
+15:  wire [3:0] soc_dbg={3'b000,por_n}; // Only bit0 is consumed by exact trial instance.
+16:     reg [1:0] ae350_rst_sync = 2'b11;
+17:     always @(posedge bus80_clk or negedge pll_ae350_lock)
+18:         if (!pll_ae350_lock) ae350_rst_sync <= 2'b11;
+19:         else ae350_rst_sync <= {ae350_rst_sync[0], 1'b0};
+20:     wire ae350_por_n = ~ae350_rst_sync[1];
+21:     wire trial_request, trial_mode, trial_holding, trial_done;
+22:     wire trial_ahb_tick, trial_rtc_tick;
+23:     wire [3:0] trial_epoch;
+24:     neo_reset_trial u_reset_trial (
+25:         .clk_ref(clk), .ahb_clk(bus80_clk), .rtc_clk(rtc_clk), .serial_rx(uart_rx),
+26:         .ddr_ready(ddr_init), .pll_ready(pll_ae350_lock), .cpu_reset_n(soc_dbg[0]),
+27:         .release_request(trial_request), .delay_mode(trial_mode), .command_epoch(trial_epoch),
+28:         .holding(trial_holding), .delay_done(trial_done),
+29:         .ahb_tick(trial_ahb_tick), .rtc_tick(trial_rtc_tick));
+30:  exact_soc_reset u_soc(.ahb_clk(ahb_clk),.rst_key_n(ae350_por_n),.trial_release(trial_request),.por_n(por_n));
+31:  assign trial_done_o=trial_done;
+32:  assign trial_holding_o=trial_holding;
+33: endmodule
+34: `default_nettype wire
+
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/simulation_01/neo_reset_trial.v SHA256 6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3
+1: // Neo-only experiment. This module never drives a PLL or DDR reset.
+2: // The existing AE350 two-flop reset synchronizer remains downstream.
+3: `default_nettype none
+4: module neo_reset_trial #(
+5:     parameter integer WAIT_CYCLES = 2500000, // user-selected 50 ms at 50 MHz
+6:     parameter integer HOLD_CYCLES = 1000,    // common 20 us warm-reset hold
+7:     parameter integer GAP_CYCLES = 100000,
+8:     parameter integer UART_DIV = 25         // existing BL616 relay: 2 Mbit/s
+9: ) (
+10:     input wire clk_ref, ahb_clk, rtc_clk, serial_rx,
+11:     input wire ddr_ready, pll_ready, cpu_reset_n,
+12:     output wire release_request,
+13:     output reg delay_mode = 1'b1,
+14:     output reg [3:0] command_epoch = 0,
+15:     output reg holding = 0,
+16:     output reg delay_done = 0,
+17:     output wire ahb_tick, rtc_tick
+18: );
+19:     localparam integer WAIT_WIDTH = WAIT_CYCLES > 1 ? $clog2(WAIT_CYCLES) : 1;
+20:     localparam integer HOLD_WIDTH = HOLD_CYCLES > 1 ? $clog2(HOLD_CYCLES) : 1;
+21:     localparam integer GAP_WIDTH = GAP_CYCLES > 1 ? $clog2(GAP_CYCLES) : 1;
+22:     // Independent activity witnesses: never reset by the CPU/bus under test.
+23:     reg [7:0] ahb_div = 0, rtc_div = 0;
+24:     always @(posedge ahb_clk) ahb_div <= ahb_div + 1'b1;
+25:     always @(posedge rtc_clk) rtc_div <= rtc_div + 1'b1;
+26:     assign ahb_tick = ahb_div[7];
+27:     assign rtc_tick = rtc_div[7];
+28: 
+29:     reg [2:0] up = 0;
+30:     always @(posedge clk_ref) up <= {up[1:0], 1'b1};
+31:     wire [7:0] rx_byte;
+32:     wire rx_valid;
+33:     neo_reset_trial_rx #(.DIV_WIDTH(16)) u_rx (
+34:         .clk(clk_ref), .rst(!up[2]), .clk_div(16'(UART_DIV)),
+35:         .rx(serial_rx), .data(rx_byte), .valid(rx_valid));
+36: 
+37:     // A5 5A 52 31 35 mode complement 0D. Only mode 0/1 is accepted.
+38:     // Parser timeout prevents unrelated console bytes completing a stale command.
+39:     reg [2:0] parse_state = 0;
+40:     reg pending_mode = 0;
+41:     reg [GAP_WIDTH-1:0] gap_count = 0;
+42:     reg command_valid = 0, command_mode = 0;
+43:     always @(posedge clk_ref) begin
+44:         command_valid <= 0;
+45:         if (!up[2]) begin parse_state <= 0; gap_count <= 0; end
+46:         else if (parse_state != 0 && gap_count == GAP_WIDTH'(GAP_CYCLES-1)) begin
+47:             parse_state <= 0; gap_count <= 0;
+48:         end else if (rx_valid) begin
+49:             gap_count <= 0;
+50:             case (parse_state)
+51:                 0: parse_state <= rx_byte == 8'ha5 ? 1 : 0;
+52:                 1: parse_state <= rx_byte == 8'h5a ? 2 : 0;
+53:                 2: parse_state <= rx_byte == 8'h52 ? 3 : 0;
+54:                 3: parse_state <= rx_byte == 8'h31 ? 4 : 0;
+55:                 4: parse_state <= rx_byte == 8'h35 ? 5 : 0;
+56:                 5: begin
+57:                     if (rx_byte < 2) begin pending_mode <= rx_byte[0]; parse_state <= 6; end
+58:                     else parse_state <= 0;
+59:                 end
+60:                 6: parse_state <= rx_byte == (pending_mode ? 8'hfe : 8'hff) ? 7 : 0;
+61:                 7: begin
+62:                     parse_state <= 0;
+63:                     if (rx_byte == 8'h0d) begin command_valid <= 1; command_mode <= pending_mode; end
+64:                 end
+65:             endcase
+66:         end else if (parse_state != 0) gap_count <= gap_count + 1'b1;
+67:     end
+68: 
+69:     reg [1:0] ready_meta = 0, reset_meta = 0;
+70:     always @(posedge clk_ref) begin
+71:         ready_meta <= {ready_meta[0], ddr_ready && pll_ready};
+72:         reset_meta <= {reset_meta[0], cpu_reset_n};
+73:     end
+74:     reg [WAIT_WIDTH-1:0] wait_count = 0;
+75:     reg [HOLD_WIDTH-1:0] hold_count = 0;
+76:     always @(posedge clk_ref) begin
+77:         if (command_valid) begin
+78:             delay_mode <= command_mode;
+79:             command_epoch <= command_epoch + 1'b1;
+80:             holding <= 1;
+81:             hold_count <= 0;
+82:             wait_count <= 0;
+83:             delay_done <= 0;
+84:         end else begin
+85:             if (holding) begin
+86:                 // Do not lose a reset request while AHB is stopped: wait until
+87:                 // the existing two-flop synchronizer has actually asserted reset.
+88:                 if (reset_meta[1]) hold_count <= 0;
+89:                 else if (hold_count == HOLD_WIDTH'(HOLD_CYCLES-1)) begin
+90:                     holding <= 0; hold_count <= 0;
+91:                 end else hold_count <= hold_count + 1'b1;
+92:             end
+93:             if (!ready_meta[1] || holding) begin wait_count <= 0; delay_done <= 0; end
+94:             else if (!delay_done) begin
+95:                 if (wait_count == WAIT_WIDTH'(WAIT_CYCLES-1)) delay_done <= 1;
+96:                 else wait_count <= wait_count + 1'b1;
+97:             end
+98:         end
+99:     end
+100:     // In short mode the original DDR-ready level is passed to the unchanged
+101:     // two AHB flops. All modes still honor calibration loss; no force-to-one.
+102:     assign release_request = ddr_ready && !holding && (!delay_mode || delay_done);
+103: endmodule
+104: `default_nettype wire
+
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/simulation_01/tb.sv SHA256 3ceb3a37d8263ad1458c0a901362d147f3f3f3ed9eb83a8500b96b21737e6f80
+1: `timescale 1ns/1ps
+2: module tb;
+3:  reg clk=0,bus80=0,rtc=0,locked=0,ready=0,rx=1;
+4:  wire por,done,holding;
+5:  exact_chain dut(.clk(clk),.bus80_clk(bus80),.rtc_clk(rtc),.pll_ae350_lock(locked),.ddr_init(ready),.uart_rx(rx),.por_n(por),.trial_done_o(done),.trial_holding_o(holding));
+6:  integer phase_ps=1000, quick=0, trace_fd, result_fd, case_id=0;
+7:  integer release_count=0, bad_2ms=0,bad_50ms=0, unqualified_release_count=0;
+8:  integer releases_by_case[0:8]; integer expected_transient=0;
+9:  integer trace_enable=0;
+10:  realtime last_lock_rise=0,last_ready_rise=0,last_por_rise=0,latest_available=0,anchor=0;
+11:  realtime last_delta_lock=0,last_delta_available=0;
+12:  initial begin if($value$plusargs("PHASE_PS=%d",phase_ps)) begin end
+13:    #(phase_ps/1000.0); bus80=1; forever #6.25 bus80=~bus80; end
+14:  initial begin #20;clk=1;forever #10 clk=~clk;end
+15:  always #50 rtc=~rtc;
+16:  always @(posedge locked) last_lock_rise=$realtime;
+17:  always @(posedge ready) last_ready_rise=$realtime;
+18:  always @(posedge por) begin
+19:    last_por_rise=$realtime; release_count=release_count+1;
+20:    releases_by_case[case_id]=releases_by_case[case_id]+1;
+21:    if(!done)unqualified_release_count=unqualified_release_count+1;
+22:    last_delta_lock=$realtime-last_lock_rise;
+23:    latest_available=last_lock_rise>last_ready_rise?last_lock_rise:last_ready_rise;
+24:    last_delta_available=$realtime-latest_available;
+25:    if(last_delta_lock<2000000.0)bad_2ms=bad_2ms+1;
+26:    if(last_delta_available<50000000.0)bad_50ms=bad_50ms+1;
+27:    $fwrite(result_fd,"RELEASE,%0d,%0.3f,%0.3f,%0.3f,%0d,%0d,%0d,%0d\n",case_id,$realtime,last_delta_lock,last_delta_available,done,dut.u_reset_trial.ready_meta,dut.u_reset_trial.wait_count,holding);
+28:    $fflush(result_fd);
+29:  end
+30:  always @(negedge por) if(last_por_rise>0)begin
+31:    $fwrite(result_fd,"FALL,%0d,%0.3f,%0.3f,%0d\n",case_id,$realtime,$realtime-last_por_rise,done);$fflush(result_fd);
+32:  end
+33:  // Record after NBA, not a pre-edge monitor mistaken for settled state.
+34:  always @(posedge clk or posedge bus80 or negedge locked or posedge locked or posedge por or negedge por) begin
+35:    if(trace_enable)begin #0.001;
+36:     $fwrite(trace_fd,"%0d,%0.3f,%0.3f,%b,%b,%b,%b,%b,%b,%b,%0d,%b\n",case_id,$realtime,$realtime-anchor,clk,bus80,locked,ready,dut.ae350_rst_sync,dut.u_soc.init_sync,dut.u_reset_trial.ready_meta,dut.u_reset_trial.wait_count,done);
+37:    end
+38:  end
+39:  task settle_and_check(input integer want_2ms_bad,input integer want_50ms_bad);
+40:   begin
+41:    wait(por===1'b1);#0.1;
+42:    if((last_delta_lock<2000000.0)!=(want_2ms_bad!=0))$fatal(1,"2ms outcome mismatch case%0d delta%0.3f",case_id,last_delta_lock);
+43:    if((last_delta_available<50000000.0)!=(want_50ms_bad!=0))$fatal(1,"50ms outcome mismatch case%0d delta%0.3f",case_id,last_delta_available);
+44:    if(!done||holding||dut.u_reset_trial.delay_mode!==1'b1)$fatal(1,"Unexpected qualification state case%0d",case_id);
+45:   end
+46:  endtask
+47:  task align_reference;
+48:   begin @(posedge clk); while(($time%100)!=0)@(posedge clk);anchor=$realtime;end
+49:  endtask
+50:  task settled_pulse(input integer ident,input realtime off_ns,input realtime width_ns,input integer sampled);
+51:   integer old_rel;realtime delta;
+52:   begin
+53:    case_id=ident;old_rel=release_count;
+54:    align_reference();trace_enable=1;
+55:    #(off_ns);locked=0;#(width_ns);locked=1;
+56:    #200;trace_enable=0;
+57:    if(sampled)begin
+58:     if(done||por||dut.u_reset_trial.wait_count>20)$fatal(1,"Sampled pulse did not restart qualifier case%0d",case_id);
+59:     settle_and_check(0,0);
+60:    end else begin
+61:     if(!done||!por||release_count!=old_rel+1)$fatal(1,"Unseen pulse did not reproduce stale qualification case%0d",case_id);
+62:     if(last_delta_lock>=2000000.0||last_delta_available>=50000000.0)$fatal(1,"Expected recorded property failure case%0d",case_id);
+63:     if(ident==1&&phase_ps==1000&&((last_por_rise-anchor)<63.499||(last_por_rise-anchor)>63.501))$fatal(1,"Canonical edge mismatch %0.3f",last_por_rise-anchor);
+64:    end
+65:    $fwrite(result_fd,"CASE,%0d,%0.3f,%0.3f,%0d,%0.3f,%0.3f,%0d\n",case_id,off_ns,width_ns,sampled,last_delta_lock,last_delta_available,done);
+66:   end
+67:  endtask
+68:  task rearm_by_ddr;
+69:   begin
+70:    ready=0;#200;
+71:    if(por||done)$fatal(1,"Legal DDR loss did not rearm");
+72:    ready=1;
+73:   end
+74:  endtask
+75:  initial begin
+76:   trace_fd=$fopen("trace.csv","w");result_fd=$fopen("events.csv","w");
+77:   if(!trace_fd||!result_fd)$fatal(1,"Output open failed");
+78:   $fwrite(trace_fd,"case,time_ns,relative_ns,clk50,bus80,lock,ddr_ready,rst_sync,init_sync,ready_meta,wait_count,done\n");
+79:   for(integer ci=0;ci<=8;ci=ci+1) releases_by_case[ci]=0;
+80:   if($value$plusargs("QUICK=%d",quick))begin end
+81:   #0.01; // PHASE_PS initialization has completed before classifying the expected phase effect.
+82:   expected_transient=(phase_ps==1000||phase_ps==3125)?1:0;
+83:   #210.99;locked=1;#177;ready=1;
+84:   settle_and_check(0,0);
+85:   if($bits(dut.u_reset_trial.wait_count)!=22)$fatal(1,"Wrong real 50ms counter width");
+86:   $fwrite(result_fd,"BASELINE,0,%0.3f,%0.3f\n",last_delta_lock,last_delta_available);
+87:   settled_pulse(1,6,8,0);
+88:   settled_pulse(2,16,8,1);
+89:   if(!quick)begin
+90:    settled_pulse(3,2,1,0);
+91:    settled_pulse(4,4,4,0);
+92:    settled_pulse(5,12,6,0);
+93:    settled_pulse(6,3,30,1);
+94:    case_id=7;rearm_by_ddr();#500000;align_reference();trace_enable=1;
+95:    #6;locked=0;#8;locked=1;#200;trace_enable=0;
+96:    if(done||por||dut.u_reset_trial.wait_count<24000)$fatal(1,"Early-wait pulse unexpectedly rearmed qualifier");
+97:    settle_and_check(0,1);
+98:    $fwrite(result_fd,"WAITCASE,7,%0.3f,%0.3f\n",last_delta_lock,last_delta_available);
+99:    case_id=8;rearm_by_ddr();
+100:    wait(dut.u_reset_trial.wait_count==2499990);align_reference();trace_enable=1;
+101:    #6;locked=0;#8;locked=1;
+102:    settle_and_check(1,1);#50;trace_enable=0;
+103:    $fwrite(result_fd,"WAITCASE,8,%0.3f,%0.3f\n",last_delta_lock,last_delta_available);
+104:   end
+105:   if(quick)begin
+106:    if(release_count!=3+expected_transient||bad_2ms!=1+expected_transient||bad_50ms!=1+expected_transient)$fatal(1,"Quick coverage mismatch");
+107:   end else begin
+108:    if(release_count!=9+expected_transient||bad_2ms!=5+expected_transient||bad_50ms!=6+expected_transient)$fatal(1,"Full coverage mismatch releases%0d two%0d fifty%0d",release_count,bad_2ms,bad_50ms);
+109:   end
+110:   if(unqualified_release_count!=expected_transient||releases_by_case[2]!=1+expected_transient)$fatal(1,"Sampled-pulse transient coverage mismatch");
+111:   for(integer ci=0;ci<=(quick?2:8);ci=ci+1)if(ci!=2&&releases_by_case[ci]!=1)$fatal(1,"Unexpected rise count case%0d",ci);
+112:   $fwrite(result_fd,"TRANSIENTS,%0d\n",unqualified_release_count);
+113:   $fwrite(result_fd,"SUMMARY,%0d,%0d,%0d,%0d,%0d\n",phase_ps,quick,release_count,bad_2ms,bad_50ms);
+114:   $display("REPRODUCTION_PASS phase_ps=%0d quick=%0d releases=%0d observed_2ms_property_failures=%0d observed_50ms_property_failures=%0d",phase_ps,quick,release_count,bad_2ms,bad_50ms);
+115:   $fclose(trace_fd);$fclose(result_fd);$finish;
+116:  end
+117:  initial begin #500000000;$fatal(1,"Global 500ms timeout");end
+118: endmodule
+
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/simulation_01/source_manifest.json SHA256 0a12176bd6e38998c69731e3662d510d9d9292d0c76eeadb5025df73f7b5cc4a
+1: {
+2:   "hardware_access": false,
+3:   "shared_sources_modified": false,
+4:   "r19_r21_reset_sources_equal": true,
+5:   "extraction": "Verbatim procedural blocks and verbatim trial instance; only hierarchy/ports added; no functional CPU/PLL model",
+6:   "source_proof": [
+7:     {
+8:       "path": "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/console_neo.v",
+9:       "sha256": "ac0f0244c40784e9ce0cd82eed7d754d948a14c404b4a55b13f04caa5fa03364"
+10:     },
+11:     {
+12:       "path": "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ae350_soc.v",
+13:       "sha256": "e811670991b885d4a613322ca5713539d8955a62a06b5fe195048c0ff82a1009"
+14:     },
+15:     {
+16:       "path": "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo_reset_trial.v",
+17:       "sha256": "6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3"
+18:     },
+19:     {
+20:       "path": "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo_reset_trial_rx.v",
+21:       "sha256": "599ce905f84a6a4d55373cd0f8cd276136ae5c31124e6b6d7f717dca6b161625"
+22:     },
+23:     {
+24:       "build": "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local",
+25:       "fragment": "top_reset",
+26:       "line_start": 148,
+27:       "line_end": 152,
+28:       "fragment_sha256": "942ff8c9b267a493180350a3dcf9613ae318286c6217cdbdc82627cfd4f45700"
+29:     },
+30:     {
+31:       "build": "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local",
+32:       "fragment": "trial_instance",
+33:       "line_start": 157,
+34:       "line_end": 165,
+35:       "fragment_sha256": "829104a66bb25c686ae2dc2b1341ca587c98df308d580c0ac28674a9fe14f149"
+36:     },
+37:     {
+38:       "build": "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local",
+39:       "fragment": "soc_reset",
+40:       "line_start": 151,
+41:       "line_end": 155,
+42:       "fragment_sha256": "6ea2236947b01d0080c1b7b1d89597eff5405e45ca6e1a8c70c8b31df6be0fb1"
+43:     },
+44:     {
+45:       "path": "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/console_neo.v",
+46:       "sha256": "ac0f0244c40784e9ce0cd82eed7d754d948a14c404b4a55b13f04caa5fa03364"
+47:     },
+48:     {
+49:       "path": "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/ae350_soc.v",
+50:       "sha256": "e811670991b885d4a613322ca5713539d8955a62a06b5fe195048c0ff82a1009"
+51:     },
+52:     {
+53:       "path": "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo_reset_trial.v",
+54:       "sha256": "6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3"
+55:     },
+56:     {
+57:       "path": "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo_reset_trial_rx.v",
+58:       "sha256": "599ce905f84a6a4d55373cd0f8cd276136ae5c31124e6b6d7f717dca6b161625"
+59:     },
+60:     {
+61:       "build": "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory",
+62:       "fragment": "top_reset",
+63:       "line_start": 148,
+64:       "line_end": 152,
+65:       "fragment_sha256": "942ff8c9b267a493180350a3dcf9613ae318286c6217cdbdc82627cfd4f45700"
+66:     },
+67:     {
+68:       "build": "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory",
+69:       "fragment": "trial_instance",
+70:       "line_start": 157,
+71:       "line_end": 165,
+72:       "fragment_sha256": "829104a66bb25c686ae2dc2b1341ca587c98df308d580c0ac28674a9fe14f149"
+73:     },
+74:     {
+75:       "build": "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory",
+76:       "fragment": "soc_reset",
+77:       "line_start": 151,
+78:       "line_end": 155,
+79:       "fragment_sha256": "6ea2236947b01d0080c1b7b1d89597eff5405e45ca6e1a8c70c8b31df6be0fb1"
+80:     }
+81:   ],
+82:   "generated_sha256": {
+83:     "exact_chain.sv": "989778dcc2e0178bae3e04dce36bd00798d8f1874ed691bc7eded075a0e578a0",
+84:     "neo_reset_trial.v": "6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3",
+85:     "neo_reset_trial_rx.v": "599ce905f84a6a4d55373cd0f8cd276136ae5c31124e6b6d7f717dca6b161625"
+86:   }
+87: }
+
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/simulation_01/icarus/events.csv SHA256 1c904287d35db52ee093475c41f9873d92e775dae95b27845f056e56bd26f953
+1: RELEASE,0,50000438.500,50000227.500,50000050.500,1,3,2499999,0
+2: BASELINE,0,50000227.500,50000050.500
+3: RELEASE,1,50000563.500,49.500,49.500,1,3,2499999,0
+4: CASE,1,6.000,8.000,0,49.500,49.500,1
+5: RELEASE,2,50000863.500,39.500,39.500,0,3,0,0
+6: RELEASE,2,100000876.000,50000052.000,50000052.000,1,3,2499999,0
+7: CASE,2,16.000,8.000,1,50000052.000,50000052.000,1
+
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/simulation_01/icarus/trace.csv SHA256 52ddfa24b8077df7ab2a4af22d60efe179033b6354109f5628d074633049d7e1
+1: case,time_ns,relative_ns,clk50,bus80,lock,ddr_ready,rst_sync,init_sync,ready_meta,wait_count,done
+2: 1,50000501.001,1.001,1,1,1,1,00,11,11,2499999,1
+3: 1,50000506.001,6.001,1,1,0,1,11,00,11,2499999,1
+4: 1,50000513.501,13.501,0,1,0,1,11,00,11,2499999,1
+5: 1,50000514.001,14.001,0,1,1,1,11,00,11,2499999,1
+6: 1,50000520.001,20.001,1,0,1,1,11,00,11,2499999,1
+7: 1,50000526.001,26.001,1,1,1,1,10,00,11,2499999,1
+8: 1,50000538.501,38.501,0,1,1,1,00,00,11,2499999,1
+9: 1,50000540.001,40.001,1,1,1,1,00,00,11,2499999,1
+10: 1,50000551.001,51.001,0,1,1,1,00,01,11,2499999,1
+11: 1,50000560.001,60.001,1,0,1,1,00,01,11,2499999,1
+12: 1,50000563.501,63.501,1,1,1,1,00,11,11,2499999,1
+13: 1,50000576.001,76.001,0,1,1,1,00,11,11,2499999,1
+14: 1,50000580.001,80.001,1,1,1,1,00,11,11,2499999,1
+15: 1,50000588.501,88.501,1,1,1,1,00,11,11,2499999,1
+16: 1,50000600.001,100.001,1,0,1,1,00,11,11,2499999,1
+17: 1,50000601.001,101.001,1,1,1,1,00,11,11,2499999,1
+18: 1,50000613.501,113.501,0,1,1,1,00,11,11,2499999,1
+19: 1,50000620.001,120.001,1,0,1,1,00,11,11,2499999,1
+20: 1,50000626.001,126.001,1,1,1,1,00,11,11,2499999,1
+21: 1,50000638.501,138.501,0,1,1,1,00,11,11,2499999,1
+22: 1,50000640.001,140.001,1,1,1,1,00,11,11,2499999,1
+23: 1,50000651.001,151.001,0,1,1,1,00,11,11,2499999,1
+24: 1,50000660.001,160.001,1,0,1,1,00,11,11,2499999,1
+25: 1,50000663.501,163.501,1,1,1,1,00,11,11,2499999,1
+26: 1,50000676.001,176.001,0,1,1,1,00,11,11,2499999,1
+27: 1,50000680.001,180.001,1,1,1,1,00,11,11,2499999,1
+28: 1,50000688.501,188.501,1,1,1,1,00,11,11,2499999,1
+29: 1,50000700.001,200.001,1,0,1,1,00,11,11,2499999,1
+30: 1,50000701.001,201.001,1,1,1,1,00,11,11,2499999,1
+31: 1,50000713.501,213.501,0,1,1,1,00,11,11,2499999,1
+32: 2,50000801.001,1.001,1,1,1,1,00,11,11,2499999,1
+33: 2,50000813.501,13.501,0,1,1,1,00,11,11,2499999,1
+34: 2,50000816.001,16.001,0,1,0,1,11,00,11,2499999,1
+35: 2,50000820.001,20.001,1,0,0,1,11,00,10,2499999,1
+36: 2,50000824.001,24.001,1,0,1,1,11,00,10,2499999,1
+37: 2,50000826.001,26.001,1,1,1,1,10,00,10,2499999,1
+38: 2,50000838.501,38.501,0,1,1,1,00,00,10,2499999,1
+39: 2,50000840.001,40.001,1,1,1,1,00,00,01,2499999,1
+40: 2,50000851.001,51.001,0,1,1,1,00,01,01,2499999,1
+41: 2,50000860.001,60.001,1,0,1,1,00,01,11,0,0
+42: 2,50000863.501,63.501,1,1,1,1,00,10,11,0,0
+43: 2,50000876.001,76.001,0,1,1,1,00,00,11,0,0
+44: 2,50000880.001,80.001,1,1,1,1,00,00,11,1,0
+45: 2,50000888.501,88.501,1,1,1,1,00,00,11,1,0
+46: 2,50000900.001,100.001,1,0,1,1,00,00,11,2,0
+47: 2,50000901.001,101.001,1,1,1,1,00,00,11,2,0
+48: 2,50000913.501,113.501,0,1,1,1,00,00,11,2,0
+49: 2,50000920.001,120.001,1,0,1,1,00,00,11,3,0
+50: 2,50000926.001,126.001,1,1,1,1,00,00,11,3,0
+51: 2,50000938.501,138.501,0,1,1,1,00,00,11,3,0
+52: 2,50000940.001,140.001,1,1,1,1,00,00,11,4,0
+53: 2,50000951.001,151.001,0,1,1,1,00,00,11,4,0
+54: 2,50000960.001,160.001,1,0,1,1,00,00,11,5,0
+55: 2,50000963.501,163.501,1,1,1,1,00,00,11,5,0
+56: 2,50000976.001,176.001,0,1,1,1,00,00,11,5,0
+57: 2,50000980.001,180.001,1,1,1,1,00,00,11,6,0
+58: 2,50000988.501,188.501,1,1,1,1,00,00,11,6,0
+59: 2,50001000.001,200.001,1,0,1,1,00,00,11,7,0
+60: 2,50001001.001,201.001,1,1,1,1,00,00,11,7,0
+61: 2,50001013.501,213.501,0,1,1,1,00,00,11,7,0
+62: 2,50001020.001,220.001,1,0,1,1,00,00,11,8,0
+
+
+SOURCE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/simulation_01/icarus/simulation.log SHA256 5c25019b1b259a0841f827379531132b05fd1ba15f57bf2c1d5eff82849420c0
+1: FATAL: ../tb.sv:96: Quick coverage mismatch
+2:        Time: 100000876100  Scope: tb

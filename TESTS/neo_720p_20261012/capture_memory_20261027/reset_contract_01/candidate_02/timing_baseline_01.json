@@ -1,0 +1,467 @@
+{
+  "passed": true,
+  "scope": "Exercise SDF and reset timing reader on completed R21r1 only; no candidate timing claim",
+  "data": {
+    "periods_ns": {
+      "clk_d": 20.0,
+      "vid_hclk": 12.5,
+      "rtc_clk": 100.0
+    },
+    "coverage": {
+      "ae350_rst_sync_0_s0": true,
+      "ae350_rst_sync_1_s0": true,
+      "u_soc/init_sync_0_s0": true,
+      "u_soc/init_sync_1_s0": true,
+      "u_reset_trial/ready_meta_0_s0": true,
+      "u_reset_trial/ready_meta_1_s0": true,
+      "u_reset_trial/reset_meta_0_s0": true,
+      "u_reset_trial/reset_meta_1_s0": true
+    },
+    "sdf_counts": {
+      "IOPATH": 486193,
+      "INTERCONNECT": 552940
+    },
+    "conservative_setup_bounds": [
+      {
+        "source": "ae350_rst_sync_0_s0",
+        "destination": "ae350_rst_sync_1_s0/D",
+        "clock": "vid_hclk",
+        "period_ns": 12.5,
+        "conservative_setup_ns": 9.498999999999999,
+        "data_by_corner_ns": [
+          0.324,
+          0.5329999999999999,
+          0.74
+        ],
+        "source_clock_ns": [
+          1.346,
+          2.448,
+          3.55
+        ],
+        "destination_clock_ns": [
+          1.346,
+          2.448,
+          3.55
+        ],
+        "setup_ns": 0.057
+      },
+      {
+        "source": "u_soc/init_sync_0_s0",
+        "destination": "u_soc/init_sync_1_s0/D",
+        "clock": "vid_hclk",
+        "period_ns": 12.5,
+        "conservative_setup_ns": 9.584000000000001,
+        "data_by_corner_ns": [
+          0.33,
+          0.5369999999999999,
+          0.742
+        ],
+        "source_clock_ns": [
+          1.335,
+          2.393,
+          3.452
+        ],
+        "destination_clock_ns": [
+          1.335,
+          2.393,
+          3.452
+        ],
+        "setup_ns": 0.057
+      },
+      {
+        "source": "u_pll_ae350/u_pll_init/state_0_s0",
+        "destination": "u_reset_trial/ready_meta_0_s0/D",
+        "clock": "clk_d",
+        "period_ns": 20.0,
+        "conservative_setup_ns": 14.379999999999999,
+        "data_by_corner_ns": [
+          1.0430000000000001,
+          1.83,
+          2.615
+        ],
+        "source_clock_ns": [
+          2.012,
+          3.499,
+          4.985
+        ],
+        "destination_clock_ns": [
+          2.037,
+          3.528,
+          5.02
+        ],
+        "setup_ns": 0.057
+      },
+      {
+        "source": "u_pll_ae350/u_pll_init/state_1_s0",
+        "destination": "u_reset_trial/ready_meta_0_s0/D",
+        "clock": "clk_d",
+        "period_ns": 20.0,
+        "conservative_setup_ns": 14.610999999999999,
+        "data_by_corner_ns": [
+          0.9400000000000001,
+          1.662,
+          2.384
+        ],
+        "source_clock_ns": [
+          2.012,
+          3.499,
+          4.985
+        ],
+        "destination_clock_ns": [
+          2.037,
+          3.528,
+          5.02
+        ],
+        "setup_ns": 0.057
+      },
+      {
+        "source": "u_pll_ae350/u_pll_init/state_2_s0",
+        "destination": "u_reset_trial/ready_meta_0_s0/D",
+        "clock": "clk_d",
+        "period_ns": 20.0,
+        "conservative_setup_ns": 14.389999999999999,
+        "data_by_corner_ns": [
+          1.0590000000000002,
+          1.8319999999999999,
+          2.605
+        ],
+        "source_clock_ns": [
+          2.012,
+          3.499,
+          4.985
+        ],
+        "destination_clock_ns": [
+          2.037,
+          3.528,
+          5.02
+        ],
+        "setup_ns": 0.057
+      },
+      {
+        "source": "u_reset_trial/ready_meta_0_s0",
+        "destination": "u_reset_trial/ready_meta_1_s0/D",
+        "clock": "clk_d",
+        "period_ns": 20.0,
+        "conservative_setup_ns": 16.197000000000003,
+        "data_by_corner_ns": [
+          0.34199999999999997,
+          0.5509999999999999,
+          0.7589999999999999
+        ],
+        "source_clock_ns": [
+          2.037,
+          3.528,
+          5.02
+        ],
+        "destination_clock_ns": [
+          2.033,
+          3.522,
+          5.011
+        ],
+        "setup_ns": 0.057
+      },
+      {
+        "source": "u_reset_trial/reset_meta_0_s0",
+        "destination": "u_reset_trial/reset_meta_1_s0/D",
+        "clock": "clk_d",
+        "period_ns": 20.0,
+        "conservative_setup_ns": 16.198,
+        "data_by_corner_ns": [
+          0.186,
+          0.33399999999999996,
+          0.48
+        ],
+        "source_clock_ns": [
+          2.039,
+          3.569,
+          5.099
+        ],
+        "destination_clock_ns": [
+          2.039,
+          3.569,
+          5.099
+        ],
+        "setup_ns": 0.262
+      }
+    ],
+    "interstage_setup_passed": true,
+    "missing_clock_or_setup": [],
+    "foreign_or_async_origins": [
+      {
+        "source": "u_reset_trial/delay_mode_s3",
+        "destination": "u_soc/init_sync_0_s0/D",
+        "source_clock": "clk_ibuf/O",
+        "destination_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+        "data_by_corner_ns": [
+          0.384,
+          0.692,
+          0.998
+        ],
+        "classification": "cross-domain; report/max_delay required, no synchronous-bound assumption"
+      },
+      {
+        "source": "u_reset_trial/delay_done_s2",
+        "destination": "u_soc/init_sync_0_s0/D",
+        "source_clock": "clk_ibuf/O",
+        "destination_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+        "data_by_corner_ns": [
+          0.41700000000000004,
+          0.708,
+          0.998
+        ],
+        "classification": "cross-domain; report/max_delay required, no synchronous-bound assumption"
+      },
+      {
+        "source": "u_reset_trial/holding_s8",
+        "destination": "u_soc/init_sync_0_s0/D",
+        "source_clock": "clk_ibuf/O",
+        "destination_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+        "data_by_corner_ns": [
+          0.535,
+          0.877,
+          1.217
+        ],
+        "classification": "cross-domain; report/max_delay required, no synchronous-bound assumption"
+      },
+      {
+        "source": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_init/ddr_init_complete_d_3_s0",
+        "destination": "u_soc/init_sync_0_s0/D",
+        "source_clock": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        "destination_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+        "data_by_corner_ns": [
+          0.7429999999999999,
+          1.489,
+          2.235
+        ],
+        "classification": "cross-domain; report/max_delay required, no synchronous-bound assumption"
+      },
+      {
+        "source": "TERMINAL:u_pll_ae350/u_pll/PLL_inst/LOCK",
+        "destination": "u_reset_trial/ready_meta_0_s0/D"
+      },
+      {
+        "source": "u_soc/init_sync_1_s0",
+        "destination": "u_reset_trial/reset_meta_0_s0/D",
+        "source_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+        "destination_clock": "clk_ibuf/O",
+        "data_by_corner_ns": [
+          0.385,
+          0.756,
+          1.126
+        ],
+        "classification": "cross-domain; report/max_delay required, no synchronous-bound assumption"
+      }
+    ],
+    "cone_gaps": {},
+    "terminal_origins": [
+      "u_pll_ae350/u_pll/PLL_inst/LOCK"
+    ],
+    "reset_requirements": {
+      "ae350_rst_sync_0_s0/PRESET": {
+        "drivers": [
+          [
+            "n4009_s2",
+            "F"
+          ]
+        ],
+        "recovery_requirement_triplets": [
+          "0.313:0.313:0.313"
+        ],
+        "removal_requirement_triplets": [
+          "-0.061:-0.061:-0.061"
+        ],
+        "reported_paths": [],
+        "reported_kinds": [],
+        "declared_existing_exception": true,
+        "pulse_width_qualification": false
+      },
+      "ae350_rst_sync_1_s0/PRESET": {
+        "drivers": [
+          [
+            "n4009_s2",
+            "F"
+          ]
+        ],
+        "recovery_requirement_triplets": [
+          "0.313:0.313:0.313"
+        ],
+        "removal_requirement_triplets": [
+          "-0.061:-0.061:-0.061"
+        ],
+        "reported_paths": [],
+        "reported_kinds": [],
+        "declared_existing_exception": true,
+        "pulse_width_qualification": false
+      },
+      "u_soc/init_sync_0_s0/CLEAR": {
+        "drivers": [
+          [
+            "ae350_rst_sync_1_s0",
+            "Q"
+          ]
+        ],
+        "recovery_requirement_triplets": [
+          "0.313:0.313:0.313"
+        ],
+        "removal_requirement_triplets": [
+          "-0.061:-0.061:-0.061"
+        ],
+        "reported_paths": [
+          {
+            "kind": "recovery",
+            "slack_ns": 8.851,
+            "source": "ae350_rst_sync_1_s0/Q",
+            "destination": "u_soc/init_sync_0_s0/CLEAR",
+            "launch_clock": "bus80_clk:[R]",
+            "latch_clock": "bus80_clk:[R]",
+            "relation_ns": 12.5,
+            "skew_ns": 0.098,
+            "data_delay_ns": 3.238,
+            "line": 7073
+          },
+          {
+            "kind": "removal",
+            "slack_ns": 1.416,
+            "source": "ae350_rst_sync_1_s0/Q",
+            "destination": "u_soc/init_sync_0_s0/CLEAR",
+            "launch_clock": "bus80_clk:[R]",
+            "latch_clock": "bus80_clk:[R]",
+            "relation_ns": 0.0,
+            "skew_ns": 0.011,
+            "data_delay_ns": 1.357,
+            "line": 12063
+          }
+        ],
+        "reported_kinds": [
+          "recovery",
+          "removal"
+        ],
+        "declared_existing_exception": false,
+        "pulse_width_qualification": false
+      },
+      "u_soc/init_sync_1_s0/CLEAR": {
+        "drivers": [
+          [
+            "ae350_rst_sync_1_s0",
+            "Q"
+          ]
+        ],
+        "recovery_requirement_triplets": [
+          "0.313:0.313:0.313"
+        ],
+        "removal_requirement_triplets": [
+          "-0.061:-0.061:-0.061"
+        ],
+        "reported_paths": [
+          {
+            "kind": "recovery",
+            "slack_ns": 8.851,
+            "source": "ae350_rst_sync_1_s0/Q",
+            "destination": "u_soc/init_sync_1_s0/CLEAR",
+            "launch_clock": "bus80_clk:[R]",
+            "latch_clock": "bus80_clk:[R]",
+            "relation_ns": 12.5,
+            "skew_ns": 0.098,
+            "data_delay_ns": 3.238,
+            "line": 7072
+          },
+          {
+            "kind": "removal",
+            "slack_ns": 1.416,
+            "source": "ae350_rst_sync_1_s0/Q",
+            "destination": "u_soc/init_sync_1_s0/CLEAR",
+            "launch_clock": "bus80_clk:[R]",
+            "latch_clock": "bus80_clk:[R]",
+            "relation_ns": 0.0,
+            "skew_ns": 0.011,
+            "data_delay_ns": 1.357,
+            "line": 12062
+          }
+        ],
+        "reported_kinds": [
+          "recovery",
+          "removal"
+        ],
+        "declared_existing_exception": false,
+        "pulse_width_qualification": false
+      },
+      "u_reset_trial/ready_meta_0_s0/RESET": {
+        "drivers": [
+          [
+            "u_reset_trial/ready_meta_0_s3",
+            "O"
+          ]
+        ],
+        "recovery_requirement_triplets": [],
+        "removal_requirement_triplets": [],
+        "reported_paths": [],
+        "reported_kinds": [],
+        "declared_existing_exception": false,
+        "pulse_width_qualification": false
+      }
+    },
+    "reported_helper_paths": [
+      {
+        "kind": "recovery",
+        "slack_ns": 8.851,
+        "source": "ae350_rst_sync_1_s0/Q",
+        "destination": "u_soc/init_sync_1_s0/CLEAR",
+        "launch_clock": "bus80_clk:[R]",
+        "latch_clock": "bus80_clk:[R]",
+        "relation_ns": 12.5,
+        "skew_ns": 0.098,
+        "data_delay_ns": 3.238,
+        "line": 7072
+      },
+      {
+        "kind": "recovery",
+        "slack_ns": 8.851,
+        "source": "ae350_rst_sync_1_s0/Q",
+        "destination": "u_soc/init_sync_0_s0/CLEAR",
+        "launch_clock": "bus80_clk:[R]",
+        "latch_clock": "bus80_clk:[R]",
+        "relation_ns": 12.5,
+        "skew_ns": 0.098,
+        "data_delay_ns": 3.238,
+        "line": 7073
+      },
+      {
+        "kind": "removal",
+        "slack_ns": 1.416,
+        "source": "ae350_rst_sync_1_s0/Q",
+        "destination": "u_soc/init_sync_1_s0/CLEAR",
+        "launch_clock": "bus80_clk:[R]",
+        "latch_clock": "bus80_clk:[R]",
+        "relation_ns": 0.0,
+        "skew_ns": 0.011,
+        "data_delay_ns": 1.357,
+        "line": 12062
+      },
+      {
+        "kind": "removal",
+        "slack_ns": 1.416,
+        "source": "ae350_rst_sync_1_s0/Q",
+        "destination": "u_soc/init_sync_0_s0/CLEAR",
+        "launch_clock": "bus80_clk:[R]",
+        "latch_clock": "bus80_clk:[R]",
+        "relation_ns": 0.0,
+        "skew_ns": 0.011,
+        "data_delay_ns": 1.357,
+        "line": 12063
+      }
+    ],
+    "reported_helper_negative_paths": [],
+    "limits": [
+      "Conservative intra-domain SDF setup bounds only; no inferred hold or CDC phase relation.",
+      "Recovery/removal printed paths are evidence, missing paths remain missing.",
+      "Existing PRESET false path is enumerated, never treated as a timing proof.",
+      "No minimum asynchronous pulse-width guarantee or hardCPU reset contract inferred."
+    ]
+  },
+  "inputs": {
+    "TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/audit_routed.py": "8917b228e2c654661acd23fa3c7e1a1f48bb706bf1ea2efad37dc76047f5077d",
+    "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.vo": "14bb6ed3c5b803697b8c2591e00b70395936ff723b1f74bafe1a35f6502368e4",
+    "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.sdf": "4550ba38f5ca64747e03ff6a015e6aa695a02535360e7251e951aeea9ae279d9",
+    "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.tr": "e1ca2ac4bd2c9034d10cccfe94194455b9ab0b666f3ff3fcc6e65878c5608456"
+  }
+}

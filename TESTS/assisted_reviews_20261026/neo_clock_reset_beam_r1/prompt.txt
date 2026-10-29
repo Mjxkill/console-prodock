@@ -1,0 +1,2428 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Revue indépendante ciblée couverture des contraintes clocks/reset/initialisation R19-R21 et différences cibles ProDock138B PG676 versus Neo138C PG484. Distinguer un manque démontré de contrainte, un modèle macro limité, une hypothèse RTL/CDC et une violation déjà mesurée. Citer lignes et proposer tests falsifiables hors carte; aucun nouveau routage au hasard. Pas de réponse des autres modèles fournie.
+
+EVIDENCE PACKET:
+AUDIT INDEPENDANT R19 / R21r1 : couverture clocks/reset/initialisation, aucune action matérielle.
+Question utilisateur ingénieur FPGA : RTL identique hors observateur + mêmes contraintes devraient assurer un comportement stable après timing. L'ajout diagnostic révèle-t-il une contrainte manquante/erronée ?
+IMPORTANT : global STA n'est PAS PASS. R19 démarre mais GPU CLEAR stalle et COPY est rejeté. R21r1 ajoute observation uniquement et échoue au démarrage (écran noir avant toute requête DMI, TAP AE350 correct mais DMI timeout). A/B/A à100k : R19 fonctionne, R21 échoue, R19 fonctionne immédiatement. Pas preuve causale d'un reset ou LW. Aucune conclusion hardCPU entièrement non modélisé sans regarder les arcs fournis. 0 endpoints dans table TNS = zéro VIOLATION, pas zéro endpoints évalués !
+R19 et R21 : CST et SDC octet identiques; options build identiques après seules substitutions chemins. Toutes cellules fonctionnelles/ports/paramètres INIT préservés; nouvel observateur remplace contenu capture NCP, handshake/registre/bus inchangés. Ancien helper C1 devient D* : D/Q8 largeurCOPY, CE/reset/start et états, quatre sticky issue/valid/pending/accepted. Ajout4LUT+INV horshelper et+8DFFCE/+8LUT3 danshelper; charges et routage changent. SDC et contraintes de reset ne changent pas. prst[1] du scanout devientLW surR21, effet causal non démontré.
+ProDock G22r0 fonctionnelle cible GW5AST-138B / GW5AST-LV138FPG676AC1/I0; Neo R19/R21 cible GW5AST-138C / GW5AST-LV138PG484AC1/I0. Ne pas déduire une révision silicon/erratum de B/C sans document fabricant. MêmeDDR ne garantit pas mêmeinterface/routage. ProDock références protégées.
+EssaiUARTmode1 : surR19 témoinNCP2/2 avant, reste2/2 aprèsouvertureUART, devient0/0 aprèstrameavantfermeture; réception reset prouvée R19. SurR21 write8 acceptéPC maisout_waiting ne se videpas2s; réception FPGA inconnue, ce n'est PAS une preuve warmreset inefficace. R19restauré.
+Revue demandée : faits précis chemins/lignes, contraintes réellement manquantes vs absence de preuve ou modèle incomplet; erreursRTL/initCDC plausibles et réfutables; trois contrôles horscarte avant toutnouveauPnR. Aucun patchapplication nihardware autorisé. Les extraits sont sélectionnés, aucune conclusion sur des lignes absentes sans demander preuve.
+
+
+SOURCE tang/impl/gpu_geometry_g22r0/build.tcl SHA256 9e1c46a07aad8294d2b29c766f8c7225f1f4943d6963f0cb78f0864e1980fdcc
+1: set_device -name GW5AST-138B GW5AST-LV138FPG676AC1/I0
+2: set_option -include_path {/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl}
+3: set_option -top_module console_top
+4: set_option -output_base_name console_gpu_geometry_g22r0
+5: set_option -verilog_std v2001
+6: set_option -use_cpu_as_gpio 1
+7: set_option -gen_text_timing_rpt 1
+8: set_option -gen_verilog_sim_netlist 1
+9: set_option -gen_sdf 1
+10: set_option -route_option 2
+11: set_option -replicate_resources 0
+12: set_option -place_option 3
+
+
+SOURCE tang/impl/console_neo_n56r19_capture_ce_local/build.tcl SHA256 ee8b9bf9d9dfcddb66ed1d99326325717e3b3f8ff4a9d2e7955dcff367d667fd
+1: set_device -name GW5AST-138C GW5AST-LV138PG484AC1/I0
+2: set_option -top_module console_neo
+3: set_option -output_base_name console_neo
+4: set_option -verilog_std sysv2017
+5: set_option -use_cpu_as_gpio 1
+6: set_option -use_sspi_as_gpio 0
+7: set_option -include_path {/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl;/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang}
+8: set_option -gen_text_timing_rpt 1
+9: set_option -gen_verilog_sim_netlist 1
+10: set_option -gen_sdf 1
+11: set_option -place_option 3
+12: set_option -route_option 2
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/build.tcl SHA256 40a07874ff42643a06cb80841a147a89682fd9911bdac49444b6852335f8e2a8
+1: set_device -name GW5AST-138C GW5AST-LV138PG484AC1/I0
+2: set_option -top_module console_neo
+3: set_option -output_base_name console_neo
+4: set_option -verilog_std sysv2017
+5: set_option -use_cpu_as_gpio 1
+6: set_option -use_sspi_as_gpio 0
+7: set_option -include_path {/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl;/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang}
+8: set_option -gen_text_timing_rpt 1
+9: set_option -gen_verilog_sim_netlist 1
+10: set_option -gen_sdf 1
+11: set_option -place_option 3
+12: set_option -route_option 2
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo.sdc SHA256 c8da535e839157a361e78b06b2f65b2912891f8e9dc48b02d5b315ae9f953113
+1: // Tang Console PG484C: constrain every fabric clock, including HDMI x5.
+2: create_clock -name clk50 -period 20 -waveform {0 10} [get_ports {clk}]
+3: create_clock -name bus80_clk -period 12.5 -waveform {0 6.25} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT0}]
+4: create_clock -name core_clk -period 1.25 -waveform {0 0.625} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT1}]
+5: create_clock -name rtc_clk -period 100 -waveform {0 50} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT4}]
+6: create_clock -name ddr3_mem_clk -period 3.333 -waveform {0 1.667} [get_pins {u_soc/u_pll_ddr3/u_pll/PLL_inst/CLKOUT2}]
+7: create_clock -name ddr3_sys_clk -period 13.333 -waveform {0 6.667} [get_pins {u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT}]
+8: create_generated_clock -name vid_clk5x -source [get_ports {clk}] -multiply_by 119 -divide_by 16 [get_pins {u_video_pll/PLL_inst/CLKOUT0}]
+9: create_generated_clock -name vid_pclk -source [get_ports {clk}] -multiply_by 119 -divide_by 80 [get_pins {u_video_pll/PLL_inst/CLKOUT2}]
+10: // Only macro-owned core/RTC crossings are excluded. Fabric mailboxes, dual
+11: // clock RAMs and FIFO Gray pointers stay visible with explicit delay bounds.
+12: set_clock_groups -asynchronous -group [get_clocks {core_clk}] -group [get_clocks {rtc_clk}] -group [get_clocks {clk50 bus80_clk ddr3_mem_clk ddr3_sys_clk vid_pclk vid_clk5x}]
+13: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]
+14: set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]
+15: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]
+16: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]
+17: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]
+18: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]
+19: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]
+20: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]
+21: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]
+22: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]
+23: set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]
+24: set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]
+25: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]
+26: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]
+27: set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]
+28: set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]
+29: // clk50 and bus80 also exchange asynchronous FIFO pointers/reset releases.
+30: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+31: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]
+32: set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+33: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]
+34: // No phase-based hold requirement exists between independent clocks. Maximum
+35: // delay bounds remain active; all intra-domain setup/hold paths stay checked.
+36: // Asynchronous assertion only: deassertion is synchronized in these flops.
+37: set_false_path -to [get_pins {ae350_rst_sync_*/PRESET}]
+38: set_false_path -to [get_pins {u_hdmi/g_reset*.reset_sync*/PRESET}]
+39: // Asynchronous serial input: only the first synchronizer D is exempt.
+40: set_false_path -from [get_ports {uart_rx}] -to [get_pins {u_console_input/u_debug_rx/rx_sync_0_s1/D}]
+41: set_false_path -to [get_pins {u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/UART2_RXD}]
+42: // USB HS: qualified Pro Dock reference, adapted to Neo's top-level pins.
+43: create_generated_clock -name CLK_48M -source [get_ports {clk}] -master_clock clk50 -divide_by 50 -multiply_by 48 [get_pins {u_pll_f/PLL_inst/CLKOUT0}]
+44: create_generated_clock -name PHY_CLKOUT -source [get_pins {u_pll_f/PLL_inst/CLKOUT0}] -master_clock CLK_48M -divide_by 4 -multiply_by 5 [get_pins {u_pll_b/PLL_inst/CLKOUT1}]
+45: create_generated_clock -name fclk_960M -source [get_pins {u_pll_f/PLL_inst/CLKOUT0}] -master_clock CLK_48M -divide_by 2 -multiply_by 40 [get_pins {u_pll_b/PLL_inst/CLKOUT0}]
+46: create_clock -name sclk -period 8.333 -waveform {0 4.166} [get_nets {u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk}] -add
+47: // Inside the encrypted SoftPHY these domains follow the vendor constraints.
+48: set_clock_groups -asynchronous -group [get_clocks {PHY_CLKOUT}] -group [get_clocks {sclk}] -group [get_clocks {fclk_960M}]
+49: // Fabric mailboxes/FIFO pointers remain bounded, including USB status/MSC.
+50: set_max_delay 8 -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {bus80_clk}]
+51: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {PHY_CLKOUT}]
+52: set_false_path -hold -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {bus80_clk}]
+53: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {PHY_CLKOUT}]
+54: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {PHY_CLKOUT}]
+55: set_max_delay 8 -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {clk50}]
+56: set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {PHY_CLKOUT}]
+57: set_false_path -hold -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {clk50}]
+58: set_false_path -to [get_pins {u_console_input/u_bridge/rx_sync_0_s0/D}]
+59: set_false_path -to [get_pins {u_console_output/u_rx/rx_sync_0_s1/D}]
+60: // Only the first serial input synchronizers are asynchronous; their second
+61: // stage and all host logic remain timed at 80 MHz (no broad host exception).
+62: set_false_path -to [get_pins {u_gamepads/g_port*.u_pad/u_host/dp_sync_0*/D}]
+63: set_false_path -to [get_pins {u_gamepads/g_port*.u_pad/u_host/dm_sync_0*/D}]
+64: // N14 registers the host ROM output on every 80 MHz edge before decode.
+65: // Its value is unchanged at each 3/20 CE. ROM and interpreter paths are
+66: // therefore timed at one bus cycle; the earlier 6/5 exception is removed.
+67: // Local timing origins; common HDMI phase and distribution arcs remain checked.
+68: set_clock_latency -source 0 [get_clocks {vid_pclk vid_clk5x PHY_CLKOUT fclk_960M}]
+69: report_timing -setup -max_paths 1000 -max_common_paths 1
+70: report_timing -hold -max_paths 200 -max_common_paths 1
+71: report_timing -recovery -max_paths 10000 -max_common_paths 3
+72: report_timing -removal -max_paths 10000 -max_common_paths 3
+73: report_timing -recovery -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3
+74: report_timing -removal -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo.cst SHA256 6330c9dd971b9151c08bddcf8b7b6a529983bc25f1c03ab4193b0b6a224aeac1
+2: IO_LOC "clk" V22;
+3: IO_PORT "clk" IO_TYPE=LVCMOS33 PULL_MODE=NONE;
+4: IO_LOC "uart_tx" U15;
+5: IO_PORT "uart_tx" IO_TYPE=LVCMOS33 DRIVE=8;
+6: IO_LOC "uart_rx" V14;
+7: IO_PORT "uart_rx" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+8: IO_LOC "led_n" V13;
+9: IO_PORT "led_n" IO_TYPE=LVCMOS33 DRIVE=4 PULL_MODE=NONE;
+144: IO_LOC "ae350_tms" D21;
+145: IO_PORT "ae350_tms" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+146: IO_LOC "ae350_tck" D22;
+147: IO_PORT "ae350_tck" IO_TYPE=LVCMOS33 PULL_MODE=DOWN;
+148: IO_LOC "ae350_tdo" F20;
+149: IO_PORT "ae350_tdo" IO_TYPE=LVCMOS33 DRIVE=8;
+150: IO_LOC "ae350_tdi" W20;
+151: IO_PORT "ae350_tdi" IO_TYPE=LVCMOS33 PULL_MODE=UP;
+152: IO_LOC "ae350_tx" F19;
+153: IO_PORT "ae350_tx" IO_TYPE=LVCMOS33 DRIVE=8;
+154: IO_LOC "tmds_clk_p" G15,G16;
+155: IO_PORT "tmds_clk_p" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8;
+162: IO_LOC "sd_clk" V15;
+163: IO_PORT "sd_clk" IO_TYPE=LVCMOS33 DRIVE=4 PULL_MODE=NONE;
+170: INS_LOC "u_pll_ae350/u_pll/PLL_inst" PLL_R[0];
+173: INS_LOC "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv" LEFTSIDE[4];
+174: CLOCK_LOC "u_soc/hrst_sync[1]" LOCAL_CLOCK;
+175: CLOCK_LOC "u_soc/exts_hrstn" LOCAL_CLOCK;
+176: CLOCK_LOC "ddr_init" LOCAL_CLOCK;
+177: CLOCK_LOC "vid_hrstn" LOCAL_CLOCK;
+178: CLOCK_LOC "pixel_clk" BUFG[1] = CLK;
+179: CLOCK_LOC "clk_d" BUFG[0] = CLK;
+204: CLOCK_LOC "phy_clk" BUFG[2] = CLK;
+205: CLOCK_LOC "fclk_960m" BUFG[3] = CLK;
+206: CLOCK_LOC "clk48" BUFG[4] = CLK;
+207: CLOCK_LOC "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk" BUFG[7] = CLK;
+216: CLOCK_LOC "u_gamepads/g_port[0].u_pad/ce" LOCAL_CLOCK;
+217: CLOCK_LOC "u_gamepads/g_port[1].u_pad/ce" LOCAL_CLOCK;
+218: CLOCK_LOC "u_gamepads/g_port[0].u_pad/session_rst" LOCAL_CLOCK;
+219: CLOCK_LOC "u_gamepads/g_port[1].u_pad/session_rst" LOCAL_CLOCK;
+244: CLOCK_LOC "u_gamepads/g_port[0].rst" LOCAL_CLOCK;
+245: CLOCK_LOC "u_gamepads/g_port[1].rst" LOCAL_CLOCK;
+246: CLOCK_LOC "gpu_debug_state[43]" LOCAL_CLOCK;
+247: CLOCK_LOC "gpu_debug_state[44]" LOCAL_CLOCK;
+248: CLOCK_LOC "gpu_debug_state[45]" LOCAL_CLOCK;
+249: CLOCK_LOC "gpu_debug_state[46]" LOCAL_CLOCK;
+250: CLOCK_LOC "gpu_debug_state[47]" LOCAL_CLOCK;
+251: CLOCK_LOC "gpu_debug_state[48]" LOCAL_CLOCK;
+252: CLOCK_LOC "gpu_debug_state[49]" LOCAL_CLOCK;
+253: CLOCK_LOC "gpu_debug_state[50]" LOCAL_CLOCK;
+254: CLOCK_LOC "gpu_debug_state[51]" LOCAL_CLOCK;
+255: CLOCK_LOC "gpu_debug_state[52]" LOCAL_CLOCK;
+256: CLOCK_LOC "gpu_debug_state[53]" LOCAL_CLOCK;
+257: CLOCK_LOC "gpu_debug_state[54]" LOCAL_CLOCK;
+258: CLOCK_LOC "gpu_debug_state[55]" LOCAL_CLOCK;
+374: CLOCK_LOC "u_accel/u_v1/n56220_6" LOCAL_CLOCK;
+375: CLOCK_LOC "u_gpu_debug/n2835_5" LOCAL_CLOCK;
+376: CLOCK_LOC "scan_debug_live[224]" LOCAL_CLOCK;
+409: CLOCK_LOC "scan_debug_live_178[1]" LOCAL_CLOCK;
+422: CLOCK_LOC "u_accel/u_v1/u_pixels/n37565_3" LOCAL_CLOCK;
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/console_neo.v SHA256 ac0f0244c40784e9ce0cd82eed7d754d948a14c404b4a55b13f04caa5fa03364
+95:     wire de,hs,vs;
+96:     wire [5:0] red,green,blue;
+97:     wire scan_valid,scan_ready;
+98:     wire [28:0] scan_addr;
+99:     neo_scan_queue u_scan_queue(.clk(gpu_clk),.resetn(vid_hrstn),
+100:         .in_valid(scan_valid),.in_addr(scan_addr),.in_ready(scan_ready),
+101:         .out_valid(gpu_valid),.out_addr(gpu_addr),.out_ready(gpu_ready));
+102:     gpu_scanout #(.WIDTH(1280),.HEIGHT(720),.H_TOTAL(1650),.V_TOTAL(750),
+103:         .H_START(260),.V_START(25),.H_SYNC(40),.V_SYNC(5)) u_gpu (
+104:         .hclk(vid_hclk),.hresetn(vid_hrstn),.hsel(bus_hsel && bus_haddr[14:12]==0),.hwrite(bus_hwrite),
+105:         .haddr(bus_haddr),.hwdata(bus_hwdata),.htrans(bus_htrans),.hrdata(scan_hrdata),.hready(scan_hready),
+106:         .pixel_clk(pixel_clk),.mem_clk(gpu_clk),
+107:         .fetch_valid(scan_valid),.fetch_addr(scan_addr),.fetch_ready(scan_ready),
+108:         .fetch_data(gpu_data),.fetch_data_valid(gpu_data_valid),
+109:         .lcd_en(de),.lcd_hs(hs),.lcd_vs(vs),.lcd_r(red),.lcd_g(green),.lcd_b(blue),
+110:         .scan_debug_state(scan_debug_state));
+111:     gpu_accel u_accel(.hclk(vid_hclk),.hresetn(vid_hrstn),
+112:         .hsel(bus_hsel && bus_haddr[14:12]==1),.hwrite(bus_hwrite),
+113:         .haddr(bus_haddr),.hwdata(bus_hwdata),.htrans(bus_htrans),.hrdata(blit_hrdata),.hready(blit_hready),
+114:         .mem_clk(gpu_clk),.valid(blit_valid),.write(blit_write),.addr(blit_addr),
+115:         .wr_data(blit_wr_data),.wr_mask(blit_wr_mask),.ready(blit_ready),
+116:         .rd_data(blit_rd_data),.rd_valid(blit_rd_valid),
+117:         .debug_state(gpu_debug_state),.debug_accept(gpu_debug_accept),.observe_packet_words(gpu_observe_packet_words));
+118:     hdmi_out u_hdmi(.pclk(pixel_clk),.clk5x(clk5x),.rst(!pixel_up[2]),
+119:         .de(de),.hs(~hs),.vs(~vs),.r({red,red[5:4]}),.g({green,green[5:4]}),.b({blue,blue[5:4]}),
+120:         .tmds_clk_p(tmds_clk_p),.tmds_clk_n(tmds_clk_n),.tmds_d_p(tmds_d_p),.tmds_d_n(tmds_d_n));
+121:     // ====================== AE350 : PLLs + SoC + DDR3 (socle analyseur) ======================
+122:     wire        core_clk, ahb_clk, apb_clk, rtc_clk, bus80_clk, pll_ae350_lock;  // horloges du SoC (PLL AE350)
+123:     wire        ddr_init;               // 1 : calibration DDR3 terminée (sortie du socle)
+124:     wire        ae350_rx;     // console UART2 du AE350
+125:     wire ddr3_pll_lock, ddr3_memory_clk, ddr3_clk_in, ddr3_stop, ddr3_init_completed;
+126:     wire        ae350_rstn, ddr3_rstn;
+127:     wire [3:0] soc_dbg;
+128:     wire [7:0]  soc_ahb_dbg;
+129:     wire [15:0] soc_ddr_dbg;
+130:     wire [63:0] ev_data_unused; wire ev_ready_unused, evin_valid_unused;
+131:     wire [31:0] evin_data_unused;
+132:     wire [63:0] rr_data_unused; wire rr_valid_unused;
+133:     // PLL système du AE350 (socle analyseur : lock + init_clk + PLL_INIT) :
+134:     // clkout0 = 80 MHz (bus AHB/APB), clkout1 = core 800 MHz, clkout4 = RTC 10 MHz
+135:     Gowin_PLL_AE350 u_pll_ae350 (
+136:         .lock    (pll_ae350_lock),
+137:         .clkin   (clk),
+138:         .init_clk (clk),
+139:         .clkout0 (bus80_clk), .clkout1 (core_clk), .clkout2 (), .clkout3 (), .clkout4 (rtc_clk),
+140:         .enclk0  (1'b1), .enclk1 (1'b1), .enclk2 (1'b1), .enclk3 (1'b1), .enclk4 (1'b1)
+141:     );
+142:     // ahb_clk/apb_clk : DÉJÀ déclarés ligne 232 (wire) : NE PAS redéclarer ici !
+143:     // (EX2830 : « Second declaration of 'ahb_clk' is ignored » : le wire local était ignoré,
+144:     //  l'entrée AHB_CLK du SoC restait non câblée → bus APB mort → CPU figé au 1er accès APB.)
+145:     assign ahb_clk = bus80_clk;
+146:     assign apb_clk = ahb_clk;   // APB = net de l'AHB (1:1 exigé par le SoC, en-tête du socle)
+147:     // Reset du CPU : attend le LOCK de la PLL AE350 (schéma de l'analyseur : rst = sync ~lock)
+148:     reg [1:0] ae350_rst_sync = 2'b11;
+149:     always @(posedge bus80_clk or negedge pll_ae350_lock)
+150:         if (!pll_ae350_lock) ae350_rst_sync <= 2'b11;
+151:         else ae350_rst_sync <= {ae350_rst_sync[0], 1'b0};
+152:     wire ae350_por_n = ~ae350_rst_sync[1];
+153: 
+154:     // SoC AE350 + DDR3 standalone + pont Sipeed (socle analyseur, validé V3)
+155:     wire core_wfi_w;                 // CORE0_WFI_MODE du cœur (preuve de vie sans bus)
+156:     // Isolated startup experiment: default 50 ms, UART mode 0/1 for A/B.
+157:     wire trial_request, trial_mode, trial_holding, trial_done;
+158:     wire trial_ahb_tick, trial_rtc_tick;
+159:     wire [3:0] trial_epoch;
+160:     neo_reset_trial u_reset_trial (
+161:         .clk_ref(clk), .ahb_clk(bus80_clk), .rtc_clk(rtc_clk), .serial_rx(uart_rx),
+162:         .ddr_ready(ddr_init), .pll_ready(pll_ae350_lock), .cpu_reset_n(soc_dbg[0]),
+163:         .release_request(trial_request), .delay_mode(trial_mode), .command_epoch(trial_epoch),
+164:         .holding(trial_holding), .delay_done(trial_done),
+165:         .ahb_tick(trial_ahb_tick), .rtc_tick(trial_rtc_tick));
+166:     ae350_soc u_soc (
+167:         .trial_release(trial_request),
+168:         .clk50(clk),
+169:         .rst_key_n(ae350_por_n),
+170:         .core_clk(core_clk), .ahb_clk(ahb_clk), .apb_clk(apb_clk), .rtc_clk(rtc_clk),
+171:         .ddr_bank(ddr_bank), .ddr_cs(ddr_cs), .ddr_ras(ddr_ras), .ddr_cas(ddr_cas), .ddr_we(ddr_we),
+172:         .ddr_ck(ddr_ck), .ddr_ck_n(ddr_ck_n), .ddr_cke(ddr_cke), .ddr_reset_n(ddr_reset_n), .ddr_odt(ddr_odt),
+173:         .ddr_addr(ddr_addr), .ddr_dm(ddr_dm), .ddr_dq(ddr_dq), .ddr_dqs(ddr_dqs), .ddr_dqs_n(ddr_dqs_n),
+174:         .tck(ae350_tck), .tms(ae350_tms), .tdi(ae350_tdi), .tdo(ae350_tdo),
+175:         .uart2_tx(ae350_tx), .uart2_rx(ae350_rx), .ddr_init(ddr_init), .dbg(soc_dbg),
+176:         .sd_clk(sd_clk), .sd_cmd(sd_cmd), .sd_miso(sd_d0), .sd_cs_n(sd_d3), .sd_detect(1'b0),
+177:         .ahb_dbg(soc_ahb_dbg), .ddr_dbg(soc_ddr_dbg), .core_wfi_dbg(core_wfi_w),
+178:         // Legacy acquisition inputs are inactive; video uses its own DDR port.
+179:         .ev_clk(clk), .ev_valid(1'b0), .ev_data(64'd0),
+180:         .evin_valid(), .evin_data(), .evin_ready(1'b0),
+181:         .rr_valid(), .rr_data(), .rr_ready(1'b0),
+182:         .acq_v3(1'b0), .acq_start(1'b0), .acq_run(1'b0), .acq_div(8'd0), .acq_mask(16'hFFFF),
+183:         .acq_now(32'd0),
+184:         .vid_hclk(vid_hclk), .vid_hrstn(vid_hrstn), .vid_hsel(vid_hsel), .vid_hwrite(vid_hwrite),
+185:         .vid_haddr(vid_haddr), .vid_hwdata(vid_hwdata), .vid_htrans(vid_htrans),
+186:         .vid_hrdata(vid_hrdata), .vid_hready(vid_hready),
+187:         .gpu_clk(gpu_clk), .gpu_valid(gpu_valid), .gpu_addr(gpu_addr), .gpu_ready(gpu_ready),
+188:         .gpu_data(gpu_data), .gpu_data_valid(gpu_data_valid),
+189:         .blit_valid(blit_valid), .blit_write(blit_write), .blit_addr(blit_addr),
+190:         .blit_wr_data(blit_wr_data), .blit_wr_mask(blit_wr_mask), .blit_ready(blit_ready),
+191:         .blit_rd_data(blit_rd_data), .blit_rd_valid(blit_rd_valid)
+192:     );
+193: 
+194:     // USB and BL616 input are arbitrated as bytes in the USB 60 MHz domain.
+195:     // Neither serial input is combined electrically or switched mid-frame.
+196:     neo_console_input u_console_input(
+197:         .clk(phy_clk),.reset(usb_app_reset),.debug_rx(uart_rx),
+198:         .usb_valid(ep2_rx_dval),.usb_data(ep2_rx_data),.usb_ready(ep2_rx_rdy),
+199:         .cpu_tx(ae350_tx),.cpu_rx(ae350_rx),
+200:         .cpu_valid(uart_rx_data_val),.cpu_data(uart_rx_data),.overflow());
+201:     // Mirror CPU output on the BL616 relay, also when CDC is in use.
+202:     uart_console_channel #(.FIFO_LOG2(3),.REGISTER_FIFO(1)) u_console_output(
+203:         .clk(bus80_clk),.rst(!ae350_por_n),.rx(ae350_tx),.tx(uart_tx),
+204:         .rx_div(16'd694),.tx_div(16'd40),.overflow(),.diagnostic());
+205:     assign led_n=~ddr_init;
+206: endmodule
+207: `default_nettype wire
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/ae350_soc.v SHA256 e811670991b885d4a613322ca5713539d8955a62a06b5fe195048c0ff82a1009
+1: // ae350_soc.v — wrapper du SoC AE350 (cœur RISC-V A25) et de sa mémoire DDR3 pour la Tang Console 138K.
+2: //
+3: // Architecture (identique au démonstrateur AE350 de Sipeed pour ce SoM et à LiteX) : l'IP AE350 est
+4: // générée en « Customized Data Memory » (`AE350_EXT_D_MEM_EN`) : son bus mémoire de données (AHB 64 bits
+5: // DDR_H*, horloge DDR_HCLK = DDR_CLK) sort dans le fabric et rejoint l'IP DDR3 standalone de Gowin
+6: // (`ddr3_standalone/`, 16 bits pour l'instant = une des deux Hynix H5TQ4G63, 512 Mo ; 32 bits = E1-g) par le pont `sipeed/gw_ahb_ddr3.v` (Apache 2.0),
+7: // tous deux instanciés dans `ddr_subsys.v` (E2 : arbitre sur l'interface utilisateur de l'IP).
+8: // Pour le cœur, la DDR reste sa mémoire de données à l'adresse 0x00000000.
+9: //
+10: // Pourquoi pas le contrôleur DDR3 embarqué dans l'IP AE350 (E1, TESTS_V3) : il calibre, ses ports lane4/lane5
+11: // écrivent et relisent la DDR, mais son pont AHB interne (chiffré) rend 0x00000000 au cœur quel que soit
+12: // le contenu de la DRAM (test croisé). Sipeed et LiteX ne l'utilisent pas non plus.
+13: //
+14: // Resets : rst_n du contrôleur DDR3 attaché à 1 (comme 486tang) ; le cœur (POR_RSTN = HW_RSTN) sort de
+15: // reset quand init_calib_complete est monté (2 bascules sur ahb_clk), et la PLL système verrouillée.
+16: // Le CPU attend donc que la DDR soit
+17: // prête. Si l'init n'aboutit pas, la console reste muette et `ddr_init` reste à 0 : signal de la porte E1.
+18: // Le pont est reset par le même init_calib_complete resynchronisé sur son HCLK (hrst_sync), PAS par la
+19: // sortie DDR_HRSTN du SoC : mesurée à 0 dans tous les builds avec le pont (TESTS_V3 §E1, 2026-09-20) ; et
+20: // le net qui reset le pont doit être contraint `CLOCK_LOC ... LOCAL_CLOCK` (la16.cst) : routé sur la
+21: // ressource globale LW par le P&R, il sort figé à 0 (mesuré bascule par bascule, cause non comprise).
+22: //
+23: // Horloges : CORE 800 / AHB = APB 80 / RTC 10 MHz depuis la PLL système (PLL_R[0], MUG1030 §2.6.4) ;
+24: // DDR_CLK du SoC = HCLK du pont = 50 MHz (clkout0 de la PLL DDR3, comme le démonstrateur Sipeed) : à
+25: // 100 MHz (> lpddr_clk 75 MHz) les lectures enchaînées du cœur bloquaient le pont (TESTS_V3 §E1) ;
+26: // PLL DDR3 (PLL_L[0]) : 50 MHz (clk de l'IP DDR3) et 300 MHz (memory_clk, validé par pll_stop → enclk2 ;
+27: // 400 MHz ne calibre pas de façon fiable sur cette carte).
+28: //
+29: // Sous Verilator (banc cocotb V2) : netlists non simulables, le wrapper est un bouchon.
+30: `default_nettype none
+31: module ae350_soc #(
+32:     parameter RAM_PROBE = 0          // 1 (diag E1) : RAM AHB 4 Ko (ahb64_ram_probe.v) à la place de la DDR3, trafic sur ahb_dbg
+33:                                      // 2 (diag E1) : idem, mais IP DDR3 + pont instanciés avec un bus AHB inactif
+34:                                      //   (teste l'effet de la seule présence de l'IP sur DDR_HRSTN, TESTS_V3 §E1)
+35: ) (
+36:     input  wire        trial_release, // isolated Neo reset experiment
+37:     input  wire        clk50,
+38:     input  wire        rst_key_n,     // reset actif bas, inclut le verrouillage de la PLL système
+120:     assign tdo = 1'b0; assign uart2_tx = 1'b1; assign ddr_init = 1'b0; assign dbg = 4'b0; assign ahb_dbg = 8'b0; assign ddr_dbg = 16'b0;
+121:     assign core_wfi_dbg = 1'b0;
+122:     assign gpu_clk = 0; assign gpu_ready = 0; assign gpu_data = 0; assign gpu_data_valid = 0;
+123:     assign blit_ready = 0; assign blit_rd_data = 0; assign blit_rd_valid = 0;
+124:     // mode V3 : au banc, la_top expose ev_*/evin_* directement (ports sim_*) ; ici rien ne passe
+125:     assign ev_ready = 1'b0; assign evin_valid = 1'b0; assign evin_data = 32'd0; assign rr_valid = 1'b0; assign rr_data = 64'd0;
+126:     assign vid_hclk = 1'b0; assign vid_hrstn = 1'b0; assign vid_hsel = 1'b0; assign vid_hwrite = 1'b0; assign vid_haddr = 32'd0; assign vid_hwdata = 32'd0; assign vid_htrans = 2'b00;
+127:     wire v3_unused = &{1'b0, ev_clk, ev_valid, ev_data, evin_ready, rr_ready, acq_v3, acq_start, acq_run, acq_div, acq_mask, acq_now, vid_hrdata, vid_hready};
+128: `else
+129:     // --- PLL DDR3 ---------------------------------------------------------------------------
+130:     // P0-a (V4, réappliqué le 2026-09-25) : l'horloge 50 MHz de l'IP DDR3 / DDR_CLK du SoC / HCLK du pont est la BROCHE clk50, comme
+131:     // dans l'exemple Gowin-Sipeed ddr_test (`.clk(clk)` = broche, `memory_clk` = PLL) : un arbre d'horloge global de moins (build V4
+132:     // complet : 10 horloges globales demandées, clk50_d et ddr3_clk_in tombaient sur LW). Validé sur UART le 22/09 (TESTS_V3).
+133:     wire ddr3_memory_clk, ddr3_lock, ddr3_stop, clk0_unused, clk1_unused;
+134:     wire ddr3_clk_in = clk50;
+135:     Gowin_PLL_DDR3 u_pll_ddr3 (
+136:         .lock    (ddr3_lock),
+137:         .clkout0 (clk0_unused),        // 50 MHz : plus utilisé (P0-a)
+138:         .clkout1 (clk1_unused),        // non utilisé
+139:         .clkout2 (ddr3_memory_clk),    // 300 MHz
+140:         .clkin   (clk50),
+141:         .init_clk(clk50),
+142:         .reset   (1'b0),
+143:         .enclk0  (1'b1),
+144:         .enclk1  (1'b0),
+145:         .enclk2  (ddr3_stop)
+146:     );
+147: 
+148:     // --- Resets -----------------------------------------------------------------------------
+149:     wire ddr3_init_completed;
+150:     wire ddr3_init_ip;                // état de calibration réel de l'IP (diag : ddr3_init_completed peut être forcé)
+151:     reg  [1:0] init_sync = 2'b00;
+152:     always @(posedge ahb_clk or negedge rst_key_n)
+153:         if (!rst_key_n) init_sync <= 2'b00;
+154:         else init_sync <= {init_sync[0], trial_release};
+155:     wire ae350_rstn = init_sync[1];
+156:     assign ddr_init = ddr3_init_completed;
+157:     assign dbg = {1'b1, ddr3_stop, ddr3_lock, ae350_rstn};
+158:     assign ddr_addr[15] = 1'b0;
+159: 
+160:     // --- Bus mémoire de données du SoC (AHB 64 bits) -> pont Sipeed -> IP DDR3 -----------------
+161:     wire [63:0] ddr_hrdata, ddr_hwdata;
+162:     wire [31:0] ddr_haddr;
+163:     wire [2:0]  ddr_hburst, ddr_hsize;
+164:     wire [3:0]  ddr_hprot;
+165:     wire [1:0]  ddr_htrans;
+166:     wire        ddr_hready, ddr_hresp, ddr_hwrite, ddr_hclk, ddr_hrstn;
+167:     wire [1:0]  ddr_hresp2;
+168:     assign ddr_hresp = ddr_hresp2[0];
+169:     // ddr_writer : état/commandes, domaine clk_out de l'IP ; resynchronisation dans la section registres
+170:     localparam [31:0] RING_BASE = 32'h2000_0000;   // E2-f1-d : anneau = moitié haute du Go (512 Mo = 67 M entrées)
+171:     localparam [31:0] RING_SIZE = 32'h2000_0000;   // la moitié basse reste au cœur (test mémoire E1, données)
+172:     wire        wr_clk, wr_done, wr_active, wr_restart_tgl, wr_restart, wr_ring_full;
+173:     assign gpu_clk = wr_clk;
+174:     wire [31:0] wr_wptr, wr_cycles, wr_seed, wr_rptr, wr_used;
+175:     // FIFO événements (ev_clk → clk_out) et pointeurs de l'anneau
+176:     wire        fi_valid, fi_ready, ev_wr_rst, ev_rd_rst, start_wr;
+177:     wire [31:0] rd_lost;                                    // E2-g : entrées non poussées par le lecteur (doit rester 0)
+178:     wire [63:0] fi_data;
+179:     wire [9:0]  fi_count, ev_wr_count;
+180:     wire [31:0] ev_lost;
+181:     // Reset du pont : calibration DDR3 resynchronisée sur son HCLK (voir en-tête ; DDR_HRSTN et DDR_HCLK
+182:     // du SoC ne sont pas utilisés — DDR_HCLK n'est qu'une copie de DDR_CLK dans la netlist).
+183:     reg  [1:0] hrst_sync = 2'b00;
+184:     always @(posedge ddr3_clk_in) hrst_sync <= {hrst_sync[0], ddr3_init_completed};
+185:     /* verilator lint_off UNUSEDSIGNAL */
+186:     wire hresp_unused = ddr_hresp2[1];
+187:     wire [3:0] hprot_unused = ddr_hprot;
+188:     wire hclk_unused = ddr_hclk, hrstn_unused = ddr_hrstn;
+189:     /* verilator lint_on UNUSEDSIGNAL */
+190:     generate if (RAM_PROBE == 0) begin : g_ddr
+191:     ddr_subsys #(.RING_BASE(RING_BASE), .RING_SIZE(RING_SIZE), .PATTERN(0)) u_ddr (
+192:         .DDR3_MEMORY_CLK(ddr3_memory_clk), .DDR3_CLK_IN(ddr3_clk_in), .DDR3_RSTN(1'b1),
+193:         .DDR3_LOCK(ddr3_lock), .DDR3_STOP(ddr3_stop), .DDR3_INIT(ddr3_init_completed),
+194:         .DDR3_BANK(ddr_bank), .DDR3_CS_N(ddr_cs), .DDR3_RAS_N(ddr_ras), .DDR3_CAS_N(ddr_cas), .DDR3_WE_N(ddr_we),
+195:         .DDR3_CK(ddr_ck), .DDR3_CK_N(ddr_ck_n), .DDR3_CKE(ddr_cke), .DDR3_RESET_N(ddr_reset_n), .DDR3_ODT(ddr_odt),
+196:         .DDR3_ADDR(ddr_addr[14:0]), .DDR3_DM(ddr_dm), .DDR3_DQ(ddr_dq), .DDR3_DQS(ddr_dqs), .DDR3_DQS_N(ddr_dqs_n),
+197:         .HCLK(ddr3_clk_in), .HRESETN(hrst_sync[1]), .HADDR(ddr_haddr), .HSIZE(ddr_hsize), .HWRITE(ddr_hwrite),
+198:         .HTRANS(ddr_htrans), .HBURST(ddr_hburst), .HWDATA(ddr_hwdata),
+199:         .HREADY_O(ddr_hready), .HRESP(ddr_hresp2), .HRDATA(ddr_hrdata), .DBG(ddr_dbg),
+200:         .wr_clk(wr_clk), .wr_done(wr_done), .wr_active(wr_active), .wr_wptr(wr_wptr), .wr_cycles(wr_cycles),
+201:         .wr_restart(wr_restart || start_wr), .wr_seed(wr_seed),
+202:         .wr_rptr(wr_rptr), .wr_ring_full(wr_ring_full), .wr_used(wr_used),
+203:         .rd_clk(ev_clk), .rd_rst_wr(ev_rd_rst), .rd_rst_rd(ev_wr_rst), .rd_valid(rr_valid), .rd_data(rr_data), .rd_ready(rr_ready),
+204:         .rd_lost(rd_lost),
+205:         .fi_valid(fi_valid), .fi_data(fi_data), .fi_ready(fi_ready), .fi_count(fi_count),
+335:         .hclk(exts_hclk), .hresetn(exts_hrstn), .hsel(br_hsel[0]), .haddr(br_haddr), .htrans(br_htrans),
+336:         .hwrite(br_hwrite), .hsize(exts_hsize), .hwdata(br_hwdata),
+337:         .hrdata(regs_hrdata), .hreadyout(regs_hready), .hresp(regs_hresp),
+338:         .wr_done(done_s[1]), .wr_active(active_s[1]), .wr_wptr(r_wptr), .wr_cycles(wr_cycles), .wr_lost(r_evlost),
+339:         .wr_restart_tgl(wr_restart_tgl), .wr_seed(wr_seed),
+340:         .mode_v3(v3_s[2]), .ring_base(RING_BASE), .ring_size(RING_SIZE), .rd_ptr(rd_ptr),
+341:         .ring_full(full_s[2]), .ring_used(r_used),
+342:         .evin_valid(evin_wr_valid), .evin_data(evin_wr_data), .evin_space((10'd512 - evin_wr_count) >= 10'd64), .evin_lost(evin_lost),
+343:         .acq_run(run_s[2]), .acq_div(div_s2), .acq_mask(mask_s2), .seq(r_seq), .now(r_now));
+344: 
+345:     // --- SoC (suite) : pas d'interruption externe pour l'instant, GPIO/UART2 modem en l'air. ---------------
+346:     /* verilator lint_off PINCONNECTEMPTY */
+347:     wire        core0_wfi;                 // DIAG : le cœur exécute une instruction WFI (preuve de vie pure, sans bus)
+348:     // SD : les entrées du contrôleur relisent ses propres sorties, comme le feraient des broches bidirectionnelles.
+349:     wire [31:0] gpio_out, gpio_oe;
+350:     wire        spi_clk_out, spi_clk_oe, spi_csn_out, spi_csn_oe, spi_mosi_out, spi_mosi_oe;
+351:     reg  [1:0]  sd_detect_s;
+352:     always @(posedge apb_clk) sd_detect_s <= {sd_detect_s[0], sd_detect};
+353:     // Les sorties « OE » de l'IP (SPI et GPIO) sont actives à l'état haut. Relevé sur carte le 5 octobre
+354:     // 2026 : l'horloge ne bat et la carte ne répond qu'avec cette convention. Les GPIO 2, 3 et 5 relisent
+355:     // l'horloge, la commande et la sélection (le registre d'entrée d'un GPIO en sortie ne relit pas sa broche).
+356:     assign sd_clk  = spi_clk_oe  ? spi_clk_out  : 1'b0;
+357:     assign sd_cmd  = spi_mosi_oe ? spi_mosi_out : 1'b1;
+358:     assign sd_cs_n = gpio_oe[0]  ? gpio_out[0]  : 1'b1;
+359:     RiscV_AE350_SOC_Top u_ae350 (
+360:         .DDR_HRDATA(ddr_hrdata), .DDR_HREADY(ddr_hready), .DDR_HRESP(ddr_hresp),
+361:         .DDR_HADDR(ddr_haddr), .DDR_HBURST(ddr_hburst), .DDR_HPROT(ddr_hprot), .DDR_HSIZE(ddr_hsize),
+362:         .DDR_HTRANS(ddr_htrans), .DDR_HWDATA(ddr_hwdata), .DDR_HWRITE(ddr_hwrite),
+363:         .DDR_HCLK(ddr_hclk), .DDR_HRSTN(ddr_hrstn),
+364:         .TCK_IN(tck), .TMS_IN(tms), .TRST_IN(1'b1), .TDI_IN(tdi), .TDO_OUT(tdo), .TDO_OE(),
+365:         .EXT_INT(16'd0),
+366:         .EXTS_HRDATA(exts_hrdata), .EXTS_HREADYIN(exts_hready), .EXTS_HRESP(exts_hresp),
+367:         .EXTS_HADDR(exts_haddr), .EXTS_HBURST(exts_hburst), .EXTS_HPROT(exts_hprot), .EXTS_HSEL(exts_hsel),
+368:         .EXTS_HSIZE(exts_hsize), .EXTS_HTRANS(exts_htrans), .EXTS_HWDATA(exts_hwdata), .EXTS_HWRITE(exts_hwrite),
+369:         .EXTS_HCLK(exts_hclk), .EXTS_HRSTN(exts_hrstn),
+370:         .UART2_TXD(uart2_tx), .UART2_RTSN(), .UART2_RXD(uart2_rx), .UART2_CTSN(1'b0), .UART2_DCDN(1'b0),
+371:         .UART2_DSRN(1'b0), .UART2_RIN(1'b1), .UART2_DTRN(), .UART2_OUT1N(), .UART2_OUT2N(),
+372:         .GPIO_IN({26'd0, sd_cs_n, 1'b0, sd_cmd, sd_clk, sd_detect_s[1], sd_cs_n}), .GPIO_OE(gpio_oe), .GPIO_OUT(gpio_out),
+373:         .SPI_HOLDN_IN(1'b1), .SPI_WPN_IN(1'b1), .SPI_CLK_IN(sd_clk), .SPI_CSN_IN(spi_csn_oe ? spi_csn_out : 1'b1),
+374:         .SPI_MISO_IN(sd_miso), .SPI_MOSI_IN(sd_cmd),
+375:         .SPI_HOLDN_OUT(), .SPI_HOLDN_OE(), .SPI_WPN_OUT(), .SPI_WPN_OE(),
+376:         .SPI_CLK_OUT(spi_clk_out), .SPI_CLK_OE(spi_clk_oe), .SPI_CSN_OUT(spi_csn_out), .SPI_CSN_OE(spi_csn_oe),
+377:         .SPI_MISO_OUT(), .SPI_MISO_OE(), .SPI_MOSI_OUT(spi_mosi_out), .SPI_MOSI_OE(spi_mosi_oe),
+378:         .CORE0_WFI_MODE(core0_wfi), .RTC_WAKEUP(),
+379:         .CORE_CLK(core_clk), .DDR_CLK(ddr3_clk_in), .AHB_CLK(ahb_clk), .APB_CLK(apb_clk), .RTC_CLK(rtc_clk),
+380:         .POR_RSTN(ae350_rstn), .HW_RSTN(ae350_rstn)
+381:     );
+382:     assign core_wfi_dbg = core0_wfi;
+383:     /* verilator lint_on PINCONNECTEMPTY */
+384: `endif
+385: endmodule
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo_reset_trial.v SHA256 6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3
+1: // Neo-only experiment. This module never drives a PLL or DDR reset.
+2: // The existing AE350 two-flop reset synchronizer remains downstream.
+3: `default_nettype none
+4: module neo_reset_trial #(
+5:     parameter integer WAIT_CYCLES = 2500000, // user-selected 50 ms at 50 MHz
+6:     parameter integer HOLD_CYCLES = 1000,    // common 20 us warm-reset hold
+7:     parameter integer GAP_CYCLES = 100000,
+8:     parameter integer UART_DIV = 25         // existing BL616 relay: 2 Mbit/s
+9: ) (
+10:     input wire clk_ref, ahb_clk, rtc_clk, serial_rx,
+11:     input wire ddr_ready, pll_ready, cpu_reset_n,
+12:     output wire release_request,
+13:     output reg delay_mode = 1'b1,
+14:     output reg [3:0] command_epoch = 0,
+15:     output reg holding = 0,
+16:     output reg delay_done = 0,
+17:     output wire ahb_tick, rtc_tick
+18: );
+19:     localparam integer WAIT_WIDTH = WAIT_CYCLES > 1 ? $clog2(WAIT_CYCLES) : 1;
+20:     localparam integer HOLD_WIDTH = HOLD_CYCLES > 1 ? $clog2(HOLD_CYCLES) : 1;
+21:     localparam integer GAP_WIDTH = GAP_CYCLES > 1 ? $clog2(GAP_CYCLES) : 1;
+22:     // Independent activity witnesses: never reset by the CPU/bus under test.
+23:     reg [7:0] ahb_div = 0, rtc_div = 0;
+24:     always @(posedge ahb_clk) ahb_div <= ahb_div + 1'b1;
+25:     always @(posedge rtc_clk) rtc_div <= rtc_div + 1'b1;
+26:     assign ahb_tick = ahb_div[7];
+27:     assign rtc_tick = rtc_div[7];
+28: 
+29:     reg [2:0] up = 0;
+30:     always @(posedge clk_ref) up <= {up[1:0], 1'b1};
+31:     wire [7:0] rx_byte;
+32:     wire rx_valid;
+33:     neo_reset_trial_rx #(.DIV_WIDTH(16)) u_rx (
+34:         .clk(clk_ref), .rst(!up[2]), .clk_div(16'(UART_DIV)),
+35:         .rx(serial_rx), .data(rx_byte), .valid(rx_valid));
+36: 
+37:     // A5 5A 52 31 35 mode complement 0D. Only mode 0/1 is accepted.
+38:     // Parser timeout prevents unrelated console bytes completing a stale command.
+39:     reg [2:0] parse_state = 0;
+40:     reg pending_mode = 0;
+41:     reg [GAP_WIDTH-1:0] gap_count = 0;
+42:     reg command_valid = 0, command_mode = 0;
+43:     always @(posedge clk_ref) begin
+44:         command_valid <= 0;
+45:         if (!up[2]) begin parse_state <= 0; gap_count <= 0; end
+46:         else if (parse_state != 0 && gap_count == GAP_WIDTH'(GAP_CYCLES-1)) begin
+47:             parse_state <= 0; gap_count <= 0;
+48:         end else if (rx_valid) begin
+49:             gap_count <= 0;
+50:             case (parse_state)
+51:                 0: parse_state <= rx_byte == 8'ha5 ? 1 : 0;
+52:                 1: parse_state <= rx_byte == 8'h5a ? 2 : 0;
+53:                 2: parse_state <= rx_byte == 8'h52 ? 3 : 0;
+54:                 3: parse_state <= rx_byte == 8'h31 ? 4 : 0;
+55:                 4: parse_state <= rx_byte == 8'h35 ? 5 : 0;
+56:                 5: begin
+57:                     if (rx_byte < 2) begin pending_mode <= rx_byte[0]; parse_state <= 6; end
+58:                     else parse_state <= 0;
+59:                 end
+60:                 6: parse_state <= rx_byte == (pending_mode ? 8'hfe : 8'hff) ? 7 : 0;
+61:                 7: begin
+62:                     parse_state <= 0;
+63:                     if (rx_byte == 8'h0d) begin command_valid <= 1; command_mode <= pending_mode; end
+64:                 end
+65:             endcase
+66:         end else if (parse_state != 0) gap_count <= gap_count + 1'b1;
+67:     end
+68: 
+69:     reg [1:0] ready_meta = 0, reset_meta = 0;
+70:     always @(posedge clk_ref) begin
+71:         ready_meta <= {ready_meta[0], ddr_ready && pll_ready};
+72:         reset_meta <= {reset_meta[0], cpu_reset_n};
+73:     end
+74:     reg [WAIT_WIDTH-1:0] wait_count = 0;
+75:     reg [HOLD_WIDTH-1:0] hold_count = 0;
+76:     always @(posedge clk_ref) begin
+77:         if (command_valid) begin
+78:             delay_mode <= command_mode;
+79:             command_epoch <= command_epoch + 1'b1;
+80:             holding <= 1;
+81:             hold_count <= 0;
+82:             wait_count <= 0;
+83:             delay_done <= 0;
+84:         end else begin
+85:             if (holding) begin
+86:                 // Do not lose a reset request while AHB is stopped: wait until
+87:                 // the existing two-flop synchronizer has actually asserted reset.
+88:                 if (reset_meta[1]) hold_count <= 0;
+89:                 else if (hold_count == HOLD_WIDTH'(HOLD_CYCLES-1)) begin
+90:                     holding <= 0; hold_count <= 0;
+91:                 end else hold_count <= hold_count + 1'b1;
+92:             end
+93:             if (!ready_meta[1] || holding) begin wait_count <= 0; delay_done <= 0; end
+94:             else if (!delay_done) begin
+95:                 if (wait_count == WAIT_WIDTH'(WAIT_CYCLES-1)) delay_done <= 1;
+96:                 else wait_count <= wait_count + 1'b1;
+97:             end
+98:         end
+99:     end
+100:     // In short mode the original DDR-ready level is passed to the unchanged
+101:     // two AHB flops. All modes still honor calibration loss; no force-to-one.
+102:     assign release_request = ddr_ready && !holding && (!delay_mode || delay_done);
+103: endmodule
+104: `default_nettype wire
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/pll_init.v SHA256 3ef05a1ba92157d73e3c54ed9d589645508a4ae332d8bcf133a0457cc3e866c8
+1: `timescale 1ns/1ns
+2: 
+3: module PLL_INIT
+4: #(
+5: parameter CLK_PERIOD = 50,
+6: parameter MULTI_FAC  = 30
+7: )
+8: (
+9: input CLKIN,
+10: input I_RST,
+11: input PLLLOCK,
+12: output O_RST,
+13: output [5:0] ICPSEL,
+14: output [2:0] LPFRES,
+15: output O_LOCK
+16: 
+17: );
+18: 
+19: localparam WAIT_TIME = 'd2000_000;      
+20: localparam WAIT_CNT = (WAIT_TIME + CLK_PERIOD - 1) / CLK_PERIOD; 
+21: localparam WAIT_WIDTH = $clog2(WAIT_CNT + 1);
+22: 
+23: reg [WAIT_WIDTH-1:0] waitcnt = 'd0;
+24: reg [3:0] RomAddr = 'd0;
+25: reg [15:0] Rom [15:0];
+26: reg [15:0] RomDreg ='d0;
+27: wire [5:0] Regicp = RomDreg[5:0];
+28: wire [2:0] Regres = RomDreg[10:8];
+29: reg Waitlock = 'd0;
+30: reg [7:0] locksig = 8'b0000_0000;
+31: reg laststep = 1'b0;
+32: 
+33: wire validsig = RomDreg[12];
+34: reg [1:0]enable_r = 2'b00;
+35: 
+36: wire Enable = enable_r[1];
+37: always @(posedge CLKIN or posedge I_RST)
+38: begin
+39:     if (I_RST)
+40:         enable_r <= 2'b00;
+41:     else
+42:         begin
+43:             enable_r <= {enable_r[0], 1'b1};
+44:         end
+45: end 
+46: 
+47: always @(posedge CLKIN or negedge Enable)
+48: begin
+49:     if (Enable == 1'b0)
+50:         begin
+51:             RomDreg <= 16'h0000;
+52:             
+53:             Rom[00] <= 16'h1400;    //1
+54:             Rom[01] <= (MULTI_FAC > 34) ? 16'h1401
+55:                     :  (MULTI_FAC > 16) ? 16'h1400
+56:                     :                     16'h1400;    //2
+57:             Rom[02] <= (MULTI_FAC > 34) ? 16'h1501
+58:                     :  (MULTI_FAC > 16) ? 16'h1500
+59:                     :                     16'h1500;    //3
+60:             Rom[03] <= (MULTI_FAC > 34) ? 16'h1503
+61:                     :  (MULTI_FAC > 16) ? 16'h1501
+62:                     :                     16'h1500;    //4
+63:             Rom[04] <= (MULTI_FAC > 34) ? 16'h1507
+64:                     :  (MULTI_FAC > 16) ? 16'h1503
+65:                     :                     16'h1501;    //5
+66:             Rom[05] <= (MULTI_FAC > 34) ? 16'h0605
+67:                     :  (MULTI_FAC > 16) ? 16'h0602
+68:                     :                     16'h0601;    //6
+69:             Rom[06] <= 16'h0000;    //over
+70:                         
+71:             Rom[07] <= (MULTI_FAC > 34) ? 16'h1402
+72:                     :  (MULTI_FAC > 16) ? 16'h1401
+73:                     :                     16'h1400;    //2.5
+74:             Rom[08] <= (MULTI_FAC > 34) ? 16'h1502
+75:                     :  (MULTI_FAC > 16) ? 16'h1501
+76:                     :                     16'h1500;    //3.5
+77:             Rom[09] <= (MULTI_FAC > 34) ? 16'h1504
+78:                     :  (MULTI_FAC > 16) ? 16'h1502
+79:                     :                     16'h1501;    //4.5
+80:             Rom[10] <= (MULTI_FAC > 34) ? 16'h1603
+81:                     :  (MULTI_FAC > 16) ? 16'h1601
+82:                     :                     16'h1600;    //5.5
+83:             Rom[11] <= 16'h1400;    //1.5
+84:             Rom[12] <= 16'h0000;
+85:             Rom[13] <= 16'h0000;
+86:             Rom[14] <= 16'h0000;
+87:             Rom[15] <= 16'h0000;
+88:         end
+89:     else
+90:         RomDreg <= Rom[RomAddr[3:0]];
+91: end
+92: 
+93: reg [3:0]RomAddrVld = 'd0;
+94: always @ (*) begin
+95:     casex (locksig[5:0])
+96:         6'b111_111  :   RomAddrVld = 4'd8;
+97:         6'b011_111  :   RomAddrVld = 4'd8;
+98:         6'b111_110  :   RomAddrVld = 4'd8;
+99:         6'b111_10x  :   RomAddrVld = 4'd9;
+100:         6'bx01_111  :   RomAddrVld = 4'd7;
+101:         6'b011_110  :   RomAddrVld = 4'd8;
+102:         6'bxx0_111  :   RomAddrVld = 4'd1;
+103:         6'bx01_110  :   RomAddrVld = 4'd2;
+104:         6'b011_10x  :   RomAddrVld = 4'd3;
+105:         6'b111_0xx  :   RomAddrVld = 4'd4;
+106:                                      
+107:         6'bxxx_011  :   RomAddrVld = 4'd1;
+108:         6'bxx0_110  :   RomAddrVld = 4'd7;
+109:         6'bx01_100  :   RomAddrVld = 4'd8;
+110:         6'b011_000  :   RomAddrVld = 4'd9;
+111:         6'b110_000  :   RomAddrVld = 4'd10;
+112:         6'bxxx_x01  :   RomAddrVld = 4'd0;
+113:         6'bxxx_010  :   RomAddrVld = 4'd1;
+114:         6'bxx0_100  :   RomAddrVld = 4'd2;
+115:         6'bx01_000  :   RomAddrVld = 4'd3;
+116:         6'b010_000  :   RomAddrVld = 4'd4;
+117:         6'b100_000  :   RomAddrVld = 4'd5;
+118:                                      
+119:         6'b000_000  :   RomAddrVld = 4'd8;
+120:                                      
+121:         default     :   RomAddrVld = 4'd8;
+122:     endcase                          
+123: end
+124: 
+125: 
+126: reg [3:0]state='d0;
+127: localparam IDLE  = 4'd0;
+128: localparam STATE1 = 4'd1;
+129: localparam STATE2 = 4'd2;
+130: localparam STATE3 = 4'd3;
+131: localparam STATE4 = 4'd4;
+132: localparam STATE5 = 4'd5;
+133: localparam STATE6 = 4'd6;
+134: localparam STATE7 = 4'd7;
+135: 
+136: 
+137: 
+138: always @(posedge CLKIN or negedge Enable)
+139: begin
+140:     if (Enable == 1'b0)
+141:         begin
+142:         state <= IDLE;
+143:         RomAddr<=4'b0000;
+144:         laststep <= 1'b0;
+145:         end
+146:     else
+147:         begin
+148:             case (state)
+149:                 IDLE: 
+150:                     begin
+151:                     state<=STATE1;
+152:                     end
+153:                 STATE1:
+154:                     begin
+155:                     state<=STATE2;
+156:                     end
+157:                 STATE2:
+158:                     begin
+159:                     if (laststep==1'b1)
+160:                         state<=STATE7;
+161:                     else
+162:                         state<=STATE3;
+163:                     end
+164:                 STATE3:
+165:                     begin
+166:                     if (Waitlock==1'b1)
+167:                         state<=STATE4;
+168:                     else
+169:                         state<= STATE3;
+170:                     end
+171:                 STATE4:
+172:                     begin
+173:                     state<=STATE5;               
+174:                     end
+175:                 STATE5:
+176:                     begin
+177:                     if (validsig==1'b1)
+178:                         begin
+179:                             RomAddr <= RomAddr + 1;
+180:                             state <= STATE1;
+181:                         end
+182:                     else if (validsig==1'b0 && laststep==1'b0)
+183:                             state <= STATE6;
+184:                     end
+185:                 STATE6:
+186:                     begin
+187:                     RomAddr <= RomAddrVld;
+188:                     laststep <= 1'b1;
+189:                     state <= STATE1;
+190:                     end
+191:                 STATE7:
+192:                     begin
+193:                     state<=STATE7;
+194:                     end
+195: 
+196:                 default: state<=IDLE;
+197:             endcase
+198:         end
+199: end
+200: 
+201: always @(posedge CLKIN)
+202: begin
+203: 
+204: 
+205:     Waitlock <= (&waitcnt == 1'b1) ? 1'b1 : 1'b0; 
+206:     
+207:     waitcnt <= (state==STATE3) ? (waitcnt+1) : 'd0;
+208:     
+209:     if (~Enable)    locksig <= 8'b0000_0000;
+210:     else    if (state==STATE4)   locksig[RomAddr[3:0]] <= PLLLOCK;
+211: 
+212: 
+213: end
+214: 
+215: assign ICPSEL = Regicp;
+216: assign LPFRES = Regres;
+217: assign O_RST = (~Enable) || (state==STATE2) ? 1'b1 : 1'b0;
+218: assign O_LOCK = (state==STATE7) ? PLLLOCK : 1'b0;
+219: 
+220: endmodule
+221: 
+222: 
+223: 
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/ae350/pll_ae350/gowin_pll_ae350.v SHA256 f87925e087e4e794cca37a800ff6a8355c61a2d365fc90d2acc92b87b5b569f4
+1: module Gowin_PLL_AE350(
+2:     lock,
+3:     clkin,
+4:     init_clk,
+5:     enclk0,
+6:     enclk1,
+7:     enclk2,
+8:     enclk3,
+9:     enclk4,
+10:     clkout0,
+11:     clkout1,
+12:     clkout2,
+13:     clkout3,
+14:     clkout4
+15: );
+16: 
+17: 
+18: input clkin;
+19: input init_clk;
+20: input enclk0;
+21: input enclk1;
+22: input enclk2;
+23: input enclk3;
+24: input enclk4;
+25: output clkout0;
+26: output clkout1;
+27: output clkout2;
+28: output clkout3;
+29: output clkout4;
+30: output lock;
+31: wire [5:0] icpsel;
+32: wire [2:0] lpfres;
+33: wire pll_lock;
+34: wire pll_rst;
+35: 
+36: 
+37:     Gowin_PLL_AE350_MOD u_pll(
+38:         .enclk0(enclk0),
+39:         .enclk1(enclk1),
+40:         .enclk2(enclk2),
+41:         .enclk3(enclk3),
+42:         .enclk4(enclk4),
+43:         .clkout1(clkout1),
+44:         .clkout2(clkout2),
+45:         .clkout3(clkout3),
+46:         .clkout4(clkout4),
+47:         .clkout0(clkout0),
+48:         .lock(pll_lock),
+49:         .clkin(clkin),
+50:         .reset(pll_rst),
+51:         .icpsel(icpsel),
+52:         .lpfres(lpfres),
+53:         .lpfcap(2'b00)
+54:     );
+55: 
+56: 
+57:     PLL_INIT u_pll_init(
+58:         .CLKIN(init_clk),
+59:         .I_RST(1'b0),
+60:         .O_RST(pll_rst),
+61:         .PLLLOCK(pll_lock),
+62:         .O_LOCK(lock),
+63:         .ICPSEL(icpsel),
+64:         .LPFRES(lpfres)
+65:     );
+66:     defparam u_pll_init.CLK_PERIOD = 20;
+67:     defparam u_pll_init.MULTI_FAC = 16;
+68: 
+69: 
+70: endmodule
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/ae350/pll_ae350/gowin_pll_ae350_mod.v SHA256 eda1a36f4e4791cad11a07275970643cc40139544f8a60b4603f5e763bc46155
+1: //Copyright (C)2014-2025 Gowin Semiconductor Corporation.
+2: //All rights reserved.
+3: //File Title: IP file
+4: //Tool Version: V1.9.12 (64-bit)
+5: //Part Number: GW5AST-LV138FPG676AES
+6: //Device: GW5AST-138
+7: //Device Version: B
+8: //Created Time: Thu Nov  6 23:49:20 2025
+9: 
+10: module Gowin_PLL_AE350_MOD (lock, clkout0, clkout1, clkout2, clkout3, clkout4, clkin, reset, icpsel, lpfres, lpfcap, enclk0, enclk1, enclk2, enclk3, enclk4);
+11: 
+12: output lock;
+13: output clkout0;
+14: output clkout1;
+15: output clkout2;
+16: output clkout3;
+17: output clkout4;
+18: input clkin;
+19: input reset;
+20: input [5:0] icpsel;
+21: input [2:0] lpfres;
+22: input [1:0] lpfcap;
+23: input enclk0;
+24: input enclk1;
+25: input enclk2;
+26: input enclk3;
+27: input enclk4;
+28: 
+29: wire clkout5;
+30: wire clkout6;
+31: wire clkfbout;
+32: wire gw_vcc;
+33: wire gw_gnd;
+34: 
+35: assign gw_vcc = 1'b1;
+36: assign gw_gnd = 1'b0;
+37: 
+38: PLL PLL_inst (
+39:     .LOCK(lock),
+40:     .CLKOUT0(clkout0),
+41:     .CLKOUT1(clkout1),
+42:     .CLKOUT2(clkout2),
+43:     .CLKOUT3(clkout3),
+44:     .CLKOUT4(clkout4),
+45:     .CLKOUT5(clkout5),
+46:     .CLKOUT6(clkout6),
+47:     .CLKFBOUT(clkfbout),
+48:     .CLKIN(clkin),
+49:     .CLKFB(gw_gnd),
+50:     .RESET(reset),
+51:     .PLLPWD(gw_gnd),
+52:     .RESET_I(gw_gnd),
+53:     .RESET_O(gw_gnd),
+54:     .FBDSEL({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+55:     .IDSEL({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+56:     .MDSEL({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+57:     .MDSEL_FRAC({gw_gnd,gw_gnd,gw_gnd}),
+58:     .ODSEL0({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+59:     .ODSEL0_FRAC({gw_gnd,gw_gnd,gw_gnd}),
+60:     .ODSEL1({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+61:     .ODSEL2({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+62:     .ODSEL3({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+63:     .ODSEL4({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+64:     .ODSEL5({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+65:     .ODSEL6({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+66:     .DT0({gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+67:     .DT1({gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+68:     .DT2({gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+69:     .DT3({gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+70:     .ICPSEL(icpsel),
+71:     .LPFRES(lpfres),
+72:     .LPFCAP(lpfcap),
+73:     .PSSEL({gw_gnd,gw_gnd,gw_gnd}),
+74:     .PSDIR(gw_gnd),
+75:     .PSPULSE(gw_gnd),
+76:     .ENCLK0(enclk0),
+77:     .ENCLK1(enclk1),
+78:     .ENCLK2(enclk2),
+79:     .ENCLK3(enclk3),
+80:     .ENCLK4(enclk4),
+81:     .ENCLK5(gw_vcc),
+82:     .ENCLK6(gw_vcc),
+83:     .SSCPOL(gw_gnd),
+84:     .SSCON(gw_gnd),
+85:     .SSCMDSEL({gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd,gw_gnd}),
+86:     .SSCMDSEL_FRAC({gw_gnd,gw_gnd,gw_gnd})
+87: );
+88: 
+89: defparam PLL_inst.FCLKIN = "50";
+90: defparam PLL_inst.IDIV_SEL = 1;
+91: defparam PLL_inst.FBDIV_SEL = 1;
+92: defparam PLL_inst.ODIV0_SEL = 10; // 800 / 10 = 80 MHz AHB/APB
+93: defparam PLL_inst.ODIV1_SEL = 1;
+94: defparam PLL_inst.ODIV2_SEL = 10;
+95: defparam PLL_inst.ODIV3_SEL = 10;
+96: defparam PLL_inst.ODIV4_SEL = 80;
+97: defparam PLL_inst.ODIV5_SEL = 8;
+98: defparam PLL_inst.ODIV6_SEL = 8;
+99: defparam PLL_inst.MDIV_SEL = 16;
+100: defparam PLL_inst.MDIV_FRAC_SEL = 0;
+101: defparam PLL_inst.ODIV0_FRAC_SEL = 0;
+102: defparam PLL_inst.CLKOUT0_EN = "TRUE";
+103: defparam PLL_inst.CLKOUT1_EN = "TRUE";
+104: defparam PLL_inst.CLKOUT2_EN = "TRUE";
+105: defparam PLL_inst.CLKOUT3_EN = "TRUE";
+106: defparam PLL_inst.CLKOUT4_EN = "TRUE";
+107: defparam PLL_inst.CLKOUT5_EN = "FALSE";
+108: defparam PLL_inst.CLKOUT6_EN = "FALSE";
+109: defparam PLL_inst.CLKFB_SEL = "INTERNAL";
+110: defparam PLL_inst.CLKOUT0_DT_DIR = 1'b1;
+111: defparam PLL_inst.CLKOUT1_DT_DIR = 1'b1;
+112: defparam PLL_inst.CLKOUT2_DT_DIR = 1'b1;
+113: defparam PLL_inst.CLKOUT3_DT_DIR = 1'b1;
+114: defparam PLL_inst.CLKOUT0_DT_STEP = 0;
+115: defparam PLL_inst.CLKOUT1_DT_STEP = 0;
+116: defparam PLL_inst.CLKOUT2_DT_STEP = 0;
+117: defparam PLL_inst.CLKOUT3_DT_STEP = 0;
+118: defparam PLL_inst.CLK0_IN_SEL = 1'b0;
+119: defparam PLL_inst.CLK0_OUT_SEL = 1'b0;
+120: defparam PLL_inst.CLK1_IN_SEL = 1'b0;
+121: defparam PLL_inst.CLK1_OUT_SEL = 1'b0;
+122: defparam PLL_inst.CLK2_IN_SEL = 1'b0;
+123: defparam PLL_inst.CLK2_OUT_SEL = 1'b0;
+124: defparam PLL_inst.CLK3_IN_SEL = 1'b0;
+125: defparam PLL_inst.CLK3_OUT_SEL = 1'b0;
+126: defparam PLL_inst.CLK4_IN_SEL = 2'b00;
+127: defparam PLL_inst.CLK4_OUT_SEL = 1'b0;
+128: defparam PLL_inst.CLK5_IN_SEL = 1'b0;
+129: defparam PLL_inst.CLK5_OUT_SEL = 1'b0;
+130: defparam PLL_inst.CLK6_IN_SEL = 1'b0;
+155: defparam PLL_inst.DE1_EN = "FALSE";
+156: defparam PLL_inst.DE2_EN = "FALSE";
+157: defparam PLL_inst.DE3_EN = "FALSE";
+158: defparam PLL_inst.DE4_EN = "FALSE";
+159: defparam PLL_inst.DE5_EN = "FALSE";
+160: defparam PLL_inst.DE6_EN = "FALSE";
+161: defparam PLL_inst.RESET_I_EN = "FALSE";
+162: defparam PLL_inst.RESET_O_EN = "FALSE";
+163: defparam PLL_inst.ICP_SEL = 6'bXXXXXX;
+164: defparam PLL_inst.LPF_RES = 3'bXXX;
+165: defparam PLL_inst.LPF_CAP = 2'b00;
+166: defparam PLL_inst.SSC_EN = "FALSE";
+167: defparam PLL_inst.DYN_IDIV_SEL = "FALSE";
+168: defparam PLL_inst.DYN_FBDIV_SEL = "FALSE";
+169: defparam PLL_inst.DYN_MDIV_SEL = "FALSE";
+170: defparam PLL_inst.DYN_ODIV0_SEL = "FALSE";
+171: defparam PLL_inst.DYN_ODIV1_SEL = "FALSE";
+172: defparam PLL_inst.DYN_ODIV2_SEL = "FALSE";
+173: defparam PLL_inst.DYN_ODIV3_SEL = "FALSE";
+174: defparam PLL_inst.DYN_ODIV4_SEL = "FALSE";
+175: defparam PLL_inst.DYN_ODIV5_SEL = "FALSE";
+176: defparam PLL_inst.DYN_ODIV6_SEL = "FALSE";
+177: defparam PLL_inst.DYN_DT0_SEL = "FALSE";
+178: defparam PLL_inst.DYN_DT1_SEL = "FALSE";
+179: defparam PLL_inst.DYN_DT2_SEL = "FALSE";
+180: defparam PLL_inst.DYN_DT3_SEL = "FALSE";
+181: defparam PLL_inst.DYN_ICP_SEL = "TRUE";
+182: defparam PLL_inst.DYN_LPF_SEL = "TRUE";
+183: 
+184: endmodule //Gowin_PLL_AE350_MOD
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/riscv_ae350_soc_ext/riscv_ae350_soc.v SHA256 cddec3f4faa98b5b0ecbc1fbccbab8640d477715ea357a410a881a89ceaa4974
+7: //file0 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_top.v"
+8: //file1 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_soc.v"
+9: //file2 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_ddr3.v"
+10: //file3 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/riscv_ae350_flash.v"
+11: //file4 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/ddr3_1_4code_hs.v"
+12: //file5 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/DDR3_TOP.v"
+13: //file6 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/fifo_top_32to128.v"
+14: //file7 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/fifo_top_128to32.v"
+15: //file8 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/gw_dtcm.v"
+16: //file9 "\/home/michael/gowin/Gowin_V1.9.12_linux/IDE/ipcore/RiscV_AE350_SOC/data/gw_itcm.v"
+714: module RiscV_AE350_SOC_Top (
+719:   DDR_HBURST,
+725:   DDR_HCLK,
+726:   DDR_HRSTN,
+729:   TRST_IN,
+738:   EXTS_HBURST,
+745:   EXTS_HCLK,
+746:   EXTS_HRSTN,
+749:   SPI_CLK_IN,
+757:   SPI_CLK_OUT,
+758:   SPI_CLK_OE,
+780:   CORE_CLK,
+781:   DDR_CLK,
+782:   AHB_CLK,
+783:   APB_CLK,
+784:   RTC_CLK,
+785:   POR_RSTN,
+786:   HW_RSTN
+793: output [2:0] DDR_HBURST;
+799: output DDR_HCLK;
+800: output DDR_HRSTN;
+803: input TRST_IN;
+812: output [2:0] EXTS_HBURST;
+819: output EXTS_HCLK;
+820: output EXTS_HRSTN;
+823: input SPI_CLK_IN;
+831: output SPI_CLK_OUT;
+832: output SPI_CLK_OE;
+854: input CORE_CLK;
+855: input DDR_CLK;
+856: input AHB_CLK;
+857: input APB_CLK;
+858: input RTC_CLK;
+859: input POR_RSTN;
+860: input HW_RSTN;
+863:   RiscV_AE350_SOC u_RiscV_AE350_SOC (
+864:     .POR_RSTN(POR_RSTN),
+865:     .HW_RSTN(HW_RSTN),
+866:     .CORE_CLK(CORE_CLK),
+867:     .DDR_CLK(DDR_CLK),
+868:     .AHB_CLK(AHB_CLK),
+869:     .APB_CLK(APB_CLK),
+871:     .RTC_CLK(RTC_CLK),
+877:     .TRST_IN(TRST_IN),
+881:     .SPI_CLK_IN(SPI_CLK_IN),
+894:     .EXTS_HRSTN(EXTS_HRSTN),
+895:     .DDR_HRSTN(DDR_HRSTN),
+907:     .SPI_CLK_OUT(SPI_CLK_OUT),
+908:     .SPI_CLK_OE(SPI_CLK_OE),
+921:     .EXTS_HBURST(EXTS_HBURST[2:0]),
+927:     .DDR_HBURST(DDR_HBURST[2:0]),
+944: assign DDR_HCLK = DDR_CLK;
+945: assign EXTS_HCLK = AHB_CLK;
+946: endmodule /* RiscV_AE350_SOC_Top */
+
+
+SOURCE tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.tr SHA256 58005fba0ac890af1b66c12094a5aea7aa6f64a7de580b0e2e7cea336f3d25a7
+1: //Copyright (C)2014-2026 Gowin Semiconductor Corporation.
+2: //All rights reserved.
+3: 
+4: INTRODUCTION:
+5: The document contains two main sections: Timing Report Directory and Core Timing Report.
+6: 
+7: ============================================================
+8: Note:Timing Report Directory
+9: 
+10: 1. Timing Message
+11: 2. Timing Summaries
+12: 	2.1 STA Tool Run Summary
+13: 	2.2 Clock Summary
+14: 	2.3 Max Frequency Summary
+15: 	2.4 Total Negative Slack Summary
+16: 3. Timing Details
+17: 	3.1 Path Slacks Table
+18: 		3.1.1 Setup Paths Table
+19: 		3.1.2 Hold Paths Table
+20: 		3.1.3 Recovery Paths Table
+21: 			3.1.3.1 Recovery Paths Table[1]
+22: 			3.1.3.2 Recovery Paths Table[2]
+23: 		3.1.4 Removal Paths Table
+24: 			3.1.4.1Removal  Paths Table[1]
+25: 			3.1.4.2Removal  Paths Table[2]
+26: 	3.2 Minimum Pulse Width Table
+27: 	3.3 Timing Report By Analysis Type
+28: 		3.3.1 Setup Analysis Report
+29: 		3.3.2 Hold Analysis Report
+30: 		3.3.3 Recovery Analysis Report
+31: 			3.3.3.1 Recovery Analysis Report[1]
+32: 			3.3.3.2 Recovery Analysis Report[2]
+33: 		3.3.4 Removal Analysis Report
+34: 			3.3.4.1 Removal Analysis Report[1]
+35: 			3.3.4.2 Removal Analysis Report[2]
+36: 	3.4 Minimum Pulse Width Report
+37: 	3.5 High Fanout Nets Report
+38: 	3.6 Route Congestions Report
+39: 	3.7 Timing Exceptions Report
+40: 		3.7.1 Setup Analysis Report
+41: 		3.7.2 Hold Analysis Report
+42: 		3.7.3 Recovery Analysis Report
+43: 		3.7.4 Recovery Analysis Report
+44: 	3.8 Timing Constraints Report
+45: 
+46: ============================================================
+47: 
+48: Note:Core Timing Report
+49: 
+50: 1. Timing Messages
+51: <Report Title>: Timing Analysis Report
+52: <Design File>: /home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/console_neo.vg
+53: <Physical Constraints File>: /home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo.cst
+54: <Timing Constraints File>: /home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo.sdc
+55: <Tool Version>: V1.9.12.03
+56: <Part Number>: GW5AST-LV138PG484AC1/I0
+57: <Device>: GW5AST-138
+58: <Device Version>: C
+59: <Created Time>: Mon Oct 26 17:15:04 2026
+60: 
+61: 
+62: 2. Timing Summaries
+63: 2.1 STA Tool Run Summary
+64: <Setup Delay Model>:Slow 0.873V 0C C1/I0
+65: <Hold Delay Model>:Fast 0.927V 85C C1/I0
+66: <Numbers of Paths Analyzed>:191459
+67: <Numbers of Endpoints Analyzed>:189374
+68: <Numbers of Falling Endpoints>:22
+69: <Numbers of Setup Violated Endpoints>:27
+70: <Numbers of Hold Violated Endpoints>:0
+71: 
+72: 2.2 Clock Summary
+73:   NO.    Clock Name      Type      Period    Frequency    Rise     Fall             Source             Master                                           Objects                                          
+74:  ===== ============== =========== ========= ============ ======= ======== =========================== ========= ======================================================================================== 
+75:   1     clk50          Base        20.000    50.000MHz    0.000   10.000                                         clk                                                                                     
+76:   2     bus80_clk      Base        12.500    80.000MHz    0.000   6.250                                          u_pll_ae350/u_pll/PLL_inst/CLKOUT0                                                      
+77:   3     core_clk       Base        1.250     800.000MHz   0.000   0.625                                          u_pll_ae350/u_pll/PLL_inst/CLKOUT1                                                      
+78:   4     rtc_clk        Base        100.000   10.000MHz    0.000   50.000                                         u_pll_ae350/u_pll/PLL_inst/CLKOUT4                                                      
+79:   5     ddr3_mem_clk   Base        3.333     300.030MHz   0.000   1.667                                          u_soc/u_pll_ddr3/u_pll/PLL_inst/CLKOUT2                                                 
+80:   6     ddr3_sys_clk   Base        13.333    75.002MHz    0.000   6.667                                          u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT                             
+81:   7     sclk           Base        8.333     120.005MHz   0.000   4.166                                          u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk   
+82:   8     vid_clk5x      Generated   2.689     371.875MHz   0.000   1.345    clk                         clk50     u_video_pll/PLL_inst/CLKOUT0                                                            
+83:   9     vid_pclk       Generated   13.445    74.375MHz    0.000   6.723    clk                         clk50     u_video_pll/PLL_inst/CLKOUT2                                                            
+84:   10    CLK_48M        Generated   20.833    48.000MHz    0.000   10.417   clk                         clk50     u_pll_f/PLL_inst/CLKOUT0                                                                
+85:   11    PHY_CLKOUT     Generated   16.667    60.000MHz    0.000   8.333    u_pll_f/PLL_inst/CLKOUT0    CLK_48M   u_pll_b/PLL_inst/CLKOUT1                                                                
+86:   12    fclk_960M      Generated   1.042     960.000MHz   0.000   0.521    u_pll_f/PLL_inst/CLKOUT0    CLK_48M   u_pll_b/PLL_inst/CLKOUT0                                                                
+87: 
+88: 2.3 Max Frequency Summary
+89:   NO.    Clock Name     Constraint     Actual Fmax    Level   Entity  
+90:  ===== ============== ============== =============== ======= ======== 
+91:   1     clk50          50.000(MHz)    71.596(MHz)     7       TOP     
+92:   2     bus80_clk      80.000(MHz)    78.409(MHz)     6       TOP     
+93:   3     rtc_clk        10.000(MHz)    652.398(MHz)    3       TOP     
+94:   4     ddr3_mem_clk   300.030(MHz)   2240.144(MHz)   1       TOP     
+95:   5     ddr3_sys_clk   75.002(MHz)    72.687(MHz)     3       TOP     
+96:   6     sclk           120.005(MHz)   173.425(MHz)    6       TOP     
+97:   7     vid_pclk       74.375(MHz)    91.780(MHz)     8       TOP     
+98:   8     PHY_CLKOUT     60.000(MHz)    69.950(MHz)     10      TOP     
+99: No timing paths to get frequency of core_clk!
+100: No timing paths to get frequency of vid_clk5x!
+101: No timing paths to get frequency of CLK_48M!
+102: No timing paths to get frequency of fclk_960M!
+103: 
+104: 2.4 Total Negative Slack Summary
+105:    Clock Name    Analysis Type   EndPoints TNS   Number of EndPoints  
+106:  ============== =============== =============== ===================== 
+107:   clk50          setup           0.000           0                    
+108:   clk50          hold            0.000           0                    
+109:   bus80_clk      setup           -0.806          9                    
+110:   bus80_clk      hold            0.000           0                    
+111:   core_clk       setup           0.000           0                    
+112:   core_clk       hold            0.000           0                    
+113:   rtc_clk        setup           0.000           0                    
+114:   rtc_clk        hold            0.000           0                    
+115:   ddr3_mem_clk   setup           0.000           0                    
+116:   ddr3_mem_clk   hold            0.000           0                    
+117:   ddr3_sys_clk   setup           -2.985          14                   
+118:   ddr3_sys_clk   hold            0.000           0                    
+119:   sclk           setup           0.000           0                    
+120:   sclk           hold            0.000           0                    
+121:   vid_clk5x      setup           0.000           0                    
+122:   vid_clk5x      hold            0.000           0                    
+123:   vid_pclk       setup           0.000           0                    
+124:   vid_pclk       hold            0.000           0                    
+125:   CLK_48M        setup           0.000           0                    
+126:   CLK_48M        hold            0.000           0                    
+127:   PHY_CLKOUT     setup           0.000           0                    
+128:   PHY_CLKOUT     hold            0.000           0                    
+129:   fclk_960M      setup           0.000           0                    
+130:   fclk_960M      hold            0.000           0                    
+131: 
+132: 
+133: 3. Timing Details
+134: 3.1 Path Slacks Table
+135: 3.1.1 Setup Paths Table
+136: <Report Command>:report_timing -setup -max_paths 1000 -max_common_paths 1
+137:   Path Number   Path Slack                                           From Node                                                                                      To Node                                                From Clock          To Clock       Relation   Clock Skew   Data Delay  
+138:  ============= ============ ============================================================================================ ============================================================================================= ================== ================== ========== ============ ============ 
+139:   1             -2.888       u_accel/u_blitter/rp_3_s0/Q                                                                  u_accel/busy_sync_0_s0/D                                                                      ddr3_sys_clk:[R]   bus80_clk:[R]      8.000      -0.209       11.005      
+140:   2             -1.791       u_pll_ae350/u_pll_init/state_0_s0/Q                                                          diag_board_meta_3_s0/D                                                                        clk50:[R]          PHY_CLKOUT:[R]     8.000      2.308        7.390       
+
+
+SOURCE tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.rpt.txt SHA256 b1539d51568dc8a4eaeb1af1fb6fd260845ca349a7e14b17881ac544866558cb
+97: 5. Clock Resource Usage Summary
+100:   Clock Resource| Usage         | Utilization 
+103:   LW            | 7/8           | 88%
+114: 6. Global Clock Signals
+117:   Signal         | Global Clock   | Location
+127:   usb_app_reset  | LW             |  -
+128:   v1_pending     | LW             |  -
+129:   rtc_clk        | LW             |  -
+130:   u_accel/u_v1/n59467_5| LW             |  -
+131:   u_accel/u_v1/u_pixels/u_copy/n7630_6| LW             |  -
+132:   u_accel/u_raster/u_triangle/state_0[4]| LW             |  -
+133:   u_soc/g_ddr.u_ddr/u_ip/gw3_top/ddr_rst| LW             |  -
+149: ae350_tck        | -         | D22/2         | Y          | in    | IOR49[B] | -               | LVCMOS33   | OFF   | DOWN      | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+150: ae350_tms        | -         | D21/2         | Y          | in    | IOR51[B] | -               | LVCMOS33   | OFF   | UP        | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+151: ae350_tdi        | -         | W20/4         | Y          | in    | IOB122[B] | MGCLKC_5/BPLL2_C_IN1/BPLL3_C_IN1 | LVCMOS33   | OFF   | UP        | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+156: ae350_tx         | -         | F19/2         | Y          | out   | IOR33[A] | FBTEST_R0       | LVCMOS33   | 8     | NONE      | OFF       | OFF        | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+165: ae350_tdo        | -         | F20/2         | Y          | out   | IOR33[B] | CLKTEST_R0      | LVCMOS33   | 8     | NONE      | OFF       | OFF        | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+323: W20/4    | ae350_tdi        | in    | IOB122[B] | MGCLKC_5/BPLL2_C_IN1/BPLL3_C_IN1 | LVCMOS33 | OFF   | UP        | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+488: F19/2    | ae350_tx         | out   | IOR33[A] | FBTEST_R0       | LVCMOS33 | 8     | NONE      | OFF       | OFF        | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+489: F20/2    | ae350_tdo        | out   | IOR33[B] | CLKTEST_R0      | LVCMOS33 | 8     | NONE      | OFF       | OFF        | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+503: D22/2    | ae350_tck        | in    | IOR49[B] | -               | LVCMOS33 | OFF   | DOWN      | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+505: D21/2    | ae350_tms        | in    | IOR51[B] | -               | LVCMOS33 | OFF   | UP        | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.tr SHA256 e1ca2ac4bd2c9034d10cccfe94194455b9ab0b666f3ff3fcc6e65878c5608456
+1: //Copyright (C)2014-2026 Gowin Semiconductor Corporation.
+2: //All rights reserved.
+3: 
+4: INTRODUCTION:
+5: The document contains two main sections: Timing Report Directory and Core Timing Report.
+6: 
+7: ============================================================
+8: Note:Timing Report Directory
+9: 
+10: 1. Timing Message
+11: 2. Timing Summaries
+12: 	2.1 STA Tool Run Summary
+13: 	2.2 Clock Summary
+14: 	2.3 Max Frequency Summary
+15: 	2.4 Total Negative Slack Summary
+16: 3. Timing Details
+17: 	3.1 Path Slacks Table
+18: 		3.1.1 Setup Paths Table
+19: 		3.1.2 Hold Paths Table
+20: 		3.1.3 Recovery Paths Table
+21: 			3.1.3.1 Recovery Paths Table[1]
+22: 			3.1.3.2 Recovery Paths Table[2]
+23: 		3.1.4 Removal Paths Table
+24: 			3.1.4.1Removal  Paths Table[1]
+25: 			3.1.4.2Removal  Paths Table[2]
+26: 	3.2 Minimum Pulse Width Table
+27: 	3.3 Timing Report By Analysis Type
+28: 		3.3.1 Setup Analysis Report
+29: 		3.3.2 Hold Analysis Report
+30: 		3.3.3 Recovery Analysis Report
+31: 			3.3.3.1 Recovery Analysis Report[1]
+32: 			3.3.3.2 Recovery Analysis Report[2]
+33: 		3.3.4 Removal Analysis Report
+34: 			3.3.4.1 Removal Analysis Report[1]
+35: 			3.3.4.2 Removal Analysis Report[2]
+36: 	3.4 Minimum Pulse Width Report
+37: 	3.5 High Fanout Nets Report
+38: 	3.6 Route Congestions Report
+39: 	3.7 Timing Exceptions Report
+40: 		3.7.1 Setup Analysis Report
+41: 		3.7.2 Hold Analysis Report
+42: 		3.7.3 Recovery Analysis Report
+43: 		3.7.4 Recovery Analysis Report
+44: 	3.8 Timing Constraints Report
+45: 
+46: ============================================================
+47: 
+48: Note:Core Timing Report
+49: 
+50: 1. Timing Messages
+51: <Report Title>: Timing Analysis Report
+52: <Design File>: /home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/console_neo.vg
+53: <Physical Constraints File>: /home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo.cst
+54: <Timing Constraints File>: /home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo.sdc
+55: <Tool Version>: V1.9.12.03
+56: <Part Number>: GW5AST-LV138PG484AC1/I0
+57: <Device>: GW5AST-138
+58: <Device Version>: C
+59: <Created Time>: Tue Oct 27 01:28:07 2026
+60: 
+61: 
+62: 2. Timing Summaries
+63: 2.1 STA Tool Run Summary
+64: <Setup Delay Model>:Slow 0.873V 0C C1/I0
+65: <Hold Delay Model>:Fast 0.927V 85C C1/I0
+66: <Numbers of Paths Analyzed>:191483
+67: <Numbers of Endpoints Analyzed>:189398
+68: <Numbers of Falling Endpoints>:22
+69: <Numbers of Setup Violated Endpoints>:56
+70: <Numbers of Hold Violated Endpoints>:0
+71: 
+72: 2.2 Clock Summary
+73:   NO.    Clock Name      Type      Period    Frequency    Rise     Fall             Source             Master                                           Objects                                          
+74:  ===== ============== =========== ========= ============ ======= ======== =========================== ========= ======================================================================================== 
+75:   1     clk50          Base        20.000    50.000MHz    0.000   10.000                                         clk                                                                                     
+76:   2     bus80_clk      Base        12.500    80.000MHz    0.000   6.250                                          u_pll_ae350/u_pll/PLL_inst/CLKOUT0                                                      
+77:   3     core_clk       Base        1.250     800.000MHz   0.000   0.625                                          u_pll_ae350/u_pll/PLL_inst/CLKOUT1                                                      
+78:   4     rtc_clk        Base        100.000   10.000MHz    0.000   50.000                                         u_pll_ae350/u_pll/PLL_inst/CLKOUT4                                                      
+79:   5     ddr3_mem_clk   Base        3.333     300.030MHz   0.000   1.667                                          u_soc/u_pll_ddr3/u_pll/PLL_inst/CLKOUT2                                                 
+80:   6     ddr3_sys_clk   Base        13.333    75.002MHz    0.000   6.667                                          u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT                             
+81:   7     sclk           Base        8.333     120.005MHz   0.000   4.166                                          u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk   
+82:   8     vid_clk5x      Generated   2.689     371.875MHz   0.000   1.345    clk                         clk50     u_video_pll/PLL_inst/CLKOUT0                                                            
+83:   9     vid_pclk       Generated   13.445    74.375MHz    0.000   6.723    clk                         clk50     u_video_pll/PLL_inst/CLKOUT2                                                            
+84:   10    CLK_48M        Generated   20.833    48.000MHz    0.000   10.417   clk                         clk50     u_pll_f/PLL_inst/CLKOUT0                                                                
+85:   11    PHY_CLKOUT     Generated   16.667    60.000MHz    0.000   8.333    u_pll_f/PLL_inst/CLKOUT0    CLK_48M   u_pll_b/PLL_inst/CLKOUT1                                                                
+86:   12    fclk_960M      Generated   1.042     960.000MHz   0.000   0.521    u_pll_f/PLL_inst/CLKOUT0    CLK_48M   u_pll_b/PLL_inst/CLKOUT0                                                                
+87: 
+88: 2.3 Max Frequency Summary
+89:   NO.    Clock Name     Constraint     Actual Fmax    Level   Entity  
+90:  ===== ============== ============== =============== ======= ======== 
+91:   1     clk50          50.000(MHz)    74.468(MHz)     3       TOP     
+92:   2     bus80_clk      80.000(MHz)    78.333(MHz)     7       TOP     
+93:   3     rtc_clk        10.000(MHz)    648.826(MHz)    3       TOP     
+94:   4     ddr3_mem_clk   300.030(MHz)   2240.144(MHz)   1       TOP     
+95:   5     ddr3_sys_clk   75.002(MHz)    71.771(MHz)     7       TOP     
+96:   6     sclk           120.005(MHz)   170.833(MHz)    8       TOP     
+97:   7     vid_pclk       74.375(MHz)    94.573(MHz)     5       TOP     
+98:   8     PHY_CLKOUT     60.000(MHz)    72.988(MHz)     12      TOP     
+99: No timing paths to get frequency of core_clk!
+100: No timing paths to get frequency of vid_clk5x!
+101: No timing paths to get frequency of CLK_48M!
+102: No timing paths to get frequency of fclk_960M!
+103: 
+104: 2.4 Total Negative Slack Summary
+105:    Clock Name    Analysis Type   EndPoints TNS   Number of EndPoints  
+106:  ============== =============== =============== ===================== 
+107:   clk50          setup           0.000           0                    
+108:   clk50          hold            0.000           0                    
+109:   bus80_clk      setup           -0.363          3                    
+110:   bus80_clk      hold            0.000           0                    
+111:   core_clk       setup           0.000           0                    
+112:   core_clk       hold            0.000           0                    
+113:   rtc_clk        setup           0.000           0                    
+114:   rtc_clk        hold            0.000           0                    
+115:   ddr3_mem_clk   setup           0.000           0                    
+116:   ddr3_mem_clk   hold            0.000           0                    
+117:   ddr3_sys_clk   setup           -15.274         51                   
+118:   ddr3_sys_clk   hold            0.000           0                    
+119:   sclk           setup           0.000           0                    
+120:   sclk           hold            0.000           0                    
+121:   vid_clk5x      setup           0.000           0                    
+122:   vid_clk5x      hold            0.000           0                    
+123:   vid_pclk       setup           0.000           0                    
+124:   vid_pclk       hold            0.000           0                    
+125:   CLK_48M        setup           0.000           0                    
+126:   CLK_48M        hold            0.000           0                    
+127:   PHY_CLKOUT     setup           0.000           0                    
+128:   PHY_CLKOUT     hold            0.000           0                    
+129:   fclk_960M      setup           0.000           0                    
+130:   fclk_960M      hold            0.000           0                    
+131: 
+132: 
+133: 3. Timing Details
+134: 3.1 Path Slacks Table
+135: 3.1.1 Setup Paths Table
+136: <Report Command>:report_timing -setup -max_paths 1000 -max_common_paths 1
+137:   Path Number   Path Slack                                 From Node                                                                            To Node                                                From Clock          To Clock       Relation   Clock Skew   Data Delay  
+138:  ============= ============ ======================================================================== ============================================================================================= ================== ================== ========== ============ ============ 
+139:   1             -2.602       u_pll_ae350/u_pll_init/state_0_s0/Q                                      diag_board_meta_3_s0/D                                                                        clk50:[R]          PHY_CLKOUT:[R]     8.000      2.289        8.220       
+140:   2             -2.574       u_accel/u_blitter/rp_2_s0/Q                                              u_accel/busy_sync_0_s0/D                                                                      ddr3_sys_clk:[R]   bus80_clk:[R]      8.000      -0.206       10.688      
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.rpt.txt SHA256 9ffb920d59e44003cdc010c032af39f3d89aa3720c3bcb6729506074671ed6a1
+97: 5. Clock Resource Usage Summary
+100:   Clock Resource| Usage         | Utilization 
+103:   LW            | 7/8           | 88%
+114: 6. Global Clock Signals
+117:   Signal         | Global Clock   | Location
+127:   usb_app_reset  | LW             |  -
+128:   v1_pending     | LW             |  -
+129:   rtc_clk        | LW             |  -
+130:   u_gpu/prst[1]  | LW             |  -
+131:   u_accel/u_v1/n59467_5| LW             |  -
+132:   u_accel/u_v1/u_pixels/u_copy/n7630_6| LW             |  -
+133:   u_soc/g_ddr.u_ddr/u_ip/gw3_top/ddr_rst| LW             |  -
+149: ae350_tck        | -         | D22/2         | Y          | in    | IOR49[B] | -               | LVCMOS33   | OFF   | DOWN      | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+150: ae350_tms        | -         | D21/2         | Y          | in    | IOR51[B] | -               | LVCMOS33   | OFF   | UP        | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+151: ae350_tdi        | -         | W20/4         | Y          | in    | IOB122[B] | MGCLKC_5/BPLL2_C_IN1/BPLL3_C_IN1 | LVCMOS33   | OFF   | UP        | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+156: ae350_tx         | -         | F19/2         | Y          | out   | IOR33[A] | FBTEST_R0       | LVCMOS33   | 8     | NONE      | OFF       | OFF        | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+165: ae350_tdo        | -         | F20/2         | Y          | out   | IOR33[B] | CLKTEST_R0      | LVCMOS33   | 8     | NONE      | OFF       | OFF        | OFF        | OFF        | OFF             | OFF           | 3.3        | MEDIUM        | NONE         
+323: W20/4    | ae350_tdi        | in    | IOB122[B] | MGCLKC_5/BPLL2_C_IN1/BPLL3_C_IN1 | LVCMOS33 | OFF   | UP        | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+488: F19/2    | ae350_tx         | out   | IOR33[A] | FBTEST_R0       | LVCMOS33 | 8     | NONE      | OFF       | OFF        | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+489: F20/2    | ae350_tdo        | out   | IOR33[B] | CLKTEST_R0      | LVCMOS33 | 8     | NONE      | OFF       | OFF        | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+503: D22/2    | ae350_tck        | in    | IOR49[B] | -               | LVCMOS33 | OFF   | DOWN      | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+505: D21/2    | ae350_tms        | in    | IOR51[B] | -               | LVCMOS33 | OFF   | UP        | OFF       | ON         | OFF        | OFF        | OFF             | OFF           | 3.3   | MEDIUM        | NONE         
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.sdf SHA256 4550ba38f5ca64747e03ff6a015e6aa695a02535360e7251e951aeea9ae279d9
+2106370:    (CELLTYPE "AE350_SOC")
+2106371:    (INSTANCE u_soc\/u_ae350\/u_RiscV_AE350_SOC\/u_AE350_SOC)
+2106372:     (DELAY
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.sdf SHA256 4550ba38f5ca64747e03ff6a015e6aa695a02535360e7251e951aeea9ae279d9
+2106374:       (IOPATH CORE_CLK CORE0_WFI_MODE (0.582:1.082:1.583))
+2106375:       (IOPATH RTC_CLK RTC_WAKEUP (0.327:0.618:0.910))
+2106809:       (IOPATH DBG_TCK TDO_OUT (0.374:0.695:1.017))
+2106898:       (IOPATH CORE_CLK SCAN_OUT[1] (0.348:0.627:0.905))
+2106899:       (IOPATH CORE_CLK SCAN_OUT[2] (0.629:1.118:1.608))
+2106900:       (IOPATH CORE_CLK SCAN_OUT[3] (0.620:1.110:1.600))
+2106901:       (IOPATH CORE_CLK SCAN_OUT[4] (0.606:1.127:1.648))
+2106902:       (IOPATH CORE_CLK SCAN_OUT[5] (0.634:1.208:1.782))
+2106903:       (IOPATH CORE_CLK SCAN_OUT[6] (0.602:1.087:1.571))
+2106904:       (IOPATH CORE_CLK SCAN_OUT[7] (0.620:1.133:1.646))
+2106905:       (IOPATH CORE_CLK SCAN_OUT[8] (0.536:0.972:1.408))
+2106906:       (IOPATH CORE_CLK SCAN_OUT[9] (0.514:0.918:1.323))
+2106916:      (SETUPHOLD (posedge CORE_CE) (posedge CORE_CLK) (-0.334:-0.334:-0.334) (0.192:0.192:0.192))
+2106917:      (SETUPHOLD (negedge CORE_CE) (posedge CORE_CLK) (-0.336:-0.336:-0.336) (0.196:0.196:0.196))
+2106918:      (SETUPHOLD (posedge PGEN_CHAIN_I) (posedge CORE_CLK) (11.253:11.253:11.253) (0.110:0.110:0.110))
+2106919:      (SETUPHOLD (negedge PGEN_CHAIN_I) (posedge CORE_CLK) (11.253:11.253:11.253) (0.110:0.110:0.110))
+2106920:      (SETUPHOLD (posedge EMA[0]) (posedge CORE_CLK) (1.128:1.128:1.128) (0.802:0.802:0.802))
+2106921:      (SETUPHOLD (negedge EMA[0]) (posedge CORE_CLK) (1.192:1.192:1.192) (0.799:0.799:0.799))
+2106922:      (SETUPHOLD (posedge EMA[1]) (posedge CORE_CLK) (1.239:1.239:1.239) (0.766:0.766:0.766))
+2106923:      (SETUPHOLD (negedge EMA[1]) (posedge CORE_CLK) (1.284:1.284:1.284) (0.757:0.757:0.757))
+2106924:      (SETUPHOLD (posedge EMA[2]) (posedge CORE_CLK) (1.163:1.163:1.163) (0.819:0.819:0.819))
+2106925:      (SETUPHOLD (negedge EMA[2]) (posedge CORE_CLK) (1.247:1.247:1.247) (0.815:0.815:0.815))
+2106926:      (SETUPHOLD (posedge EMAW[0]) (posedge CORE_CLK) (0.992:0.992:0.992) (0.805:0.805:0.805))
+2106927:      (SETUPHOLD (negedge EMAW[0]) (posedge CORE_CLK) (1.101:1.101:1.101) (0.803:0.803:0.803))
+2106928:      (SETUPHOLD (posedge EMAW[1]) (posedge CORE_CLK) (0.958:0.958:0.958) (0.808:0.808:0.808))
+2106929:      (SETUPHOLD (negedge EMAW[1]) (posedge CORE_CLK) (1.057:1.057:1.057) (0.807:0.807:0.807))
+2106930:      (SETUPHOLD (posedge EMAS) (posedge CORE_CLK) (1.135:1.135:1.135) (0.801:0.801:0.801))
+2106931:      (SETUPHOLD (negedge EMAS) (posedge CORE_CLK) (1.224:1.224:1.224) (0.797:0.797:0.797))
+2107640:      (SETUPHOLD (posedge TMS_IN) (posedge DBG_TCK) (0.195:0.195:0.195) (-0.013:-0.013:-0.013))
+2107641:      (SETUPHOLD (negedge TMS_IN) (posedge DBG_TCK) (0.196:0.196:0.196) (-0.027:-0.027:-0.027))
+2107642:      (SETUPHOLD (posedge TDI_IN) (posedge DBG_TCK) (0.514:0.514:0.514) (-0.030:-0.030:-0.030))
+2107643:      (SETUPHOLD (negedge TDI_IN) (posedge DBG_TCK) (0.563:0.563:0.563) (-0.031:-0.031:-0.031))
+2107644:      (SETUPHOLD (posedge WAKEUP_IN) (posedge RTC_CLK) (0.139:0.139:0.139) (-0.016:-0.016:-0.016))
+2107645:      (SETUPHOLD (negedge WAKEUP_IN) (posedge RTC_CLK) (0.132:0.132:0.132) (-0.007:-0.007:-0.007))
+
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.sdf SHA256 4550ba38f5ca64747e03ff6a015e6aa695a02535360e7251e951aeea9ae279d9
+2126698:        (INTERCONNECT ae350_tck_ibuf/O u_soc\/u_ae350\/u_RiscV_AE350_SOC\/u_AE350_SOC/DBG_TCK (0.950:1.814:2.677))
+2144040:        (INTERCONNECT u_pll_ae350\/u_pll\/PLL_inst/CLKOUT0 u_soc\/u_ae350\/u_RiscV_AE350_SOC\/u_AE350_SOC/AHB_CLK (1.339:2.391:3.442))
+2144041:        (INTERCONNECT u_pll_ae350\/u_pll\/PLL_inst/CLKOUT0 u_soc\/u_ae350\/u_RiscV_AE350_SOC\/u_AE350_SOC/APB_CLK (1.342:2.397:3.451))
+2144245:        (INTERCONNECT u_pll_ae350\/u_pll\/PLL_inst/CLKOUT1 u_soc\/u_ae350\/u_RiscV_AE350_SOC\/u_AE350_SOC/CORE_CLK (0.000:0.000:0.000))
+2144246:        (INTERCONNECT u_pll_ae350\/u_pll\/PLL_inst/CLKOUT4 u_soc\/u_ae350\/u_RiscV_AE350_SOC\/u_AE350_SOC/RTC_CLK (0.917:1.726:2.535))
+2189729:        (INTERCONNECT ae350_rst_sync_1_s0/Q u_soc\/init_sync_0_s0/CLEAR (1.228:2.067:2.907))
+2189730:        (INTERCONNECT ae350_rst_sync_1_s0/Q u_soc\/init_sync_1_s0/CLEAR (1.228:2.067:2.907))
+2199561:        (INTERCONNECT u_soc\/init_sync_1_s0/Q u_soc\/u_ae350\/u_RiscV_AE350_SOC\/u_AE350_SOC/POR_N (3.722:6.728:9.733))
+2199562:        (INTERCONNECT u_soc\/init_sync_1_s0/Q u_soc\/u_ae350\/u_RiscV_AE350_SOC\/u_AE350_SOC/HW_RSTN (3.722:6.728:9.733))
+
+
+JSON EXCERPT TESTS/neo_720p_20261012/capture_memory_20261027/cpu_route_compare_01/result.json SHA256 a5efbc3835114be54d1bbed424219dcfa92ada3edde8c0c755428ce802f81c1e
+{
+  "logic_equal": true,
+  "parameters_equal": true,
+  "comparison": [
+    {
+      "endpoint": "ae350_rst_sync_0_s0/CLK",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.323,
+            2.394,
+            3.465
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.346,
+            2.448,
+            3.55
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "ae350_rst_sync_1_s0/CLK",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.323,
+            2.394,
+            3.465
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.346,
+            2.448,
+            3.55
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "ae350_tdo_obuf/I",
+      "before": [
+        {
+          "source": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/TDO_OUT",
+          "delay_by_corner_ns": [
+            0.691,
+            1.292,
+            1.892
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/TDO_OUT",
+          "delay_by_corner_ns": [
+            0.691,
+            1.292,
+            1.892
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_pll_ae350/u_pll/PLL_inst/CLKIN",
+      "before": [
+        {
+          "source": "clk_ibuf/O",
+          "delay_by_corner_ns": [
+            2.02,
+            3.502,
+            4.983
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "clk_ibuf/O",
+          "delay_by_corner_ns": [
+            2.02,
+            3.502,
+            4.983
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_pll_ae350/u_pll/PLL_inst/ENCLK0",
+      "before": [
+        {
+          "source": "VCC_cZ/V",
+          "delay_by_corner_ns": [
+            0.086,
+            0.137,
+            0.188
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "VCC_cZ/V",
+          "delay_by_corner_ns": [
+            0.086,
+            0.137,
+            0.188
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_pll_ae350/u_pll/PLL_inst/ENCLK1",
+      "before": [
+        {
+          "source": "VCC_cZ/V",
+          "delay_by_corner_ns": [
+            0.088,
+            0.139,
+            0.19
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "VCC_cZ/V",
+          "delay_by_corner_ns": [
+            0.088,
+            0.139,
+            0.19
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_pll_ae350/u_pll/PLL_inst/ENCLK4",
+      "before": [
+        {
+          "source": "VCC_cZ/V",
+          "delay_by_corner_ns": [
+            0.088,
+            0.139,
+            0.19
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "VCC_cZ/V",
+          "delay_by_corner_ns": [
+            0.088,
+            0.139,
+            0.19
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_pll_ae350/u_pll/PLL_inst/RESET",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll_init/pll_rst_s1/F",
+          "delay_by_corner_ns": [
+            3.925,
+            6.589,
+            9.253
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll_init/pll_rst_s1/F",
+          "delay_by_corner_ns": [
+            3.761,
+            6.666,
+            9.57
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_pll_ae350/u_pll/PLL_inst/RESET_I",
+      "before": [
+        {
+          "source": "GND_cZ/G",
+          "delay_by_corner_ns": [
+            0.196,
+            0.345,
+            0.494
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "GND_cZ/G",
+          "delay_by_corner_ns": [
+            0.196,
+            0.345,
+            0.494
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_pll_ae350/u_pll/PLL_inst/RESET_O",
+      "before": [
+        {
+          "source": "GND_cZ/G",
+          "delay_by_corner_ns": [
+            0.196,
+            0.345,
+            0.494
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "GND_cZ/G",
+          "delay_by_corner_ns": [
+            0.196,
+            0.345,
+            0.494
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/init_sync_0_s0/CLEAR",
+      "before": [
+        {
+          "source": "ae350_rst_sync_1_s0/Q",
+          "delay_by_corner_ns": [
+            1.636,
+            2.751,
+            3.867
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "ae350_rst_sync_1_s0/Q",
+          "delay_by_corner_ns": [
+            1.228,
+            2.067,
+            2.907
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/init_sync_0_s0/CLK",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.308,
+            2.36,
+            3.413
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.335,
+            2.393,
+            3.452
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/init_sync_0_s0/D",
+      "before": [
+        {
+          "source": "u_reset_trial/release_request_d_s/F",
+          "delay_by_corner_ns": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_reset_trial/release_request_d_s/F",
+          "delay_by_corner_ns": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/init_sync_1_s0/CLEAR",
+      "before": [
+        {
+          "source": "ae350_rst_sync_1_s0/Q",
+          "delay_by_corner_ns": [
+            1.636,
+            2.751,
+            3.867
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "ae350_rst_sync_1_s0/Q",
+          "delay_by_corner_ns": [
+            1.228,
+            2.067,
+            2.907
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/init_sync_1_s0/CLK",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.308,
+            2.36,
+            3.413
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.335,
+            2.393,
+            3.452
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/init_sync_1_s0/D",
+      "before": [
+        {
+          "source": "u_soc/init_sync_0_s0/Q",
+          "delay_by_corner_ns": [
+            0.197,
+            0.297,
+            0.396
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_soc/init_sync_0_s0/Q",
+          "delay_by_corner_ns": [
+            0.203,
+            0.301,
+            0.398
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/AHB_CLK",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.339,
+            2.391,
+            3.442
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.339,
+            2.391,
+            3.442
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/APB_CLK",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.342,
+            2.397,
+            3.451
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+          "delay_by_corner_ns": [
+            1.342,
+            2.397,
+            3.451
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/CORE_CLK",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT1",
+          "delay_by_corner_ns": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT1",
+          "delay_by_corner_ns": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/DBG_TCK",
+      "before": [
+        {
+          "source": "ae350_tck_ibuf/O",
+          "delay_by_corner_ns": [
+            0.95,
+            1.814,
+            2.677
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "ae350_tck_ibuf/O",
+          "delay_by_corner_ns": [
+            0.95,
+            1.814,
+            2.677
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/DDR_CLK",
+      "before": [
+        {
+          "source": "clk_ibuf/O",
+          "delay_by_corner_ns": [
+            2.035,
+            3.517,
+            4.999
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "clk_ibuf/O",
+          "delay_by_corner_ns": [
+            2.035,
+            3.517,
+            4.999
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/HW_RSTN",
+      "before": [
+        {
+          "source": "u_soc/init_sync_1_s0/Q",
+          "delay_by_corner_ns": [
+            3.87,
+            6.701,
+            9.531
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_soc/init_sync_1_s0/Q",
+          "delay_by_corner_ns": [
+            3.722,
+            6.728,
+            9.733
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/POR_N",
+      "before": [
+        {
+          "source": "u_soc/init_sync_1_s0/Q",
+          "delay_by_corner_ns": [
+            3.87,
+            6.701,
+            9.531
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_soc/init_sync_1_s0/Q",
+          "delay_by_corner_ns": [
+            3.722,
+            6.728,
+            9.733
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/RTC_CLK",
+      "before": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT4",
+          "delay_by_corner_ns": [
+            0.768,
+            1.496,
+            2.224
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "u_pll_ae350/u_pll/PLL_inst/CLKOUT4",
+          "delay_by_corner_ns": [
+            0.917,
+            1.726,
+            2.535
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/TDI_IN",
+      "before": [
+        {
+          "source": "ae350_tdi_ibuf/O",
+          "delay_by_corner_ns": [
+            1.783,
+            3.551,
+            5.319
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "ae350_tdi_ibuf/O",
+          "delay_by_corner_ns": [
+            1.783,
+            3.551,
+            5.319
+          ]
+        }
+      ]
+    },
+    {
+      "endpoint": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/TMS_IN",
+      "before": [
+        {
+          "source": "ae350_tms_ibuf/O",
+          "delay_by_corner_ns": [
+            0.994,
+            1.831,
+            2.668
+          ]
+        }
+      ],
+      "after": [
+        {
+          "source": "ae350_tms_ibuf/O",
+          "delay_by_corner_ns": [
+            1.062,
+            1.919,
+            2.777
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Missing SDF path is unavailable, not zero delay.",
+    "No on-board clock frequency/reset state measurement.",
+    "Configured FPGA DONE does not establish hart or DMI readiness."
+  ]
+}
+
+
+JSON EXCERPT TESTS/neo_720p_20261012/capture_memory_20261027/postroute_01/result.json SHA256 a57b3c69e8cb4bf7343fe0361b48e32b3e7b7a86280a43e5d9de1e58b737665c
+{
+  "qualification_status": "FAIL",
+  "gates": {
+    "global_timing": false,
+    "application_structural": true,
+    "observer_clocks": true,
+    "observer_helper": true,
+    "observer_coverage": true,
+    "observer_cones": true,
+    "observer_setup": true,
+    "held_shadow": true,
+    "constraints": true
+  },
+  "timing": {
+    "setup": -2.602,
+    "hold": 0.124,
+    "recovery": 0.381,
+    "removal": 0.168
+  },
+  "timing_summary": {
+    "status": "FAIL",
+    "stage": "console_neo_n56r21r1_capture_memory",
+    "timing_sha256": "e1ca2ac4bd2c9034d10cccfe94194455b9ab0b666f3ff3fcc6e65878c5608456",
+    "minimum_slack_ns": -2.602,
+    "minimum_pulse_slack_ns": 2.025,
+    "violated_endpoints": {
+      "setup": 56,
+      "hold": 0
+    },
+    "groups": [
+      {
+        "clock": "clk50",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "clk50",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "bus80_clk",
+        "analysis": "setup",
+        "tns": -0.363,
+        "endpoints": 3
+      },
+      {
+        "clock": "bus80_clk",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "core_clk",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "core_clk",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "rtc_clk",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "rtc_clk",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "ddr3_mem_clk",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "ddr3_mem_clk",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "ddr3_sys_clk",
+        "analysis": "setup",
+        "tns": -15.274,
+        "endpoints": 51
+      },
+      {
+        "clock": "ddr3_sys_clk",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "sclk",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "sclk",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "vid_clk5x",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "vid_clk5x",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "vid_pclk",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "vid_pclk",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "CLK_48M",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "CLK_48M",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "PHY_CLKOUT",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "PHY_CLKOUT",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "fclk_960M",
+        "analysis": "setup",
+        "tns": 0.0,
+        "endpoints": 0
+      },
+      {
+        "clock": "fclk_960M",
+        "analysis": "hold",
+        "tns": 0.0,
+        "endpoints": 0
+      }
+    ],
+    "worst_families": [
+      {
+        "slack_ns": -2.602,
+        "source": "u_pll_ae350/u_pll_init/state_0_s0",
+        "destination": "diag_board_meta_3_s0",
+        "clock": "PHY_CLKOUT:[R]"
+      },
+      {
+        "slack_ns": -2.574,
+        "source": "u_accel/u_blitter/rp_2_s0",
+        "destination": "u_accel/busy_sync_0_s0",
+        "clock": "bus80_clk:[R]"
+      },
+      {
+        "slack_ns": -0.6,
+        "source": "u_accel/engine_resetn_3_s0",
+        "destination": "u_accel/u_blitter/st_28_s1",
+        "clock": "ddr3_sys_clk:[R]"
+      },
+      {
+        "slack_ns": -0.555,
+        "source": "u_accel/engine_resetn_3_s0",
+        "destination": "u_accel/u_blitter/affine_cache_affine_cache_0_6_s",
+        "clock": "ddr3_sys_clk:[R]"
+      },
+      {
+        "slack_ns": -0.44,
+        "source": "u_accel/engine_resetn_3_s0",
+        "destination": "u_accel/u_blitter/wj_end_0_s0",
+        "clock": "ddr3_sys_clk:[R]"
+      },
+      {
+        "slack_ns": -0.406,
+        "source": "u_accel/u_blitter/err_cmd_lost_8_s0",
+        "destination": "u_accel/u_blitter/err_cmd_lost_9_s0",
+        "clock": "ddr3_sys_clk:[R]"
+      },
+      {
+        "slack_ns": -0.376,
+        "source": "u_accel/engine_resetn_3_s0",
+        "destination": "u_accel/u_blitter/m_last_1_s0",
+        "clock": "ddr3_sys_clk:[R]"
+      },
+      {
+        "slack_ns": -0.362,
+        "source": "u_accel/v1_pending_s2",
+        "destination": "u_accel/v1_accepted_s0",
+        "clock": "ddr3_sys_clk:[R]"
+      },
+      {
+        "slack_ns": -0.291,
+        "source": "u_accel/command_word_2_s0",
+        "destination": "u_accel/u_commands/head_valid_s5",
+        "clock": "ddr3_sys_clk:[R]"
+      },
+      {
+        "slack_ns": -0.266,
+        "source": "u_video_bus/m_haddr_1_s1",
+        "destination": "u_gamepads/hrdata_21_s0",
+        "clock": "bus80_clk:[R]"
+      },
+      {
+        "slack_ns": -0.144,
+        "source": "u_accel/engine_resetn_3_s0",
+        "destination": "u_accel/u_blitter/b1_d_3_s0",
+        "clock": "ddr3_sys_clk:[R]"
+      },
+      {
+        "slack_ns": -0.022,
+        "source": "u_accel/engine_resetn_4_s0",
+        "destination": "u_accel/u_v1/u_pixels/color_base_21_s0",
+        "clock": "ddr3_sys_clk:[R]"
+      }
+    ],
+    "resources": {
+      "Logic": {
+        "used": 86187,
+        "available": 138240
+      },
+      "Register": {
+        "used": 56082,
+        "available": 139095
+      },
+      "CLS": {
+        "used": 59009,
+        "available": 69120
+      },
+      "BSRAM": {
+        "used": 263,
+        "available": 340
+      },
+      "DSP": {
+        "used": 176.5,
+        "available": 298
+      }
+    }
+  }
+}
+
+
+JSON EXCERPT TESTS/neo_720p_20261012/capture_memory_20261027/root_review_01.json SHA256 e139cd50bfc4b51d36319dba42617aec37e6963897c9f25fb8f25a3ccc649fe2
+{
+  "status": null,
+  "constraints_equal": true,
+  "pnr_settings_only_path_changed": true,
+  "application_cells_intact": null,
+  "helper_clock_reset_identical": null
+}
+
+
+JSON EXCERPT TESTS/neo_720p_20261012/capture_memory_20261027/startup_100k_20261027_090320/result.json SHA256 94ac7c893b75a60e8e0f3408013afaf24568db8654e4b7bc72267e2ad9a31b8f
+{
+  "status": null,
+  "outcome": null,
+  "last_programmed_sha": null,
+  "baseline": null,
+  "r21": null,
+  "fallback": null
+}
+
+DOCUMENTATION EXTERNE SIGNALEE PAR ROOT (non utilisée comme preuve résolue) : page primaire Sipeed https://wiki.sipeed.com/hardware/en/tang/tang-console/mega-console indique DeviceVersion B, mais mélange aussi PG484/676 dans les précautions. Nos builds Neo ciblent138C. Analyseur connu fonctionnel surmêmeNeo utiliseaussi138C/PG484 selonlectureprécédente build.tcl, àrevérifierhistoriqueL31r8. Ne pas conclure mauvaisecible ni erratum depuiscettepage ambiguë; la sélectiondoit êtrecomparéeauxpartiesprisesenchargeparlabasedeGowin,auxmétadonnéesmodèleetsourcesréférence.

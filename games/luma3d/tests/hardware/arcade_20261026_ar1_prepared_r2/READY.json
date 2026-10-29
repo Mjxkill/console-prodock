@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "hardware_access": false,
+  "status": "ready_for_parent_review_no_hardware_launch",
+  "host": "michael@ax15",
+  "manifest_sha256": "b71c7289558d7de5263829b40f18a329de3e9ad67e28809c082d00a41fbb477c",
+  "controller_sha256": "91cea9ac5789d010727ce300833b9752f1cc792234ecbe4510b3221134a01949",
+  "builder_sha256": "6147e671bda66d5429d8d96c0fd4ead23f78ea19f7d5745ba0d1026a85935440",
+  "game": {
+    "bytes": 5599556,
+    "sha256": "3ae9c784195280d9653c08117d56b48611c4a209f8c622bf68c2921a3b2a2659",
+    "crc32": "98478ada"
+  },
+  "probe": {
+    "bytes": 5613176,
+    "sha256": "a8ef1c6f4f04ee6c14b186dd5464aa83268a8578cdd13cf14dacca50cd489f7c",
+    "crc32": "dcd14f28"
+  },
+  "tests": {
+    "controller_cases": 13,
+    "log_sha256": "c2df19fc34f90644612bac9fe8df850ec9a701be2f8542c65752f8d184e48147",
+    "probe_host": "Six fixed scenes; eight legal-input victories; eight actual mid-activity V5 reloads; accelerated sampled walking, every arcade command rendered; no human duration or FPS",
+    "rv32_scenes": 6,
+    "rv32_replay_identical": true,
+    "helper": "ASan/UBSan PASS; LSan unavailable under sandbox ptrace"
+  },
+  "transport_bytes": 689806,
+  "baseline": "OP2 unchanged; last anchor PID2011/startticks15755109 is historical, no fresh board query",
+  "expected_replay": {
+    "won": 255,
+    "active": 0,
+    "region": 1,
+    "phase": 4,
+    "met_nils": 1,
+    "reloads": 8,
+    "input_steps": 18926,
+    "activity_steps": 1351,
+    "zero_dt_steps": 589,
+    "rendered_frames": 1934,
+    "accelerated_replay": 1
+  },
+  "command": [
+    "python3",
+    "/tmp/arcade_20261026_ar1_prepared_r2/prodock_arcade.py",
+    "--bundle",
+    "/tmp/arcade_20261026_ar1_prepared_r2",
+    "--out",
+    "/tmp/arcade_20261026_ar1_trial",
+    "--expected-manifest",
+    "b71c7289558d7de5263829b40f18a329de3e9ad67e28809c082d00a41fbb477c"
+  ],
+  "limits": [
+    "QEMU is producer validation, not AE350 GPU emulation",
+    "Index memory/descriptors are not a composite LCD readback",
+    "Fixed fixtures and accelerated legal-input replay do not measure human duration",
+    "No new FPS claim; one arrival regression guard only",
+    "Activities remain short, shooter scene sparse, no multi-hour campaign yet",
+    "V5 save in separate /tmp file; baseline V4 preserved"
+  ]
+}

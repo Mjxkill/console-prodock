@@ -1,0 +1,1537 @@
+REVUE CONTRADICTOIRE CIBLEE, AUCUN MATERIEL, AUCUN OUTIL.
+Le R19 exact sur Neo renvoie la version UTNA 0 au lieu de1. Activité réelle prouvée: ticks0 puis26061045 puis26061046 stable, bit0 de mot16=1, ID/ACK/commandes corrects. Pas de preuve de panne physique FIFO ni de lane1 morte.
+Le candidat ci-dessous ajoute un témoin avant banque pour discriminer le prochain essai, sans P&R ni accès carte. Je veux des défauts concrets du CODE et du CONTRAT, pas de nouveau diagnostic général. Examiner reset, tags, événements hors busy, invariants de progression/alias, protection adresses, conservation primitive, limites injections. Dire ce qui est prouvé et ce qui ne l'est pas. Décrire un contre-exemple exécutable pour chaque défaut réel. Ne pas demander un reset FIFO unilatéral ni suggérer de qualifierversion0 PASS.
+Le helper Yosys est réellement compilé/simulé avec les primitives officielles Gowin. Le netlist du système R19 n'est pas resynthétisé. Comparaisons locales incluent le R19 exact en parallèle. Un échec initial de banc a été corrigé: Yosys conserve le compteur total sous le nom échappé r_total.q; aucun changement de RTL pour ce correctif du banc. Aucun timing ni signal physique n'est simulé par ces tests.
+Questions: (1) witness raw1 et counts/tags permettent-ils vraiment de distinguer les deux injections sous les gardes documentées? (2) Une écriture/lecture MMIO existante peut-elle être affectée logiquement? (3) Un coin reset/incomplet/horsbusy passe-t-il à tort commecomplet? (4) Transformation .vg peut-elle modifier autre chose silencieusement? (5) Priorité: bug matériel/logique démontrable vs amélioration documentaire vs limite physique déjà explicitée.
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/CONTRACT.md SHA256 2bab874d262f90632395726732643e88c2a7e3513031cece789d239272662831 =====
+# Témoin UTW1, candidat Neo dérivé de R19
+
+Ce témoin est un instrument de diagnostic **candidat**, sans correction du
+défaut observé. La qualification matérielle reste **FAIL** : les captures R19
+existantes renvoient une version nulle ; le candidat n'est ni routé ni chargé.
+
+## Frontière observée
+
+Le témoin échantillonne `reply`, `receive_index`, `busy` et `snapshot_count` au
+même front HCLK que la banque UTNA. Son acceptation est exactement
+`!hreset && reply_valid`, y compris lorsque `busy=0`. Ce dernier cas est
+compté séparément. Il ne crée aucun CDC. `hreset` synchrone est prioritaire
+sur CE ; toutes les données persistantes utilisent des DFFRE explicites.
+
+Les mots 0, 1 et 2 ont chacun une valeur brute, un tag de séquence prélevé sur
+`snapshot_count` et un compteur d'écritures. Ils ne sont **pas atomiques**
+pendant la réception : les tags et compteurs servent précisément à refuser
+une capture partielle. L'instrument ne ralentit pas la FIFO, ne modifie pas
+`busy` et ne fournit aucun retour au chemin de commande/capture.
+
+## Registres en lecture seule
+
+Base UTNA : `0xe9002000`. Les registres existants `+00..BF` conservent leur
+décodage et leur latence. Les nouveaux offsets alignés étaient réservés et
+retournaient zéro dans le netlist R19. Les offsets non alignés `+C0..FF`
+continuent à retourner zéro. Toute écriture dans cette extension est ignorée.
+La seule commande UTNA reste à `+0C`, inchangée.
+
+| Offset | Valeur |
+|---|---|
+| C0 | `0x55545731`, identité UTW1 |
+| C4 | `0x00010001`, ABI 1 / disposition 1 |
+| C8 | Mot brut reçu à l'index 0 |
+| CC | Mot brut reçu à l'index 1 |
+| D0 | Mot brut reçu à l'index 2 |
+| D4 | Alias du mot brut 1, autre classe d'adresse |
+| D8/DC/E0 | Compteurs de capture des index 0/1/2 |
+| E4 | Nombre total de mots reçus |
+| E8 | Nombre de mots reçus à l'index 31 (fin de trame) |
+| EC | Nombre de mots reçus hors `busy` |
+| F0 | État de progression et erreurs persistantes |
+| F4/F8/FC | Tags de séquence des mots 0/1/2 |
+
+État F0 : bits 2:0 = index 0/1/2 vus dans la trame courante ; bit 3 = trame
+ouverte ; bit 4 = index inattendu ; bit 5 = duplication d'un index témoin ;
+bit 6 = débordement d'un compteur ; bit 7 = zéro ; bits 12:8 = prochain
+index attendu ; bits 15:13 = zéro ; bits 20:16 = dernier index reçu ; bit 21
+= `busy` au dernier mot ; bits 31:22 = zéro. Les erreurs sont persistantes
+jusqu'au reset existant. Aucune lecture ne les efface.
+
+Après N captures complètes depuis reset, sans autre événement :
+
+- compteur UTNA `+08` = compteurs D8/DC/E0 = E8 = N ;
+- E4 = 32 × N, sans dépassement 32 bits ; EC = 0 ;
+- F4/F8/FC = N−1 ; F0 = `0x003f0007` ;
+- C8 = identité UTNA, D0 = commande attendue, CC = D4 ;
+- état UTNA `+04` = 0 (ni `busy` ni commande rejetée).
+
+Pour une future collecte, lire l'état et la séquence avant et après **deux
+lectures complètes** des registres et de la banque, sans commande concurrente.
+Les deux images doivent être identiques et respecter toutes les relations
+ci-dessus. Une version de banque nulle reste un échec même si les autres
+valeurs sont exploitables pour le diagnostic. Pas de script matériel inclus.
+
+## Interprétation conditionnelle
+
+Si le défaut initial persiste avec ce nouveau placement, si les sentinelles,
+tags, compteurs, alias et contrôles passent :
+
+| Mot banque 1 | Témoin 1 | Conclusion limitée |
+|---|---|---|
+| 0 | 1 | L'écart se situe en aval de la frontière observée, ou dans la lecture du témoin/de la banque à distinguer ensuite. |
+| 0 | 0 | La valeur est déjà nulle à la frontière, ou le témoin est lui-même erroné ; cela ne désigne pas à lui seul la FIFO. |
+| 1 | 1 | Le défaut n'est pas reproduit sur ce nouveau candidat. Aucune cause établie. |
+| 1 | 0 | Témoins incohérents : ne pas interpréter la frontière comme fiable. |
+
+Une différence de tags, une capture incomplète, un compteur hors `busy`, une
+erreur d'ordre/duplication/débordement ou un alias incohérent invalide cette
+lecture simple. Les 402 FF, les taps et le mux de lecture augmentent la
+charge/routage du design : il n'existe aucune garantie d'observation physique
+sans perturbation.
+
+## Transformation et réversibilité
+
+Le constructeur vérifie le SHA du netlist R19, de son bitstream, du netlist
+routé et du manifeste de toutes ses sources. Il copie le snapshot, ajoute
+uniquement la source Neo du helper, puis conserve tous les anciens modules.
+Seul `usb_idle_trace` reçoit le helper et 32 LUT3 ; chaque registre `hrdata`
+garde son CLK, RESET, CE et Q, seul son D passe par un mux sélectionné par
+l'adresse de l'extension. Tous les paramètres primitifs originaux restent
+inchangés. Le retour arrière est vérifié octet pour octet.
+
+Le helper est mappé seul par Yosys avec `-family gw5a -strict-gw5a-dffs`,
+sans RAM, I/O, PLL ni GSR ajouté. Le netlist du système R19 n'est jamais
+resynthétisé. Le mapping local est simulé avec la bibliothèque officielle
+Gowin ; il ne vaut ni acceptation par le lecteur Gowin ni timing fermé.
+Le dossier ne contient aucun lancement de P&R ou de programmation. Une
+future étape de construction exige une revue distincte, la licence et les
+gardes habituelles. La remise sur carte du R19 de référence reste la voie
+de retour matériel ; aucune archive protégée n'est remplacée.
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/neo_usb_reply_witness.v SHA256 a140165b1671799e15d38b2b292b5d6c4a36c10d1c838d419f61a8ab0bb130fb =====
+// Isolated Neo/R19 diagnostic. All inputs except address are observed HCLK
+// signals already used by usb_idle_trace. No output feeds its capture logic.
+// The bank accepts reply_valid even outside busy: preserve that event and
+// report it, rather than silently masking it. Reads have no side effects.
+`default_nettype none
+module neo_usb_reply_witness (
+ input wire hclk, hreset, reply_valid, busy,
+ input wire [4:0] receive_index,
+ input wire [31:0] reply, completed_count,
+ input wire [7:0] address,
+ output wire read_hit,
+ output reg [31:0] read_data
+);
+ wire event_word=reply_valid && !hreset;
+ wire e0=event_word && receive_index==0;
+ wire e1=event_word && receive_index==1;
+ wire e2=event_word && receive_index==2;
+ wire e31=event_word && receive_index==31;
+ wire outside=event_word && !busy;
+ wire [31:0] raw0,raw1,raw2,tag0,tag1,tag2;
+ wire [31:0] count0,count1,count2,total,frames,outside_count;
+ wire [2:0] seen;
+ wire [4:0] expected_index,last_index;
+ wire last_busy,in_frame,order_error,duplicate,overflow;
+ wire [2:0] next_seen=receive_index==0 ? 3'b001 :
+                            receive_index==1 ? seen|3'b010 :
+                            receive_index==2 ? seen|3'b100 : seen;
+ wire overflow_now=(e0 && &count0) || (e1 && &count1) ||
+                   (e2 && &count2) || (event_word && &total) ||
+                   (e31 && &frames) || (outside && &outside_count);
+ wire duplicate_now=(e0 && in_frame) || (e1 && seen[1]) || (e2 && seen[2]);
+ utw_register #(.W(32)) r_raw0(hclk,hreset,e0,reply,raw0);
+ utw_register #(.W(32)) r_raw1(hclk,hreset,e1,reply,raw1);
+ utw_register #(.W(32)) r_raw2(hclk,hreset,e2,reply,raw2);
+ utw_register #(.W(32)) r_tag0(hclk,hreset,e0,completed_count,tag0);
+ utw_register #(.W(32)) r_tag1(hclk,hreset,e1,completed_count,tag1);
+ utw_register #(.W(32)) r_tag2(hclk,hreset,e2,completed_count,tag2);
+ utw_register #(.W(32)) r_count0(hclk,hreset,e0,count0+32'd1,count0);
+ utw_register #(.W(32)) r_count1(hclk,hreset,e1,count1+32'd1,count1);
+ utw_register #(.W(32)) r_count2(hclk,hreset,e2,count2+32'd1,count2);
+ utw_register #(.W(32)) r_total(hclk,hreset,event_word,total+32'd1,total);
+ utw_register #(.W(32)) r_frames(hclk,hreset,e31,frames+32'd1,frames);
+ utw_register #(.W(32)) r_outside(hclk,hreset,outside,outside_count+32'd1,outside_count);
+ utw_register #(.W(3)) r_seen(hclk,hreset,event_word,next_seen,seen);
+ utw_register #(.W(5)) r_expected(hclk,hreset,event_word,receive_index+5'd1,expected_index);
+ utw_register #(.W(5)) r_last(hclk,hreset,event_word,receive_index,last_index);
+ utw_register r_last_busy(hclk,hreset,event_word,busy,last_busy);
+ utw_register r_in_frame(hclk,hreset,event_word,receive_index!=31,in_frame);
+ utw_register r_order(hclk,hreset,event_word,order_error || receive_index!=expected_index,order_error);
+ utw_register r_duplicate(hclk,hreset,event_word,duplicate || duplicate_now,duplicate);
+ utw_register r_overflow(hclk,hreset,event_word,overflow || overflow_now,overflow);
+
+ assign read_hit=address[7:6]==2'b11 && address[1:0]==0;
+ always @* begin
+  read_data=0;
+  case(address)
+   8'hc0:read_data=32'h55545731; // UTW1, independent constant witness
+   8'hc4:read_data=32'h00010001; // ABI1/layout1, nonzero at address class1
+   8'hc8:read_data=raw0;
+   8'hcc:read_data=raw1;
+   8'hd0:read_data=raw2;
+   8'hd4:read_data=raw1; // alias avoids trusting only one read address
+   8'hd8:read_data=count0;
+   8'hdc:read_data=count1;
+   8'he0:read_data=count2;
+   8'he4:read_data=total;
+   8'he8:read_data=frames;
+   8'hec:read_data=outside_count;
+   8'hf0:read_data={10'd0,last_busy,last_index,3'd0,expected_index,
+                    1'b0,overflow,duplicate,order_error,in_frame,seen};
+   8'hf4:read_data=tag0;
+   8'hf8:read_data=tag1;
+   8'hfc:read_data=tag2;
+   default:read_data=0;
+  endcase
+ end
+endmodule
+
+// Explicit primitive per bit: never infer a memory/validity RAM for witnesses.
+// DFFRE reset is synchronous, has priority over CE, and uses the same HCLK
+// and hreset as the bank being observed. No additional clock or CDC path.
+module utw_register #(parameter W=1)(
+ input wire clk,reset,enable,
+ input wire [W-1:0] d,
+ output wire [W-1:0] q
+);
+ genvar i;
+ generate for(i=0;i<W;i=i+1)begin: bit_reg
+  (* keep=1 *) DFFRE value(.Q(q[i]),.D(d[i]),.CLK(clk),.CE(enable),.RESET(reset));
+ end endgenerate
+endmodule
+`default_nettype wire
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/prepare_candidate.py SHA256 c1b21ce5cd2149851d203937298bd129b23601744a4aa06e13e36637ed4e1657 =====
+#!/usr/bin/env python3
+"""Prepare isolated R19 observer ECO only. No route/program/hardware commands."""
+import argparse
+from collections import Counter
+import difflib
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+
+HERE=Path(__file__).resolve().parent
+ROOT=HERE.parents[2]
+PARENT=ROOT/'tang/impl/console_neo_n56r19_capture_ce_local'
+NET_SHA='dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6'
+BIT_SHA='1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c'
+VO_SHA='c519aedf27fdd29151ee10a668dcc9577bee8546dac2bdd6d263a2040ec1b6a2'
+HELPER=HERE/'neo_usb_reply_witness.v'
+YOSYS=ROOT/'optimizer/.tools/oss-cad-suite/bin/yosys'
+EXPECTED_FF=402
+
+def require(ok,message):
+ if not ok:raise RuntimeError(message)
+def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
+def save(path,value):path.write_text(json.dumps(value,indent=2)+'\n')
+def manifest(path):return {str(p.relative_to(path)):sha(p) for p in sorted(path.rglob('*')) if p.is_file()}
+def block(text,name):
+ matches=list(re.finditer(r'^module '+re.escape(name)+r'\b.*?^endmodule',text,re.M|re.S))
+ require(len(matches)==1,'nonunique module '+name);return matches[0][0]
+def once(text,old,new):
+ require(text.count(old)==1,'nonunique replacement '+old[:100]);return text.replace(old,new,1)
+def norm(value):return re.sub(r'\s+','',value).replace('\\','')
+def cells(text):
+ result={}
+ for kind,name,ports in re.findall(r'^\s*(\w+)\s+(\\[^\s]+|\w+)\s*\(([^;]*?)\);',text,re.M|re.S):
+  if kind=='module':continue
+  name=norm(name);require(name not in result,'duplicate cell '+name)
+  result[name]=(kind,{pin:norm(net) for pin,net in re.findall(r'\.(\w+)\(([^()]*)\)',ports)})
+ return result
+def params(text):return {norm(n):norm(v) for n,v in re.findall(r'^\s*defparam\s+(.+?)\s*=\s*([^;]+);',text,re.M)}
+def parent_guard(parent=PARENT):
+ for path,expected in [('console_neo.vg',NET_SHA),('impl/pnr/console_neo.fs',BIT_SHA),('impl/pnr/console_neo.vo',VO_SHA)]:
+  require(sha(parent/path)==expected,'parent identity '+path)
+ require(manifest(parent/'source')==json.loads((parent/'sources.json').read_text()),'parent source snapshot')
+def new_output(path):
+ path=path.resolve();require(path.parent==HERE,'output must be immediate child of this isolated folder')
+ path.mkdir(exist_ok=False);return path
+
+def map_helper(out):
+ parent_guard();out=new_output(out)
+ source=out/'neo_usb_reply_witness.v';shutil.copy2(HELPER,source)
+ # Avoid synth_gowin -vout: it splits vector ports. Explicit write preserves
+ # vector ports and emits primitive-only Verilog plus parameters.
+ script=(f'read_verilog {source}; synth_gowin -family gw5a -strict-gw5a-dffs '
+  '-top neo_usb_reply_witness -nobram -nolutram -noiopads; '
+  f'write_verilog -simple-lhs -decimal -attr2comment -defparam -renameprefix utw {out}/helper_mapped.v; '
+  f'write_json {out}/helper.json')
+ (out/'map.ys').write_text(script+'\n')
+ with (out/'yosys.log').open('x') as log:
+  result=subprocess.run([str(YOSYS),'-Q','-T','-s',str(out/'map.ys')],stdout=log,stderr=subprocess.STDOUT,timeout=60,cwd=ROOT)
+ require(result.returncode==0,'helper mapping failed; see log')
+ data=json.loads((out/'helper.json').read_text())['modules']['neo_usb_reply_witness']
+ types=Counter(c['type'] for c in data['cells'].values())
+ allowed={'DFFRE','ALU','LUT1','LUT2','LUT3','LUT4','MUX2_LUT5','MUX2_LUT6','MUX2_LUT7','MUX2_LUT8','VCC','GND','$scopeinfo'}
+ require(set(types)<=allowed,'unexpected primitive or inferred memory')
+ require(types['DFFRE']==EXPECTED_FF,'wrong witness register count')
+ require(set(data['ports'])=={'hclk','hreset','reply_valid','busy','receive_index','reply','completed_count','address','read_hit','read_data'},'unexpected ports')
+ for name,cell in data['cells'].items():
+  if cell['type']=='DFFRE':
+   require(cell['connections']['CLK']==data['ports']['hclk']['bits'],'new clock '+name)
+   require(cell['connections']['RESET']==data['ports']['hreset']['bits'],'new reset '+name)
+ mapped=(out/'helper_mapped.v').read_text()
+ require(not re.search(r'^\s*(?:GSR|[A-Z]*RAM\w*|[A-Z]*DP\w*|[IO]BUF|PLL\w*)\s',mapped,re.M),'forbidden primitive')
+ save(out/'result.json',dict(passed=True,candidate=True,hardware_qualification='FAIL (not routed or tested)',
+  hardware_access=False,routing_started=False,Gowin_executed=False,SDF=False,
+  tool=str(YOSYS),tool_sha256=sha(YOSYS),builder_sha256=sha(Path(__file__)),helper_sha256=sha(HELPER),
+  cell_counts=dict(sorted(types.items())),ff=EXPECTED_FF,clock='hclk',reset='hreset',memory_cells=0,
+  inputs={str(p.relative_to(out)):sha(p) for p in [source,out/'map.ys',out/'helper_mapped.v',out/'helper.json',out/'yosys.log']}))
+ print(json.dumps(dict(mapped=True,output=str(out),cell_counts=dict(types))))
+
+def transform(original,helper):
+ old=block(original,'usb_idle_trace');oc=cells(old);op=params(old)
+ require('neo_usb_reply_witness' not in original,'witness already present')
+ require('utw_' not in old,'reserved name collision')
+ # Frozen original reads +C0..FF as zero; preserve all decoding and bank
+ # controls, extending only the input of its existing registered read bus.
+ require(sha(PARENT/'source/tang/rtl/usb/usb_idle_trace.v')=='97854f943d523304877e4fafc52c53e71ef03cb3e54940f13cd1a7a0bdbe8d9f','register contract source changed')
+ new=old;changed={};addition=[]
+ for i in range(32):
+  name=f'hrdata_{i}_s0';kind,pins=oc[name]
+  require(kind=='DFFRE' and pins['Q']==f'usb_trace_hrdata[{i}]' and pins['CLK']=='vid_hclk' and pins['CE']=='read_pending' and pins['RESET']=='hreset','read register mismatch '+name)
+  pattern=r'  DFFRE '+re.escape(name)+r' \(.*?\);';matches=list(re.finditer(pattern,new,re.S));require(len(matches)==1,name)
+  before=matches[0][0];after=once(before,'.D('+pins['D']+')',f'.D(utw_read_mux[{i}])')
+  new=once(new,before,after);changed[name]=(before,after)
+  addition.append(f"LUT3 utw_mux_{i}(.I0({pins['D']}),.I1(utw_read_data[{i}]),.I2(utw_read_hit),.F(utw_read_mux[{i}]));\ndefparam utw_mux_{i}.INIT=8'hca;")
+ instance='''neo_usb_reply_witness utw_observer (
+ .hclk(vid_hclk),.hreset(hreset),.reply_valid(reply_valid),.busy(busy),
+ .receive_index(receive_index),.reply(reply),.completed_count(snapshot_count),
+ .address(address),.read_hit(utw_read_hit),.read_data(utw_read_data));'''
+ decl='wire utw_read_hit;\nwire [31:0] utw_read_data,utw_read_mux;\n'
+ idx=re.search(r'^wire ',new,re.M).start();new=new[:idx]+decl+new[idx:]
+ tail='\n'+instance+'\n'+'\n'.join(addition)+'\n'
+ new=once(new,'endmodule',tail+'endmodule')
+ nc=cells(new);np=params(new)
+ expected_added={'utw_observer'}|{f'utw_mux_{i}' for i in range(32)}
+ require(set(nc)-set(oc)==expected_added and not(set(oc)-set(nc)),'unexpected primitive additions/removals')
+ actual_changed={n for n in oc if oc[n]!=nc[n]}
+ require(actual_changed==set(changed),'unexpected existing primitive mutation')
+ for name in actual_changed:
+  i=int(name.split('_')[1]);require(nc[name]==(oc[name][0],{**oc[name][1],'D':f'utw_read_mux[{i}]'}),'non-D read pin changed')
+ require(all(np[k]==v for k,v in op.items()),'original primitive parameter changed')
+ require(set(np)-set(op)=={f'utw_mux_{i}.INIT' for i in range(32)},'unexpected parameters')
+ for i in range(32):require(np[f'utw_mux_{i}.INIT']=="8'hca",'wrong read mux truth table')
+ undo=once(new,tail,'');undo=once(undo,decl,'')
+ for before,after in changed.values():undo=once(undo,after,before)
+ require(undo==old,'observer reversal not byte-identical')
+ merged=once(original,old,new)+'\n'+helper+'\n'
+ require(once(merged,'\n'+helper+'\n','').replace(new,old,1)==original,'full reversal failed')
+ names=set(re.findall(r'^module (\w+)',original,re.M))
+ require(set(re.findall(r'^module (\w+)',merged,re.M))==names|{'neo_usb_reply_witness'},'module set changed')
+ for name in names-{'usb_idle_trace'}:require(block(original,name)==block(merged,name),'unrelated module changed '+name)
+ return merged,new,dict(old_cells=len(oc),old_parameters=len(op),changed_pins={n:['D'] for n in sorted(changed)},
+  added_cells=sorted(expected_added),unchanged_modules=sorted(names-{'usb_idle_trace'}),
+  original_recovered_byte_identical=True,new_CDC=False,new_clock=False,read_only_extension='0xe90020c0..0xe90020fc aligned')
+
+def assemble(mapping,out):
+ parent_guard();mapping=mapping.resolve()
+ require(mapping.parent==HERE,'mapping outside isolated folder')
+ record=json.loads((mapping/'result.json').read_text())
+ require(record['passed'] and record['helper_sha256']==sha(HELPER) and record['builder_sha256']==sha(Path(__file__)),'stale mapping inputs')
+ require(record['tool_sha256']==sha(YOSYS),'mapping tool changed')
+ for name,digest in record['inputs'].items():require(sha(mapping/name)==digest,'mapping input hash '+name)
+ original=(PARENT/'console_neo.vg').read_text();helper=block((mapping/'helper_mapped.v').read_text(),'neo_usb_reply_witness')
+ merged,observer,audit=transform(original,helper)
+ out=new_output(out);shutil.copytree(PARENT/'source',out/'source')
+ helper_path=out/'source/tang/boards/neo/neo_usb_reply_witness.v';require(not helper_path.exists(),'source name collision');shutil.copy2(HELPER,helper_path)
+ source_manifest=manifest(out/'source');old_manifest=json.loads((PARENT/'sources.json').read_text())
+ require(set(source_manifest)-set(old_manifest)=={'tang/boards/neo/neo_usb_reply_witness.v'},'unexpected source extension')
+ require(all(source_manifest[k]==v for k,v in old_manifest.items()),'parent source changed')
+ (out/'console_neo.vg').write_text(merged);(out/'observer.v').write_text(observer+'\n')
+ shutil.copy2(mapping/'helper_mapped.v',out/'helper_mapped.v')
+ save(out/'sources.json',source_manifest)
+ (out/'observation.diff').write_text(''.join(difflib.unified_diff(original.splitlines(True),merged.splitlines(True),fromfile='exact_R19',tofile='witness_candidate')))
+ save(out/'assembly.json',dict(passed=True,candidate=True,hardware_qualification='FAIL (not routed or tested)',hardware_access=False,routing_started=False,Gowin_executed=False,
+  parent=str(PARENT),parent_bitstream_sha256=BIT_SHA,parent_netlist_sha256=NET_SHA,parent_routed_netlist_sha256=VO_SHA,
+  builder_sha256=sha(Path(__file__)),helper_sha256=sha(HELPER),mapping=str(mapping),mapping_result_sha256=sha(mapping/'result.json'),
+  application_sources_unchanged=True,application_netlist_unchanged_except_read_data_mux=True,audit=audit,
+  inputs={str(p.relative_to(out)):sha(p) for p in [out/'console_neo.vg',out/'observer.v',out/'helper_mapped.v',out/'sources.json',out/'observation.diff']},
+  pending=['Independent review and primitive simulation.','No Gowin reader/P&R/STA/board proof; helper mapped by Yosys only.','New tap fanout and read mux change physical loading; original anomaly must persist for boundary interpretation.']))
+ print(json.dumps(dict(assembled=True,output=str(out),sha256=sha(out/'console_neo.vg'))))
+
+if __name__=='__main__':
+ parser=argparse.ArgumentParser(description=__doc__);sub=parser.add_subparsers(dest='action',required=True)
+ p=sub.add_parser('map');p.add_argument('--out',type=Path,required=True)
+ p=sub.add_parser('assemble');p.add_argument('--mapping',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
+ a=parser.parse_args()
+ if a.action=='map':map_helper(a.out)
+ else:assemble(a.mapping,a.out)
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/test_helper.py SHA256 a93f1a48dacf2ec514097206abe2b1b0ab467abb9bf344d97ab0456eebe16553 =====
+#!/usr/bin/env python3
+"""Independent event scoreboard, exhaustive address sweeps, real primitives."""
+import json
+from pathlib import Path
+import random
+import subprocess
+import sys
+import prepare_candidate as pc
+HERE=Path(__file__).resolve().parent
+IV='/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog'
+IVLIB='/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl'
+VVP='/tmp/console-usb-sim-tools/extracted/usr/bin/vvp'
+PRIM=Path('/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v')
+MASK=2**32-1
+
+class Reference:
+ def __init__(self):self.reset()
+ def reset(self):
+  self.raw=[0]*3;self.tags=[0]*3;self.count=[0]*3
+  self.total=self.frames=self.outside=0
+  self.seen=0;self.expected=0;self.last=0;self.lastbusy=0;self.active=0
+  self.order=self.duplicate=self.overflow=0
+ def step(self,rst,valid,busy,index,word,seq):
+  if rst:self.reset();return
+  if not valid:return
+  self.order|=index!=self.expected
+  self.duplicate|=(index==0 and self.active) or (index in (1,2) and bool(self.seen&(1<<index)))
+  if index<3:
+   self.raw[index]=word;self.tags[index]=seq
+   self.overflow|=self.count[index]==MASK;self.count[index]=(self.count[index]+1)&MASK
+  self.overflow|=self.total==MASK;self.total=(self.total+1)&MASK
+  if index==31:self.overflow|=self.frames==MASK;self.frames=(self.frames+1)&MASK
+  if not busy:self.overflow|=self.outside==MASK;self.outside=(self.outside+1)&MASK
+  if index==0:self.seen=1
+  elif index in (1,2):self.seen|=1<<index
+  self.active=int(index!=31);self.expected=(index+1)%32;self.last=index;self.lastbusy=busy
+ def read(self,address):
+  if address<192 or address%4:return 0,0
+  status=(self.lastbusy<<21)|(self.last<<16)|(self.expected<<8)|(int(self.overflow)<<6)|(int(self.duplicate)<<5)|(int(self.order)<<4)|(self.active<<3)|self.seen
+  registers=[0x55545731,0x10001,self.raw[0],self.raw[1],self.raw[2],self.raw[1],*self.count,self.total,self.frames,self.outside,status,*self.tags]
+  return 1,registers[(address-192)//4]
+
+def vectors(path):
+ model=Reference();rows=[];rng=random.Random(0x55545731);phases=[]
+ def tick(r=0,v=0,b=1,i=0,w=0,s=0,a=0):
+  model.step(r,v,b,i,w,s);hit,data=model.read(a)
+  rows.append([r,v,b,i,w,s,a,hit,data])
+ def sweep(label):
+  phases.append(dict(label=label,start=len(rows)))
+  for a in range(256):tick(a=a)
+  for a in range(255,-1,-1):tick(a=a)
+ tick(r=1);sweep('reset, all 256 byte offsets both orders')
+ for seq in range(4):
+  for i in range(32):
+   for _ in range(rng.randrange(4)):tick(a=rng.randrange(256))
+   tick(v=1,i=i,w=[0x55544e41,1,2][i] if i<3 else rng.getrandbits(32),s=seq,a=192+4*rng.randrange(16))
+  sweep('complete frame '+str(seq))
+ for i in range(2):tick(v=1,i=i,w=0xfac00000+i,s=4)
+ sweep('incomplete frame, slot2 stale and different tag')
+ tick(r=1,v=1,i=2,w=MASK,s=9);sweep('reset wins over valid')
+ for i in range(32):tick(v=1,b=0,i=i,w=0xab000000+i,s=0)
+ sweep('all events outside busy are captured and counted')
+ tick(r=1)
+ for i in [0,1,1,2,0,31]:tick(v=1,i=i,w=i)
+ sweep('duplicates and jumps sticky')
+ tick(r=1);sweep('reset clears all sticky flags')
+ for n in range(6000):
+  tick(r=int(rng.randrange(300)==0),v=int(rng.randrange(4)!=0),b=rng.randrange(2),i=rng.randrange(32),w=rng.getrandbits(32),s=rng.getrandbits(32),a=rng.randrange(256))
+ sweep('random events and reset phases')
+ path.write_text(''.join(' '.join(f'{v:x}' for v in row)+'\n' for row in rows))
+ return dict(cycles=len(rows),phases=phases,seed='0x55545731')
+
+TB='''`timescale 1ns/1ps
+module tb;
+ reg hclk=0,hreset=0,reply_valid=0,busy=0;
+ reg [4:0] receive_index=0;
+ reg [31:0] reply=0,completed_count=0;
+ reg [7:0] address=0;
+ wire read_hit; wire [31:0] read_data;
+ GSR GSR(.GSRI(1'b1));
+ neo_usb_reply_witness dut(.*);
+ always #5 hclk=~hclk;
+ integer fd,got,n=0,er,ev,eb,ei,ew,es,ea,eh,ed;
+ string file;
+ initial begin
+  if(!$value$plusargs("vectors=%s",file))$fatal(1,"missing vectors");
+  fd=$fopen(file,"r");if(!fd)$fatal(1,"open vectors");
+  while(!$feof(fd))begin
+   got=$fscanf(fd,"%h %h %h %h %h %h %h %h %h\\n",er,ev,eb,ei,ew,es,ea,eh,ed);
+   if(got!=9)$fatal(1,"bad vector %0d got%0d",n,got);
+   @(negedge hclk);hreset=er[0];reply_valid=ev[0];busy=eb[0];receive_index=ei[4:0];reply=ew;completed_count=es;address=ea[7:0];
+   @(posedge hclk);#1;
+   if(read_hit!==eh[0] || read_data!==ed)$fatal(1,"vector%0d addr%02h hit%b/%b data%08h/%08h",n,address,read_hit,eh[0],read_data,ed);
+   n=n+1;
+  end
+  $fclose(fd);$display("PASS WITNESS SCOREBOARD cycles=%0d",n);$finish;
+ end
+ initial begin #2000000;$fatal(1,"deadline");end
+endmodule
+'''
+
+def compile_run(out,name,source,tb,args=None):
+ sim=out/(name+'.vvp');log=out/(name+'_compile.log')
+ r=subprocess.run([IV,'-B',IVLIB,'-g2012','-s','tb','-o',str(sim),str(tb),str(source),str(PRIM)],capture_output=True,text=True,timeout=45)
+ log.write_text(r.stdout+r.stderr)
+ pc.require(r.returncode==0 and not r.stderr,'primitive compile error/warning '+str(log))
+ r=subprocess.run([VVP,str(sim)]+(args or []),capture_output=True,text=True,timeout=45)
+ (out/(name+'.log')).write_text(r.stdout+r.stderr)
+ return dict(name=name,returncode=r.returncode,passed=r.returncode==0 and 'PASS WITNESS' in r.stdout,log=r.stdout)
+
+def main():
+ out=pc.new_output(Path(sys.argv[1]));info=vectors(out/'vectors.txt');(out/'tb.sv').write_text(TB)
+ sources={'rtl':HERE/'neo_usb_reply_witness.v','mapped':HERE/'mapping_02/helper_mapped.v'}
+ results=[]
+ for name,source in sources.items():results.append(compile_run(out,name,source,out/'tb.sv',['+vectors='+str(out/'vectors.txt')]))
+ # Overflow is unreachable in a short run without injection. Force the
+ # already registered counter bus to MAX for one accepted event, then release.
+ # This is an explicit synthetic fault/initial-state test, not hardware data.
+ for name,source in sources.items():
+  for counter,index,busy in [('count0',0,1),('count1',1,1),('count2',2,1),('total',8,1),('frames',31,1),('outside_count',8,0)]:
+   overflow_tb='''`timescale 1ns/1ps
+module tb;
+ reg hclk=0,hreset=1,reply_valid=0,busy=1;reg [4:0] receive_index=0;
+ reg [31:0] reply=1,completed_count=0;reg [7:0] address=8'hf0;
+ wire read_hit;wire [31:0] read_data;GSR GSR(.GSRI(1'b1));
+ neo_usb_reply_witness dut(.*);always #5 hclk=~hclk;
+ initial begin
+  repeat(2)@(negedge hclk);hreset=0;
+  force dut.COUNTER=32'hffffffff;
+  reply_valid=1;receive_index=INDEX;busy=BUSY;
+  @(posedge hclk);#1;release dut.COUNTER;#1;
+  if(dut.COUNTER!==0 || read_data[6]!==1)$fatal(1,"overflow did not wrap/flag");
+  @(negedge hclk);reply_valid=0;
+  repeat(3)@(negedge hclk);
+  if(read_data[6]!==1)$fatal(1,"overflow not sticky");
+  hreset=1;@(posedge hclk);#1;if(read_data!==0)$fatal(1,"reset overflow");
+  $display("PASS WITNESS OVERFLOW COUNTER");$finish;
+ end
+endmodule
+'''.replace('COUNTER',counter).replace('INDEX',str(index)).replace('BUSY',str(busy))
+   if name=='mapped' and counter=='total':
+    # Yosys retains this bus under its flattened explicit-register alias.
+    overflow_tb=overflow_tb.replace('dut.total','dut.\\r_total.q ')
+   tb=out/f'tb_{name}_{counter}.sv';tb.write_text(overflow_tb)
+   results.append(compile_run(out,name+'_'+counter,source,tb))
+ result=dict(passed=all(x['passed'] for x in results),hardware_access=False,SDF=False,scoreboard=info,cases=results,
+  inputs={str(p):pc.sha(p) for p in [Path(__file__),HERE/'prepare_candidate.py',*sources.values(),PRIM]})
+ pc.save(out/'result.json',result);print(json.dumps(dict(passed=result['passed'],cases=len(results),cycles=info['cycles'])))
+ if not result['passed']:raise SystemExit(1)
+if __name__=='__main__':main()
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/test_integration.py SHA256 25f3545482000b6c61ff4ddd19f0914ff5a01f07afb9027efdadf4b9a4e1d492 =====
+#!/usr/bin/env python3
+"""Mapped R19 observer+FIFO versus exact baseline, and boundary fault models."""
+import json
+from pathlib import Path
+import re
+import subprocess
+import sys
+import prepare_candidate as pc
+from test_helper import IV,IVLIB,VVP,PRIM
+HERE=Path(__file__).resolve().parent
+ROOT=HERE.parents[2]
+PREV=ROOT/'TESTS/neo_common_cause_20261027/utna_header_netlist_01'
+
+EXTRA='''
+ integer mode=0;
+ initial if($value$plusargs("mode=%d",mode))begin end
+ // Injection 1 zeroes the already read reply bit presented to BOTH bank and
+ // witness at index1. It is a boundary fault model, not an identified FIFO bug.
+ always @(negedge hclk)begin
+  if(mode==1 && dut.reply_valid && dut.receive_index==1)begin
+   force dut.reply[0]=1'b0;force base.reply[0]=1'b0;
+  end else begin release dut.reply[0];release base.reply[0];end
+ end
+ initial begin
+  #200;
+  // Injection 2 changes only the bank lane1 validity result, downstream from
+  // the witness. RAM contents are not claimed to be physically faulty.
+  if(mode==2)begin force dut.bank_ER_RS_87=1'b0;force base.bank_ER_RS_87=1'b0;end
+ end
+ always @(negedge hclk)begin
+  if(reset_n && !dut.hreset)begin
+   if({dut.reply_valid,dut.reply,dut.busy,dut.receive_index,dut.snapshot_count,read_pending_net} !==
+      {base.reply_valid,base.reply,base.busy,base.receive_index,base.snapshot_count,base_read_pending})
+    $fatal(1,"witness altered original control or data");
+  end
+ end
+ task witness_check(input [31:0] command_value,input [31:0] sequence_value);
+  reg [31:0] v,alias_value;
+  bus_read('hc0,v);if(v!==32'h55545731)$fatal(1,"witness ID");
+  bus_read('hc4,v);if(v!==32'h00010001)$fatal(1,"witness ABI");
+  bus_read('hc8,v);if(v!==32'h55544e41)$fatal(1,"raw0");
+  bus_read('hcc,v);if(v!==(mode==1?32'd0:32'd1))$fatal(1,"raw1 boundary");
+  bus_read('hd4,alias_value);if(v!==alias_value)$fatal(1,"raw1 alias");
+  bus_read('hd0,v);if(v!==command_value)$fatal(1,"raw2");
+  for(integer a='hd8;a<='he0;a=a+4)begin bus_read(a,v);if(v!==sequence_value)$fatal(1,"slot count addr%h",a);end
+  bus_read('he4,v);if(v!==sequence_value*32)$fatal(1,"event count");
+  bus_read('he8,v);if(v!==sequence_value)$fatal(1,"frame count");
+  bus_read('hec,v);if(v!==0)$fatal(1,"outside busy");
+  bus_read('hf0,v);if(v!==32'h003f0007)$fatal(1,"completion status %h",v);
+  for(integer a='hf4;a<='hfc;a=a+4)begin bus_read(a,v);if(v!==sequence_value-1)$fatal(1,"slot tag");end
+  $display("WITNESS mode=%0d seq=%0d command=%0d bank1=%h raw1=%h status=%h",mode,sequence_value,command_value,words[1],alias_value,32'h003f0007);
+ endtask
+ task sweep_byte_addresses;
+  reg [31:0] v;
+  for(integer a=0;a<256;a=a+1)begin
+   bus_read(a,v);
+   if(a>=192 && (a%4)!=0 && v!==0)$fatal(1,"unaligned witness address aliased %h",a);
+  end
+ endtask
+ task zero_witness_state;
+  reg [31:0] v;
+  for(integer a='hc8;a<256;a=a+4)begin bus_read(a,v);if(v!==0)$fatal(1,"state not reset %h=%h",a,v);end
+ endtask
+'''
+
+def testbench():
+ tb=(PREV/'tb.sv').read_text()
+ start=tb.index(' usb_idle_trace dut(');end=tb.index('\n reg [31:0] words',start)
+ inst=tb[start:end].replace('usb_idle_trace dut(','usb_idle_trace_base base(').replace('.read_pending(read_pending_net)', '.read_pending(base_read_pending)').replace('.n6_5(reset_merge_net)', '.n6_5(base_reset_merge)').replace('.usb_trace_hrdata(hrdata)', '.usb_trace_hrdata(base_hrdata)')
+ tb=tb[:end]+'\n wire base_read_pending,base_reset_merge;wire [31:0] base_hrdata;\n'+inst+tb[end:]
+ tb=pc.once(tb,'  value=hrdata;','''  value=hrdata;
+  if(addr<192 && hrdata!==base_hrdata)$fatal(1,"old MMIO changed addr%h got%h base%h",addr,hrdata,base_hrdata);
+  if(addr>=192 && base_hrdata!==0)$fatal(1,"extension address not reserved zero in baseline");''')
+ tb=pc.once(tb,'words[1]!==1 || words[2]!==value','words[1]!==(mode==0?32\'d1:32\'d0) || words[2]!==value')
+ tb=pc.once(tb,'  for(integer k=0;k<32;k=k+1)held[k]=words[k];', '''  for(integer k=0;k<32;k=k+1)begin
+   held[k]=words[k];$display("BANK seq=%0d word=%0d value=%08h",seq,k,words[k]);
+  end
+  witness_check(value,seq);''')
+ tb=pc.once(tb,' initial begin\n  #100;reset_n=1;',EXTRA+'\n initial begin\n  #100;reset_n=1;')
+ tb=pc.once(tb,'  command(1);if(words[3]', '''  zero_witness_state();sweep_byte_addresses();
+  for(integer a='hc0;a<256;a=a+1)bus_write(a,32'hffffffff);
+  zero_witness_state();bus_read(8,s);if(s!==0)$fatal(1,"extension write changed sequence");
+  command(1);if(words[3]''')
+ tb=pc.once(tb,'  $display("PASS EXACT SNAPSHOT', '''  sweep_byte_addresses();witness_check(2,4);
+  @(negedge clk);u_run=0;
+  bus_write(12,2);repeat(20)@(negedge hclk);
+  bus_read(4,s);if(s!==1)$fatal(1,"pending command while USB clock stopped");
+  bus_read('he8,s);if(s!==4)$fatal(1,"spurious frame while USB clock stopped");
+  @(negedge hclk);reset_n=0;repeat(20)@(negedge hclk);reset_n=1;
+  repeat(20)@(negedge hclk);
+  if(dut.utw_observer.\\r_total.q !==0)$fatal(1,"witness not reset with USB clock stopped");
+  u_run=1;repeat(50)@(negedge hclk);zero_witness_state();
+  bus_read(8,s);if(s!==0)$fatal(1,"snapshot count not reset");
+  command(2);witness_check(2,1);
+  $display("PASS EXACT SNAPSHOT''')
+ return tb
+
+def main():
+ pc.parent_guard();out=pc.new_output(Path(sys.argv[1]));candidate=HERE/'candidate_01'
+ assembly=json.loads((candidate/'assembly.json').read_text())
+ for name,digest in assembly['inputs'].items():pc.require(pc.sha(candidate/name)==digest,'candidate changed '+name)
+ original=(pc.PARENT/'console_neo.vg').read_text()
+ support='\n'.join(pc.block(original,n) for n in ['ddr_dcfifo','ddr_dcfifo_0'])
+ baseline=pc.block(original,'usb_idle_trace').replace('module usb_idle_trace (','module usb_idle_trace_base (',1)
+ (out/'mapped_cut.v').write_text((candidate/'observer.v').read_text()+'\n'+baseline+'\n'+support+'\n'+(candidate/'helper_mapped.v').read_text())
+ (out/'tb.sv').write_text(testbench())
+ r=subprocess.run([IV,'-B',IVLIB,'-g2012','-s','usb_idle_trace_protocol_tb','-o',str(out/'test.vvp'),str(out/'tb.sv'),str(out/'mapped_cut.v'),str(PRIM)],capture_output=True,text=True,timeout=60)
+ (out/'compile.log').write_text(r.stdout+r.stderr);pc.require(r.returncode==0 and not r.stderr,'compile warning/error '+r.stderr[-2000:])
+ records=[]
+ for case,args in enumerate([['+hp=6.25','+up=8.333333','+phase=.317'],['+hp=6.241','+up=8.342','+phase=3.713'],['+hp=8.342','+up=6.241','+phase=1.117']]):
+  banks={}
+  for mode in range(3):
+   r=subprocess.run([VVP,str(out/'test.vvp'),f'+mode={mode}']+args,capture_output=True,text=True,timeout=45)
+   (out/f'case{case}_mode{mode}.log').write_text(r.stdout+r.stderr)
+   bank=[(int(s),int(i),int(v,16)) for s,i,v in re.findall(r'BANK seq=(\d+) word=(\d+) value=([0-9a-f]+)',r.stdout)]
+   banks[mode]=bank
+   records.append(dict(case=case,mode=mode,args=args,returncode=r.returncode,passed=r.returncode==0 and 'PASS EXACT SNAPSHOT' in r.stdout,bank_words=len(bank)))
+  for mode in [1,2]:
+   baseline=banks[0];injected=banks[mode]
+   pc.require(len(baseline)==len(injected)==160,'incomplete integration logs')
+   differences=[(a,b) for a,b in zip(baseline,injected) if a!=b]
+   pc.require(len(differences)==5 and all(a[1]==b[1]==1 and a[2]==1 and b[2]==0 for a,b in differences),'injection changed words beyond version')
+ result=dict(passed=all(x['passed'] for x in records),cases=records,hardware_access=False,SDF=False,
+  baseline_comparison='exact mapped R19 in parallel; old MMIO byte offsets and all reply/control states match',
+  injections={'0':'none: bank1=1, witness1=1','1':'reply bit0 forced low for slot1: bank1=0, witness1=0','2':'lane1 bank validity forced low: bank1=0, witness1=1'},
+  qualification='Local fault-model separation only; original hardware version0 remains FAIL.',
+  inputs={str(p):pc.sha(p) for p in [Path(__file__),HERE/'prepare_candidate.py',candidate/'assembly.json',out/'mapped_cut.v',out/'tb.sv',PRIM]})
+ pc.save(out/'result.json',result);print(json.dumps(dict(passed=result['passed'],cases=len(records))))
+ if not result['passed']:raise SystemExit(1)
+if __name__=='__main__':main()
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/mapping_02/result.json SHA256 7b59ab6540b04f66c2eff8729780dfe02a34ade3ac892afdd288b5f87046e095 =====
+{
+  "passed": true,
+  "candidate": true,
+  "hardware_qualification": "FAIL (not routed or tested)",
+  "hardware_access": false,
+  "routing_started": false,
+  "Gowin_executed": false,
+  "SDF": false,
+  "tool": "/home/michael/console/optimizer/.tools/oss-cad-suite/bin/yosys",
+  "tool_sha256": "7c3e3396b38c129dd7485be5a0a0f0da8e495a94c8fd486059e3bea043a588d6",
+  "builder_sha256": "c1b21ce5cd2149851d203937298bd129b23601744a4aa06e13e36637ed4e1657",
+  "helper_sha256": "a140165b1671799e15d38b2b292b5d6c4a36c10d1c838d419f61a8ab0bb130fb",
+  "cell_counts": {
+    "$scopeinfo": 20,
+    "ALU": 197,
+    "DFFRE": 402,
+    "GND": 1,
+    "LUT1": 122,
+    "LUT2": 33,
+    "LUT3": 33,
+    "LUT4": 305,
+    "MUX2_LUT5": 103,
+    "MUX2_LUT6": 12,
+    "MUX2_LUT7": 3,
+    "MUX2_LUT8": 1,
+    "VCC": 1
+  },
+  "ff": 402,
+  "clock": "hclk",
+  "reset": "hreset",
+  "memory_cells": 0,
+  "inputs": {
+    "neo_usb_reply_witness.v": "a140165b1671799e15d38b2b292b5d6c4a36c10d1c838d419f61a8ab0bb130fb",
+    "map.ys": "2988ca48b343813ad70e7d137b9b8f8fc47945c8db5f2c575f5e7a8be7cc1d61",
+    "helper_mapped.v": "4bc1d5a4da1dead0b5e8a1abac38364afbcddd9d4fc7a67d79681ba86b2f1bb3",
+    "helper.json": "91cf8d9007854e4e0457d4809ec18fe359dad7cc432da13ea0dbfa90a5fa4fd3",
+    "yosys.log": "adc5fc4f38d7ef3521b407777a544abc95bd1aeb8ff38f3ada5f69ca496b100a"
+  }
+}
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/candidate_01/assembly.json SHA256 d5eefe989edce98a675420cc380b56969ead6b607352984a356aafd258eff8d5 =====
+{
+  "passed": true,
+  "candidate": true,
+  "hardware_qualification": "FAIL (not routed or tested)",
+  "hardware_access": false,
+  "routing_started": false,
+  "Gowin_executed": false,
+  "parent": "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local",
+  "parent_bitstream_sha256": "1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c",
+  "parent_netlist_sha256": "dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6",
+  "parent_routed_netlist_sha256": "c519aedf27fdd29151ee10a668dcc9577bee8546dac2bdd6d263a2040ec1b6a2",
+  "builder_sha256": "c1b21ce5cd2149851d203937298bd129b23601744a4aa06e13e36637ed4e1657",
+  "helper_sha256": "a140165b1671799e15d38b2b292b5d6c4a36c10d1c838d419f61a8ab0bb130fb",
+  "mapping": "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/mapping_02",
+  "mapping_result_sha256": "7b59ab6540b04f66c2eff8729780dfe02a34ade3ac892afdd288b5f87046e095",
+  "application_sources_unchanged": true,
+  "application_netlist_unchanged_except_read_data_mux": true,
+  "audit": {
+    "old_cells": 3530,
+    "old_parameters": 1608,
+    "changed_pins": {
+      "hrdata_0_s0": [
+        "D"
+      ],
+      "hrdata_10_s0": [
+        "D"
+      ],
+      "hrdata_11_s0": [
+        "D"
+      ],
+      "hrdata_12_s0": [
+        "D"
+      ],
+      "hrdata_13_s0": [
+        "D"
+      ],
+      "hrdata_14_s0": [
+        "D"
+      ],
+      "hrdata_15_s0": [
+        "D"
+      ],
+      "hrdata_16_s0": [
+        "D"
+      ],
+      "hrdata_17_s0": [
+        "D"
+      ],
+      "hrdata_18_s0": [
+        "D"
+      ],
+      "hrdata_19_s0": [
+        "D"
+      ],
+      "hrdata_1_s0": [
+        "D"
+      ],
+      "hrdata_20_s0": [
+        "D"
+      ],
+      "hrdata_21_s0": [
+        "D"
+      ],
+      "hrdata_22_s0": [
+        "D"
+      ],
+      "hrdata_23_s0": [
+        "D"
+      ],
+      "hrdata_24_s0": [
+        "D"
+      ],
+      "hrdata_25_s0": [
+        "D"
+      ],
+      "hrdata_26_s0": [
+        "D"
+      ],
+      "hrdata_27_s0": [
+        "D"
+      ],
+      "hrdata_28_s0": [
+        "D"
+      ],
+      "hrdata_29_s0": [
+        "D"
+      ],
+      "hrdata_2_s0": [
+        "D"
+      ],
+      "hrdata_30_s0": [
+        "D"
+      ],
+      "hrdata_31_s0": [
+        "D"
+      ],
+      "hrdata_3_s0": [
+        "D"
+      ],
+      "hrdata_4_s0": [
+        "D"
+      ],
+      "hrdata_5_s0": [
+        "D"
+      ],
+      "hrdata_6_s0": [
+        "D"
+      ],
+      "hrdata_7_s0": [
+        "D"
+      ],
+      "hrdata_8_s0": [
+        "D"
+      ],
+      "hrdata_9_s0": [
+        "D"
+      ]
+    },
+    "added_cells": [
+      "utw_mux_0",
+      "utw_mux_1",
+      "utw_mux_10",
+      "utw_mux_11",
+      "utw_mux_12",
+      "utw_mux_13",
+      "utw_mux_14",
+      "utw_mux_15",
+      "utw_mux_16",
+      "utw_mux_17",
+      "utw_mux_18",
+      "utw_mux_19",
+      "utw_mux_2",
+      "utw_mux_20",
+      "utw_mux_21",
+      "utw_mux_22",
+      "utw_mux_23",
+      "utw_mux_24",
+      "utw_mux_25",
+      "utw_mux_26",
+      "utw_mux_27",
+      "utw_mux_28",
+      "utw_mux_29",
+      "utw_mux_3",
+      "utw_mux_30",
+      "utw_mux_31",
+      "utw_mux_4",
+      "utw_mux_5",
+      "utw_mux_6",
+      "utw_mux_7",
+      "utw_mux_8",
+      "utw_mux_9",
+      "utw_observer"
+    ],
+    "unchanged_modules": [
+      "DDR3_Memory_Interface_Top",
+      "Gowin_PLL_AE350",
+      "Gowin_PLL_AE350_MOD",
+      "Gowin_PLL_B",
+      "Gowin_PLL_DDR3",
+      "Gowin_PLL_DDR3_MOD",
+      "Gowin_PLL_F",
+      "PLL_INIT",
+      "PLL_INIT_0",
+      "RiscV_AE350_SOC_Top",
+      "USB2_0_SoftPHY_Top",
+      "USB_Device_Controller_Top",
+      "ae350_soc",
+      "ahb_ddr_cdc",
+      "ahb_exts_bridge",
+      "blitter",
+      "cdc_word",
+      "cdc_word_0",
+      "cdc_word_1",
+      "cdc_word_10",
+      "cdc_word_11",
+      "cdc_word_12",
+      "cdc_word_13",
+      "cdc_word_14",
+      "cdc_word_15",
+      "cdc_word_16",
+      "cdc_word_17",
+      "cdc_word_18",
+      "cdc_word_19",
+      "cdc_word_2",
+      "cdc_word_20",
+      "cdc_word_21",
+      "cdc_word_22",
+      "cdc_word_23",
+      "cdc_word_24",
+      "cdc_word_25",
+      "cdc_word_26",
+      "cdc_word_27",
+      "cdc_word_28",
+      "cdc_word_29",
+      "cdc_word_3",
+      "cdc_word_30",
+      "cdc_word_31",
+      "cdc_word_32",
+      "cdc_word_33",
+      "cdc_word_4",
+      "cdc_word_5",
+      "cdc_word_6",
+      "cdc_word_7",
+      "cdc_word_8",
+      "cdc_word_9",
+      "clk_cross_fifo",
+      "clk_cross_fifo_0",
+      "console_neo",
+      "ddr_arb",
+      "ddr_dcfifo",
+      "ddr_dcfifo_0",
+      "ddr_dcfifo_1",
+      "ddr_dcfifo_2",
+      "ddr_dcfifo_3",
+      "ddr_dcfifo_4",
+      "ddr_dcfifo_5",
+      "ddr_dcfifo_6",
+      "ddr_dcfifo_7",
+      "ddr_dcfifo_8",
+      "ddr_gpu_arb",
+      "ddr_reader",
+      "ddr_subsys",
+      "ddr_ui_adapt",
+      "ddr_writer",
+      "ext_regs",
+      "font_ram",
+      "gpu_accel",
+      "gpu_blit_dma",
+      "gpu_copy565",
+      "gpu_geom_div",
+      "gpu_geom_div_0",
+      "gpu_geometry",
+      "gpu_line_reader",
+      "gpu_perspective",
+      "gpu_perspective_0",
+      "gpu_perspective_1",
+      "gpu_perspective_2",
+      "gpu_raster",
+      "gpu_rgb_reader",
+      "gpu_scanout",
+      "gpu_sprite_cache",
+      "gpu_texture_cache",
+      "gpu_tile_row",
+      "gpu_triangle",
+      "gpu_triangle_0",
+      "gpu_triangle_1",
+      "gpu_triangle_floor_div",
+      "gpu_triangle_floor_div_0",
+      "gpu_triangle_floor_div_1",
+      "gpu_triangle_floor_div_2",
+      "gpu_triangle_floor_div_3",
+      "gpu_triangle_floor_div_4",
+      "gpu_triangle_floor_div_5",
+      "gpu_triangle_floor_div_6",
+      "gpu_triangle_floor_div_7",
+      "gpu_v1",
+      "hdmi_out",
+      "la16_usb_ls_engine",
+      "la16_usb_ls_engine_0",
+      "neo_capture_bus",
+      "neo_capture_local",
+      "neo_console_input",
+      "neo_gamepads",
+      "neo_gpu_debug",
+      "neo_gpu_debug_0",
+      "neo_reset_trial",
+      "neo_reset_trial_rx",
+      "neo_scan_observe",
+      "neo_scan_queue",
+      "svo_tmds",
+      "svo_tmds_0",
+      "svo_tmds_1",
+      "sync_rx_pkt_fifo",
+      "sync_rx_pkt_fifo_0",
+      "sync_tx_pkt_fifo",
+      "sync_tx_pkt_fifo_0",
+      "uart2_to_ep2",
+      "uart_console_channel",
+      "uart_rx",
+      "uart_rx_0",
+      "uart_tx",
+      "usb_desc",
+      "usb_fifo",
+      "usb_gamepad",
+      "usb_gamepad_0",
+      "usb_gamepad_reports",
+      "usb_gamepad_reports_0",
+      "usb_hid_host_rom",
+      "usb_hid_host_rom_0",
+      "usb_msc_empty",
+      "usb_msc_guard",
+      "usb_msc_port",
+      "usb_packet_trace",
+      "usb_reset_release",
+      "usb_reset_release_0",
+      "usb_reset_release_1",
+      "usb_rx_buf",
+      "usb_rx_buf_0",
+      "usb_tx_buf",
+      "usb_tx_buf_0",
+      "usb_uart_config",
+      "video_bus_stage",
+      "video_pll"
+    ],
+    "original_recovered_byte_identical": true,
+    "new_CDC": false,
+    "new_clock": false,
+    "read_only_extension": "0xe90020c0..0xe90020fc aligned"
+  },
+  "inputs": {
+    "console_neo.vg": "fa0185400736119ed68d6792656b6a80e328742acfa1deff7e7acdc02e4f24d1",
+    "observer.v": "cfd59726af89cd725be925763911dce1acb809de3b88b1bc600d31b63320f21a",
+    "helper_mapped.v": "4bc1d5a4da1dead0b5e8a1abac38364afbcddd9d4fc7a67d79681ba86b2f1bb3",
+    "sources.json": "d4d30550070cd09cdcd58a751e8954f3ba032a59ecb34a62f3218b1fce6c7368",
+    "observation.diff": "bfe8c7ddcc95a48ac3691009adad3efe67caaa75c7b4513ae26ef0792d1f25f8"
+  },
+  "pending": [
+    "Independent review and primitive simulation.",
+    "No Gowin reader/P&R/STA/board proof; helper mapped by Yosys only.",
+    "New tap fanout and read mux change physical loading; original anomaly must persist for boundary interpretation."
+  ]
+}
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/result.json SHA256 c0a0025833590dd6a886f7deb684e2ea9179f8d54e5cf7937222860182a5f8f0 =====
+{
+  "passed": true,
+  "hardware_access": false,
+  "SDF": false,
+  "scoreboard": {
+    "cycles": 12013,
+    "phases": [
+      {
+        "label": "reset, all 256 byte offsets both orders",
+        "start": 1
+      },
+      {
+        "label": "complete frame 0",
+        "start": 588
+      },
+      {
+        "label": "complete frame 1",
+        "start": 1184
+      },
+      {
+        "label": "complete frame 2",
+        "start": 1792
+      },
+      {
+        "label": "complete frame 3",
+        "start": 2386
+      },
+      {
+        "label": "incomplete frame, slot2 stale and different tag",
+        "start": 2900
+      },
+      {
+        "label": "reset wins over valid",
+        "start": 3413
+      },
+      {
+        "label": "all events outside busy are captured and counted",
+        "start": 3957
+      },
+      {
+        "label": "duplicates and jumps sticky",
+        "start": 4476
+      },
+      {
+        "label": "reset clears all sticky flags",
+        "start": 4989
+      },
+      {
+        "label": "random events and reset phases",
+        "start": 11501
+      }
+    ],
+    "seed": "0x55545731"
+  },
+  "cases": [
+    {
+      "name": "rtl",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS SCOREBOARD cycles=12013\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb.sv:24: $finish called at 120136000 (1ps)\n"
+    },
+    {
+      "name": "mapped",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS SCOREBOARD cycles=12013\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb.sv:24: $finish called at 120136000 (1ps)\n"
+    },
+    {
+      "name": "rtl_count0",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW count0\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_rtl_count0.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "rtl_count1",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW count1\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_rtl_count1.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "rtl_count2",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW count2\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_rtl_count2.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "rtl_total",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW total\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_rtl_total.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "rtl_frames",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW frames\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_rtl_frames.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "rtl_outside_count",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW outside_count\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_rtl_outside_count.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "mapped_count0",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW count0\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_mapped_count0.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "mapped_count1",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW count1\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_mapped_count1.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "mapped_count2",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW count2\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_mapped_count2.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "mapped_total",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW total\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_mapped_total.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "mapped_frames",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW frames\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_mapped_frames.sv:17: $finish called at 66000 (1ps)\n"
+    },
+    {
+      "name": "mapped_outside_count",
+      "returncode": 0,
+      "passed": true,
+      "log": "PASS WITNESS OVERFLOW outside_count\n/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/helper_tests_02/tb_mapped_outside_count.sv:17: $finish called at 66000 (1ps)\n"
+    }
+  ],
+  "inputs": {
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/test_helper.py": "a93f1a48dacf2ec514097206abe2b1b0ab467abb9bf344d97ab0456eebe16553",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/prepare_candidate.py": "c1b21ce5cd2149851d203937298bd129b23601744a4aa06e13e36637ed4e1657",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/neo_usb_reply_witness.v": "a140165b1671799e15d38b2b292b5d6c4a36c10d1c838d419f61a8ab0bb130fb",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/mapping_02/helper_mapped.v": "4bc1d5a4da1dead0b5e8a1abac38364afbcddd9d4fc7a67d79681ba86b2f1bb3",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5"
+  }
+}
+
+===== TESTS/neo_common_cause_20261028/reply_witness_candidate_01/integration_tests_02/result.json SHA256 dc2fd7dd329eac3dfca5c538bc7347bfd64caf41923475b18c1244b6a4218491 =====
+{
+  "passed": true,
+  "cases": [
+    {
+      "case": 0,
+      "mode": 0,
+      "args": [
+        "+hp=6.25",
+        "+up=8.333333",
+        "+phase=.317"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    },
+    {
+      "case": 0,
+      "mode": 1,
+      "args": [
+        "+hp=6.25",
+        "+up=8.333333",
+        "+phase=.317"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    },
+    {
+      "case": 0,
+      "mode": 2,
+      "args": [
+        "+hp=6.25",
+        "+up=8.333333",
+        "+phase=.317"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    },
+    {
+      "case": 1,
+      "mode": 0,
+      "args": [
+        "+hp=6.241",
+        "+up=8.342",
+        "+phase=3.713"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    },
+    {
+      "case": 1,
+      "mode": 1,
+      "args": [
+        "+hp=6.241",
+        "+up=8.342",
+        "+phase=3.713"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    },
+    {
+      "case": 1,
+      "mode": 2,
+      "args": [
+        "+hp=6.241",
+        "+up=8.342",
+        "+phase=3.713"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    },
+    {
+      "case": 2,
+      "mode": 0,
+      "args": [
+        "+hp=8.342",
+        "+up=6.241",
+        "+phase=1.117"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    },
+    {
+      "case": 2,
+      "mode": 1,
+      "args": [
+        "+hp=8.342",
+        "+up=6.241",
+        "+phase=1.117"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    },
+    {
+      "case": 2,
+      "mode": 2,
+      "args": [
+        "+hp=8.342",
+        "+up=6.241",
+        "+phase=1.117"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "bank_words": 160
+    }
+  ],
+  "hardware_access": false,
+  "SDF": false,
+  "baseline_comparison": "exact mapped R19 in parallel; old MMIO byte offsets and all reply/control states match",
+  "injections": {
+    "0": "none: bank1=1, witness1=1",
+    "1": "reply bit0 forced low for slot1: bank1=0, witness1=0",
+    "2": "lane1 bank validity forced low: bank1=0, witness1=1"
+  },
+  "qualification": "Local fault-model separation only; original hardware version0 remains FAIL.",
+  "inputs": {
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/test_integration.py": "25f3545482000b6c61ff4ddd19f0914ff5a01f07afb9027efdadf4b9a4e1d492",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/prepare_candidate.py": "c1b21ce5cd2149851d203937298bd129b23601744a4aa06e13e36637ed4e1657",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/candidate_01/assembly.json": "d5eefe989edce98a675420cc380b56969ead6b607352984a356aafd258eff8d5",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/integration_tests_02/mapped_cut.v": "6e7577bb9d0cfaa3d8911dc5f5e0ef5c073a17eb7e5b49b6e2fbc166d564e7a1",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_candidate_01/integration_tests_02/tb.sv": "58e0a01791bbbb601bdcddc7ecc9f6a8369b1b8ff193fb294f93544f7f7d1f04",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5"
+  }
+}
+
+===== TESTS/neo_common_cause_20261028/utna_activity_analysis_01/capture_analysis.json SHA256 168c5b2520be406956fa7abab6001e16b5c52aba3a720402752bdb00d23e1e3d =====
+{
+  "hardware_access": false,
+  "capture_sha256": "1c39884c0dab5fca3a1217eef887cbd1ac7e8fca21f250174070ce85bfdf342d",
+  "capture_files_verified": true,
+  "restored_R19": true,
+  "phases": [
+    {
+      "phase": "ARM",
+      "sequence": 1,
+      "command": 1,
+      "ticks": 0,
+      "armed": false,
+      "nonzero": [
+        {
+          "word": 0,
+          "address": "0xe9002040",
+          "value": 1431588417,
+          "value_hex": "0x55544e41",
+          "lane": 0,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 2,
+          "address": "0xe9002048",
+          "value": 1,
+          "value_hex": "0x1",
+          "lane": 2,
+          "validity_row": 0,
+          "data_half": 0
+        }
+      ]
+    },
+    {
+      "phase": "DISARM",
+      "sequence": 2,
+      "command": 6,
+      "ticks": 26061045,
+      "armed": true,
+      "nonzero": [
+        {
+          "word": 0,
+          "address": "0xe9002040",
+          "value": 1431588417,
+          "value_hex": "0x55544e41",
+          "lane": 0,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 2,
+          "address": "0xe9002048",
+          "value": 6,
+          "value_hex": "0x6",
+          "lane": 2,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 3,
+          "address": "0xe900204c",
+          "value": 26061045,
+          "value_hex": "0x18da8f5",
+          "lane": 3,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 16,
+          "address": "0xe9002080",
+          "value": 1,
+          "value_hex": "0x1",
+          "lane": 0,
+          "validity_row": 4,
+          "data_half": 1
+        },
+        {
+          "word": 31,
+          "address": "0xe90020bc",
+          "value": 1024,
+          "value_hex": "0x400",
+          "lane": 3,
+          "validity_row": 7,
+          "data_half": 1
+        }
+      ]
+    },
+    {
+      "phase": "STOPPED",
+      "sequence": 3,
+      "command": 2,
+      "ticks": 26061046,
+      "armed": false,
+      "nonzero": [
+        {
+          "word": 0,
+          "address": "0xe9002040",
+          "value": 1431588417,
+          "value_hex": "0x55544e41",
+          "lane": 0,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 2,
+          "address": "0xe9002048",
+          "value": 2,
+          "value_hex": "0x2",
+          "lane": 2,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 3,
+          "address": "0xe900204c",
+          "value": 26061046,
+          "value_hex": "0x18da8f6",
+          "lane": 3,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 16,
+          "address": "0xe9002080",
+          "value": 1,
+          "value_hex": "0x1",
+          "lane": 0,
+          "validity_row": 4,
+          "data_half": 1
+        }
+      ]
+    },
+    {
+      "phase": "STABLE",
+      "sequence": 4,
+      "command": 2,
+      "ticks": 26061046,
+      "armed": false,
+      "nonzero": [
+        {
+          "word": 0,
+          "address": "0xe9002040",
+          "value": 1431588417,
+          "value_hex": "0x55544e41",
+          "lane": 0,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 2,
+          "address": "0xe9002048",
+          "value": 2,
+          "value_hex": "0x2",
+          "lane": 2,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 3,
+          "address": "0xe900204c",
+          "value": 26061046,
+          "value_hex": "0x18da8f6",
+          "lane": 3,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 16,
+          "address": "0xe9002080",
+          "value": 1,
+          "value_hex": "0x1",
+          "lane": 0,
+          "validity_row": 4,
+          "data_half": 1
+        }
+      ]
+    }
+  ],
+  "observed_nonzero_words": [
+    0,
+    2,
+    3,
+    16,
+    31
+  ],
+  "observed_nonzero_lanes": [
+    0,
+    2,
+    3
+  ],
+  "observed_nonzero_validity_rows": [
+    0,
+    4,
+    7
+  ],
+  "lane1_words": [
+    {
+      "word": 1,
+      "address": "0xe9002044",
+      "all_captures_zero": true
+    },
+    {
+      "word": 5,
+      "address": "0xe9002054",
+      "all_captures_zero": true
+    },
+    {
+      "word": 9,
+      "address": "0xe9002064",
+      "all_captures_zero": true
+    },
+    {
+      "word": 13,
+      "address": "0xe9002074",
+      "all_captures_zero": true
+    },
+    {
+      "word": 17,
+      "address": "0xe9002084",
+      "all_captures_zero": true
+    },
+    {
+      "word": 21,
+      "address": "0xe9002094",
+      "all_captures_zero": true
+    },
+    {
+      "word": 25,
+      "address": "0xe90020a4",
+      "all_captures_zero": true
+    },
+    {
+      "word": 29,
+      "address": "0xe90020b4",
+      "all_captures_zero": true
+    }
+  ],
+  "unknowns": [
+    "No independent nonzero stimulus in lane1 words5/9/13/17/21/25/29.",
+    "Values are data observations, not direct internal-node measurements or frequency/USB-speed qualification."
+  ]
+}

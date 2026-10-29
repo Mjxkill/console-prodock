@@ -1,0 +1,131 @@
+# Revue r3 — garde de transport, retour shell et blocage de cleanup
+
+## 0. Verdict court
+
+La doctrine annoncée (« aucune réémission après détection, resynchronisation uniquement sur retour confirmé ») est **globalement tenue au niveau des writes** : les seuls points d'écriture sont derrière `run()` (`guarded_transport.py:21-24`), `abort()` refuse tout état non confirmé (`:90-92`), `write_packet` ne rejoue jamais un write partiel (`:32-37`), et `received_D` n'est posé qu'après un `D` de longueur exacte (`:69-75`).
+
+En revanche j'ai trouvé **deux contre-exemples concrets qui transforment un retour réellement confirmé en état `unknown`**, donc en `cleanup_blocked`, plus une série de trous moindres. Le plus grave (`D2` ci-dessous) ne demande ni carte ni matériel : c'est un bug de lecture de flux, reproductible avec un faux UART.
+
+---
+
+## 1. Faits vérifiables dans le paquet
+
+- Machine à états : `unknown` posé avant toute écriture paquet (`guarded_transport.py:53`), `receiving` après le marqueur `R` (`:57`), `received_D` seulement après `D` + longueur exacte (`:69-75`), `complete` seulement après marqueur shell `rc==0` (`:76-78`). L'état `received_D` est transitoire : toute exception repasse par `unknown` (`:80-87`).
+- Politique de retry : seul `N` avec `n==seq` autorise une réémission, 12 fois max (`:60-67`) ; tout autre code lève (`:66`). `write_packet` ne rejoue pas un write partiel (`:36-37`).
+- Resynchronisation shell : uniquement sous `receiver_state=='returned_error'`, après un marqueur de retour confirmé (`festival_trial.py:278-286`).
+- Récepteur : `VMIN=1`, `VTIME=0` dans les 3 cas (`receiver_exact.json:12-13,21-22,30-31`) ⇒ **aucun timeout côté récepteur** ; il bloque jusqu'à réception.
+- La commande récepteur est lancée au premier plan (`festival_trial.py:56`) : tant qu'il n'est pas sorti, le shell est monopolisé, donc tout `tx.run` est interdit — d'où la garde.
+- `preflight` lie `guard_tests.json` au hash de `guarded_transport.py` (`festival_trial.py:110`) mais ne lie `receiver_exact.json` qu'à `passed` et `hardware is False` (`:111`).
+- Ordre de cleanup : `abort_transfer()` d'abord ; si le récepteur n'est pas résolu, ni `recover()` ni `preserved()` ne sont exécutés (`festival_trial.py:194-212`).
+
+---
+
+## 2. Défauts et contre-exemples exécutables
+
+### D2 — S1 : le marqueur de retour shell peut être amputé par `response()` ⇒ `unknown` alors que le récepteur est bien revenu
+
+C'est le défaut le plus important pour le focus « retour shell marqueur / inconnue vs confirmée ».
+
+`response()` (`guarded_transport.py:25-31`) lit **exactement 5 octets**. Si, sur un défaut, le récepteur **sort sans envoyer de réponse 5 octets** — ce que suggère `receiver_exact.json` cas 1 (`receiver_exit: 1`, aucun octet de réponse documenté) — alors `response()` consomme les 5 premiers octets du flux suivant, c.-à-d. le début du marqueur shell `\nLMA_RX_EXIT_<name>:<rc>\n`. `data[0]` vaut alors `0x0a`, `:66` lève. Le handler `:82` passe en `unknown`, puis `:85` appelle `returned_marker()` qui ancre `^LMA_RX_EXIT_` en début de ligne (`:41`, `re.M`). Le flux restant est `RX_EXIT_<name>:1\r\n` : **l'ancre a été détruite par les 5 octets avalés** ⇒ `None` ⇒ `unknown` conservé ⇒ `abort()` lève (`:91-92`) ⇒ `receiver_abort_error` ⇒ aucun `recover`, aucun `preserved` (`festival_trial.py:196-200`).
+
+Donc : le récepteur a bien rendu la main (il a imprimé son marqueur et le shell a repris), mais la garde ne peut plus le prouver. C'est exactement la confusion « inconnue » / « confirmée » visée par la revue, au détriment du fail-closed.
+
+Le même mécanisme se déclenche pour toute sortie non-protocole du récepteur (ligne de log, message d'erreur) : 5 octets sont toujours avalés puis perdus.
+
+**Test discriminant (host, sans matériel)** — faux UART : après le paquet, le « récepteur » n'écrit rien et le « shell » écrit `b'\r\nLMA_RX_EXIT_<name>:1\r\n'`.
+- Attendu aujourd'hui : `transfer()` échoue avec état `unknown` ; second `returned_marker` sur `RX_EXIT_...` ⇒ `None` ; `Session` produit `cleanup_blocked`.
+- Attendu après patch : état `returned_error`, resynchronisation autorisée, `cleanup_blocked` absent.
+
+**Patch minimal (buffer de report)** :
+```python
+# __init__ : self.rx_carry=b''
+# response(), avant chaque raise :
+if len(data)!=5 or data[0] not in (ord('A'),ord('N'),ord('D')):
+    self.rx_carry+=bytes(data)          # ne pas perdre le préfixe du marqueur
+# returned_marker() :
+data=bytearray(self.rx_carry); self.rx_carry=b''
+```
+Le `\n` conservé en tête restaure l'ancrage `^`. Réinitialiser `rx_carry` à `:55` (`reset_input_buffer`) pour éviter tout marqueur hérité. Variante plus simple mais moins propre : retirer l'ancre `^` des deux regex de marqueur — l'écho de la commande contient `LMA_RX_EXIT_<name>:%s`, donc `%s` ne peut pas matcher `[0-9]+`, il n'y a pas de faux positif.
+
+### D1 — S1 : un SIGTERM pendant `transfer()` laisse le shell monopolisé, sans aucune voie de reprise
+
+Points de checkpoint dans `'receiving'` : `:61` (avant réémission après N), `:68` (après ACK), `:75` (après D). Un SIGTERM y produit `unknown` (`:82`), puis `returned_marker` attend 1 s un marqueur qui **n'arrivera jamais** (le récepteur attend un paquet, `VMIN=1`), puis `unknown` persiste ⇒ cleanup bloqué, pas de `recover`.
+
+Mitigation factuelle : cela n'arrive que dans `prepare()` (avant `stop_baseline`, `festival_trial.py:185`), donc GM1 continue de tourner ; ce n'est pas un bricking complet. Mais **le shell UART reste tenu** : toute nouvelle exécution `--run` échouera à `initial()` (timeout), et l'opérateur n'a aucune consigne dans `result.json`.
+
+Constat structurant à noter : **aucun checkpoint n'est placé à l'intérieur de `write_packet`**, donc un SIGTERM ne laisse jamais le récepteur au milieu d'un paquet. Tous les points d'interruption par signal sont sur une **frontière de paquet** (`:57` juste après `R`, `:61` après un N, `:68` après un A). Une annulation protocolaire est donc théoriquement disponible dans tous les cas SIGTERM ; le fail-closed est plus large que nécessaire (il reste justifié pour les erreurs d'E/S, où la position est inconnue).
+
+**Test discriminant** : récepteur factice qui bloque après `R` ; SIGTERM depuis un thread pendant `returned_marker`/`write_packet` ; asserter `cleanup_blocked` et l'absence de tout write postérieur. Puis relancer la session factice : `initial()` doit expirer ⇒ démonstration du blocage opérateur.
+
+**Pistes concrètes, par ordre de coût** :
+1. *Maintenant, sans changer le protocole* : rendre le blocage explicite et actionnable dans `result.json` (`manual_recovery_required`, cause « shell tenu par /tmp/luma-rx »). Le message actuel de `:200` ne dit pas quoi faire.
+2. *Itération suivante, à prouver d'abord sous QEMU* : annulation contrôlée sur frontière — envoyer le paquet `LMA1,seq,0,crc32(blob[:seq*512])` (état suivi par un booléen `at_boundary`), faire confirmer le marqueur, puis `rm -f /tmp/<name>` dans la resynchronisation. Test préalable avec `run_receiver_exact.py` : après `R`, sans aucun paquet de données, envoyer ce terminateur et vérifier `exit 0`, `terminal_restored`, et `n` dans la réponse `D`.
+3. *Alternative* : borner la durée de vie du récepteur au lancement (`timeout N /tmp/luma-rx ...`, `festival_trial.py:56`) ; il faut alors vérifier sous QEMU que le SIGTERM tue bien le récepteur **et** l'état termios (sinon ajouter `stty sane` dans la resynchronisation). Disponibilité de `timeout` sur la board : non prouvée.
+
+### D3 — S2 : message de résultat faux après échec de resynchronisation
+
+`festival_trial.py:196-200` : si `abort_transfer()` lève **après** avoir déjà envoyé `\x03\x15\n` et le `printf` de resync (`:283-285`), le résultat affirme « no shell queries or binary abort issued ». C'est faux et c'est précisément la ligne qui sert de preuve d'audit. Patch : faire remonter un drapeau (`self.resync_attempted=True` avant `:283`) et adapter le message ; ne jamais écrire une affirmation d'absence d'action sans la prouver par un compteur.
+
+### D4 — S2 : `receiver_exact.json` n'est pas lié aux octets exécutés
+
+- `festival_trial.py:111` ne vérifie que `passed` et `hardware is False`. Les hashes du bloc `inputs` (`receiver_exact.json:34-40`) ne sont comparés à rien, notamment pas à `RECEIVER_SHA` utilisé pour la lecture de `/tmp/luma-rx` (`festival_trial.py:252`). Une preuve QEMU portant sur un autre ELF, ou régénérée avec un autre harnais, passerait le preflight.
+- L'`initrd` utilisé par la commande QEMU (`receiver_exact.json:60`) **n'est pas listé dans `inputs`** : la preuve n'est pas reproductible à partir du paquet seul.
+
+Patch : ajouter au preflight une comparaison explicite `receiver['inputs']['…/uart-receiver'] == RECEIVER_SHA` (constante) et exiger un hash d'initrd. Test : remplacer le hash dans le JSON et vérifier que le preflight échoue.
+
+### D5 — S2 : le retry `N` n'est pas prouvé contre l'ELF exact
+
+`receiver_exact.json` ne contient que 3 cas, réduits à `receiver_exit`, `terminal_restored`, `isig/vmin/vtime`. **Aucun cas ne montre un `N`, ni un `N` suivi d'un `A`, ni le format de réponse** (code + u32 LE, cf. `guarded_transport.py:31`). Or tout le mécanisme de retry (`:64-65`) suppose que le récepteur a **drainé les 528 octets** avant d'émettre `N` ; sinon la réémission décale le flux et les octets réémis sont consommés comme queue du paquet précédent.
+
+Test à ajouter au harnais existant (`run_receiver_exact.py`, hash dans `inputs`) :
+- cas 3 : magie valide, CRC données faux ⇒ attendre un `N` de seq correct, vérifier que le récepteur est toujours vivant, envoyer le paquet corrigé ⇒ `A`, puis terminateur ⇒ `D`, `exit 0` ;
+- cas 4 : magie invalide ⇒ observer **exactement** les octets émis et le comportement (sortie ou `N`). Si le récepteur sort sans réponse, c'est le scénario D2 qui s'applique en réel.
+
+Ce test est indispensable avant de considérer le scénario « silence/header fautif » comme couvert.
+
+### D6 — S2 : `fresh_names` et `chmod` ne sont pas vérifiés
+
+`festival_trial.py:249` envoie une chaîne de `test ! -e` sans marqueur de succès ; `:255` et `:261` font de même pour `chmod 700`. Le style du reste du fichier (`:244`, `:260`) montre que `Transport.run` renvoie la sortie et n'est pas supposé lever sur code retour non nul. Un `/tmp/<tag>.pid` résiduel ou un `chmod` raté passerait donc silencieusement, avec deux conséquences : `recover` peut cibler un PID étranger, ou le binaire candidat n'est pas exécutable. Patch : `… && echo FRESH_OK` / `chmod 700 … && test -x … && echo MODE_OK`, plus `require` sur le marqueur. Test : pré-créer un des noms et vérifier que `initial()` échoue.
+
+### D7 — S3 : regex de marqueur acceptant une ligne non terminée
+
+`guarded_transport.py:41` (`\r?$`, `re.M`) et `festival_trial.py:55,61,269` : `$` matche aussi en fin de chaîne, donc `L3_EXIT_t:1` est accepté avant l'arrivée du `0`. Conséquence concrète : `LaunchState.observe` enregistre `1`, puis la lecture suivante contient `:10` ⇒ `require(… self.exit_code==code)` (`:64`) lève « Completion changed » — échec de fenêtre immérité. Cela ne peut pas produire de faux « succès » (un `0` ne peut pas être tronqué en autre chose que vide), donc l'impact est un faux négatif/diagnostic, pas un défaut de sûreté. Patch : exiger le terminateur `([0-9]+)\r?\n` aux quatre endroits. Test : écrire le marqueur en deux chunks séparés de 20 ms ; avant patch, `observe` lève ; après, une seule valeur finale.
+
+### D8 — S3 : `marker()` ignoré
+
+`guarded_transport.py:57` jette le retour de `self.marker(b'R\0\0\0\0')`. Si la méthode de base signale un échec par valeur de retour plutôt que par exception, la garde écrit des paquets dans le vide. Sémantique non fournie ⇒ hypothèse. Patch conditionnel : `require(self.marker(...), 'Receiver R not confirmed')` uniquement si la base renvoie un booléen ; sinon conserver tel quel et documenter.
+
+### D9 — S3 : fenêtre de timeout démarrée après le RPC de lancement
+
+`festival_trial.py:268-269` : `deadline` est calculé **après** `tx.run(...)`, donc `row['timeout']` ne couvre pas la durée du lancement lui-même. Un RPC lent peut faire dépasser la fenêtre avant la première lecture. Patch : calculer la deadline avant l'appel et la passer au RPC.
+
+### D10 — S3 : `cleanup_target()` peut renvoyer une cible sans PID publié
+
+`festival_trial.py:66-68` renvoie `(program, pidfile)` pour tout état hors `not_sent`/`completed`, y compris `sending_unknown` avec `pid is None` ; `recover` (`:293`) reçoit cette cible. Si `trial_guards.recover` exige un pidfile existant et lève, on obtient `cleanup_error` **alors que `stopped` est vrai** — donc plus de restauration GM1. C'est le pire scénario possible et il n'est pas couvert par le paquet (`trial_guards.py` absent). Test : harnais de récupération avec pidfile absent ; patch : traiter explicitement le cas « pid non publié » (vérifier l'absence de processus par nom avant de restaurer GM1), plutôt que de dépendre du contrat implicite de `recover`.
+
+### D11 — S3 : TOCTOU sur les fichiers transférés
+
+`preflight` hashe les fichiers (`:97-100`), mais `transfer` relit `path.read_bytes()` (`guarded_transport.py:52`) sans revalider. Passer le hash attendu à `transfer` et comparer après lecture (3 lignes).
+
+---
+
+## 3. Hypothèses et preuves manquantes
+
+- **H1** : `Transport.run` ne lève pas sur code retour non nul. Fortement suggéré par `festival_trial.py:243-244,259-260`, mais `prodock_transport.py` n'est pas fourni ⇒ conditionne D6.
+- **H2** : `sendline` et `marker` font exactement une écriture, sans retry interne. Toute la garantie « pas de réémission » en dépend ; non fourni.
+- **H3** : ce que le récepteur émet réellement sur faute d'en-tête (réponse `N` ? sortie sans réponse ? combien d'octets consommés avant `N` ?). `receiver_exact.json` ne le dit pas ⇒ conditionne D2 et D5. C'est le trou de preuve le plus coûteux.
+- **H4** : latence du marqueur shell après `D`, comparée au timeout fixe de 1 s (`guarded_transport.py:39`). Non mesurée dans le paquet ; `vmin=1` ne dit rien de cette latence. Une mesure sous QEMU (avec un fichier de taille réaliste) est nécessaire pour justifier 1 s.
+- **H5** : contrat de `trial_guards.recover` vis-à-vis d'un pidfile absent (D10), et comportement du récepteur face à un paquet terminateur de longueur 0 sur frontière (piste D1.2).
+- Absents du paquet : `prodock_transport.py`, `trial_guards.py`, les 31 tests host annoncés, `guard_tests.json`, `manifest.json`, le code source du récepteur, la version de QEMU, le hash de l'initrd. Les chiffres « 31 tests / 3 cas QEMU » ne sont donc pas vérifiables ici.
+
+---
+
+## 4. Priorité suggérée
+
+1. **D2** (carry buffer) + test host en deux chunks : petit patch, supprime un `cleanup_blocked` injustifié, aucun risque matériel.
+2. **D1** : au minimum message/outcome explicite ; puis test QEMU du terminateur sur frontière (et/ou `timeout`) avant toute automatisation.
+3. **D4/D5** : lier `receiver_exact.json` au hash du récepteur et de l'initrd, ajouter les cas `N`→`A`→`D` et « magie invalide ».
+4. **D3, D6, D10, D7** : corrections de preuve/robustesse, peu coûteuses.
+5. **D8, D9, D11** : durcissements.
+
+À crédit : la séparation `received_D` / `complete`, l'absence de rejeu après write partiel, le refus d'abort hors états confirmés et la trace JSON systématique sont de bonnes décisions, cohérentes avec la doctrine annoncée. Le point à corriger n'est pas la doctrine elle-même, mais le fait qu'elle se transforme en blocage opérateur dans des cas où le retour était pourtant observable.

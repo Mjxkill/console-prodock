@@ -1,0 +1,227 @@
+{
+  "prompt": [
+    12,
+    "9fb42d04-2c50-4154-bda0-aa112928227e",
+    {
+      "unet": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "clip": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        }
+      },
+      "vae": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "qwen_image_vae.safetensors"
+        }
+      },
+      "shift": {
+        "class_type": "ModelSamplingAuraFlow",
+        "inputs": {
+          "model": [
+            "lora",
+            0
+          ],
+          "shift": 3.0
+        }
+      },
+      "latent": {
+        "class_type": "EmptySD3LatentImage",
+        "inputs": {
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1
+        }
+      },
+      "positive": {
+        "class_type": "TextEncodeQwenImageEditPlus",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "prompt": "Use the attached character as the EXACT identity reference. Make a GAME WALK CYCLE sprite sheet of ONLY FOUR frames, arranged in a precise 2 by 2 square grid. Every frame shows this same character facing south, toward the viewer. This is a walking animation, NOT a turnaround: the facing is IDENTICAL in all four cells. Keep the exact dark curly uncovered hair, orange short jacket, teal scarf, cream boots, dark pants and copper lantern on belt from reference. NO hat, NO cap, NO sword drawn. Feet and arms MUST CHANGE CLEARLY between the four frames: upper-left RIGHT leg stretched forward, LEFT leg stretched back and opposite arm forward; upper-right feet pass beneath torso with LEFT knee visibly raised and RIGHT boot planted; lower-left LEFT leg stretched forward, RIGHT leg stretched back and opposite arm forward; lower-right feet pass beneath torso with RIGHT knee visibly raised and LEFT boot planted. Full body in every cell, character centered and constant scale, feet baseline identical. Slightly overhead game camera, polished hand-painted storybook art, strong readable silhouette. Each cell has the SAME flat plain light grey background, no shadows outside the body, no scenery, no floor, no grid lines, no lettering. Four distinct anatomical walking phases, not four copies of a standing pose. Preserve face and clothes exactly.",
+          "vae": [
+            "vae",
+            0
+          ],
+          "image1": [
+            "ref_crop",
+            0
+          ]
+        }
+      },
+      "negative": {
+        "class_type": "TextEncodeQwenImageEditPlus",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "prompt": "",
+          "vae": [
+            "vae",
+            0
+          ],
+          "image1": [
+            "ref_crop",
+            0
+          ]
+        }
+      },
+      "sample": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": [
+            "shift",
+            0
+          ],
+          "seed": 2310261100,
+          "steps": 4,
+          "cfg": 1.0,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "positive": [
+            "positive",
+            0
+          ],
+          "negative": [
+            "negative",
+            0
+          ],
+          "latent_image": [
+            "latent",
+            0
+          ],
+          "denoise": 1.0
+        }
+      },
+      "decode": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "sample",
+            0
+          ],
+          "vae": [
+            "vae",
+            0
+          ]
+        }
+      },
+      "save": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "decode",
+            0
+          ],
+          "filename_prefix": "luma_hero_walk_s"
+        }
+      },
+      "lora": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "model": [
+            "unet",
+            0
+          ],
+          "lora_name": "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+          "strength_model": 1.0
+        }
+      },
+      "reference": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "luma_hero_sheet_00001_.png [output]"
+        }
+      },
+      "ref_crop": {
+        "class_type": "ImageCrop",
+        "inputs": {
+          "image": [
+            "reference",
+            0
+          ],
+          "x": 256,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        }
+      }
+    },
+    {
+      "client_id": "luma-art-20261023",
+      "create_time": 1792793774721
+    },
+    [
+      "save"
+    ]
+  ],
+  "outputs": {
+    "save": {
+      "images": [
+        {
+          "filename": "luma_hero_walk_s_00001_.png",
+          "subfolder": "",
+          "type": "output",
+          "metadata": {
+            "kind": "image",
+            "width": 1024,
+            "height": 1024
+          },
+          "id": "fe0bcba4-a0f6-490f-9722-b181998d7297"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "9fb42d04-2c50-4154-bda0-aa112928227e",
+          "timestamp": 1792793774722
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "clip",
+            "vae",
+            "latent"
+          ],
+          "prompt_id": "9fb42d04-2c50-4154-bda0-aa112928227e",
+          "timestamp": 1792793774725
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "9fb42d04-2c50-4154-bda0-aa112928227e",
+          "timestamp": 1792793803912
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "save": {
+      "node_id": "save",
+      "display_node": "save",
+      "parent_node": null,
+      "real_node_id": "save"
+    }
+  }
+}

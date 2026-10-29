@@ -1,0 +1,21 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Implement only the conservative six-plane C99 sphere function. Short complete code, no long analysis.
+
+EVIDENCE PACKET:
+Code only, C99 header under100lines. No extra features or tools.
+Implement static inline int festival_sphere_visible(float x,float y,float z,
+ float radius,float near_z,float far_z,float sx,float sy).
+Camera space Xright,Ydown,Zforward. Symmetric frustum z>=near,z<=far,
+ abs(x)<=z*sx,abs(y)<=z*sy. Radius bounds the full world mesh and is already
+ enlarged for fixedpoint roundoff. Return1 if sphere mayintersect,0 only
+ if sphere strictly outside one of6planes. Tangency must be retained.
+Plane normals sides have lengths sqrt(1+sx*sx),sqrt(1+sy*sy).
+Can use double squared inequalities to avoid sqrt pergroup, but only square
+negative outside distances. Invalid/NaN/Inf inputs,radius<0,near<0,far<=near,
+sx<=0,sy<=0: failOPEN return1; never discard geometry on uncertainbounds.
+Finitefloat values may be huge: compute products in double to avoidoverflow.
+No allocation/globalstate. Geometry checks and GPU upload handledbycaller.
+Camera actualnear=.5,far=100,sx≈.609756,sy≈.365854or.342988.
+Two groups only perframe; correctness beats guessedperformance.

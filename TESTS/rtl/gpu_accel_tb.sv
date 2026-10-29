@@ -1,8 +1,9 @@
 `timescale 1ns/1ps
-module gpu_accel_tb #(parameter DEPTH_SLOT=1, READ_MIN=3);
+module gpu_accel_tb #(parameter DEPTH_SLOT=1, READ_MIN=3, NEO_RESPONSE=0,
+                     parameter realtime MEM_HALF_PERIOD=6.666);
     reg hc=0, mc=0, rst=0;
     always #6.25 hc=~hc;
-    always #6.666 mc=~mc;
+    always #(MEM_HALF_PERIOD) mc=~mc;
     reg sel=0, wr=0;
     reg [31:0] address=0, data=0;
     reg [1:0] trans=0;
@@ -18,10 +19,19 @@ module gpu_accel_tb #(parameter DEPTH_SLOT=1, READ_MIN=3);
     wire [28:0] ba;
     wire [255:0] bwd,brd;
     wire [31:0] bm;
+    wire response_valid;
+    wire [255:0] response_data;
+    generate if(NEO_RESPONSE)begin:g_response
+        neo_gpu_response pipeline(.clk(mc),.resetn(rst),
+            .in_valid(brv),.in_data(brd),.out_valid(response_valid),.out_data(response_data));
+    end else begin:g_direct_response
+        assign response_valid=brv;
+        assign response_data=brd;
+    end endgenerate
     gpu_accel #(.FONT_FILE("font8x16.hex")) dut (
         .hclk(hc),.hresetn(rst),.hsel(sel),.hwrite(wr),.haddr(address),.hwdata(data),.htrans(trans),
         .hrdata(result),.hready(hready),.mem_clk(mc),.valid(bv),.write(bw),.addr(ba),
-        .wr_data(bwd),.wr_mask(bm),.ready(br),.rd_data(brd),.rd_valid(brv));
+        .wr_data(bwd),.wr_mask(bm),.ready(br),.rd_data(response_data),.rd_valid(response_valid));
     reg cpu_pending=0, scan_pending=0;
     wire cr, cv, gr, gv;
     wire [255:0] cd,gd;
@@ -110,7 +120,7 @@ module gpu_accel_tb #(parameter DEPTH_SLOT=1, READ_MIN=3);
         d=result;
     endtask
     reg [31:0] value;
-    integer errors=0;
+    integer errors=0, v1_texture_expected;
     initial begin
         if(!$value$plusargs("ncmd=%d",ncmd)) $fatal(1,"Need ncmd");
         if(!$value$plusargs("bad=%d",bad_expected)) bad_expected=0;
@@ -118,6 +128,8 @@ module gpu_accel_tb #(parameter DEPTH_SLOT=1, READ_MIN=3);
         if(!$value$plusargs("rgbinit=%d",rgbinit)) rgbinit=0;
         if(!$value$plusargs("v1_bad=%d",v1_bad_expected)) v1_bad_expected=-1;
         if(!$value$plusargs("v1_pass=%d",v1_pass_expected)) v1_pass_expected=-1;
+        if(!$value$plusargs("v1_texture=%d",v1_texture_expected)) v1_texture_expected=1;
+        if(v1_texture_expected!=0 && v1_texture_expected!=1)$fatal(1,"Invalid texture coverage selection");
         $readmemh("commands.hex",commands,0,ncmd*8-1);
         $readmemh("expected.hex",expected);
         for(integer i=0;i<BYTES;i++) memory[i]=8'((i*29)+(i>>11));
@@ -154,8 +166,10 @@ module gpu_accel_tb #(parameter DEPTH_SLOT=1, READ_MIN=3);
         if(v1_bad_expected>=0)begin
             read_reg('h34,value);if(value!=v1_bad_expected)$fatal(1,"V1 rejected %0d expected %0d",value,v1_bad_expected);
             read_reg('h3c,value);if(value!=v1_pass_expected)$fatal(1,"V1 passed %0d expected %0d",value,v1_pass_expected);
-            read_reg('h40,value);$display("V1 cache hits=%0d",value);if(!value)$fatal(1,"No texture reuse");
-            read_reg('h44,value);$display("V1 cache misses=%0d",value);if(!value)$fatal(1,"No texture refill");
+            read_reg('h40,value);$display("V1 cache hits=%0d",value);
+            if((value!=0)!=v1_texture_expected)$fatal(1,"Unexpected texture reuse coverage");
+            read_reg('h44,value);$display("V1 cache misses=%0d",value);
+            if((value!=0)!=v1_texture_expected)$fatal(1,"Unexpected texture refill coverage");
         end
         for(integer i=0;i<BYTES;i++) if(memory[i]!==expected[i]) begin
             if(errors<8) $display("Mismatch @%h: got=%h expected=%h",i,memory[i],expected[i]);

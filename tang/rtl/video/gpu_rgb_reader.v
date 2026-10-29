@@ -1,6 +1,6 @@
 // RGB565 direct scanout; one bounded line of native DDR bursts.
 `default_nettype none
-module gpu_rgb_reader #(parameter WIDTH=800)(
+module gpu_rgb_reader #(parameter WIDTH=800, parameter BLOCK_BITS=(WIDTH>1024 ? 7:6))(
     input wire clk,resetn,start,pipelined,halfres,
     input wire [31:0] base,
     output reg done,fetch_valid,
@@ -9,13 +9,13 @@ module gpu_rgb_reader #(parameter WIDTH=800)(
     input wire [255:0] fetch_data,
     input wire fetch_data_valid,
     output reg block_valid,
-    output reg [5:0] block_index,
+    output reg [BLOCK_BITS-1:0] block_index,
     output reg [255:0] block_data
 );
     localparam IDLE=0,SEND=1,WAIT=2,NEXT=3,FINISH=4,PIPE=5;
     reg [2:0] state;
-    reg [5:0] position;
-    reg [5:0] issued,last;
+    reg [BLOCK_BITS-1:0] position;
+    reg [BLOCK_BITS-1:0] issued,last;
     always @(posedge clk)begin
         if(!resetn)begin
             state<=IDLE;done<=0;fetch_valid<=0;fetch_addr<=0;

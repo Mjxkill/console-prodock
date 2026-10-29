@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "world": 2,
+  "world_id": "marées",
+  "status": "phase_one_applied_data_validated_engine_full_run_pending",
+  "phase_one": {
+    "append_worlds": [
+      "reflections_candidate/reflections_01.json",
+      "reflections_candidate/reflections_02.json",
+      "reflections_candidate/reflections_03.json",
+      "reflections_candidate/reflections_04.json",
+      "reflections_candidate/reflections_05.json",
+      "reflections_candidate/reflections_06.json",
+      "reflections_candidate/reflections_07.json",
+      "reflections_candidate/reflections_08.json",
+      "reflections_candidate/reflections_09.json",
+      "reflections_candidate/reflections_10.json"
+    ],
+    "add_entities": [
+      {
+        "id": "reflections_entry",
+        "kind": "door",
+        "x": 1808,
+        "y": 1360,
+        "name": "La Poste des Reflets",
+        "text": "Les lettres du phare attendent leurs réponses. La pierre du jardin sud garde le signe qui ouvre la poste.",
+        "after": "Un miroir donne une direction au courrier ; une caisse peut garder une fenêtre dans l'ombre.",
+        "requires": 256,
+        "grants": 0,
+        "cost": 0,
+        "vehicle": 0,
+        "art": "portal",
+        "target_world": 26
+      },
+      {
+        "id": "post_gallery_west",
+        "kind": "door",
+        "x": 592,
+        "y": 1296,
+        "name": "La galerie des facteurs — quai du village",
+        "text": "La galerie reliait ce quai à celui des coquilles. Les réponses de la Poste des Reflets permettront à Iria de la rouvrir.",
+        "after": "La galerie est de nouveau ouverte. Les prochains courriers éviteront le détour des ponts.",
+        "requires": 512,
+        "grants": 0,
+        "cost": 0,
+        "vehicle": 0,
+        "art": "portal",
+        "target_world": 2,
+        "target_x": 1872,
+        "target_y": 944
+      },
+      {
+        "id": "post_gallery_east",
+        "kind": "door",
+        "x": 1840,
+        "y": 944,
+        "name": "La galerie des facteurs — quai des coquilles",
+        "text": "Derrière la grille, la galerie rejoint le quai du village. Il manque les réponses de la Poste des Reflets.",
+        "after": "Le trajet rejoint le quai du village. Le courrier peut maintenant circuler dans les deux sens.",
+        "requires": 512,
+        "grants": 0,
+        "cost": 0,
+        "vehicle": 0,
+        "art": "portal",
+        "target_world": 2,
+        "target_x": 592,
+        "target_y": 1328
+      }
+    ],
+    "replace_mission": {
+      "old_id": "c16",
+      "new": {
+        "id": "c17_reflections",
+        "title": "Les réponses ont aussi une adresse",
+        "text": "Après la pierre du jardin sud, entrer dans la Poste des Reflets, à l'ouest du phare vivant. Retrouver les réponses en conduisant la lumière vers les disques et en protégeant les lampes des oiseaux. Revenir au quai pour rouvrir la galerie des facteurs.",
+        "type": "dungeon",
+        "requires": [
+          "c15"
+        ],
+        "target_world": 35,
+        "complete_flags": 32,
+        "reward": {
+          "flags": 512,
+          "crystals": 2
+        },
+        "required": false
+      }
+    },
+    "return_position": {
+      "x": 1808,
+      "y": 1392
+    },
+    "migration": {
+      "no_completion_transfer": [
+        "c16 -> c17_reflections"
+      ],
+      "unchanged_mission_ids": [
+        "c01",
+        "c02",
+        "c03",
+        "c04",
+        "c05",
+        "c06",
+        "c07",
+        "c08",
+        "c09",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15"
+      ],
+      "preserve_existing_entities": true,
+      "preserve_chest_ids": [
+        "sidequest_reward"
+      ],
+      "preserve_inventory": true,
+      "preserve_vehicle_unlocks": true,
+      "completed_old_c16_reward": "Keep its previously granted two crystals. c17 is new optional content with its own reward; do not revoke or replay c16."
+    },
+    "consequence": {
+      "id": "post_gallery",
+      "kind": "two_way_local_shortcut",
+      "requires": 512,
+      "endpoints": [
+        "post_gallery_west",
+        "post_gallery_east"
+      ],
+      "old_foot_route_tiles": 52,
+      "behavior": "The dungeon mission grants local flag 512 after returning outdoors; both existing quays then connect through the gallery. Arrival stays one tile off the opposite door."
+    }
+  },
+  "later_separate_phase": "integration_proposal.json: later_separate_phase remains unimplemented",
+  "previous_campaign": "pre_integration/campaign.json",
+  "previous_arcs": "pre_integration/campaign_arcs.json",
+  "previous_world": "pre_integration/world_03.json",
+  "data_validation": "integration_applied_validation.json"
+}

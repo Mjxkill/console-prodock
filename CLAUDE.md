@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+**Compatibilité des deux cartes :** appliquer `AGENTS.md` et
+`ARCHI/COMPATIBILITE_CARTES.md`. L'inventaire explicite est dans
+`tang/boards/ownership.json`. Toute entrée modifiée impose une campagne locale
+des deux profils ; un candidat ne remplace jamais la référence Pro Dock sans
+essais matériels. La Pro Dock éteinte reste hors des essais Neo.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Projet

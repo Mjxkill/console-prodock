@@ -1,0 +1,215 @@
+{
+  "passed": true,
+  "trial_completed": true,
+  "functional_qualification": false,
+  "scope": "Explicit LED observations with post-observation DMI, no functional qualification",
+  "phase": "complete",
+  "bitstream_sha256": "1593a2aaf7d84e5d099520d96b5d60852340601fd861d2c21108bace846e2fde",
+  "qualification_status": "FAIL",
+  "timing_checks_ns": {
+    "setup": -0.849,
+    "hold": 0.124,
+    "recovery": -0.36,
+    "removal": 0.196
+  },
+  "reset4_LW_finding_preserved": true,
+  "cpu_left_halted": true,
+  "framebuffer_written": false,
+  "gpu_commands_sent": false,
+  "linux_started": false,
+  "sd_written": false,
+  "flash_written": false,
+  "cpu_resume_requested": false,
+  "r9_dmi_access": true,
+  "observations": {
+    "n56r8_before": {
+      "phase": "n56r8_before",
+      "token": "06e670115ea4443eb95b681e66cc884a",
+      "observer": "user",
+      "value": "on",
+      "note": "Utilisateur : la led utilisateur c\u2019est celle qui brille de trop. Identification de la LED brillante dans la capture cam\u00e9ra N56r8.",
+      "recorded_at": 1792857805.7363417,
+      "independent_of_cpu": true
+    },
+    "r9": {
+      "phase": "r9",
+      "token": "70ed3840e60e4920a6a5c771942f631b",
+      "observer": "user",
+      "value": "on",
+      "note": "Oui, allum\u00e9e en continu. R\u00e9ponse explicite apr\u00e8s le chargement exact R9 ; \u00e9cran noir et LED brillante \u00e9galement visibles sur r9_camera.jpg.",
+      "recorded_at": 1792857879.0554326,
+      "independent_of_cpu": true
+    },
+    "n56r8_after": {
+      "phase": "n56r8_after",
+      "token": "ed5f7d3ffe3145f895a17359dc6e83aa",
+      "observer": "user",
+      "value": "unclear",
+      "note": "R\u00e9ponse exacte utilisateur : tu le voies dans la c\u00e9mera non ? Pas de nouvelle confirmation utilisateur cod\u00e9e on/off ; contr\u00f4le final r\u00e9alis\u00e9 directement par assistant sur n56r8_after_camera.jpg : mire revenue et m\u00eame LED allum\u00e9e. Observation cam\u00e9ra consign\u00e9e s\u00e9par\u00e9ment.",
+      "recorded_at": 1792858017.5137687,
+      "independent_of_cpu": true
+    }
+  },
+  "script_sha256": "e59aa8eea8765787ce2798f5858bf9196c8df26fd6c3271333cdbe7f80f5877b",
+  "anchor_sha256": {
+    "result.json": "3f4526d23d0792c2aea7d57d394ef7a19ef749caace8404dda660bf0f99bd692",
+    "restored.log": "ea5cc5fd845d4be6144b93bb05b792095befcf20a21c866e4d3a288a1e4dfe8a",
+    "visual_confirmation_fallback.json": "8779625196d70a2e657d33cfd498b929cf60b2baa2e00edb48ad5aeac8911243"
+  },
+  "led_proof": {
+    "r9": {
+      "function": "led_n = !ddr_init",
+      "ball": "V13",
+      "polarity": "active-low user LED",
+      "observed_on_means_ddr_init": 1,
+      "observed_off_means_ddr_init": 0,
+      "input_sha256": {
+        "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/source/tang/boards/neo/console_neo.v": "40ead720c3fc34cb7682b4a08704c5fcf08efe835b23cc5f990308f7f6557e62",
+        "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/source/tang/boards/neo/neo.cst": "e08dd2bd88b2074a758a828a91393cbbbd5a870e77f99c7bc34071cf41a82c89",
+        "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150/impl/pnr/console_neo.vo": "d3888d979ae0195b6e0f806e4baa0c255fa5ce288953541090f85d0dc4736b77"
+      }
+    },
+    "n56r8": {
+      "function": "led_n = !ddr_init",
+      "ball": "V13",
+      "polarity": "active-low user LED",
+      "observed_on_means_ddr_init": 1,
+      "observed_off_means_ddr_init": 0,
+      "input_sha256": {
+        "/home/michael/console/tang/impl/console_neo_n56r8_hdmi_sg4/source/tang/boards/neo/console_neo.v": "1ce7d0714e31dab42b483f4d2e3fa682fa547ec9f82be36ce0b56dbf06d1c954",
+        "/home/michael/console/tang/impl/console_neo_n56r8_hdmi_sg4/source/tang/boards/neo/neo.cst": "447dec4776c53325b74721211f6be15d0a986ff797592e514948e0db709ef862",
+        "/home/michael/console/tang/impl/console_neo_n56r8_hdmi_sg4/impl/pnr/console_neo.vo": "33c919d5c8ab6e90ec6b68f44849ff9d6f2c5682a40192d12c55298494afccc9"
+      }
+    }
+  },
+  "limits": [
+    "LED is user observation of V13, not a CPU/FPGA register measurement.",
+    "DONE is programming status, not SRAM readback or startup success.",
+    "All setup/recovery/reset4-LW failures remain; no Linux/GPU qualification."
+  ],
+  "usb_identity": {
+    "neo": {
+      "path": "/sys/bus/usb/devices/3-4.4.1",
+      "serial": "2025041420",
+      "product": "USB Debugger",
+      "idVendor": "0403",
+      "idProduct": "6010",
+      "busnum": "3",
+      "devnum": "28"
+    },
+    "esp": {
+      "path": "/sys/bus/usb/devices/3-4.4.2",
+      "product": "Dual RS232-HS",
+      "idVendor": "0403",
+      "idProduct": "6010",
+      "busnum": "3",
+      "devnum": "7"
+    },
+    "programmer_busdev": "3:28"
+  },
+  "protocol_passed": true,
+  "baseline_led_initial_valid": true,
+  "baseline_led_valid": false,
+  "led_comparison_conclusive": false,
+  "r9_ddr_init_from_led": null,
+  "program_r9_status": {
+    "raw_status": "0x00026220",
+    "done": true,
+    "error_flags": [],
+    "sram_readback_verified": false,
+    "software_checksum_verified": false
+  },
+  "r9_programmed": true,
+  "r9_dmi": {
+    "attempted": true,
+    "timeout_seconds": 30,
+    "cpu_halted": false,
+    "complete": false,
+    "gpu_or_ddr_access": false,
+    "error": "TimeoutExpired(['/usr/local/bin/openocd', '-f', '/home/michael/console/tools/neo/ae350_espprog.cfg', '-c', 'adapter speed 100; gdb_port disabled; tcl_port disabled; telnet_port disabled', '-f', '/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/r9_led_compare_trial/r9_dmi.tcl'], 30)",
+    "timed_out": true,
+    "log_sha256": "d157ab8f7870e5bf807f42e36c567bb058e209d5f08a860ef62c9d74bccc4079"
+  },
+  "restore_n56r8_status": {
+    "raw_status": "0x00026220",
+    "done": true,
+    "error_flags": [],
+    "sram_readback_verified": false,
+    "software_checksum_verified": false
+  },
+  "fallback_restored": true,
+  "fallback": {
+    "registers": {
+      "0": [
+        1196447025,
+        0,
+        0,
+        0,
+        0,
+        0,
+        136,
+        0,
+        0,
+        0,
+        16,
+        0,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3335,
+        536410112,
+        0,
+        7,
+        0,
+        47187200,
+        49153650,
+        0,
+        0
+      ],
+      "1": [
+        1196447025,
+        0,
+        0,
+        0,
+        0,
+        0,
+        198,
+        0,
+        0,
+        0,
+        16,
+        0,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3335,
+        536410112,
+        0,
+        7,
+        0,
+        47187200,
+        49153650,
+        0,
+        0
+      ]
+    },
+    "frame_delta": 62,
+    "cpu_left_halted": true
+  }
+}

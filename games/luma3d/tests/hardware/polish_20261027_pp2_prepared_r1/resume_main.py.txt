@@ -1,0 +1,78 @@
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--bundle',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--expected-manifest',required=True);a=p.parse_args()
+ assert sha(a.bundle/'manifest.json')==a.expected_manifest;m=preflight(a.bundle);a.out.mkdir(parents=True,exist_ok=False)
+ from check_linux import command
+ r=dict(passed=False,hardware=True,manifest_sha256=a.expected_manifest,game=m['game'],transfers=[],resumed_from=m['resume_result_sha256'],fpga='G22r0 continuity; G3D1 checked by renderer',kernel=RELEASE.decode(),fpga_writes=0,kernel_writes=0,sd_writes=0,flash_writes=0)
+ def interrupted(n,frame):raise KeyboardInterrupt('Signal '+str(n))
+ signal.signal(signal.SIGTERM,interrupted);signal.signal(signal.SIGHUP,interrupted)
+ with open('/tmp/prodock-diagnostic.lock','a+') as lock:
+  fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+  with serial.Serial(PORT,115200,timeout=.1,exclusive=True) as uart:
+   tx=Transport(uart,command,a.out);stopped=False;current=None;ever=False;recovery={};r['recovery']=recovery
+   try:
+    uart.write(b'\n');time.sleep(.2);uart.read(16000)
+    before=tx.run('before','uname -r; prodockctl display; cat /proc/mounts')
+    assert re.search(rb'^'+RELEASE+rb'\r?$',before,re.M) and b'tmpfs /tmp tmpfs ' in before and not re.search(rb'^/dev/mmc\S* ',before,re.M)
+    r['before']=display(before);r['initial_identity']=identity(tx,'initial_sc1');assert r['initial_identity']==m['expected_identity']
+    r['baseline_save_initial']=saved_bytes(tx,'baseline_v4_initial',BASE_SAVE,4);assert r['baseline_save_initial']['sha256']==SAVE_SHA;recovery['baseline_identity']=r['initial_identity'];time.sleep(3)
+    r['progress_before']=display(tx.run('progress_before','prodockctl display'));assert (r['progress_before']['presents']-r['before']['presents'])&0xffffffff
+    tags=[m['tag']+'_'+x for x in ('boss','checkpoint','tour','live','restore')]
+    tx.run('fresh_names',' && '.join('test ! -f /tmp/'+n for n in [m['helper'],*[x+'.pid' for x in tags]]))
+    readback(tx,'receiver_readback','/tmp/luma-rx',1464,RECEIVER_SHA)
+    tx.receiver_active=True;r['transfers'].append(tx.transfer(a.bundle/m['helper'],m['helper']))
+    helper=m['helper'];tx.run('helper_mode','chmod 700 /tmp/'+helper)
+    for label,path,record in [('baseline_file','/tmp/'+BASE,m['baseline']),('baseline_running_image','/proc/'+str(r['initial_identity']['pid'])+'/exe',m['baseline']),('staged_game','/tmp/'+m['program'],m['game']),('staged_probe','/tmp/'+m['probe'],m['probe_binary'])]:raw_verify(tx,helper,label,path,record)
+    fixtures=[f for f in m['fixtures'] if f['name'] in ('boss','checkpoint')]
+    for f in fixtures:
+     for ref in [*f['regions'],*([f['pixels']] if f['pixels'] else [])]:
+      raw=tx.run('verify_'+ref['file'],f'/tmp/{helper} verify /tmp/{ref["file"]} unused {ref["bytes"]} {ref["crc32"]}')
+      assert f'LUMA3D_VERIFY_OK bytes={ref["bytes"]} crc32={ref["crc32"]}'.encode() in raw
+    assert identity(tx,'sc1_before_switch')==r['initial_identity']
+    print('POLISH_RESUME_IN_10_SECONDS: exact existing game/probe/references; SC1 still visible',flush=True);time.sleep(10)
+    stopped=True;stop_baseline(tx,r['initial_identity']);r['baseline_save']=saved_bytes(tx,'baseline_v4_stopped',BASE_SAVE,4);assert r['baseline_save']['sha256']==SAVE_SHA
+    released=tx.run('released','prodockctl info; prodockctl display');assert b'GPU ABI=1 caps=000001ff DDR=00800000+90177536 ' in released;r['released']=display(released)
+    r['fixtures']=[]
+    for fixture in fixtures:
+     tag=m['tag']+'_'+fixture['name'];current=(m['probe'],'/tmp/'+tag+'.pid');ever=True
+     initial=tx.run(tag+'_launch',once(m['probe'],tag,'--advance '+str(fixture['advance'])))
+     assert wait_exit(uart,a.out,tag,timeout=240,initial=initial)==0
+     log=tx.run(tag+'_log','cat /tmp/'+tag+'.log');current=None
+     assert b'LUMA3D_SAVE ' not in log and f'LUMA3D_POLISH_PROBE advance={fixture["advance"]} replay_without_render=1 active={fixture["active"]} hardware=1 saves=disabled'.encode() in log
+     record=dict(name=fixture['name'],counters=game_counters(log));assert record['counters']['frames']==1
+     for key in ('vertices','triangles','slivers'):assert record['counters'][key]==fixture['oracle'][key],(fixture['name'],key)
+     if fixture['pixels']:verify_pixels(tx,helper,tag,fixture['pixels'])
+     verify_regions(tx,helper,tag,fixture['regions'][:1])
+     if fixture['name']=='boss':
+      ref=fixture['regions'][1];record['published_regions']=[]
+      for q in m['publication_ranges']:
+       raw=tx.run(tag+'_slice_'+str(q['source_offset']),f'/tmp/{helper} memory-slice /tmp/{ref["file"]} {q["gpu_offset"]} {ref["bytes"]} {ref["crc32"]} {q["source_offset"]} {q["bytes"]}',90)
+       expected=f'LUMA3D_MEMORY offset={q["gpu_offset"]} bytes={q["bytes"]} mismatch=0 actual_crc={q["crc32"]} expected_crc={q["crc32"]}'
+       assert expected.encode() in raw;record['published_regions'].append(q)
+     record['display']=display(tx.run(tag+'_display','prodockctl display'));r['fixtures'].append(record)
+    print('POLISH_RESUMED_ORACLES_PASS: exact published shooter regions and checkpoint; paced tour starts now',flush=True)
+    tag=m['tag']+'_tour';current=(m['program'],'/tmp/'+tag+'.pid')
+    initial=tx.run('tour_launch',once(m['program'],tag,m['tour_args']))
+    assert wait_exit(uart,a.out,tag,timeout=m['deadline_seconds'],initial=initial)==0
+    log=tx.run('tour_log','cat /tmp/'+tag+'.log',90);current=None;r['tour']=tour_result(log)
+    r['after_tour']=display(tx.run('after_tour','prodockctl display'))
+    r['baseline_save_final']=saved_bytes(tx,'baseline_v4_final',BASE_SAVE,4);assert r['baseline_save_final']['sha256']==r['baseline_save']['sha256']
+    print('SHOWCASE_FULL_CYCLE_PASS: eight wins and real return; launching repeating tour',flush=True)
+    tag=m['tag']+'_live';current=(m['program'],'/tmp/'+tag+'.pid')
+    tx.run('live_launch',f'/tmp/{m["program"]} {m["live_args"]} < /dev/null > /tmp/{tag}.log 2>&1 & echo $! > {current[1]}')
+    r['live_identity']=identity(tx,'live_started',current[1],m['program'])
+    r['live_display']=progress(tx,m['program'],tag+'.log','live',current[1]);tx.run('publish_live_pid','cp '+current[1]+' '+LIVE)
+    r['baseline_save_after_live']=saved_bytes(tx,'baseline_v4_after_live',BASE_SAVE,4);assert r['baseline_save_after_live']['sha256']==r['baseline_save']['sha256']
+    assert identity(tx,'live_after_save',LIVE,m['program'])==r['live_identity']
+    r['passed']=True;r['left_running']=m['program']+' --showcase; all eight activities in autonomous loop; no save file opened'
+   except BaseException as e:
+    r['error']=repr(e)
+    try:abort_receiver(tx,uart,a.out)
+    except BaseException as e:r['receiver_abort_error']=repr(e)
+    if stopped:
+     try:
+      uart.write(b'\x03');uart.flush();time.sleep(.3);uart.read(16000);r['restored_display']=recover(tx,m,current,ever,recovery);r['restored_sc1']=True
+     except BaseException as e:r['cleanup_error']=repr(e)
+    raise
+   finally:
+    (a.out/'result.json').write_text(json.dumps(r,indent=2)+'\n');print(json.dumps(r),flush=True)
+if __name__=='__main__':main()

@@ -1,0 +1,2550 @@
+{
+  "candidate": true,
+  "hardware_tested": false,
+  "program": "luma3d-to2",
+  "tag": "to2",
+  "helper": "to2-helper",
+  "game": {
+    "sha256": "8613a379771508cc07d6709a5b49f37a72fe0e241775374ccfc6be7d52d19117",
+    "bytes": 4560732,
+    "crc32": "306652b8"
+  },
+  "baseline": {
+    "sha256": "7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882",
+    "bytes": 4560732,
+    "crc32": "97482905"
+  },
+  "validation": {
+    "passed": true,
+    "hardware": false,
+    "commands": [
+      [
+        "cc",
+        "-std=c11",
+        "-O1",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-misleading-indentation",
+        "-ffp-contract=off",
+        "-fsanitize=address,undefined",
+        "-I/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source/games/luma3d/include",
+        "-I/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source/games/luma3d/world",
+        "-I/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source/fw_console",
+        "-I/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source/linux/drivers",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/validation/test_story.c",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source/games/luma3d/src/game.c",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source/games/luma3d/src/story.c",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source/games/luma3d/src/world.c",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source/games/luma3d/world/data.c",
+        "-lm",
+        "-o",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/validation/test_story"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/validation/test_story"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/validation/test_render_contract.py",
+        "--source-repo",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/source",
+        "--renderer-only",
+        "--out",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/validation/contract"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "90",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/maelle"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/maelle"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "1450",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/silo"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/silo"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "2330",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/relay"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/relay"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "3200",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/iria"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/iria"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "3800",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/completion"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/completion"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "90",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/maelle_720",
+        "--720p"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/maelle_720"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "2330",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/relay_720",
+        "--720p"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/relay_720"
+      ],
+      [
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/luma3d-host",
+        "--host",
+        "--frames",
+        "1",
+        "--advance",
+        "3200",
+        "--capture",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/iria_720",
+        "--720p"
+      ],
+      [
+        "python3",
+        "/home/michael/console/games/luma3d/candidates/valley_living_r1/render_preview.py",
+        "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/captures/iria_720"
+      ]
+    ],
+    "previews": [
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 192,
+        "draws": 40,
+        "submitted_triangles": 1542,
+        "instances": 40,
+        "culled_instances": 82,
+        "hardware": false,
+        "model_seconds": 0.10942952800542116,
+        "vertices": 1034,
+        "triangles": 525,
+        "clipped": 494,
+        "culled": 1109,
+        "slivers": 0,
+        "fragments": 223368,
+        "command_sha256": "cea31ade80e3376d3790c82937a47d0638d169932c85948d0f940a7325482010",
+        "asset_sha256": "2d7cf032f45d8c919f7e7bacdeabbf447c11e5c57407280d7779fe20c0e3edc1",
+        "image_sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "4a83a46acc225c4cd62075e7f6bdb80ac377a5d6ba0318d700e684c4c43c2861",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "maelle",
+        "advance_steps": 90
+      },
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 176,
+        "draws": 36,
+        "submitted_triangles": 1759,
+        "instances": 36,
+        "culled_instances": 83,
+        "hardware": false,
+        "model_seconds": 0.08913572097662836,
+        "vertices": 1187,
+        "triangles": 405,
+        "clipped": 584,
+        "culled": 1444,
+        "slivers": 0,
+        "fragments": 236139,
+        "command_sha256": "56b8d4eda0bb870f1cb26590d92bb86656e4bad65c43328fbd84dc082a728cdf",
+        "asset_sha256": "71538ca8f4c959b52d5fc05b16923e2aba3de30988c6e2bcc6bd412b94c26c0d",
+        "image_sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "445d0882c6e5f574a689f63a58d5c34dd8d109442e1a42d75bf8eec9e5810279",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "silo",
+        "advance_steps": 1450
+      },
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 140,
+        "draws": 29,
+        "submitted_triangles": 1260,
+        "instances": 29,
+        "culled_instances": 91,
+        "hardware": false,
+        "model_seconds": 0.11212974402587861,
+        "vertices": 858,
+        "triangles": 521,
+        "clipped": 466,
+        "culled": 810,
+        "slivers": 0,
+        "fragments": 206885,
+        "command_sha256": "5c6572f1d282e4b1da4d17fcb476d9aef78c8f51b8d30b1f02b6e6663c96fd35",
+        "asset_sha256": "4c81f5a2c65b23b9c839549b449fa749a628309c05e44bd610b53b17951958b3",
+        "image_sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "6c42b942f4776b64d1dafee53c84b2bdc794a27d7dc90fec5dad109f6506b5d4",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "relay",
+        "advance_steps": 2330
+      },
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 106,
+        "draws": 20,
+        "submitted_triangles": 1320,
+        "instances": 20,
+        "culled_instances": 100,
+        "hardware": false,
+        "model_seconds": 0.07135878398548812,
+        "vertices": 787,
+        "triangles": 296,
+        "clipped": 562,
+        "culled": 1108,
+        "slivers": 0,
+        "fragments": 220107,
+        "command_sha256": "1a8f870fca81bab666a2264ee0e4d4327a776ddba7d8bbf0032eec651a5c051b",
+        "asset_sha256": "0a2a9f56d55fa53853d77a3c7b31ebae1915e45edfd28eecd6b2e00f1c31d809",
+        "image_sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "acc90f59d7f269b64e86974d1976cd05b1a3a668ee1ccee9b7ad68e51c54da18",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "iria",
+        "advance_steps": 3200
+      },
+      {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 381,
+        "draws": 80,
+        "submitted_triangles": 2836,
+        "instances": 80,
+        "culled_instances": 42,
+        "hardware": false,
+        "model_seconds": 0.17432845098664984,
+        "vertices": 2049,
+        "triangles": 1014,
+        "clipped": 720,
+        "culled": 1923,
+        "slivers": 0,
+        "fragments": 220112,
+        "command_sha256": "d66272072402ad06c87b82566cc28f33fad2fac61db5562aab183424a4fb16d1",
+        "asset_sha256": "2252f34bbc1606bdd140ad2b6911e2e2c2536c45fc83051f5d362798417e4074",
+        "image_sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "c7a9775128e77c8c5ba94e6f27d9e5fa2a73da96dac9b5952a87e43ad816a363",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "completion",
+        "advance_steps": 3800
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "pitch": 2560,
+        "page_bytes": 2097152,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 192,
+        "draws": 40,
+        "submitted_triangles": 1542,
+        "instances": 40,
+        "culled_instances": 82,
+        "hardware": false,
+        "model_seconds": 0.14280247798888013,
+        "vertices": 1034,
+        "triangles": 508,
+        "clipped": 544,
+        "culled": 1125,
+        "slivers": 0,
+        "fragments": 542150,
+        "command_sha256": "4ea7b2bcb16a6342f05167fadb7819a3f217443448045473c7fb1b22334f34ea",
+        "asset_sha256": "74b17bc8b02571abf54f814466b88251b91b0d7b7efde67036241022254558f4",
+        "image_sha256": "dc9a80751e40e054df098c32db4256eac85de9b101d8637f571c892d57a11ca3",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 222720,
+        "composite_rgb_sha256": "a3c93f7b61527c125d85d43f61f0d02f3ae358b48da1d4c7800b2816519b8380",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "maelle_720",
+        "advance_steps": 90
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "pitch": 2560,
+        "page_bytes": 2097152,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 133,
+        "draws": 28,
+        "submitted_triangles": 1244,
+        "instances": 28,
+        "culled_instances": 92,
+        "hardware": false,
+        "model_seconds": 0.1409571660333313,
+        "vertices": 845,
+        "triangles": 506,
+        "clipped": 456,
+        "culled": 812,
+        "slivers": 0,
+        "fragments": 497705,
+        "command_sha256": "ebadf54b1bfc863dd14a0ec72cf6fda6f6d54b8759580b0fe32afaf1eac121eb",
+        "asset_sha256": "890a575714938ceea90f81c901d7af0f0c4221597d8ef16faaa4832882ae2f14",
+        "image_sha256": "49197a1249c31d182cd67f1280448e6eebd26bce2ca65ce9448607a3bee2576c",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 138240,
+        "composite_rgb_sha256": "56e59db9e0f9f3a18282a9d06a46015ec00bd6fc54a1e1722c101d0e0fdc73f0",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "relay_720",
+        "advance_steps": 2330
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "pitch": 2560,
+        "page_bytes": 2097152,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 106,
+        "draws": 20,
+        "submitted_triangles": 1320,
+        "instances": 20,
+        "culled_instances": 100,
+        "hardware": false,
+        "model_seconds": 0.09847336303209886,
+        "vertices": 787,
+        "triangles": 294,
+        "clipped": 566,
+        "culled": 1109,
+        "slivers": 0,
+        "fragments": 530603,
+        "command_sha256": "94feda0d8c176bf487730c8c88a942a4a0e2ec14f705ac7f527a7725edbbc637",
+        "asset_sha256": "6f1d769b08434bb446fe2ce5941e3867a45eaefa39f60ceb22fbd6146707cce8",
+        "image_sha256": "df19bf592ca8dfc911d56f753098c9f497a6204ff5d4a5bb45cbc322df0cadd9",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 222720,
+        "composite_rgb_sha256": "cb9efb684b0cfdbb60cca8a70e5ab08c7f883d8fcbfc1ec84210e60f7ae0efa4",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture",
+        "name": "iria_720",
+        "advance_steps": 3200
+      }
+    ],
+    "runtime": {
+      "sha256": "8613a379771508cc07d6709a5b49f37a72fe0e241775374ccfc6be7d52d19117",
+      "bytes": 4560732,
+      "crc32": "306652b8"
+    },
+    "validator_sha256": "d459e8a559107b0ea584a1ccdaf505fd13071890ed0c9dc04c314c6239b88cdb",
+    "renderer_contract": "/home/michael/console/games/luma3d/build/living_terrain_order_20261025_r3/validation/contract/result.json",
+    "limits": [
+      "Terrain/collision outside the tested path retains the R3 limitation.",
+      "No hardware FPS, no persistent save, no long campaign qualification."
+    ]
+  },
+  "path_validation": {
+    "exact": true,
+    "hardware": false,
+    "identities": {
+      "base": "69fa1d9d4565f9cc094abdbfbb4a0e705ef65a2e5b776c6211c6ef5106117f01",
+      "new": "fde40039a2c7a0ca49cd446e2229aba58708b3690a1469caf3fdc653774aa6ff"
+    },
+    "records": [
+      {
+        "pose": 0,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          431,
+          425
+        ],
+        "image_sha256": [
+          "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+          "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3"
+        ],
+        "command_sha256": [
+          "1a562d3117af7cbabecc30fdb78ecdefc4e8787f0b534dfc487b2686b071ec7a",
+          "7b5ff9acc8128e527a5da6971437c8a86e2a2a1edbe1e7e8a2ec95d16e6e0836"
+        ]
+      },
+      {
+        "pose": 150,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          194,
+          192
+        ],
+        "image_sha256": [
+          "c7d73e706ffc4277b076d9b31d42bb213624514127ba771e1eb28f6c033d6fc1",
+          "c7d73e706ffc4277b076d9b31d42bb213624514127ba771e1eb28f6c033d6fc1"
+        ],
+        "command_sha256": [
+          "484aced5e81ffe65b731715c54810ca8ae0fa01f72035e5618b54f1939478960",
+          "9ac9e6a5a8c3bbe2f914038a742aecff6cef9f1021d08495655422899f12b695"
+        ]
+      },
+      {
+        "pose": 300,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          194,
+          192
+        ],
+        "image_sha256": [
+          "cbb5fdaa03585fdd8200d977c0420c9524c4c791b449e8b08b36dee8757472b7",
+          "cbb5fdaa03585fdd8200d977c0420c9524c4c791b449e8b08b36dee8757472b7"
+        ],
+        "command_sha256": [
+          "ecd277f3eca0fa6ef6d992c5202c3c9aa1752c1dcf392dfb33e5b557df125144",
+          "1b3a7a9071e798a54745b03db52da80459b91b29b788afef895332ba3cb02bf7"
+        ]
+      },
+      {
+        "pose": 450,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          194,
+          192
+        ],
+        "image_sha256": [
+          "31e48440056e513e7bc9d12f80a0584d18223d7d3173460742f3ce154f3b77b8",
+          "31e48440056e513e7bc9d12f80a0584d18223d7d3173460742f3ce154f3b77b8"
+        ],
+        "command_sha256": [
+          "38f5d977cbfec42adfed294c084b021355d57b1215ddefe69e60001515781f90",
+          "da0df51585b01e23ed2ed5d173fdd06155ece8b51379f21cf6e8dda49f6b8f02"
+        ]
+      },
+      {
+        "pose": 600,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          194,
+          192
+        ],
+        "image_sha256": [
+          "2e3be2f3096f63e64c61a3bfacbe94a49b32ee0babdf75d6e382c5a97bd9b50f",
+          "2e3be2f3096f63e64c61a3bfacbe94a49b32ee0babdf75d6e382c5a97bd9b50f"
+        ],
+        "command_sha256": [
+          "f226a30c0159d07b6dc57aab41aeb3d6b57da2ffd90049f115a9a12c2e0a476a",
+          "f70dde0a0a4b139eeaff352f3118b35d4a3a11e6272838fb5dc0ebf583a122c7"
+        ]
+      },
+      {
+        "pose": 750,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          354,
+          350
+        ],
+        "image_sha256": [
+          "7c71907f8c69cf18015649154f940e8f38e08597f4727f3ea4b2f3dbd5386e32",
+          "7c71907f8c69cf18015649154f940e8f38e08597f4727f3ea4b2f3dbd5386e32"
+        ],
+        "command_sha256": [
+          "950d5ce7b43a9bef8814c48163becd04cec991a24d3fed94b3f544ff68ebcfe9",
+          "ada96812851b37e042f31ef09f27bab5ab510e4e03818ffb45a4378b80f30b6c"
+        ]
+      },
+      {
+        "pose": 900,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          279,
+          275
+        ],
+        "image_sha256": [
+          "4431e69b0e5949f1d0963dbb926a0cc3f898100d9b63a0d2af9130d5cba274d2",
+          "4431e69b0e5949f1d0963dbb926a0cc3f898100d9b63a0d2af9130d5cba274d2"
+        ],
+        "command_sha256": [
+          "48f2b0aaf0315793498c24d21ca3843b0bf54a7b1cba20620ce06ff1de4e13bb",
+          "5c2aed39704e70fd9ade84521862d4c28237c0d1485d9f6a484019799ad51c4e"
+        ]
+      },
+      {
+        "pose": 1050,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          242,
+          238
+        ],
+        "image_sha256": [
+          "2971d8fa98c72a65e183cfc49f67edfcabe9ceeab640bf988ec7e200a1de87e1",
+          "2971d8fa98c72a65e183cfc49f67edfcabe9ceeab640bf988ec7e200a1de87e1"
+        ],
+        "command_sha256": [
+          "33dc396828e3f3a0259f96d47d194a1408dc8072676036127345f086b1df8e29",
+          "04e20d426f5acc3f6cf667897723fdedc5828749bbebb1cd3bf3ca24a1890299"
+        ]
+      },
+      {
+        "pose": 1200,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          228,
+          224
+        ],
+        "image_sha256": [
+          "4407153af5a101a84a9dc5f0704c9abfc8ca622df2e01c84e24bf3a103a98a64",
+          "4407153af5a101a84a9dc5f0704c9abfc8ca622df2e01c84e24bf3a103a98a64"
+        ],
+        "command_sha256": [
+          "09a063e7c36f23fcdd4cc50d8e7ef78218268d5f26957d8707c1e0c2d2b6fc87",
+          "508e42bd82e91c49d1bd239543e48150d5cc72ff6a397cdeb7fc16587986b378"
+        ]
+      },
+      {
+        "pose": 1350,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          201,
+          197
+        ],
+        "image_sha256": [
+          "60c215fcfbcc44215c74901c0442440625acafe9fa8082d983a4c8c39c265603",
+          "60c215fcfbcc44215c74901c0442440625acafe9fa8082d983a4c8c39c265603"
+        ],
+        "command_sha256": [
+          "94274e7d95b4c00510bf82476bdeeba718688fa63d058ff248fd276f7960cd2a",
+          "1c7c1751942d0ddc773579c240063c87f5b3aad4caeaae17ddf17a0c90ec1e15"
+        ]
+      },
+      {
+        "pose": 1500,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          184,
+          181
+        ],
+        "image_sha256": [
+          "23358fce1fde08a8361d836d974f566d49644fb38af5195c809886f64ece754a",
+          "23358fce1fde08a8361d836d974f566d49644fb38af5195c809886f64ece754a"
+        ],
+        "command_sha256": [
+          "bca5bf8b168885267b68fbf95f1c906fadbb7d1f1212a1025a605b62e8ac89fc",
+          "05c2584f888811637db0f1bdd9f689233769b2f126192d4e56f8786c793c282e"
+        ]
+      },
+      {
+        "pose": 1650,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          179,
+          176
+        ],
+        "image_sha256": [
+          "af24763e330583c2f413f2861ea7dac74d4e39fa83f55ad0e0916f732d49c074",
+          "af24763e330583c2f413f2861ea7dac74d4e39fa83f55ad0e0916f732d49c074"
+        ],
+        "command_sha256": [
+          "14aa3dbda0beccfbc957adae1cda5038a0534858d319822959b9b062e3b07f69",
+          "a78f45be3b6c4d1b114455083d421521ce8bff80bd829fe86844f8899878852c"
+        ]
+      },
+      {
+        "pose": 1800,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          179,
+          176
+        ],
+        "image_sha256": [
+          "6a7439e765aba8f9d5c7443cd3ae18df4902e8822704fe7f1edaa1cdede4ee3c",
+          "6a7439e765aba8f9d5c7443cd3ae18df4902e8822704fe7f1edaa1cdede4ee3c"
+        ],
+        "command_sha256": [
+          "c1449e295546eb2260068aca89b09cc81c7ce5ebe83ba32facf89bb0d9ac8d6d",
+          "22d435eefeb114b5e8f47cb8514b3b4237d132a31286445df7834857eddce0da"
+        ]
+      },
+      {
+        "pose": 1950,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          179,
+          176
+        ],
+        "image_sha256": [
+          "74b5deb9af049e77542a5afd9a76625935b3caca85edc4a229c4afca742afea8",
+          "74b5deb9af049e77542a5afd9a76625935b3caca85edc4a229c4afca742afea8"
+        ],
+        "command_sha256": [
+          "ed037019808c74c5b24abf57003074b5ed7a15c49523ed9796c640c539679af1",
+          "96f146c55d9a719f0a97f3503320c7ab6bbfb084ca4f71aa8b95efd82e5c3909"
+        ]
+      },
+      {
+        "pose": 2100,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          146,
+          144
+        ],
+        "image_sha256": [
+          "4caa0addd7bd933ec8fe99dca24534b8564dfb23e5c61d3b42b1612ff2652535",
+          "4caa0addd7bd933ec8fe99dca24534b8564dfb23e5c61d3b42b1612ff2652535"
+        ],
+        "command_sha256": [
+          "ff779854a7da6fdfee3e9c16544af3f72932f60fadd9723cb9a503247a86fdc7",
+          "3e6b8fedddf1b96dceec7178d23482e131b1996a9b869e46c80b23451bbab557"
+        ]
+      },
+      {
+        "pose": 2250,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          139,
+          135
+        ],
+        "image_sha256": [
+          "dbf15c5ba4dd26c62e0ffcf7e38a10e704900571159d0b8e981ddcbebdf08f26",
+          "dbf15c5ba4dd26c62e0ffcf7e38a10e704900571159d0b8e981ddcbebdf08f26"
+        ],
+        "command_sha256": [
+          "b1495ef16139a477e9e2c50dc56dfc11a297c7d69753750724db711bd564c00b",
+          "fad088fb14d99f9f91fd224d7719b8f4fcca69fb43bc693ec940ee3ccd721d10"
+        ]
+      },
+      {
+        "pose": 2400,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          128,
+          126
+        ],
+        "image_sha256": [
+          "56128c7ff2dfa94ee4de94eb0b9ae1ad4ed336613aa11ed9b638bfb6b1d6b883",
+          "56128c7ff2dfa94ee4de94eb0b9ae1ad4ed336613aa11ed9b638bfb6b1d6b883"
+        ],
+        "command_sha256": [
+          "f8cd3b9ccce3b0408cf0449f3eb4fed610b5ebf1fe3a737d2cdc785ccd807820",
+          "0ea21235e3658db9215620d2472f03e3720c03e3d20413384c58e50bbba2d6da"
+        ]
+      },
+      {
+        "pose": 2550,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          97,
+          97
+        ],
+        "image_sha256": [
+          "45c806e1a74865905f3ed9425fb6b82dc9b73b5cb07b8f83a772c5752674deda",
+          "45c806e1a74865905f3ed9425fb6b82dc9b73b5cb07b8f83a772c5752674deda"
+        ],
+        "command_sha256": [
+          "dffd64e373dd5b6081e67c0d61a7d344a57460b8790af9d0a433cf3508ef5606",
+          "62196d4cfd315129834bfc7ef97ec2e260fa1b5c6c0015ff98b4d90e92074195"
+        ]
+      },
+      {
+        "pose": 2700,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          92,
+          91
+        ],
+        "image_sha256": [
+          "756dd7555a84999a98ab62c77b3b6ba9bbf14dcf41cdaa19262578ebece65bc1",
+          "756dd7555a84999a98ab62c77b3b6ba9bbf14dcf41cdaa19262578ebece65bc1"
+        ],
+        "command_sha256": [
+          "bbc7af7b34260b7ac246152bda1b0dfd32f0eb5f304021c0a88726e7debf5aee",
+          "0bc60c5728ef7bdaaf6abd8c153694435640733879c61508bd295c3669d7ab10"
+        ]
+      },
+      {
+        "pose": 2850,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          149,
+          146
+        ],
+        "image_sha256": [
+          "9309dd8858e480ce60a97ef1d07c7ee6d0690dd7cf9f5fe8efcac790a9f5e5a2",
+          "9309dd8858e480ce60a97ef1d07c7ee6d0690dd7cf9f5fe8efcac790a9f5e5a2"
+        ],
+        "command_sha256": [
+          "95753f201d729787d1594f0df25b0631a79c4624f9d8f517290179cf5b4d3474",
+          "7b283ab7e446b47248143b896312899fd5fc209c5f8b3a3c6cdeb71ef96b84b0"
+        ]
+      },
+      {
+        "pose": 3000,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          154,
+          153
+        ],
+        "image_sha256": [
+          "35d4dd8fb7bc8788afd9606b76d5ca1201b609ac2fb22356d12530d9fab40ab0",
+          "35d4dd8fb7bc8788afd9606b76d5ca1201b609ac2fb22356d12530d9fab40ab0"
+        ],
+        "command_sha256": [
+          "39bedd55e7cb3470c9b3273e93cf92f50cecc765aeac3e284c4a24b3c377ddd9",
+          "7c776079513637674469bd2819a7d3af648332bff21a3a83bfd6675919adb665"
+        ]
+      },
+      {
+        "pose": 3150,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          107,
+          106
+        ],
+        "image_sha256": [
+          "d234070c4cbcec7c4194666547136b0f78a3597877971b067186c4d8e026c675",
+          "d234070c4cbcec7c4194666547136b0f78a3597877971b067186c4d8e026c675"
+        ],
+        "command_sha256": [
+          "6c9c0270fadccab53fde32b0d7798df2f90b84f10844b9e0383dd504e3294bb7",
+          "1801aa9621e6ab14dcce8730acb8f42bccb592c3c96068c19e546000beab848f"
+        ]
+      },
+      {
+        "pose": 3300,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          107,
+          106
+        ],
+        "image_sha256": [
+          "118dc3613ed7edb805ac70793348c0caff0c148fcf08bd2504b232506c25658d",
+          "118dc3613ed7edb805ac70793348c0caff0c148fcf08bd2504b232506c25658d"
+        ],
+        "command_sha256": [
+          "3128e77c9bb5e507508ca943a7bb42fde92472bb206d59f227fb6b343a74c314",
+          "26deda1ed6f018d635495323a9d2491817330516249b304e0b3ef5b401eac40a"
+        ]
+      },
+      {
+        "pose": 3450,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          107,
+          106
+        ],
+        "image_sha256": [
+          "f2fe95954c5f08a029d31a6886cfc4dba6bdcbf499844ce10af2dab6a241a741",
+          "f2fe95954c5f08a029d31a6886cfc4dba6bdcbf499844ce10af2dab6a241a741"
+        ],
+        "command_sha256": [
+          "52444e17b345c08a0ebf91f69265272df3f7ebd15e812dbb0168b1b02f548609",
+          "a591b749bb67a0e098f60fa4a47f77ffd5ef0ba31600208f7e9c42263afd3bc8"
+        ]
+      },
+      {
+        "pose": 3600,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          107,
+          106
+        ],
+        "image_sha256": [
+          "16ebd548d52c86c1e88182deafbc58e1178a59b41bf414068945888c69411032",
+          "16ebd548d52c86c1e88182deafbc58e1178a59b41bf414068945888c69411032"
+        ],
+        "command_sha256": [
+          "37ef8fb30a64b66b7c578239c137ad6ed1851e17e772dc17a2878fb45a2a2d4f",
+          "a22119a2f566444b82e4e84b6308e81a4c3d4ee98bf71da3cc346b6df5e9e367"
+        ]
+      },
+      {
+        "pose": 3750,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          374,
+          373
+        ],
+        "image_sha256": [
+          "e2da1d36594995e316cf2da575136306db9993fe245a8e2bb024a709f6851701",
+          "e2da1d36594995e316cf2da575136306db9993fe245a8e2bb024a709f6851701"
+        ],
+        "command_sha256": [
+          "4de608a8fa83fa836fb9e964ee52d699baf113afd98f3ee5a64a2046854b3e51",
+          "830ea14c61272271a231cb6ed9d5a5fdd2ac1ff4271e1df63f2ef2e37e71b554"
+        ]
+      },
+      {
+        "pose": 3900,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          336,
+          330
+        ],
+        "image_sha256": [
+          "3068d98bb2314b7ab3586730988f0b333b66fdf9215d54c1a293611c323053ef",
+          "3068d98bb2314b7ab3586730988f0b333b66fdf9215d54c1a293611c323053ef"
+        ],
+        "command_sha256": [
+          "64b41da0e1cd092fde3d3ceb43a5380ae2cc378bdef0fb7d566d205b9ae65a4e",
+          "610455a44de12a7f535343fd62b0b3e5e7b805d28ab089601a7cb3044ee8077d"
+        ]
+      },
+      {
+        "pose": 4050,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          322,
+          318
+        ],
+        "image_sha256": [
+          "05a1fc34f9498a9c9732437a8069fd6dbf2b8b79f1c130e70f1f40d03ca6072e",
+          "05a1fc34f9498a9c9732437a8069fd6dbf2b8b79f1c130e70f1f40d03ca6072e"
+        ],
+        "command_sha256": [
+          "9e5d6c5bb3ea7aaa4f23548acbbc9e01afe5a51c995fb4a80857030ce1154742",
+          "dc008880f07baa358d28d1094c9d1d143fe17858141b034ad45110259e4644bf"
+        ]
+      },
+      {
+        "pose": 4200,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          267,
+          264
+        ],
+        "image_sha256": [
+          "20a605f5bd097aef59332b0ea3c230b53383b2a8a50ffdb38b0f2c34daee2b12",
+          "20a605f5bd097aef59332b0ea3c230b53383b2a8a50ffdb38b0f2c34daee2b12"
+        ],
+        "command_sha256": [
+          "af3fbff60b42a91189ab439c61774ae7ec2910300e4663eb1f9e58fb130814bd",
+          "c92c9b0fb65c538e3d0b94480c5037c8f68332e7c1752d5cff325e73e6df4166"
+        ]
+      },
+      {
+        "pose": 4350,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          282,
+          279
+        ],
+        "image_sha256": [
+          "4ca05c8d4c142d750501110b1667bf093e4db9f43e02014489e544e22ac29636",
+          "4ca05c8d4c142d750501110b1667bf093e4db9f43e02014489e544e22ac29636"
+        ],
+        "command_sha256": [
+          "22b892370cfa425179984aa69a1a0eb452ba6f7e9b4d6a3fa556a8940e04eef0",
+          "2590591ce241aa2e1c273085808a70ceb9c7616749ce76404eb47cd403a84264"
+        ]
+      },
+      {
+        "pose": 4500,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          244,
+          241
+        ],
+        "image_sha256": [
+          "da0cb28d5dda5a6079813a1686458897bb775fbb47a3bf6bf14c23de135354a6",
+          "da0cb28d5dda5a6079813a1686458897bb775fbb47a3bf6bf14c23de135354a6"
+        ],
+        "command_sha256": [
+          "f55e1beca89759a59c214ed70ed62a32b6041475787c9530a60e676b4763c091",
+          "9415372c4da35e97f450168a4823a145aa62ac62a963baccfef3434b5a1477b5"
+        ]
+      },
+      {
+        "pose": 4650,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          206,
+          201
+        ],
+        "image_sha256": [
+          "ba2de67685bef947574d22291bc4a22c7a14ca4902fe272cd376d54ba664afd5",
+          "ba2de67685bef947574d22291bc4a22c7a14ca4902fe272cd376d54ba664afd5"
+        ],
+        "command_sha256": [
+          "931890ce51b1f20d23d391734c49ef0e2234ec9d2b18575dc8296daf46df5256",
+          "653b429236e65b15d686a053a194f83c33bf466afc0586198d46ac8f15e40dee"
+        ]
+      },
+      {
+        "pose": 4800,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          183,
+          180
+        ],
+        "image_sha256": [
+          "32446afca41b123abd78582703641d691d3cc5c4551b7c20837b1164bbd8b66a",
+          "32446afca41b123abd78582703641d691d3cc5c4551b7c20837b1164bbd8b66a"
+        ],
+        "command_sha256": [
+          "936d0e13da8abf10df2a8c34d106ca51b24a24a48354d492834da99e9ec8c575",
+          "b43b0fe46c64dbaad8df480360ec9e15be4f18575aa9f93852556f07b6c8dfab"
+        ]
+      },
+      {
+        "pose": 4950,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          132,
+          129
+        ],
+        "image_sha256": [
+          "b89955d162511c6e672bf2b54b1c609bd6cfffea42edc256178622768d257ee3",
+          "b89955d162511c6e672bf2b54b1c609bd6cfffea42edc256178622768d257ee3"
+        ],
+        "command_sha256": [
+          "5de3ec9aab9f778655e7b1a97e19144d17c2d175edb86240d90ceb88ebceeed5",
+          "250e4ccabc083d0d7f1ba32494debd652cc6d1525a8d11148f839234d80c27ad"
+        ]
+      },
+      {
+        "pose": 5100,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          103,
+          100
+        ],
+        "image_sha256": [
+          "0379de102300b61a8d3a2444289cbee1a80cfb23a06996d816f9be8ce7fe5f8b",
+          "0379de102300b61a8d3a2444289cbee1a80cfb23a06996d816f9be8ce7fe5f8b"
+        ],
+        "command_sha256": [
+          "e616535dc93804adfc08a7061004dcc0758d5cc6ee39e00ac423965b9c413db6",
+          "8e12b242b4d5175b24d90eef31ef298e3c82f0ca5ab985b713dc692607e27e22"
+        ]
+      },
+      {
+        "pose": 5250,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          109,
+          106
+        ],
+        "image_sha256": [
+          "2f4461aea0f607959e9f2113fc68aa7e27291cc945fe5a37b69744dfc7869314",
+          "2f4461aea0f607959e9f2113fc68aa7e27291cc945fe5a37b69744dfc7869314"
+        ],
+        "command_sha256": [
+          "14ad6804e27a033c13a4404da02461582bb0fdbae5c10abd291db1d219e1057c",
+          "780599c664834a968c917387070c6665f6cf6de8fb9eec2623a383e2c8578b4d"
+        ]
+      },
+      {
+        "pose": 5400,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          123,
+          122
+        ],
+        "image_sha256": [
+          "840b71f3cce59d92cc14e3c4cb7dd19ee18a4d28bf790250b627ab46d664fa45",
+          "840b71f3cce59d92cc14e3c4cb7dd19ee18a4d28bf790250b627ab46d664fa45"
+        ],
+        "command_sha256": [
+          "6e3fc1abf27e3be71205d2b10ffa96a85401dbbf09b99da3aaeb0bfaa0560f85",
+          "1b3596fc7ab3d87f966c7d6937733158eb28c91fd5bb072e20526d2290712b91"
+        ]
+      },
+      {
+        "pose": 5550,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          118,
+          117
+        ],
+        "image_sha256": [
+          "a4ce9033caa8a669d49230cbcedaefab30bc130ac62833e62a4c9254e4fcaf9a",
+          "a4ce9033caa8a669d49230cbcedaefab30bc130ac62833e62a4c9254e4fcaf9a"
+        ],
+        "command_sha256": [
+          "41fc5ecb5d5d2a2655a68d78d0252a8f8ec1c0575d8995259ffbe0b4807a74e9",
+          "bec6fbbdf75c24b0d8e74a7ce616f2e9a548a0f85eea64760653dd145596dd3f"
+        ]
+      },
+      {
+        "pose": 5700,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          357,
+          353
+        ],
+        "image_sha256": [
+          "a03a9e246c0dee7af459182be240be2a38efd606b70ed406838ff68d44148b36",
+          "a03a9e246c0dee7af459182be240be2a38efd606b70ed406838ff68d44148b36"
+        ],
+        "command_sha256": [
+          "d5edddc208f481c8e4b92846c21ce6f816a38bb365dbe43fd4a1aed4cf792f9e",
+          "210469128e587877be8403618511fbb03af4945505d11f7f878e28cceec68b44"
+        ]
+      },
+      {
+        "pose": 5850,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          302,
+          296
+        ],
+        "image_sha256": [
+          "ea0d66efb65b1162b9933e645f92237fd3931005cae7a0a44f4fd347852d82e1",
+          "ea0d66efb65b1162b9933e645f92237fd3931005cae7a0a44f4fd347852d82e1"
+        ],
+        "command_sha256": [
+          "7c9f65dc294575221f48a455c7323718e2c0de1219e73ac2a1950e2efeda3b57",
+          "c8c29c685581dbc793456313b1e4e364cceb9b78c799f3fdb15d5782a344c837"
+        ]
+      },
+      {
+        "pose": 6000,
+        "wide": false,
+        "pixels": 96000,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          258,
+          254
+        ],
+        "image_sha256": [
+          "e54f7b8cf516b513ae4a191cb6c8d5c92ba35e3201f7b7600485d74a1ee6e829",
+          "e54f7b8cf516b513ae4a191cb6c8d5c92ba35e3201f7b7600485d74a1ee6e829"
+        ],
+        "command_sha256": [
+          "a595023deebf324c24962d271e768c2286867ccff80724e1a741ad1d79280849",
+          "a5a86fc9994afedfe1d447387dda6783ad149e14817a03dcdda59a00a8e43d65"
+        ]
+      },
+      {
+        "pose": 0,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          421,
+          415
+        ],
+        "image_sha256": [
+          "c374b69da22f68694bab69eda1fb3d803741331dffe89237200438182bc3b167",
+          "c374b69da22f68694bab69eda1fb3d803741331dffe89237200438182bc3b167"
+        ],
+        "command_sha256": [
+          "831ee136de4df60006ffbdda8a1f17d881564dd4deb888b34dfaddec1be455ce",
+          "653e6dde1ff07690518a46feb0144bb33530d449e348aaecf4d6ad585aeb8fb3"
+        ]
+      },
+      {
+        "pose": 600,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          194,
+          192
+        ],
+        "image_sha256": [
+          "e1577eb5e7d9ffbdfe7fd4a8a6413bbda8bfd5ef8e86a447f76ba7c1b48b5179",
+          "e1577eb5e7d9ffbdfe7fd4a8a6413bbda8bfd5ef8e86a447f76ba7c1b48b5179"
+        ],
+        "command_sha256": [
+          "dbad7cd47147dc5a8b05934a81fde422cebfa42b863d021a651c1f42f55bd2ca",
+          "4fd5bb7efd3c0cea4a58a64d720d8cae6ea9bdd4d66b378b3eb04142ecf50027"
+        ]
+      },
+      {
+        "pose": 1200,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          228,
+          224
+        ],
+        "image_sha256": [
+          "cec59243848d91a4862e1403b51e07921bff80819e58752b407fa05dacba1041",
+          "cec59243848d91a4862e1403b51e07921bff80819e58752b407fa05dacba1041"
+        ],
+        "command_sha256": [
+          "c08c74b59b533c160841af56755ba337f844fb33a9bf047fd00917cf00d1c22b",
+          "f8762dd64784742f973704c7750fc046850a4df3603f65a6bb0ba57c50f6ae45"
+        ]
+      },
+      {
+        "pose": 1800,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          179,
+          176
+        ],
+        "image_sha256": [
+          "b772d2421f85ce83ce14eb9a8145b70af8f2380b76e71b66cf3a2ebc1b1306c8",
+          "b772d2421f85ce83ce14eb9a8145b70af8f2380b76e71b66cf3a2ebc1b1306c8"
+        ],
+        "command_sha256": [
+          "ad1a299cc85d2ab516b38c5ffca7987683aad8e293a680ee0dd76e4d29c64205",
+          "54721c4d67ed985efc2d5f8c232057bb1314f1475a793ed65ebc9beb214c1fe2"
+        ]
+      },
+      {
+        "pose": 2400,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          121,
+          121
+        ],
+        "image_sha256": [
+          "31ca60aa555104d859566cb81161bb9aa3dd0f54e3b5df1457f8a0791c92cd64",
+          "31ca60aa555104d859566cb81161bb9aa3dd0f54e3b5df1457f8a0791c92cd64"
+        ],
+        "command_sha256": [
+          "b7a6b5fcdde21a34f679a411f3925ea14690d5b066cc8cfa658758294a458419",
+          "4dd311d76e29a17a4048935bf5ae8088e30cba2fb99e731ca65b4d3801c22bbb"
+        ]
+      },
+      {
+        "pose": 3000,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          149,
+          148
+        ],
+        "image_sha256": [
+          "d345b2725b8774e6d6eae61d4bc09bd333fd02e686dc209fb14638fc5dddfac6",
+          "d345b2725b8774e6d6eae61d4bc09bd333fd02e686dc209fb14638fc5dddfac6"
+        ],
+        "command_sha256": [
+          "51ec2b888b2451e95d05b19e717ead61d43cd1d0ead8db02086d73418452c4e4",
+          "91b4cea60f3603258dfaca89e7990788a939755d1cd02679a31d180ec0ec5af4"
+        ]
+      },
+      {
+        "pose": 3600,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          107,
+          106
+        ],
+        "image_sha256": [
+          "bbc105238fbf4b792630a0b90db014ce091fb03edf4c7aa46d6a0215261dda7f",
+          "bbc105238fbf4b792630a0b90db014ce091fb03edf4c7aa46d6a0215261dda7f"
+        ],
+        "command_sha256": [
+          "abf760a80a1608c31c51eafa7e75e82d7666299e0d32aa724024a3d8ec1803a2",
+          "52766bcecf84414a712c2798b17b4b3bf74fd8b6fd71f36a1ed9c361ae6a535c"
+        ]
+      },
+      {
+        "pose": 4200,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          257,
+          254
+        ],
+        "image_sha256": [
+          "8868ff36b719db76943986b917e137eb3858024fc68d6fefbdf38fa784a6333d",
+          "8868ff36b719db76943986b917e137eb3858024fc68d6fefbdf38fa784a6333d"
+        ],
+        "command_sha256": [
+          "25cbb0c62dd5cc181ccb9f91ed323e21ea8cb9cf2c84674c4a313f0b35cf3809",
+          "8eda1aabd9e43e45026cbb7fc0cffe297dcb422616c36d273e3dcd18003f9b7d"
+        ]
+      },
+      {
+        "pose": 4800,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          183,
+          180
+        ],
+        "image_sha256": [
+          "85a8d4e3bf73bf946de3202cd91920c55012156e9b2737707bc68a07e050636d",
+          "85a8d4e3bf73bf946de3202cd91920c55012156e9b2737707bc68a07e050636d"
+        ],
+        "command_sha256": [
+          "4bf4e9fb1caf4730b57190fb0656aedfb47c0fa765b3d86b74f68b785a9f85f9",
+          "0097f42c687cee5ee43e73e0474d60f13325f09d4662cf877466434ff39ee984"
+        ]
+      },
+      {
+        "pose": 5400,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          123,
+          122
+        ],
+        "image_sha256": [
+          "4e4e02368c07c6f3f87078a4dc78f2011c3cdb027222111f3d60b8c6ddb62f60",
+          "4e4e02368c07c6f3f87078a4dc78f2011c3cdb027222111f3d60b8c6ddb62f60"
+        ],
+        "command_sha256": [
+          "e05c5ebd7bce99b1ae482bd7bab90af1c344246c9614d6870f3ca8f1f8e3c04c",
+          "aa4088beaaee42b96db69bacf9070037d00e4165fbef4baba29e0eb47aa63f19"
+        ]
+      },
+      {
+        "pose": 6000,
+        "wide": true,
+        "pixels": 230400,
+        "changed_pixels": 0,
+        "assets_equal": true,
+        "commands": [
+          253,
+          249
+        ],
+        "image_sha256": [
+          "0916caef0b1884582e961f2d73f748a482e9b309705e103cddcd26897f186787",
+          "0916caef0b1884582e961f2d73f748a482e9b309705e103cddcd26897f186787"
+        ],
+        "command_sha256": [
+          "6684af901e1507533f4140a06bbd9c5e2ef61e5d61fe8fea603013703d0fa9d4",
+          "5ab08920d3fadb70435ebc12b5e70bf303534aad2528fe5652fbbf5837e39a80"
+        ]
+      }
+    ],
+    "scope": "Sampled automatic route and return; no exhaustive arbitrary-camera proof"
+  },
+  "source_changes": [
+    "games/luma3d/src/render.c"
+  ],
+  "acceptance": {
+    "median_gain_min": 0.05,
+    "pose_gain_min": -0.03,
+    "baseline_drift_max": 0.03
+  },
+  "scenes": [
+    {
+      "variant": "art3",
+      "pose": 0,
+      "pixels": {
+        "file": "vl2-p1.lz4",
+        "bytes": 192000,
+        "sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "crc32": "d5431e55"
+      },
+      "hud": {
+        "file": "vl2-h1.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 431,
+        "draws": 93,
+        "submitted_triangles": 2581,
+        "instances": 93,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.19156704796478152,
+        "vertices": 1956,
+        "triangles": 1088,
+        "clipped": 600,
+        "culled": 1613,
+        "slivers": 0,
+        "fragments": 209814,
+        "command_sha256": "1a562d3117af7cbabecc30fdb78ecdefc4e8787f0b534dfc487b2686b071ec7a",
+        "asset_sha256": "5bf7a5093803a53be6040f54231f6eb9dc6840b22f8167e885875fbbf123fa58",
+        "image_sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "53366d087499c7b064329de01a926bcc18b4fa2e6357aaacd5c3b45d0fc04b98",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 80176.18,
+        "commands": 12570,
+        "batches": 210,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 93,
+        "triangles_last": 2581,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 0,
+      "pixels": {
+        "file": "vl2-p1.lz4",
+        "bytes": 192000,
+        "sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "crc32": "d5431e55"
+      },
+      "hud": {
+        "file": "vl2-h1.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 425,
+        "draws": 93,
+        "submitted_triangles": 2581,
+        "instances": 93,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.1976530059473589,
+        "vertices": 1956,
+        "triangles": 1088,
+        "clipped": 600,
+        "culled": 1613,
+        "slivers": 0,
+        "fragments": 203480,
+        "command_sha256": "7b5ff9acc8128e527a5da6971437c8a86e2a2a1edbe1e7e8a2ec95d16e6e0836",
+        "asset_sha256": "5bf7a5093803a53be6040f54231f6eb9dc6840b22f8167e885875fbbf123fa58",
+        "image_sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "53366d087499c7b064329de01a926bcc18b4fa2e6357aaacd5c3b45d0fc04b98",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 76963.53,
+        "commands": 12390,
+        "batches": 210,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 93,
+        "triangles_last": 2581,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 90,
+      "pixels": {
+        "file": "vl2-p2.lz4",
+        "bytes": 192000,
+        "sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+        "crc32": "a914e752"
+      },
+      "hud": {
+        "file": "vl2-h2.lz4",
+        "bytes": 139200,
+        "sha256": "9c90fa16f9c8297b192fd8016fc706fdcdbc9073e060d0522870ecd2988ba4aa",
+        "crc32": "d01e7fb9"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 192,
+        "draws": 40,
+        "submitted_triangles": 1542,
+        "instances": 40,
+        "culled_instances": 82,
+        "hardware": false,
+        "model_seconds": 0.10942952800542116,
+        "vertices": 1034,
+        "triangles": 525,
+        "clipped": 494,
+        "culled": 1109,
+        "slivers": 0,
+        "fragments": 223368,
+        "command_sha256": "cea31ade80e3376d3790c82937a47d0638d169932c85948d0f940a7325482010",
+        "asset_sha256": "2d7cf032f45d8c919f7e7bacdeabbf447c11e5c57407280d7779fe20c0e3edc1",
+        "image_sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "4a83a46acc225c4cd62075e7f6bdb80ac377a5d6ba0318d700e684c4c43c2861",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 136150.14,
+        "commands": 5400,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 40,
+        "triangles_last": 1542,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "art3",
+      "pose": 90,
+      "pixels": {
+        "file": "vl2-p2.lz4",
+        "bytes": 192000,
+        "sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+        "crc32": "a914e752"
+      },
+      "hud": {
+        "file": "vl2-h2.lz4",
+        "bytes": 139200,
+        "sha256": "9c90fa16f9c8297b192fd8016fc706fdcdbc9073e060d0522870ecd2988ba4aa",
+        "crc32": "d01e7fb9"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 194,
+        "draws": 40,
+        "submitted_triangles": 1542,
+        "instances": 40,
+        "culled_instances": 82,
+        "hardware": false,
+        "model_seconds": 0.11366005800664425,
+        "vertices": 1034,
+        "triangles": 525,
+        "clipped": 494,
+        "culled": 1109,
+        "slivers": 0,
+        "fragments": 223854,
+        "command_sha256": "e2e4269d67bceae6f74386e4b3ca7a9c88dcb94d3f47ae468be1a7cfe4aedae5",
+        "asset_sha256": "2d7cf032f45d8c919f7e7bacdeabbf447c11e5c57407280d7779fe20c0e3edc1",
+        "image_sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "4a83a46acc225c4cd62075e7f6bdb80ac377a5d6ba0318d700e684c4c43c2861",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 125950.4,
+        "commands": 5460,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 40,
+        "triangles_last": 1542,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "art3",
+      "pose": 1450,
+      "pixels": {
+        "file": "vl2-p3.lz4",
+        "bytes": 192000,
+        "sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+        "crc32": "421f715d"
+      },
+      "hud": {
+        "file": "vl2-h3.lz4",
+        "bytes": 139200,
+        "sha256": "d14acd23e4b8391e858028f749c6db0ea3b426675320f4f01c71b3cf1c2f8afe",
+        "crc32": "517d1cdf"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 179,
+        "draws": 36,
+        "submitted_triangles": 1759,
+        "instances": 36,
+        "culled_instances": 83,
+        "hardware": false,
+        "model_seconds": 0.09910792502341792,
+        "vertices": 1187,
+        "triangles": 405,
+        "clipped": 584,
+        "culled": 1444,
+        "slivers": 0,
+        "fragments": 236139,
+        "command_sha256": "8c1b83719d467ac4955e54e3f654ddd6598492e335e5c69b3854028605567343",
+        "asset_sha256": "71538ca8f4c959b52d5fc05b16923e2aba3de30988c6e2bcc6bd412b94c26c0d",
+        "image_sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "445d0882c6e5f574a689f63a58d5c34dd8d109442e1a42d75bf8eec9e5810279",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 158826.0,
+        "commands": 5010,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 36,
+        "triangles_last": 1759,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 1450,
+      "pixels": {
+        "file": "vl2-p3.lz4",
+        "bytes": 192000,
+        "sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+        "crc32": "421f715d"
+      },
+      "hud": {
+        "file": "vl2-h3.lz4",
+        "bytes": 139200,
+        "sha256": "d14acd23e4b8391e858028f749c6db0ea3b426675320f4f01c71b3cf1c2f8afe",
+        "crc32": "517d1cdf"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 176,
+        "draws": 36,
+        "submitted_triangles": 1759,
+        "instances": 36,
+        "culled_instances": 83,
+        "hardware": false,
+        "model_seconds": 0.08913572097662836,
+        "vertices": 1187,
+        "triangles": 405,
+        "clipped": 584,
+        "culled": 1444,
+        "slivers": 0,
+        "fragments": 236139,
+        "command_sha256": "56b8d4eda0bb870f1cb26590d92bb86656e4bad65c43328fbd84dc082a728cdf",
+        "asset_sha256": "71538ca8f4c959b52d5fc05b16923e2aba3de30988c6e2bcc6bd412b94c26c0d",
+        "image_sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "445d0882c6e5f574a689f63a58d5c34dd8d109442e1a42d75bf8eec9e5810279",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 148550.88,
+        "commands": 4920,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 36,
+        "triangles_last": 1759,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 2330,
+      "pixels": {
+        "file": "vl2-p4.lz4",
+        "bytes": 192000,
+        "sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+        "crc32": "8f9b7c09"
+      },
+      "hud": {
+        "file": "vl2-h4.lz4",
+        "bytes": 86400,
+        "sha256": "0f392e5a9f1dd8497d8eadc9f2c9c34ac171e5a7c0b293246ebe2c92fadfa8a0",
+        "crc32": "b9745bb0"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 140,
+        "draws": 29,
+        "submitted_triangles": 1260,
+        "instances": 29,
+        "culled_instances": 91,
+        "hardware": false,
+        "model_seconds": 0.11212974402587861,
+        "vertices": 858,
+        "triangles": 521,
+        "clipped": 466,
+        "culled": 810,
+        "slivers": 0,
+        "fragments": 206885,
+        "command_sha256": "5c6572f1d282e4b1da4d17fcb476d9aef78c8f51b8d30b1f02b6e6663c96fd35",
+        "asset_sha256": "4c81f5a2c65b23b9c839549b449fa749a628309c05e44bd610b53b17951958b3",
+        "image_sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "6c42b942f4776b64d1dafee53c84b2bdc794a27d7dc90fec5dad109f6506b5d4",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 175252.03,
+        "commands": 3840,
+        "batches": 60,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 29,
+        "triangles_last": 1260,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "art3",
+      "pose": 2330,
+      "pixels": {
+        "file": "vl2-p4.lz4",
+        "bytes": 192000,
+        "sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+        "crc32": "8f9b7c09"
+      },
+      "hud": {
+        "file": "vl2-h4.lz4",
+        "bytes": 86400,
+        "sha256": "0f392e5a9f1dd8497d8eadc9f2c9c34ac171e5a7c0b293246ebe2c92fadfa8a0",
+        "crc32": "b9745bb0"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 145,
+        "draws": 29,
+        "submitted_triangles": 1260,
+        "instances": 29,
+        "culled_instances": 91,
+        "hardware": false,
+        "model_seconds": 0.10892951395362616,
+        "vertices": 858,
+        "triangles": 521,
+        "clipped": 466,
+        "culled": 810,
+        "slivers": 0,
+        "fragments": 209796,
+        "command_sha256": "16219879bd8facd016d11908320a1508ab2fb4185f26821a596b066bb5248a22",
+        "asset_sha256": "4c81f5a2c65b23b9c839549b449fa749a628309c05e44bd610b53b17951958b3",
+        "image_sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "6c42b942f4776b64d1dafee53c84b2bdc794a27d7dc90fec5dad109f6506b5d4",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 143896.61,
+        "commands": 3990,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 29,
+        "triangles_last": 1260,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "art3",
+      "pose": 3200,
+      "pixels": {
+        "file": "vl2-p5.lz4",
+        "bytes": 192000,
+        "sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+        "crc32": "f3285513"
+      },
+      "hud": {
+        "file": "vl2-h5.lz4",
+        "bytes": 139200,
+        "sha256": "670ca3ae7e54c7c807013eb07ac6d7c44c8d16f189661dc501208b5119e1080e",
+        "crc32": "1f34bb7e"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 107,
+        "draws": 20,
+        "submitted_triangles": 1320,
+        "instances": 20,
+        "culled_instances": 100,
+        "hardware": false,
+        "model_seconds": 0.07834386004833505,
+        "vertices": 787,
+        "triangles": 296,
+        "clipped": 562,
+        "culled": 1108,
+        "slivers": 0,
+        "fragments": 226940,
+        "command_sha256": "694d64a36f156f7c847d5e8409a21120e6f8e0727993d7361bdb9867a2e5117f",
+        "asset_sha256": "0a2a9f56d55fa53853d77a3c7b31ebae1915e45edfd28eecd6b2e00f1c31d809",
+        "image_sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "acc90f59d7f269b64e86974d1976cd05b1a3a668ee1ccee9b7ad68e51c54da18",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 215777.71,
+        "commands": 2850,
+        "batches": 60,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 20,
+        "triangles_last": 1320,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 3200,
+      "pixels": {
+        "file": "vl2-p5.lz4",
+        "bytes": 192000,
+        "sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+        "crc32": "f3285513"
+      },
+      "hud": {
+        "file": "vl2-h5.lz4",
+        "bytes": 139200,
+        "sha256": "670ca3ae7e54c7c807013eb07ac6d7c44c8d16f189661dc501208b5119e1080e",
+        "crc32": "1f34bb7e"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 106,
+        "draws": 20,
+        "submitted_triangles": 1320,
+        "instances": 20,
+        "culled_instances": 100,
+        "hardware": false,
+        "model_seconds": 0.07135878398548812,
+        "vertices": 787,
+        "triangles": 296,
+        "clipped": 562,
+        "culled": 1108,
+        "slivers": 0,
+        "fragments": 220107,
+        "command_sha256": "1a8f870fca81bab666a2264ee0e4d4327a776ddba7d8bbf0032eec651a5c051b",
+        "asset_sha256": "0a2a9f56d55fa53853d77a3c7b31ebae1915e45edfd28eecd6b2e00f1c31d809",
+        "image_sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "acc90f59d7f269b64e86974d1976cd05b1a3a668ee1ccee9b7ad68e51c54da18",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 205246.07,
+        "commands": 2820,
+        "batches": 60,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 20,
+        "triangles_last": 1320,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 3800,
+      "pixels": {
+        "file": "vl2-p6.lz4",
+        "bytes": 192000,
+        "sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+        "crc32": "3dd6d8ad"
+      },
+      "hud": {
+        "file": "vl2-h6.lz4",
+        "bytes": 86400,
+        "sha256": "b24f381cba96e9927755003cc3312090663e4ac89649d9d110d9c10723882280",
+        "crc32": "7c917d16"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 381,
+        "draws": 80,
+        "submitted_triangles": 2836,
+        "instances": 80,
+        "culled_instances": 42,
+        "hardware": false,
+        "model_seconds": 0.17432845098664984,
+        "vertices": 2049,
+        "triangles": 1014,
+        "clipped": 720,
+        "culled": 1923,
+        "slivers": 0,
+        "fragments": 220112,
+        "command_sha256": "d66272072402ad06c87b82566cc28f33fad2fac61db5562aab183424a4fb16d1",
+        "asset_sha256": "2252f34bbc1606bdd140ad2b6911e2e2c2536c45fc83051f5d362798417e4074",
+        "image_sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "c7a9775128e77c8c5ba94e6f27d9e5fa2a73da96dac9b5952a87e43ad816a363",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 87692.38,
+        "commands": 11070,
+        "batches": 180,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 80,
+        "triangles_last": 2836,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "art3",
+      "pose": 3800,
+      "pixels": {
+        "file": "vl2-p6.lz4",
+        "bytes": 192000,
+        "sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+        "crc32": "3dd6d8ad"
+      },
+      "hud": {
+        "file": "vl2-h6.lz4",
+        "bytes": 86400,
+        "sha256": "b24f381cba96e9927755003cc3312090663e4ac89649d9d110d9c10723882280",
+        "crc32": "7c917d16"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 387,
+        "draws": 80,
+        "submitted_triangles": 2836,
+        "instances": 80,
+        "culled_instances": 42,
+        "hardware": false,
+        "model_seconds": 0.18423442397033796,
+        "vertices": 2049,
+        "triangles": 1014,
+        "clipped": 720,
+        "culled": 1923,
+        "slivers": 0,
+        "fragments": 237507,
+        "command_sha256": "71b7d0dfacec1a4a47344d1882b81601843167cd592170ff5f1acf7f5246ef6e",
+        "asset_sha256": "2252f34bbc1606bdd140ad2b6911e2e2c2536c45fc83051f5d362798417e4074",
+        "image_sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "c7a9775128e77c8c5ba94e6f27d9e5fa2a73da96dac9b5952a87e43ad816a363",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 90414.27,
+        "commands": 11250,
+        "batches": 180,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 80,
+        "triangles_last": 2836,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "art3",
+      "pose": 0,
+      "pixels": {
+        "file": "vl2-p1.lz4",
+        "bytes": 192000,
+        "sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "crc32": "d5431e55"
+      },
+      "hud": {
+        "file": "vl2-h1.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 431,
+        "draws": 93,
+        "submitted_triangles": 2581,
+        "instances": 93,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.19156704796478152,
+        "vertices": 1956,
+        "triangles": 1088,
+        "clipped": 600,
+        "culled": 1613,
+        "slivers": 0,
+        "fragments": 209814,
+        "command_sha256": "1a562d3117af7cbabecc30fdb78ecdefc4e8787f0b534dfc487b2686b071ec7a",
+        "asset_sha256": "5bf7a5093803a53be6040f54231f6eb9dc6840b22f8167e885875fbbf123fa58",
+        "image_sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "53366d087499c7b064329de01a926bcc18b4fa2e6357aaacd5c3b45d0fc04b98",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 80176.18,
+        "commands": 12570,
+        "batches": 210,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 93,
+        "triangles_last": 2581,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    }
+  ],
+  "transfer_files": [
+    "to2-helper",
+    "to2.delta.lz4"
+  ],
+  "scope": "Identical art3 content; six AB/BA pairs, 30 measured +3 warmup; final art3 arrival drift witness. No percentiles. 120s real adventure only if accepted.",
+  "completion_hud": {
+    "file": "vl2-complete.lz4",
+    "bytes": 35200,
+    "sha256": "e8adaef8ee53884feba424c6594e5dcaa0f7019e4485c37e3363bd9cd744c2c9",
+    "crc32": "b0b34532"
+  },
+  "capture_equality": [
+    {
+      "scene": "arrival",
+      "pixels_sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+      "memory_sha256": "d41950dad597af0066c2ddb5a5124b8ef9a6de373cf819ae7e7ce8a71bf4b2b0"
+    },
+    {
+      "scene": "arrival_720",
+      "pixels_sha256": "c374b69da22f68694bab69eda1fb3d803741331dffe89237200438182bc3b167",
+      "memory_sha256": "559040338ed99563f55e107020b8dae59572eac61d6ed497b54540ad6c3588ea"
+    },
+    {
+      "scene": "completion",
+      "pixels_sha256": "0a67429beeb80f3db1e15214b80b602d2e1afbaa610bae623f1a0c0bcb5a81da",
+      "memory_sha256": "922b896a7c5d301b638951ea639043d70f4954d9d8ccde1c35348243b737755b"
+    },
+    {
+      "scene": "iria",
+      "pixels_sha256": "f8912a16e67c1d3c9e8051f90208120d39e1cdce7b56dd89955cbc6bfce96ada",
+      "memory_sha256": "7af55cc7c041fb767983b0b93116457be5baefc12a9dfa22f59be883ee6a2388"
+    },
+    {
+      "scene": "iria_720",
+      "pixels_sha256": "df19bf592ca8dfc911d56f753098c9f497a6204ff5d4a5bb45cbc322df0cadd9",
+      "memory_sha256": "769ee927cc7d50a27d70dfb4130f6d28f3255da61d1d5d6470d3dbe1210421d8"
+    },
+    {
+      "scene": "maelle",
+      "pixels_sha256": "9be85fbfbfd531e07a3a94e21eb6280a42bb4025c060d798d32275b1af53799b",
+      "memory_sha256": "1cc404d3e4b52fadde39d362fa12f93d14713159fba68720711b37ed6f61917b"
+    },
+    {
+      "scene": "maelle_720",
+      "pixels_sha256": "dc9a80751e40e054df098c32db4256eac85de9b101d8637f571c892d57a11ca3",
+      "memory_sha256": "575caf29142fc61f3bf0ae1bb8d85979c56c01fcf3c687fb57431024ad19a35f"
+    },
+    {
+      "scene": "relay",
+      "pixels_sha256": "dbde6e7ec1961023cd850c5a7d5bf5bbbb53abf2b8f6cc01636fba9b6da81ac2",
+      "memory_sha256": "8ebd0bac146b91267b25fbd4454d580a39dafd814a8ca7c864ce920b352d8c62"
+    },
+    {
+      "scene": "relay_720",
+      "pixels_sha256": "49197a1249c31d182cd67f1280448e6eebd26bce2ca65ce9448607a3bee2576c",
+      "memory_sha256": "36ce30ae2a4a6f94e87a7351a34950438a98aded8745713768ffe3acbaab36f1"
+    },
+    {
+      "scene": "silo",
+      "pixels_sha256": "032c67aed04c7e6f5a5887f125e3981adbe3af7119c6793ca005e07aae61b3e0",
+      "memory_sha256": "88a225378b4eaf4e82100945517242fd2d19be5a900ff150a277df7349e84f82"
+    }
+  ],
+  "delta": {
+    "file": "to2.delta.lz4",
+    "old_sha256": "7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882",
+    "new_sha256": "8613a379771508cc07d6709a5b49f37a72fe0e241775374ccfc6be7d52d19117",
+    "new_bytes": 4560732,
+    "new_crc32": "306652b8",
+    "patch_bytes": 65905,
+    "patch_crc32": "40bbb7ce"
+  },
+  "files": {
+    "PLAN.txt": {
+      "bytes": 4624,
+      "sha256": "ce6e2fabc9a739b4688fd08d0532fd17ce30c9069a105028a41c379aae48d07a",
+      "crc32": "d22828b5"
+    },
+    "baseline_manifest.json": {
+      "bytes": 5951,
+      "sha256": "7af8b07f870c284821e3e2e0da65504bf61c6b0217009d0cad2b885454509387",
+      "crc32": "e7823c41"
+    },
+    "build_delta.py": {
+      "bytes": 2820,
+      "sha256": "f04c4b091bd58a06264f12cafb26caf70972822e65585c14836d28e14f739240",
+      "crc32": "95038be4"
+    },
+    "check_gpu_reloads.py": {
+      "bytes": 9436,
+      "sha256": "b023a7c4ff340dd5fb00f8da6a05baa37834998f0ab0eec024fc931c0f8bd754",
+      "crc32": "d7c834b5"
+    },
+    "check_linux.py": {
+      "bytes": 5723,
+      "sha256": "c5a7fd2b902e32169eae5fed71c3f7f6a4c66fe9ffeb25879d19141e447897d9",
+      "crc32": "74e12906"
+    },
+    "game_manifest.json": {
+      "bytes": 5923,
+      "sha256": "20a9f3a1659d7f640901f57c72915facc565ddd22885db9b1ad8475a78e2ab94",
+      "crc32": "fe27955b"
+    },
+    "helper-host": {
+      "bytes": 21032,
+      "sha256": "e13214370be9a69349037332c6ae518cd3f097a2d4480f314bd7b790bf32bbca",
+      "crc32": "3f4068ef"
+    },
+    "host_art3_0.log": {
+      "bytes": 521,
+      "sha256": "f3da59c4f83498ffec3e52a9c485859b88411b3bc51c86751ef2b40ef069e58d",
+      "crc32": "0881b52d"
+    },
+    "host_art3_1450.log": {
+      "bytes": 524,
+      "sha256": "ddbc71363da41b11d9f803f82a60a5072221336a438728e6f22c240f77dab442",
+      "crc32": "bc4baea3"
+    },
+    "host_art3_2330.log": {
+      "bytes": 524,
+      "sha256": "3e55a55142c4e42c5b17fd8bccdcaa00132637b970f2e5d312570a8c73ffa9f5",
+      "crc32": "a3a180bf"
+    },
+    "host_art3_3200.log": {
+      "bytes": 524,
+      "sha256": "98ea6bcb9edbfe70d859743c492b38b761a6fa8753de8fdb1c85795c29d76ab7",
+      "crc32": "c6093f56"
+    },
+    "host_art3_3800.log": {
+      "bytes": 525,
+      "sha256": "35cbf4d0769e3a7cef4e90665851f017aa473304d507e07fa665911cbad9f90a",
+      "crc32": "42485a4e"
+    },
+    "host_art3_90.log": {
+      "bytes": 521,
+      "sha256": "eed9383e103cccc7e385b08452d767bf691a502bf4ff52411490241a23c1b30b",
+      "crc32": "39e006df"
+    },
+    "host_new_0.log": {
+      "bytes": 521,
+      "sha256": "61858c9fe5014fa4cb5515cf290d12bb1c75370d070e53787e2c189860f994a2",
+      "crc32": "af1c777d"
+    },
+    "host_new_1450.log": {
+      "bytes": 524,
+      "sha256": "9b0b50f169b7ad1f93f68a0bf8e37b269f67d8ca8ac0086339307d8469ef3754",
+      "crc32": "6a265104"
+    },
+    "host_new_2330.log": {
+      "bytes": 524,
+      "sha256": "837eaf5a875ccb8d2fa123e15dcbbc4433b6437d3ef54e225041d28c8c64f8bc",
+      "crc32": "184665f7"
+    },
+    "host_new_3200.log": {
+      "bytes": 524,
+      "sha256": "f721508c306797a3bcdfcdc1c518863ce432034252a9d3fb629f9a9d94cd622b",
+      "crc32": "5bd21bdc"
+    },
+    "host_new_3800.log": {
+      "bytes": 525,
+      "sha256": "eb5719ab538715f746b25bffa6be950606ada1479ed6400add81c845e65ff0fe",
+      "crc32": "d9932540"
+    },
+    "host_new_90.log": {
+      "bytes": 521,
+      "sha256": "541511101c28dac1274faf052c5debf0b2509b306a797fa8db105b58ced6c849",
+      "crc32": "9489cc7d"
+    },
+    "local_validation.json": {
+      "bytes": 16236,
+      "sha256": "9cc57db596f88731bfc7eb4bd916ebb0c2d305905b696cab74ea85043b5279e4",
+      "crc32": "05290da0"
+    },
+    "path_validation.json": {
+      "bytes": 29171,
+      "sha256": "88dd3253b6808d8ce67ffc2a2a891689c1c010f73ec73d3deeeb2084727be784",
+      "crc32": "c7dee9e3"
+    },
+    "prepare_ab.py": {
+      "bytes": 8063,
+      "sha256": "ad6b80eaba6964fc21032ce82fc21f5d72aa238bb0edc8691f80d8365388a11c",
+      "crc32": "1787ebbc"
+    },
+    "prodock-uapi.h": {
+      "bytes": 3678,
+      "sha256": "28c9b505ecab395639698c143ab8ce48890537fef1008cee6a604dbc93c22a51",
+      "crc32": "4bbb65c6"
+    },
+    "prodock_order.py": {
+      "bytes": 16416,
+      "sha256": "3070c31f2f17d474f433d19e06c6b1d5822e18e688ea71687c5edaccd7c708c7",
+      "crc32": "2817cbc5"
+    },
+    "prodock_transport.py": {
+      "bytes": 4089,
+      "sha256": "fbca604e76cb35f5e3d559644d8add769f40df1b85c129ba343159b327bf772b",
+      "crc32": "4ef1375c"
+    },
+    "prodock_valley_ab.py": {
+      "bytes": 11425,
+      "sha256": "7348d97f9ba20628750c8407419ab489e0f4b1698590b8e934a07f7e950038f4",
+      "crc32": "581bddca"
+    },
+    "prodock_valley_benchmark.py": {
+      "bytes": 14209,
+      "sha256": "38b035631a333f8660fb60faa104aa91c6a4d8f395081e375d7dd1683029b0e7",
+      "crc32": "0dd291db"
+    },
+    "prodock_valley_trial.py": {
+      "bytes": 9628,
+      "sha256": "0256ea224ccfa7e661b845b331f25cfdf4e560dd22b442e6f93b296161e14a8f",
+      "crc32": "34cbcb9b"
+    },
+    "reconstruction.log": {
+      "bytes": 46,
+      "sha256": "5cf13c0b31c27d3ddc644de956876d9d2d0be65b22dca5c0010ab19b1d4f1ba3",
+      "crc32": "8e77a089"
+    },
+    "renderer.patch": {
+      "bytes": 2159,
+      "sha256": "1cb32ddfec9cc72eb7d9e2a493568eaa2b0eff2f3fc8050c4d6cd591e1a233e1",
+      "crc32": "cb6c2898"
+    },
+    "runtime_inspect.c": {
+      "bytes": 6183,
+      "sha256": "ee4b96fdb21371e86b94dd75cb08703cf14483e48432df444ad2fcf07595fb60",
+      "crc32": "8584ca7b"
+    },
+    "test_ab.py": {
+      "bytes": 11041,
+      "sha256": "fb3a83d877df48ca580722ba3377cfb1465bde0eef503d2f11fe3991a0b72b21",
+      "crc32": "8ee90702"
+    },
+    "to2-helper": {
+      "bytes": 221088,
+      "sha256": "c5d796594e3df4b8380e4eceac604abbe6b3849d95a92425ed5f246b9b677521",
+      "crc32": "c54f6692"
+    },
+    "to2.delta.lz4": {
+      "bytes": 43154,
+      "sha256": "158b3088957fb98586cc11c1661b6802afdbe4b6cad99a907359b1bf3fa15ac0",
+      "crc32": "ef24548e"
+    },
+    "vl2-complete.lz4": {
+      "bytes": 1401,
+      "sha256": "967ab3f1c0a6e5ca319a4e44ab3ef6ca2b2061aa0a3e70fff32917d36dc8c3c7",
+      "crc32": "c08509d5"
+    },
+    "vl2-h1.lz4": {
+      "bytes": 1637,
+      "sha256": "75c166ac25df7f37259138882fa62bf2b3fc3ab31e5846e62688a498b026238f",
+      "crc32": "2920d41a"
+    },
+    "vl2-h2.lz4": {
+      "bytes": 4042,
+      "sha256": "c41d0dae6300bcc389812733bbcc91b064561db2e6eef916f40d5920b9fc9fea",
+      "crc32": "fc5b18d5"
+    },
+    "vl2-h3.lz4": {
+      "bytes": 4259,
+      "sha256": "efece2907709515be9ee86dfb74dfdd64e90190db4033b4abc4cae09760f41dc",
+      "crc32": "002c0564"
+    },
+    "vl2-h4.lz4": {
+      "bytes": 2099,
+      "sha256": "0d9319718daa02b89d0634ea5b957c62750bc5e862d5787ccb25aedc37e343bd",
+      "crc32": "7ba73686"
+    },
+    "vl2-h5.lz4": {
+      "bytes": 4267,
+      "sha256": "669d658fc57d7fda58ed0c79e438f3e7bef622835e59b4880206ea0990d8dc10",
+      "crc32": "7e04374d"
+    },
+    "vl2-h6.lz4": {
+      "bytes": 2522,
+      "sha256": "2e501a3c26559d307e4eb92e288356b9c5c2bf51dbc89cff1885a9d42133640a",
+      "crc32": "cee0bd0c"
+    },
+    "vl2-p1.lz4": {
+      "bytes": 83203,
+      "sha256": "70bac9484c8298d5a96985015a5026031f532bd50b64ef2eea1fcc25bb9b9420",
+      "crc32": "248c26fd"
+    },
+    "vl2-p2.lz4": {
+      "bytes": 76027,
+      "sha256": "926143f2f1bd2aaf5c4a80f45d2a39c363eeaa9e7e57845d0872a620578d4950",
+      "crc32": "da1fd8de"
+    },
+    "vl2-p3.lz4": {
+      "bytes": 41168,
+      "sha256": "b1d98468239704cdcdffa6002da592b706dc5c9d2fcd589a5c38a43ce403164a",
+      "crc32": "c6d080f5"
+    },
+    "vl2-p4.lz4": {
+      "bytes": 87916,
+      "sha256": "791c7a77ffba972ffec9bad8b3180f7dc202f2461d1b6f318cbdd7091202dbdf",
+      "crc32": "0cecf532"
+    },
+    "vl2-p5.lz4": {
+      "bytes": 37833,
+      "sha256": "773ff3c196853ba5398a58a9b7479bc4b1849d9a516fcee7e8cc83bc3464b3db",
+      "crc32": "40e13088"
+    },
+    "vl2-p6.lz4": {
+      "bytes": 63662,
+      "sha256": "1af0892de3b3c0560469847692900fefb2ba1548bf48e31d4f9ad5d0b2d5b779",
+      "crc32": "1392f6d3"
+    }
+  },
+  "transport_bytes": 264242
+}

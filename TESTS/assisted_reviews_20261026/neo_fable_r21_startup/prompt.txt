@@ -1,0 +1,479 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Analyse uniquement les preuves R19/R21/R19 à100kHz, reset/PLL/CPU et nouvelle promotion prst[1] LW. Fournis: un défaut fonctionnel réfutable, ses limites, un signal observable déjà existant et le prochain test précis sans recompiler. Ne confonds pas la mire et DDR/CPU; aucun GAO intégré. Pas de généralités, pas de chargement aveugle ni nouveauRTL. Réponds en français clairement.
+
+EVIDENCE PACKET:
+Diagnostic Neo GW5AST138C PG484. Question urgente: pourquoi R21r1 observation-only ne démarre pas alors que R19 redémarre immédiatement, même100kHzJTAG? Pas de nouveauPnR ni codeRTL autorisé. Séparer faits/hypothèses. Proposer un signal observable existant et test discriminant précis sans recompiler. Ne pas conclure erratum.
+
+Faits: R19 logique fonctionnelle identique à R21r1,143366primitives parent horshelper conservées. R21 ajoute8FF+8LUThelper,4LUT COPY états etINV pixelvalid; aucuneentrée fonctionnelle modifiée. L'ensemble est rerouté, aucunplacementfonctionnelpréservé. Timing R19 setup−2.888/hold+.124/recovery−.239/removal+.274. R21 setup−2.602/hold+.124/recovery+.381/removal+.168; localobservercaptureborne+.334. App globale FAIL conservée. AucunLinux/SD/flashécrit. CortexAE350 RV32 cœur800MHz,bus80MHz,DDR300MHzUI75MHz.
+MATÉRIEL1: R19 CPUparking/cache0 lu à1MHz. R21 programmé SRAM DONE sanserreur maispasderelecturecomplète; TAP1000563d correct, DMInecomplètepas. RetourR19 DONE, IDCODEmalaligné à1MHz, mais100kHzsansreload donneimmédiatementPC80000004+GPUfrais+mire.
+MATÉRIEL2: R19 baselinePASS100kHz; mêmeR21programmé; photoAVANTDMI écranHDMInoir, paslesbandesR19; TAP1000563d correctà100kHz maisDMIinachevé timeout30s. MêmeR19 restauré, mêmeTcl100kHz redonnePC80000004+GPUfrais. A/B/A à100kHz. Doncproblème1MHzfallbackexiste séparément, ne suffitplusàexpliquerR21.
+R19/R21 n'intègrentaucunGAO (0primitives). Fichiersgao présentsdanssourceshistoriquesseulement. SOFT-USB359f2011 n'étaitpasénuméré auxessaisprécédents, pasprésumerEP0accessible. LED_n=~ddr_init, brocheV13. PhotoLEDs nonidentifiéesneprouvepasddr_init. ROOTpossèdeexclusivementmatériel, pasvous.
+Différenceclockglobal: huitPRIMARYidentiques, seulesrégionspixel_clk PBR2,PBR3→PBR0..3. R19 LW:usb_app_reset,v1_pending,rtc_clk,n59467_5(materialface),COPYCE n7630_6,triangle state0[4],DDRip ddr_rst. R21 LW: mêmes sauftriangle supprimé et u_gpu/prst[1] AJOUTÉ. UnepromotiondecontrôleLW a déjàcorrigéplusieurscaptures maispaspreuveerratumgénéral. prst[1] touche scanout pixel; aucunlienretour CPU identifié.
+
+ComparaisonSDF exactedesarcs (min/nom/max ns); CORE0:0:0 fournisparvendorpasmesure. Cellules/INIT/PLL/resettrialexactementidentiques.
+
+ae350_rst_sync_0_s0/CLK R19 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.323, 2.394, 3.465]}] R21 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.346, 2.448, 3.55]}]
+
+ae350_rst_sync_1_s0/CLK R19 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.323, 2.394, 3.465]}] R21 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.346, 2.448, 3.55]}]
+
+ae350_tdo_obuf/I R19 [{'source': 'u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/TDO_OUT', 'delay_by_corner_ns': [0.691, 1.292, 1.892]}] R21 [{'source': 'u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/TDO_OUT', 'delay_by_corner_ns': [0.691, 1.292, 1.892]}]
+
+u_pll_ae350/u_pll/PLL_inst/CLKIN R19 [{'source': 'clk_ibuf/O', 'delay_by_corner_ns': [2.02, 3.502, 4.983]}] R21 [{'source': 'clk_ibuf/O', 'delay_by_corner_ns': [2.02, 3.502, 4.983]}]
+
+u_pll_ae350/u_pll/PLL_inst/ENCLK0 R19 [{'source': 'VCC_cZ/V', 'delay_by_corner_ns': [0.086, 0.137, 0.188]}] R21 [{'source': 'VCC_cZ/V', 'delay_by_corner_ns': [0.086, 0.137, 0.188]}]
+
+u_pll_ae350/u_pll/PLL_inst/ENCLK1 R19 [{'source': 'VCC_cZ/V', 'delay_by_corner_ns': [0.088, 0.139, 0.19]}] R21 [{'source': 'VCC_cZ/V', 'delay_by_corner_ns': [0.088, 0.139, 0.19]}]
+
+u_pll_ae350/u_pll/PLL_inst/ENCLK4 R19 [{'source': 'VCC_cZ/V', 'delay_by_corner_ns': [0.088, 0.139, 0.19]}] R21 [{'source': 'VCC_cZ/V', 'delay_by_corner_ns': [0.088, 0.139, 0.19]}]
+
+u_pll_ae350/u_pll/PLL_inst/RESET R19 [{'source': 'u_pll_ae350/u_pll_init/pll_rst_s1/F', 'delay_by_corner_ns': [3.925, 6.589, 9.253]}] R21 [{'source': 'u_pll_ae350/u_pll_init/pll_rst_s1/F', 'delay_by_corner_ns': [3.761, 6.666, 9.57]}]
+
+u_pll_ae350/u_pll/PLL_inst/RESET_I R19 [{'source': 'GND_cZ/G', 'delay_by_corner_ns': [0.196, 0.345, 0.494]}] R21 [{'source': 'GND_cZ/G', 'delay_by_corner_ns': [0.196, 0.345, 0.494]}]
+
+u_pll_ae350/u_pll/PLL_inst/RESET_O R19 [{'source': 'GND_cZ/G', 'delay_by_corner_ns': [0.196, 0.345, 0.494]}] R21 [{'source': 'GND_cZ/G', 'delay_by_corner_ns': [0.196, 0.345, 0.494]}]
+
+u_soc/init_sync_0_s0/CLEAR R19 [{'source': 'ae350_rst_sync_1_s0/Q', 'delay_by_corner_ns': [1.636, 2.751, 3.867]}] R21 [{'source': 'ae350_rst_sync_1_s0/Q', 'delay_by_corner_ns': [1.228, 2.067, 2.907]}]
+
+u_soc/init_sync_0_s0/CLK R19 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.308, 2.36, 3.413]}] R21 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.335, 2.393, 3.452]}]
+
+u_soc/init_sync_0_s0/D R19 [{'source': 'u_reset_trial/release_request_d_s/F', 'delay_by_corner_ns': [0.0, 0.0, 0.0]}] R21 [{'source': 'u_reset_trial/release_request_d_s/F', 'delay_by_corner_ns': [0.0, 0.0, 0.0]}]
+
+u_soc/init_sync_1_s0/CLEAR R19 [{'source': 'ae350_rst_sync_1_s0/Q', 'delay_by_corner_ns': [1.636, 2.751, 3.867]}] R21 [{'source': 'ae350_rst_sync_1_s0/Q', 'delay_by_corner_ns': [1.228, 2.067, 2.907]}]
+
+u_soc/init_sync_1_s0/CLK R19 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.308, 2.36, 3.413]}] R21 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.335, 2.393, 3.452]}]
+
+u_soc/init_sync_1_s0/D R19 [{'source': 'u_soc/init_sync_0_s0/Q', 'delay_by_corner_ns': [0.197, 0.297, 0.396]}] R21 [{'source': 'u_soc/init_sync_0_s0/Q', 'delay_by_corner_ns': [0.203, 0.301, 0.398]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/AHB_CLK R19 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.339, 2.391, 3.442]}] R21 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.339, 2.391, 3.442]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/APB_CLK R19 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.342, 2.397, 3.451]}] R21 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT0', 'delay_by_corner_ns': [1.342, 2.397, 3.451]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/CORE_CLK R19 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT1', 'delay_by_corner_ns': [0.0, 0.0, 0.0]}] R21 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT1', 'delay_by_corner_ns': [0.0, 0.0, 0.0]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/DBG_TCK R19 [{'source': 'ae350_tck_ibuf/O', 'delay_by_corner_ns': [0.95, 1.814, 2.677]}] R21 [{'source': 'ae350_tck_ibuf/O', 'delay_by_corner_ns': [0.95, 1.814, 2.677]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/DDR_CLK R19 [{'source': 'clk_ibuf/O', 'delay_by_corner_ns': [2.035, 3.517, 4.999]}] R21 [{'source': 'clk_ibuf/O', 'delay_by_corner_ns': [2.035, 3.517, 4.999]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/HW_RSTN R19 [{'source': 'u_soc/init_sync_1_s0/Q', 'delay_by_corner_ns': [3.87, 6.701, 9.531]}] R21 [{'source': 'u_soc/init_sync_1_s0/Q', 'delay_by_corner_ns': [3.722, 6.728, 9.733]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/POR_N R19 [{'source': 'u_soc/init_sync_1_s0/Q', 'delay_by_corner_ns': [3.87, 6.701, 9.531]}] R21 [{'source': 'u_soc/init_sync_1_s0/Q', 'delay_by_corner_ns': [3.722, 6.728, 9.733]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/RTC_CLK R19 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT4', 'delay_by_corner_ns': [0.768, 1.496, 2.224]}] R21 [{'source': 'u_pll_ae350/u_pll/PLL_inst/CLKOUT4', 'delay_by_corner_ns': [0.917, 1.726, 2.535]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/TDI_IN R19 [{'source': 'ae350_tdi_ibuf/O', 'delay_by_corner_ns': [1.783, 3.551, 5.319]}] R21 [{'source': 'ae350_tdi_ibuf/O', 'delay_by_corner_ns': [1.783, 3.551, 5.319]}]
+
+u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/TMS_IN R19 [{'source': 'ae350_tms_ibuf/O', 'delay_by_corner_ns': [0.994, 1.831, 2.668]}] R21 [{'source': 'ae350_tms_ibuf/O', 'delay_by_corner_ns': [1.062, 1.919, 2.777]}]
+
+STAnegativeCPU/reset/PLL ciblé: R19 ['2             -1.791       u_pll_ae350/u_pll_init/state_0_s0/Q                                                          diag_board_meta_3_s0/D                                                                        clk50:[R]          PHY_CLKOUT:[R]     8.000      2.308        7.390', '20            -0.040       u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/ROM_HTRANS[1]                                    u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_12_s0/CE        bus80_clk:[R]      bus80_clk:[R]      12.500     -0.080       12.340', '21            -0.040       u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/ROM_HTRANS[1]                                    u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_23_s0/CE        bus80_clk:[R]      bus80_clk:[R]      12.500     -0.080       12.340'] R21 ['1             -2.602       u_pll_ae350/u_pll_init/state_0_s0/Q                                      diag_board_meta_3_s0/D                                                                        clk50:[R]          PHY_CLKOUT:[R]     8.000      2.289        8.220']
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/console_neo.v SHA256 ac0f0244c40784e9ce0cd82eed7d754d948a14c404b4a55b13f04caa5fa03364
+
+120:         .tmds_clk_p(tmds_clk_p),.tmds_clk_n(tmds_clk_n),.tmds_d_p(tmds_d_p),.tmds_d_n(tmds_d_n));
+121:     // ====================== AE350 : PLLs + SoC + DDR3 (socle analyseur) ======================
+122:     wire        core_clk, ahb_clk, apb_clk, rtc_clk, bus80_clk, pll_ae350_lock;  // horloges du SoC (PLL AE350)
+123:     wire        ddr_init;               // 1 : calibration DDR3 terminée (sortie du socle)
+124:     wire        ae350_rx;     // console UART2 du AE350
+125:     wire ddr3_pll_lock, ddr3_memory_clk, ddr3_clk_in, ddr3_stop, ddr3_init_completed;
+126:     wire        ae350_rstn, ddr3_rstn;
+127:     wire [3:0] soc_dbg;
+128:     wire [7:0]  soc_ahb_dbg;
+129:     wire [15:0] soc_ddr_dbg;
+130:     wire [63:0] ev_data_unused; wire ev_ready_unused, evin_valid_unused;
+131:     wire [31:0] evin_data_unused;
+132:     wire [63:0] rr_data_unused; wire rr_valid_unused;
+133:     // PLL système du AE350 (socle analyseur : lock + init_clk + PLL_INIT) :
+134:     // clkout0 = 80 MHz (bus AHB/APB), clkout1 = core 800 MHz, clkout4 = RTC 10 MHz
+135:     Gowin_PLL_AE350 u_pll_ae350 (
+136:         .lock    (pll_ae350_lock),
+137:         .clkin   (clk),
+138:         .init_clk (clk),
+139:         .clkout0 (bus80_clk), .clkout1 (core_clk), .clkout2 (), .clkout3 (), .clkout4 (rtc_clk),
+140:         .enclk0  (1'b1), .enclk1 (1'b1), .enclk2 (1'b1), .enclk3 (1'b1), .enclk4 (1'b1)
+141:     );
+142:     // ahb_clk/apb_clk : DÉJÀ déclarés ligne 232 (wire) : NE PAS redéclarer ici !
+143:     // (EX2830 : « Second declaration of 'ahb_clk' is ignored » : le wire local était ignoré,
+144:     //  l'entrée AHB_CLK du SoC restait non câblée → bus APB mort → CPU figé au 1er accès APB.)
+145:     assign ahb_clk = bus80_clk;
+146:     assign apb_clk = ahb_clk;   // APB = net de l'AHB (1:1 exigé par le SoC, en-tête du socle)
+147:     // Reset du CPU : attend le LOCK de la PLL AE350 (schéma de l'analyseur : rst = sync ~lock)
+148:     reg [1:0] ae350_rst_sync = 2'b11;
+149:     always @(posedge bus80_clk or negedge pll_ae350_lock)
+150:         if (!pll_ae350_lock) ae350_rst_sync <= 2'b11;
+151:         else ae350_rst_sync <= {ae350_rst_sync[0], 1'b0};
+152:     wire ae350_por_n = ~ae350_rst_sync[1];
+153: 
+154:     // SoC AE350 + DDR3 standalone + pont Sipeed (socle analyseur, validé V3)
+155:     wire core_wfi_w;                 // CORE0_WFI_MODE du cœur (preuve de vie sans bus)
+156:     // Isolated startup experiment: default 50 ms, UART mode 0/1 for A/B.
+157:     wire trial_request, trial_mode, trial_holding, trial_done;
+158:     wire trial_ahb_tick, trial_rtc_tick;
+159:     wire [3:0] trial_epoch;
+160:     neo_reset_trial u_reset_trial (
+161:         .clk_ref(clk), .ahb_clk(bus80_clk), .rtc_clk(rtc_clk), .serial_rx(uart_rx),
+162:         .ddr_ready(ddr_init), .pll_ready(pll_ae350_lock), .cpu_reset_n(soc_dbg[0]),
+163:         .release_request(trial_request), .delay_mode(trial_mode), .command_epoch(trial_epoch),
+164:         .holding(trial_holding), .delay_done(trial_done),
+165:         .ahb_tick(trial_ahb_tick), .rtc_tick(trial_rtc_tick));
+166:     ae350_soc u_soc (
+167:         .trial_release(trial_request),
+168:         .clk50(clk),
+169:         .rst_key_n(ae350_por_n),
+170:         .core_clk(core_clk), .ahb_clk(ahb_clk), .apb_clk(apb_clk), .rtc_clk(rtc_clk),
+171:         .ddr_bank(ddr_bank), .ddr_cs(ddr_cs), .ddr_ras(ddr_ras), .ddr_cas(ddr_cas), .ddr_we(ddr_we),
+172:         .ddr_ck(ddr_ck), .ddr_ck_n(ddr_ck_n), .ddr_cke(ddr_cke), .ddr_reset_n(ddr_reset_n), .ddr_odt(ddr_odt),
+173:         .ddr_addr(ddr_addr), .ddr_dm(ddr_dm), .ddr_dq(ddr_dq), .ddr_dqs(ddr_dqs), .ddr_dqs_n(ddr_dqs_n),
+174:         .tck(ae350_tck), .tms(ae350_tms), .tdi(ae350_tdi), .tdo(ae350_tdo),
+175:         .uart2_tx(ae350_tx), .uart2_rx(ae350_rx), .ddr_init(ddr_init), .dbg(soc_dbg),
+176:         .sd_clk(sd_clk), .sd_cmd(sd_cmd), .sd_miso(sd_d0), .sd_cs_n(sd_d3), .sd_detect(1'b0),
+177:         .ahb_dbg(soc_ahb_dbg), .ddr_dbg(soc_ddr_dbg), .core_wfi_dbg(core_wfi_w),
+178:         // Legacy acquisition inputs are inactive; video uses its own DDR port.
+
+201:     // Mirror CPU output on the BL616 relay, also when CDC is in use.
+202:     uart_console_channel #(.FIFO_LOG2(3),.REGISTER_FIFO(1)) u_console_output(
+203:         .clk(bus80_clk),.rst(!ae350_por_n),.rx(ae350_tx),.tx(uart_tx),
+204:         .rx_div(16'd694),.tx_div(16'd40),.overflow(),.diagnostic());
+205:     assign led_n=~ddr_init;
+206: endmodule
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/ae350_soc.v SHA256 e811670991b885d4a613322ca5713539d8955a62a06b5fe195048c0ff82a1009
+
+129:     // --- PLL DDR3 ---------------------------------------------------------------------------
+130:     // P0-a (V4, réappliqué le 2026-09-25) : l'horloge 50 MHz de l'IP DDR3 / DDR_CLK du SoC / HCLK du pont est la BROCHE clk50, comme
+131:     // dans l'exemple Gowin-Sipeed ddr_test (`.clk(clk)` = broche, `memory_clk` = PLL) : un arbre d'horloge global de moins (build V4
+132:     // complet : 10 horloges globales demandées, clk50_d et ddr3_clk_in tombaient sur LW). Validé sur UART le 22/09 (TESTS_V3).
+133:     wire ddr3_memory_clk, ddr3_lock, ddr3_stop, clk0_unused, clk1_unused;
+134:     wire ddr3_clk_in = clk50;
+135:     Gowin_PLL_DDR3 u_pll_ddr3 (
+136:         .lock    (ddr3_lock),
+137:         .clkout0 (clk0_unused),        // 50 MHz : plus utilisé (P0-a)
+138:         .clkout1 (clk1_unused),        // non utilisé
+139:         .clkout2 (ddr3_memory_clk),    // 300 MHz
+140:         .clkin   (clk50),
+141:         .init_clk(clk50),
+142:         .reset   (1'b0),
+143:         .enclk0  (1'b1),
+144:         .enclk1  (1'b0),
+145:         .enclk2  (ddr3_stop)
+146:     );
+147: 
+148:     // --- Resets -----------------------------------------------------------------------------
+149:     wire ddr3_init_completed;
+150:     wire ddr3_init_ip;                // état de calibration réel de l'IP (diag : ddr3_init_completed peut être forcé)
+151:     reg  [1:0] init_sync = 2'b00;
+152:     always @(posedge ahb_clk or negedge rst_key_n)
+153:         if (!rst_key_n) init_sync <= 2'b00;
+154:         else init_sync <= {init_sync[0], trial_release};
+155:     wire ae350_rstn = init_sync[1];
+156:     assign ddr_init = ddr3_init_completed;
+157:     assign dbg = {1'b1, ddr3_stop, ddr3_lock, ae350_rstn};
+
+329:     // reset vidéo = copie registrée d'exts_hrstn : un net sous CLOCK_LOC ne doit pas sortir par un port (la synthèse le renomme d'après
+330:     // le port et la contrainte ne le trouve plus : CT1135 au build V5_p12)
+331:     reg vid_hrstn_r = 1'b0; always @(posedge exts_hclk) vid_hrstn_r <= exts_hrstn;
+332:     assign vid_hclk = exts_hclk; assign vid_hrstn = vid_hrstn_r;
+
+359:     RiscV_AE350_SOC_Top u_ae350 (
+360:         .DDR_HRDATA(ddr_hrdata), .DDR_HREADY(ddr_hready), .DDR_HRESP(ddr_hresp),
+361:         .DDR_HADDR(ddr_haddr), .DDR_HBURST(ddr_hburst), .DDR_HPROT(ddr_hprot), .DDR_HSIZE(ddr_hsize),
+362:         .DDR_HTRANS(ddr_htrans), .DDR_HWDATA(ddr_hwdata), .DDR_HWRITE(ddr_hwrite),
+363:         .DDR_HCLK(ddr_hclk), .DDR_HRSTN(ddr_hrstn),
+364:         .TCK_IN(tck), .TMS_IN(tms), .TRST_IN(1'b1), .TDI_IN(tdi), .TDO_OUT(tdo), .TDO_OE(),
+365:         .EXT_INT(16'd0),
+366:         .EXTS_HRDATA(exts_hrdata), .EXTS_HREADYIN(exts_hready), .EXTS_HRESP(exts_hresp),
+367:         .EXTS_HADDR(exts_haddr), .EXTS_HBURST(exts_hburst), .EXTS_HPROT(exts_hprot), .EXTS_HSEL(exts_hsel),
+368:         .EXTS_HSIZE(exts_hsize), .EXTS_HTRANS(exts_htrans), .EXTS_HWDATA(exts_hwdata), .EXTS_HWRITE(exts_hwrite),
+369:         .EXTS_HCLK(exts_hclk), .EXTS_HRSTN(exts_hrstn),
+370:         .UART2_TXD(uart2_tx), .UART2_RTSN(), .UART2_RXD(uart2_rx), .UART2_CTSN(1'b0), .UART2_DCDN(1'b0),
+371:         .UART2_DSRN(1'b0), .UART2_RIN(1'b1), .UART2_DTRN(), .UART2_OUT1N(), .UART2_OUT2N(),
+372:         .GPIO_IN({26'd0, sd_cs_n, 1'b0, sd_cmd, sd_clk, sd_detect_s[1], sd_cs_n}), .GPIO_OE(gpio_oe), .GPIO_OUT(gpio_out),
+373:         .SPI_HOLDN_IN(1'b1), .SPI_WPN_IN(1'b1), .SPI_CLK_IN(sd_clk), .SPI_CSN_IN(spi_csn_oe ? spi_csn_out : 1'b1),
+374:         .SPI_MISO_IN(sd_miso), .SPI_MOSI_IN(sd_cmd),
+375:         .SPI_HOLDN_OUT(), .SPI_HOLDN_OE(), .SPI_WPN_OUT(), .SPI_WPN_OE(),
+376:         .SPI_CLK_OUT(spi_clk_out), .SPI_CLK_OE(spi_clk_oe), .SPI_CSN_OUT(spi_csn_out), .SPI_CSN_OE(spi_csn_oe),
+377:         .SPI_MISO_OUT(), .SPI_MISO_OE(), .SPI_MOSI_OUT(spi_mosi_out), .SPI_MOSI_OE(spi_mosi_oe),
+378:         .CORE0_WFI_MODE(core0_wfi), .RTC_WAKEUP(),
+379:         .CORE_CLK(core_clk), .DDR_CLK(ddr3_clk_in), .AHB_CLK(ahb_clk), .APB_CLK(apb_clk), .RTC_CLK(rtc_clk),
+380:         .POR_RSTN(ae350_rstn), .HW_RSTN(ae350_rstn)
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo_reset_trial.v SHA256 6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3
+
+1: // Neo-only experiment. This module never drives a PLL or DDR reset.
+2: // The existing AE350 two-flop reset synchronizer remains downstream.
+3: `default_nettype none
+4: module neo_reset_trial #(
+5:     parameter integer WAIT_CYCLES = 2500000, // user-selected 50 ms at 50 MHz
+6:     parameter integer HOLD_CYCLES = 1000,    // common 20 us warm-reset hold
+7:     parameter integer GAP_CYCLES = 100000,
+8:     parameter integer UART_DIV = 25         // existing BL616 relay: 2 Mbit/s
+9: ) (
+10:     input wire clk_ref, ahb_clk, rtc_clk, serial_rx,
+11:     input wire ddr_ready, pll_ready, cpu_reset_n,
+12:     output wire release_request,
+13:     output reg delay_mode = 1'b1,
+14:     output reg [3:0] command_epoch = 0,
+15:     output reg holding = 0,
+16:     output reg delay_done = 0,
+17:     output wire ahb_tick, rtc_tick
+18: );
+19:     localparam integer WAIT_WIDTH = WAIT_CYCLES > 1 ? $clog2(WAIT_CYCLES) : 1;
+20:     localparam integer HOLD_WIDTH = HOLD_CYCLES > 1 ? $clog2(HOLD_CYCLES) : 1;
+21:     localparam integer GAP_WIDTH = GAP_CYCLES > 1 ? $clog2(GAP_CYCLES) : 1;
+22:     // Independent activity witnesses: never reset by the CPU/bus under test.
+23:     reg [7:0] ahb_div = 0, rtc_div = 0;
+24:     always @(posedge ahb_clk) ahb_div <= ahb_div + 1'b1;
+25:     always @(posedge rtc_clk) rtc_div <= rtc_div + 1'b1;
+26:     assign ahb_tick = ahb_div[7];
+27:     assign rtc_tick = rtc_div[7];
+28: 
+29:     reg [2:0] up = 0;
+30:     always @(posedge clk_ref) up <= {up[1:0], 1'b1};
+31:     wire [7:0] rx_byte;
+32:     wire rx_valid;
+33:     neo_reset_trial_rx #(.DIV_WIDTH(16)) u_rx (
+34:         .clk(clk_ref), .rst(!up[2]), .clk_div(16'(UART_DIV)),
+35:         .rx(serial_rx), .data(rx_byte), .valid(rx_valid));
+36: 
+37:     // A5 5A 52 31 35 mode complement 0D. Only mode 0/1 is accepted.
+38:     // Parser timeout prevents unrelated console bytes completing a stale command.
+39:     reg [2:0] parse_state = 0;
+40:     reg pending_mode = 0;
+41:     reg [GAP_WIDTH-1:0] gap_count = 0;
+42:     reg command_valid = 0, command_mode = 0;
+43:     always @(posedge clk_ref) begin
+44:         command_valid <= 0;
+45:         if (!up[2]) begin parse_state <= 0; gap_count <= 0; end
+46:         else if (parse_state != 0 && gap_count == GAP_WIDTH'(GAP_CYCLES-1)) begin
+47:             parse_state <= 0; gap_count <= 0;
+48:         end else if (rx_valid) begin
+49:             gap_count <= 0;
+50:             case (parse_state)
+51:                 0: parse_state <= rx_byte == 8'ha5 ? 1 : 0;
+52:                 1: parse_state <= rx_byte == 8'h5a ? 2 : 0;
+53:                 2: parse_state <= rx_byte == 8'h52 ? 3 : 0;
+54:                 3: parse_state <= rx_byte == 8'h31 ? 4 : 0;
+55:                 4: parse_state <= rx_byte == 8'h35 ? 5 : 0;
+56:                 5: begin
+57:                     if (rx_byte < 2) begin pending_mode <= rx_byte[0]; parse_state <= 6; end
+58:                     else parse_state <= 0;
+59:                 end
+60:                 6: parse_state <= rx_byte == (pending_mode ? 8'hfe : 8'hff) ? 7 : 0;
+61:                 7: begin
+62:                     parse_state <= 0;
+63:                     if (rx_byte == 8'h0d) begin command_valid <= 1; command_mode <= pending_mode; end
+64:                 end
+65:             endcase
+66:         end else if (parse_state != 0) gap_count <= gap_count + 1'b1;
+67:     end
+68: 
+69:     reg [1:0] ready_meta = 0, reset_meta = 0;
+70:     always @(posedge clk_ref) begin
+71:         ready_meta <= {ready_meta[0], ddr_ready && pll_ready};
+72:         reset_meta <= {reset_meta[0], cpu_reset_n};
+73:     end
+74:     reg [WAIT_WIDTH-1:0] wait_count = 0;
+75:     reg [HOLD_WIDTH-1:0] hold_count = 0;
+76:     always @(posedge clk_ref) begin
+77:         if (command_valid) begin
+78:             delay_mode <= command_mode;
+79:             command_epoch <= command_epoch + 1'b1;
+80:             holding <= 1;
+81:             hold_count <= 0;
+82:             wait_count <= 0;
+83:             delay_done <= 0;
+84:         end else begin
+85:             if (holding) begin
+86:                 // Do not lose a reset request while AHB is stopped: wait until
+87:                 // the existing two-flop synchronizer has actually asserted reset.
+88:                 if (reset_meta[1]) hold_count <= 0;
+89:                 else if (hold_count == HOLD_WIDTH'(HOLD_CYCLES-1)) begin
+90:                     holding <= 0; hold_count <= 0;
+91:                 end else hold_count <= hold_count + 1'b1;
+92:             end
+93:             if (!ready_meta[1] || holding) begin wait_count <= 0; delay_done <= 0; end
+94:             else if (!delay_done) begin
+95:                 if (wait_count == WAIT_WIDTH'(WAIT_CYCLES-1)) delay_done <= 1;
+96:                 else wait_count <= wait_count + 1'b1;
+97:             end
+98:         end
+99:     end
+100:     // In short mode the original DDR-ready level is passed to the unchanged
+101:     // two AHB flops. All modes still honor calibration loss; no force-to-one.
+102:     assign release_request = ddr_ready && !holding && (!delay_mode || delay_done);
+103: endmodule
+104: `default_nettype wire
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/video/gpu_scanout.v SHA256 a6bb0c8f96bffb24855924b85935c93c5a6b78607778869f3676699c0b7bec0f
+
+30:     localparam BLOCK_BITS = X_BITS-5;
+31:     localparam RGB_BITS = X_BITS-4;
+32:     localparam TAG_BITS = 32+Y_BITS;
+33:     // syn_preserve : le même synchroniseur de reset existe dans gpu_accel ; fusionnés, l'un des deux
+34:     // modules recevrait son reset de l'autre bout de la puce.
+35:     reg [1:0] prst = 0;
+36:     reg [1:0] mrst /* synthesis syn_preserve=1 */ = 0;
+37:     always @(posedge pixel_clk or negedge hresetn)
+38:         if (!hresetn) prst <= 0; else prst <= {prst[0], 1'b1};
+39:     always @(posedge mem_clk or negedge hresetn)
+40:         if (!hresetn) mrst <= 0; else mrst <= {mrst[0], 1'b1};
+41: 
+42:     reg [31:0] shadow_base, mailbox_base;
+
+237:     wire [31:0] row_byte_offset = active_rgb565 ?
+238:         {indexed_row_offset[30:0],1'b0} : indexed_row_offset;
+239:     // Increment a row pointer instead of multiplying a cross-domain stride.
+240:     // Both operands are pixel-clock registers; no mixed-clock DSP inference.
+241:     wire [15:0] effective_stride=active_stride!=0 ? active_stride:
+242:         active_rgb565 && !active_half ? WIDTH*2:WIDTH;
+243:     wire [31:0] following_row=row_pointer+(active_half && !y[0] ? 16'd0:effective_stride);
+244:     always @(posedge pixel_clk) begin
+245:         if (!prst[1]) begin
+246:             hx <= 0; vy <= 0; frames <= 0; underflows <= 0;
+247:             underflow_pending <= 0;
+248:             commit_sync <= 0; applied_toggle <= 0;
+249:             active_base <= 0; active_enable <= 0;
+250:             active_rgb565<=0;request_rgb565<=0;active_half<=0;request_half<=0;active_stride<=0;row_pointer<=0;
+251:             active_layers<=0;active_bank<=0;request_layers<=0;request_bank<=0;
+252:             active_sprites<=0;request_sprites<=0;
+253:             request_toggle <= 0; request_base <= 0; request_tag <= 0;
+254:             ack_sync <= 0; ack_seen <= 0; ready_valid <= 0; line_good <= 0;
+255:         end else begin
+256:             commit_sync <= {commit_sync[0], commit_toggle};
+257:             // Neo: separate the wide line-tag comparison from the counter
+258:             // enable. The event is counted one pixel later, still once/line.
+
+515:         byte_index <= x[4:0];direct_index<=rgb_x[3:0];
+516:         palette_group2<=overlay1 ? overlay_word[byte_index[4:2]*32+:32]:pixel_word[byte_index[4:2]*32+:32];
+517:         palette_byte2<=byte_index[1:0];
+518:         palette_address2<=palette_group2[palette_byte2*8+:8];
+519:         rgb <= palette[WIDTH>1024 ? palette_address2:palette_address];
+520:         direct_rgb<={direct_pixel[15:11],direct_pixel[15],direct_pixel[10:5],direct_pixel[4:0],direct_pixel[4]};
+521:         format1<=active_rgb565;format2<=format1;
+522:         de1 <= visible && prst[1]; de2 <= de1;
+523:         hs1 <= hx >= H_SYNC; hs2 <= hs1;
+524:         vs1 <= vy >= V_SYNC; vs2 <= vs1;
+525:         good1 <= line_good; good2 <= good1;
+526:         en1 <= active_enable; en2 <= en1;
+527:         fallback1 <= {6{x[7:5]}}; fallback2 <= fallback1;
+528:         de3<=de2;hs3<=hs2;vs3<=vs2;good3<=good2;en3<=en2;
+529:         format3<=format2;overlay3<=overlay2;covered3<=covered2;
+530:         direct_rgb3<=direct_rgb;fallback3<=fallback2;
+531:         de4<=de3;hs4<=hs3;vs4<=vs3;good4<=good3;en4<=en3;
+532:         format4<=format3;overlay4<=overlay3;covered4<=covered3;
+533:         direct_rgb4<=direct_rgb3;fallback4<=fallback3;
+534:     end
+535:     wire out_de=WIDTH>1024 ? de4:de2;
+536:     wire out_hs=WIDTH>1024 ? hs4:hs2;
+537:     wire out_vs=WIDTH>1024 ? vs4:vs2;
+538:     wire [17:0] out_rgb = WIDTH>1024 ?
+539:         (!en4 ? fallback4 : good4 ? (format4 && !(overlay4 && covered4) ? direct_rgb4:rgb) : 18'b0):
+540:         (!en2 ? fallback2 : good2 ? (format2 && !(overlay2 && covered2) ? direct_rgb:rgb) : 18'b0);
+541:     reg was_vs=1;
+542:     always @(posedge pixel_clk)begin
+543:         if(!prst[1])begin display_checksum<=0;display_sum<=0;was_vs<=1;end
+544:         else begin
+545:             was_vs<=out_vs;
+
+SOURCE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/soft_usb.vh SHA256 7f39b56b82aba70f7108aef2363f4c8fce66b9273226cdda198523ba7b90d84f
+
+303: `ifdef CONSOLE_USB_DIAG
+304:     // Observe only; the control endpoint remains usable when bulk CDC stalls.
+305:     reg [31:0] diag_uart,diag_out,diag_delivered,diag_rxerror,diag_packets;
+306:     reg [15:0] diag_pop,diag_ack;
+307:     reg [31:0] diag_status;
+308:     // Slow board state, observed through two registers in the USB domain.
+309:     // These bits never control resets or data flow. Keep them live on EP0,
+310:     // including when the CPU cannot answer any bulk command.
+311:     reg [3:0] diag_board_meta,diag_board_sync;
+312:     always @(posedge phy_clk or posedge usb_app_reset)begin
+313:         if(usb_app_reset)begin diag_board_meta<=0;diag_board_sync<=0;end
+314:         else begin
+315:             diag_board_meta<={pll_ae350_lock,soc_dbg[2:0]};
+316:             diag_board_sync<=diag_board_meta;
+317:         end
+318:     end
+319:     reg [7:0] diag_last_uart,diag_last_out,diag_last_delivered;
+320:     wire [31:0] fifo_diagnostic;
+321:     wire [255:0] usb_tx_packet_history;
+322:     usb_packet_trace #(.INPUT_PIPELINE(1)
+323: `ifdef CONSOLE_USB_CAPTURE_FIRST
+324:         ,.CAPTURE_FIRST(1)
+325: `endif
+326:         ) u_usb_packet_trace(.clk(phy_clk),.reset(usb_app_reset),
+327:         .new_packet(endpt_sel==2 && !usb_txpktfin && fifo_diagnostic[24] && !fifo_diagnostic[27]),
+328:         .valid(PHY_TXVALID),.ready(PHY_TXREADY),.data(PHY_DATAOUT),
+329:         .endpoint(endpt_sel),.cork(usb_txcork),.active(usb_txact),
+330:         .length(usb_txdat_len),.history(usb_tx_packet_history),
+331:         .rx_active(PHY_RXACTIVE),.rx_valid(PHY_RXVALID),.rx_error(PHY_RXERROR),
+332:         .rx_data(PHY_DATAIN),.packet_ack(usb_txpktfin),.fifo_pending(fifo_diagnostic[27]));
+333:     wire [511:0] usb_diagnostic_data={usb_tx_packet_history,diag_packets,diag_rxerror,
+334:         8'hd1,diag_last_delivered,diag_last_out,diag_last_uart,
+335:         diag_board_sync,diag_status[27:0],diag_ack,diag_pop,diag_delivered,diag_out,diag_uart};
+336:     always @(posedge phy_clk or posedge usb_app_reset)begin
+
+LOG TESTS/neo_720p_20261012/capture_memory_20261027/startup_100k_20261027_090320/baseline_r19.log SHA256 6959b6bd4f53d6790d192ee98b728bbe174bf64e385a3b64eb6f04399275274e
+
+Open On-Chip Debugger 0.11.0+dev-04036-ga0220ad30 (2025-10-24-00:27)
+Licensed under GNU GPL v2
+For bug reports, read
+	http://openocd.org/doc/doxygen/bugs.html
+nds.cpu
+Info : clock speed 100 kHz
+Info : JTAG tap: nds.cpu tap/device found: 0x1000563d (mfg: 0x31e (Andes Technology Corporation), part: 0x0005, ver: 0x1)
+Info : [nds.cpu] datacount=4 progbufsize=8
+Info : [nds.cpu] Examined RISC-V core; found 1 harts
+Info : [nds.cpu]  XLEN=32, misa=0x4094312d
+[nds.cpu] Target successfully examined.
+Info : gdb port disabled
+PARKED_CPU 0x80000004
+STARTUP_READ_OK
+shutdown command invoked
+
+
+LOG TESTS/neo_720p_20261012/capture_memory_20261027/startup_100k_20261027_090320/r21_read100k.log SHA256 d157ab8f7870e5bf807f42e36c567bb058e209d5f08a860ef62c9d74bccc4079
+
+Open On-Chip Debugger 0.11.0+dev-04036-ga0220ad30 (2025-10-24-00:27)
+Licensed under GNU GPL v2
+For bug reports, read
+	http://openocd.org/doc/doxygen/bugs.html
+nds.cpu
+Info : clock speed 100 kHz
+Info : JTAG tap: nds.cpu tap/device found: 0x1000563d (mfg: 0x31e (Andes Technology Corporation), part: 0x0005, ver: 0x1)
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Warn : target nds.cpu examination failed
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+Error: [nds.cpu] DMI operation didn't complete in 2 seconds. The target is either really slow or broken. You could increase the timeout with riscv set_command_timeout_sec.
+
+
+LOG TESTS/neo_720p_20261012/capture_memory_20261027/startup_100k_20261027_090320/fallback_read100k.log SHA256 6959b6bd4f53d6790d192ee98b728bbe174bf64e385a3b64eb6f04399275274e
+
+Open On-Chip Debugger 0.11.0+dev-04036-ga0220ad30 (2025-10-24-00:27)
+Licensed under GNU GPL v2
+For bug reports, read
+	http://openocd.org/doc/doxygen/bugs.html
+nds.cpu
+Info : clock speed 100 kHz
+Info : JTAG tap: nds.cpu tap/device found: 0x1000563d (mfg: 0x31e (Andes Technology Corporation), part: 0x0005, ver: 0x1)
+Info : [nds.cpu] datacount=4 progbufsize=8
+Info : [nds.cpu] Examined RISC-V core; found 1 harts
+Info : [nds.cpu]  XLEN=32, misa=0x4094312d
+[nds.cpu] Target successfully examined.
+Info : gdb port disabled
+PARKED_CPU 0x80000004
+STARTUP_READ_OK
+shutdown command invoked
+
+
+PROOF TESTS/neo_720p_20261012/capture_memory_20261027/startup_100k_20261027_090320/result.json SHA256 94ac7c893b75a60e8e0f3408013afaf24568db8654e4b7bc72267e2ad9a31b8f
+
+PROOF TESTS/neo_720p_20261012/capture_memory_20261027/cpu_route_compare_01/result.json SHA256 a5efbc3835114be54d1bbed424219dcfa92ada3edde8c0c755428ce802f81c1e
+
+PROOF TESTS/neo_720p_20261012/capture_memory_20261027/postroute_01/result.json SHA256 a57b3c69e8cb4bf7343fe0361b48e32b3e7b7a86280a43e5d9de1e58b737665c

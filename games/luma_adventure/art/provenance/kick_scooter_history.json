@@ -1,0 +1,188 @@
+{
+  "prompt": [
+    29,
+    "89d8648c-e2a6-446a-baa9-7f3a4fdc0052",
+    {
+      "unet": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "clip": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        }
+      },
+      "vae": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "qwen_image_vae.safetensors"
+        }
+      },
+      "shift": {
+        "class_type": "ModelSamplingAuraFlow",
+        "inputs": {
+          "model": [
+            "lora",
+            0
+          ],
+          "shift": 3.0
+        }
+      },
+      "latent": {
+        "class_type": "EmptySD3LatentImage",
+        "inputs": {
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1
+        }
+      },
+      "positive": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "text": "One original curly-haired young adventurer wearing an orange short coat, teal scarf and cream boots, standing on a human-powered KICK SCOOTER. A narrow wooden standing deck, two small wheels, a tall straight copper handlebar. One boot rests on the deck and the other boot pushes the ground. The character stands upright. Full body and complete scooter visible, three-quarter slightly overhead view. Beautiful hand-painted storybook game illustration, warm light upper left, teal shadows, crisp readable silhouette. Plain neutral grey studio background. Single isolated subject."
+        }
+      },
+      "negative": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "text": ""
+        }
+      },
+      "sample": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": [
+            "shift",
+            0
+          ],
+          "seed": 2310261200,
+          "steps": 4,
+          "cfg": 1.0,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "positive": [
+            "positive",
+            0
+          ],
+          "negative": [
+            "negative",
+            0
+          ],
+          "latent_image": [
+            "latent",
+            0
+          ],
+          "denoise": 1.0
+        }
+      },
+      "decode": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "sample",
+            0
+          ],
+          "vae": [
+            "vae",
+            0
+          ]
+        }
+      },
+      "save": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "decode",
+            0
+          ],
+          "filename_prefix": "luma_kick_scooter"
+        }
+      },
+      "lora": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "model": [
+            "unet",
+            0
+          ],
+          "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+          "strength_model": 1.0
+        }
+      }
+    },
+    {
+      "client_id": "luma-art-20261023",
+      "create_time": 1792795355258
+    },
+    [
+      "save"
+    ]
+  ],
+  "outputs": {
+    "save": {
+      "images": [
+        {
+          "filename": "luma_kick_scooter_00001_.png",
+          "subfolder": "",
+          "type": "output",
+          "metadata": {
+            "kind": "image",
+            "width": 1024,
+            "height": 1024
+          },
+          "id": "e0205ad4-5e90-4826-b941-4fc01f75431d"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "89d8648c-e2a6-446a-baa9-7f3a4fdc0052",
+          "timestamp": 1792795355259
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [],
+          "prompt_id": "89d8648c-e2a6-446a-baa9-7f3a4fdc0052",
+          "timestamp": 1792795355260
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "89d8648c-e2a6-446a-baa9-7f3a4fdc0052",
+          "timestamp": 1792795369304
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "save": {
+      "node_id": "save",
+      "display_node": "save",
+      "parent_node": null,
+      "real_node_id": "save"
+    }
+  }
+}

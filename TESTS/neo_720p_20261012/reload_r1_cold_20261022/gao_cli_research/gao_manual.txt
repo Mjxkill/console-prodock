@@ -1,0 +1,2174 @@
+Gowin Analyzer Oscilloscope
+User Guide
+
+
+
+SUG114-3.4.4E,06/17/2026
+Copyright © 2026 Guangdong Gowin Semiconductor Corporation. All Rights Reserved.
+
+            , GOWIN, and LittleBee are trademarks of Guangdong Gowin Semiconductor
+Corporation and are registered in China, the U.S. Patent and Trademark Office, and other
+countries. All other words and logos identified as trademarks or service marks are the
+property of their respective holders. No part of this document may be reproduced or
+transmitted in any form or by any means, electronic, mechanical, photocopying, recording
+or otherwise, without the prior written consent of GOWINSEMI.
+Disclaimer
+GOWINSEMI assumes no liability and provides no warranty (either expressed or implied)
+and is not responsible for any damage incurred to your hardware, software, data, or
+property resulting from usage of the materials or intellectual property except as outlined in
+the GOWINSEMI Terms and Conditions of Sale. GOWINSEMI may make changes to this
+document at any time without prior notice. Anyone relying on this documentation should
+contact GOWINSEMI for the current documentation and errata.
+Revision History
+Date         Version   Description
+                       Dynamic BSRAM Usage and Capture Utilization in the Standard/Lite
+06/17/2021   2.4E      Mode GAO window can display the maximum amount of BSRAM
+                       supported by the device.
+                          The shortcuts for Start, Auto Run, Force Trigger, and Stop added
+                           in waveform capture window, and they are F1, F2, F3, and F4 in
+                           order.
+                          The shortcuts for Zoom In, Zoom Out, and Zoom Fit modified to
+11/02/2021   2.5E          F8, F7, and F6 in order in waveform capture window.
+                          Trigger signals and capture signals that do not exist in the netlist
+                           are highlighted in red in the configuration window.
+                          Waveform color can be modified.
+                          The description of importing vcd to ModelSim added.
+12/16/2022   2.5.1E    GWU2X added in Cable option in GAO capture window.
+                          GWU2X updated to Gowin USB Cable (GWU2X) in Cable option in
+05/25/2023   2.5.2E        GAO capture window.
+                          "Save As" function added in GAO capture window.
+                          The default Cable in GAO Capture Window updated from FT2CH
+                           to GWU2X.
+                          The same signal can not be added repeatedly in Trigger Ports and
+                           Capture Signals.
+08/18/2023   2.6E         The Value of Match Unit supports right-click menu, including the
+                           values X, 0, 1, R, F, B, N.
+                          Bar chart and line chart display of waveform supported.
+                          The right-click menu of the signals on waveform interface support
+                           the display in ASCII, Real, and Signed Magnitude formats.
+                          GAO capture interface supports automatic recognition of Cable
+                           type.
+                          When selecting "Dynamic" for "Expression", SSRAM and REG
+                           implementations added.
+                          SSRAM and REG added in "Capture GAO Implementation".
+11/30/2023   2.7E         GAO configuration interface's Capture Signal right-click menu
+                           supports enabling and disabling signals.
+                          GAO Programmer supports specifying the frequency for tck when
+                           Cable is FT2CH.
+                          "Long Name", "Short Name", "New Divider", and "Delete Divider"
+                           options added in signal right-click menu on GAO capture interface.
+                          "Save" and "Save As" buttons removed from GAO capture window
+                           toolbar, and these two functions added to the "Export".
+                          4, 8, 16, 32, 64, 128 depths added to Standard GAO Storage Size.
+                          "Windows Number" updated to "Segments Number", with the
+02/02/2024   2.8E
+                           value range changing from 1~8 to 1~Storage Size/4.
+                          Standard GAO supports capturing trigger events occurring after
+                           the device is programmed or reset but before GAO is manually
+                           started.
+                          When GAO capture interface waveform contains multiple
+                           segments, each segment is updated from counting from 0 to a
+03/29/2024   2.9E
+                           consecutive count from the end of the previous segment.
+                          A cursor will be generated at the left mouse click position in the
+Date         Version   Description
+                          waveform.
+                        GAO capture interface has new function buttons for waveform
+                          operations, and the difference between markers can be displayed
+                          at the bottom of the waveform.
+06/28/2024   3.0E      Joint debugging with GAO and GVIO supported.
+                          "WINUSB" added in the "Cable" option in GAO capture interface.
+10/25/2024   3.1E         Descriptions of using the command line to start the GAO capture
+                           interface added.
+11/08/2024   3.1.1E    Descriptions of Capture Signals Configuration modified.
+12/31/2024   3.2E      Remote programming and debugging supported.
+02/28/2025   3.3E      Descriptions of the Target Jtagserver configuration updated.
+                          The "Search Nets" interface optimized.
+06/27/2025   3.4E         The "New GAO Wizard" dialog box supports the selection of the
+                           configuration file path and provides an option to add the
+                           configuration file to the current project.
+                       The Figure 4-3 Launch the GAO Capture Interface via Command Line
+08/29/2025   3.4.1E
+                       added in Section 4.1.1Start GAO in Standard Mode.
+                       In section 4.1.1 Start GAO in Standard Mode, the command-line
+12/31/2025   3.4.2E    parameter for launching the GAO capture interface updated from
+                       -family to -series.
+                       Updated "Row Height Settings" in Section 4.1.2 Run GAO to "Analog
+03/09/2026   3.4.3E
+                       Settings", supporting the configuration of the Y-axis range.
+                       Updated Figure 5-2 Import csv to Matlab; removed the data-start "X"
+06/17/2026   3.4.4E    row from CSV files exported by GAO and removed bus signal
+                       sub-signals from the CSV export.
+                                                                                                                                                 Contents
+
+
+
+
+Contents
+
+    Contents ............................................................................................................... i
+    List of Figures .................................................................................................... iii
+    List of Tables ...................................................................................................... vi
+    1 About This Guide ............................................................................................ 1
+         1.1 Purpose .............................................................................................................................. 1
+         1.2 Related Documents ............................................................................................................ 1
+         1.3 Terminology and Abbreviations ........................................................................................... 1
+         1.4 Support and Feedback ....................................................................................................... 2
+
+    2 Introduction ..................................................................................................... 3
+    3 GAO Config File .............................................................................................. 5
+         3.1 GAO Config File in Standard Mode .................................................................................... 5
+         3.1.1 Start Standard Mode GAO .............................................................................................. 5
+         3.1.2 Standard Mode GAO Configuration................................................................................. 8
+         3.1.3 Generate Bitstream File ................................................................................................. 26
+         3.2 GAO Config File in Lite Mode ........................................................................................... 27
+         3.2.1 Start Lite Mode GAO ..................................................................................................... 27
+         3.2.2 Lite Mode GAO Configuration ....................................................................................... 30
+         3.2.3 Generate Bitstream File ................................................................................................. 34
+
+    4 GAO Usage .................................................................................................... 35
+         4.1 GAO Usage in Standard Mode ......................................................................................... 35
+         4.1.1 Start GAO in Standard Mode ......................................................................................... 35
+         4.1.2 Run GAO ....................................................................................................................... 37
+         4.1.3 Export Waveform ........................................................................................................... 51
+         4.2 GAO Usage in Standard Mode ......................................................................................... 53
+         4.2.1 Start Lite Mode GAO ..................................................................................................... 53
+         4.2.2 Run GAO ....................................................................................................................... 55
+         4.2.3 Output Waveform ........................................................................................................... 55
+
+    5 Import Waveform File.................................................................................... 56
+         5.1 Import csv to Matlab ......................................................................................................... 56
+
+
+SUG114-3.4.4E                                                                                                                                           i
+                                                                                                                                          Contents
+
+
+
+         5.2 Import prn to Matlab.......................................................................................................... 57
+         5.3 Import vcd to ModelSim .................................................................................................... 58
+
+
+
+
+SUG114-3.4.4E                                                                                                                                    ii
+                                                                                                                                        List of Figures
+
+
+
+
+List of Figures
+
+    Figure 3-1 Create a GAO Config File in Standard Mode ................................................................... 6
+    Figure 3-2 New GAO Wizard (Standard Mode) ................................................................................. 6
+    Figure 3-3 File Name ......................................................................................................................... 7
+    Figure 3-4 GAO Config File Mode and Path (Standard Mode) .......................................................... 7
+    Figure 3-5 Gowin GAO Window (Standard Mode) ............................................................................ 8
+    Figure 3-6 AO Core View ................................................................................................................... 9
+    Figure 3-7 Select a Core .................................................................................................................... 9
+    Figure 3-8 Trigger Options View ........................................................................................................ 10
+    Figure 3-9 Trigger Port Dialog Box .................................................................................................... 11
+    Figure 3-10 Search Nets Dialog Box ................................................................................................. 12
+    Figure 3-11 Normal Mode .................................................................................................................. 13
+    Figure 3-12 Wildcard Mode ................................................................................................................ 13
+    Figure 3-13 Regular Expression Mode .............................................................................................. 13
+    Figure 3-14 Advanced Filter ............................................................................................................... 14
+    Figure 3-15 Match Units View ............................................................................................................ 15
+    Figure 3-16 Match Unit Config Dialog Box ........................................................................................ 15
+    Figure 3-17 Minimum/Maximum in/not in Range ............................................................................... 17
+    Figure 3-18 Error Prompt ................................................................................................................... 18
+    Figure 3-19 Prompt ............................................................................................................................ 18
+    Figure 3-20 Expression Dialog Box ................................................................................................... 19
+    Figure 3-21 Select Dynamic............................................................................................................... 21
+    Figure 3-22 Error Prompt ................................................................................................................... 21
+    Figure 3-23 Capture Options ............................................................................................................. 22
+    Figure 3-24 Search Nets Dialog Box (Standard Mode) ..................................................................... 23
+    Figure 3-25 Error Prompt ................................................................................................................... 23
+    Figure 3-26 Error Prompt ................................................................................................................... 23
+    Figure 3-27 Capture Configuration .................................................................................................... 24
+    Figure 3-28 Capture Signal ................................................................................................................ 25
+    Figure 3-29 Add From Trigger ............................................................................................................ 26
+    Figure 3-30 Signal Right-Click Menu ................................................................................................. 26
+    Figure 3-31 Resources Used by AO Core Capture Signals .............................................................. 26
+    Figure 3-32 Create GAO Config File (Lite Mode ) ............................................................................. 28
+
+SUG114-3.4.4E                                                                                                                                            iii
+                                                                                                                                        List of Figures
+
+
+
+    Figure 3-33 New GAO Wizard (Lite Mode) ........................................................................................ 28
+    Figure 3-34 GAO Config File Name (Lite Mode) ............................................................................... 29
+    Figure 3-35 GAO Config File Mode and Path (Lite Mode) ................................................................ 29
+    Figure 3-36 Gowin GAO (Lite Mode) ................................................................................................. 30
+    Figure 3-37 Capture Options (Lite Mode) .......................................................................................... 31
+    Figure 3-38 Search Nets Dialog Box (Lite Mode) .............................................................................. 31
+    Figure 3-39 Error Prompt ................................................................................................................... 32
+    Figure 3-40 Error Prompt ................................................................................................................... 32
+    Figure 3-41 Capture Configuration (Lite Mode) ................................................................................. 32
+    Figure 3-42 Capture Signals .............................................................................................................. 33
+    Figure 3-43 Signal Right-click Menu .................................................................................................. 34
+    Figure 3-44 BSRAM Used by GAO.................................................................................................... 34
+    Figure 4-1 Gowin Analyzer Oscilloscope (Static Standard Mode) ..................................................... 36
+    Figure 4-2 Gowin Analyzer Oscilloscope (Dynamic Standard Mode) ................................................ 36
+    Figure 4-3 Launch the GAO Capture Interface via Command Line ................................................... 36
+    Figure 4-4 Toolbar (Standard Mode) .................................................................................................. 37
+    Figure 4-5 Target Jtagserver Configuration ....................................................................................... 38
+    Figure 4-6 Start jtagserver ................................................................................................................. 38
+    Figure 4-7 Connect to Remote jtagserver .......................................................................................... 38
+    Figure 4-8 Configuration View ........................................................................................................... 40
+    Figure 4-9 Expression Dialogue Box ................................................................................................. 42
+    Figure 4-10 Match Unit Config Dialog Box ........................................................................................ 43
+    Figure 4-11 GAO Waveform Display (Standard Mode)...................................................................... 44
+    Figure 4-12 Ruler and Cursor Display (Standard Mode) ................................................................... 44
+    Figure 4-13 Right-click Menu (Standard Mode) ................................................................................. 45
+    Figure 4-14 Group Bus Signal (Standard Mode) ............................................................................... 46
+    Figure 4-15 Signal Right-click Menu (Standard Mode) ...................................................................... 48
+    Figure 4-16 Unsigned Bar Chart ........................................................................................................ 48
+    Figure 4-17 Unsigned Line Chart ....................................................................................................... 49
+    Figure 4-18 Analog Settings............................................................................................................... 49
+    Figure 4-19 Fixed Point Setting ......................................................................................................... 50
+    Figure 4-20 Floating Point Setting ..................................................................................................... 50
+    Figure 4-21 Prompt ............................................................................................................................ 50
+    Figure 4-22 Reload Config File .......................................................................................................... 51
+    Figure 4-23 Prompt ............................................................................................................................ 51
+    Figure 4-24 Export Dialog Box ........................................................................................................... 52
+    Figure 4-25 Export Tab_delimited Text (*.prn) File............................................................................. 53
+    Figure 4-26 Export Only Buses prn File ............................................................................................. 53
+    Figure 4-27 Gowin Analyzer Oscilloscope Window (Lite Mode) ........................................................ 54
+    Figure 4-28 Trigger View .................................................................................................................... 55
+
+SUG114-3.4.4E                                                                                                                                            iv
+                                                                                                                                          List of Figures
+
+
+
+    Figure 5-1 Matlab Import Data ........................................................................................................... 56
+    Figure 5-2 Import csv to Matlab ......................................................................................................... 57
+    Figure 5-3 Import csv to Matlab in Matrix .......................................................................................... 57
+    Figure 5-4 Import prn to Matlab ......................................................................................................... 58
+    Figure 5-5 Import prn to Matlab in Matrix ........................................................................................... 58
+    Figure 5-6 vcd to wlf ........................................................................................................................... 59
+    Figure 5-7 Open vcd Waveform with ModelSim ................................................................................ 59
+
+
+
+
+SUG114-3.4.4E                                                                                                                                              v
+                                                                                                                              List of Tables
+
+
+
+
+List of Tables
+
+    Table 1-1 Terminology and Abbreviations .......................................................................................... 1
+    Table 3-1 Match Type Supported By Trigger Match Unit ................................................................... 16
+
+
+
+
+SUG114-3.4.4E                                                                                                                              vi
+1 About This Guide                                                                        1.1 Purpose
+
+
+
+
+                                                     1          About This Guide
+
+1.1 Purpose
+                          This manual describes Gowin Analyzer Oscilloscope (GAO). It
+                     introduces GAO configuration file (.gao) and GAO usage so as to improve
+                     the efficiency of design analysis. As the software is subject to change
+                     without notice, some information may not remain relevant and may need to
+                     be adjusted according to the software that is in use.
+
+1.2 Related Documents
+                        The latest user guides are available on our Website
+                     www.gowinsemi.com:
+                        SUG100, Gowin Software User Guide
+                        SUG918, Gowin Software Quick Start Guide
+                        SUG1189, Gowin Virtual Input Output User Guide
+                        SUG502, Gowin Programmer User Guide
+
+1.3 Terminology and Abbreviations
+                           Table 1-1 shows the abbreviations and terminology that are used in
+                     this manual.
+                     Table 1-1 Terminology and Abbreviations
+                     Terminology and Abbreviations   Meaning
+                     AO Core                         Analysis Oscilloscope Core
+                     BSRAM                           Block Static Random Access Memory
+                     FPGA                            Field Programmable Gate Array
+                     GAO                             Gowin Analyzer Oscilloscope
+                     GVIO                            Gowin Virtual Input Output
+                     JTAG                            Joint Test Action Group
+                     REG                             Register
+                     SSRAM                           Shadow Static Random Access Memory
+
+
+
+
+SUG114-3.4.4E                                                                                   1(59)
+1 About This Guide                                                        1.4 Support and Feedback
+
+
+
+
+1.4 Support and Feedback
+                         Gowin Semiconductor provides customers with comprehensive
+                     technical support. If you have any questions, comments, or suggestions,
+                     please feel free to contact us directly by the following ways.
+                         Website: www.gowinsemi.com
+                         E-mail:support@gowinsemi.com
+
+
+
+
+SUG114-3.4.4E                                                                                2(59)
+2 Introduction
+
+
+
+
+                                                         2         Introduction
+
+                     GAO is a digital signal analyzer that is designed in-house by Gowin. It
+                 helps you more easily analyze the signal timing, quickly perform system
+                 analysis and fault location so as to improve design efficiency.
+                      The GAO operates on the following basic principle: When operating,
+                 FPGA saves the signal in real time to memory according to the trigger
+                 conditions set by you. It reads the signal and displays it on the software
+                 GUI via JTAG. GAO includes the signal configuration window and
+                 waveform display window. The signal configuration window is mainly used
+                 to configure location in the design, and the location is based on the
+                 sampling clock, trigger unit, and trigger expression. The waveform display
+                 window connects to Gowin Software and target hardware via JTAG.
+                      GAO supports RTL-level and post-synthesis netlist signal capture, and
+                 provides Standard Mode and Lite Mode. Standard Mode GAO can support
+                 up to 16 AOs, each of which can be configured with one or more trigger
+                 ports, supporting multi-level static or dynamic trigger expressions, and
+                 capturing trigger events that occur between the time the device is
+                 programmed and the time the GAO is manually activated. Lite Mode GAO
+                 is easy to configure, and you do not need to set trigger conditions. Lite
+                 GAO can also capture the initial value of the signal, which is convenient for
+                 you to analyze the state of power on.
+                     The GAO has the following features:
+                    Supports up to 16 AOs
+                    Each AO supports one or more port trigger
+                    Each AO supports one or more trigger levels
+                    Each trigger port supports one or more match units
+                    Each match unit supports six types of trigger match
+                    Supports static or dynamic trigger expressions setting
+                    Can capture signals before or after RTL synthesis
+                    AO uses segment capture, which supports one or more segment
+                     captures
+                    Supports four kinds of waveform file: csv, vcd, prn, and gwd
+
+SUG114-3.4.4E                                                                            3(59)
+2 Introduction                                           1.4 Support and Feedback
+
+
+
+                    Uses data ports to save resources
+
+
+
+
+SUG114-3.4.4E                                                               4(59)
+3 GAO Config File                                                  3.1 GAO Config File in Standard Mode
+
+
+
+
+                                                    3       GAO Config File
+
+                          The GAO consists of two parts: Control Core and AO Core. The
+                    Control Core is the communication controller of all AOs and JTAG scanning
+                    circuits. AO Core is used for configuring trigger signals, capturing and
+                    storing data. The Control Core connects the master and the AO Core. It
+                    receives instructions and sends them to the AO Core during configuration.
+                    It also transmits the data captured by the AO Core to the master. The AO
+                    Core directly communicates with Control Core, receives instructions from
+                    Control Core, captures and transmits data according to the instructions.
+                        GAO Config window is used to configure AO Core and the Control
+                    Core. It helps you quickly and easily analyze data signals after synthesis,
+                    placement and routing. For a simple GAO example, see SUG918, Gowin
+                    Software Quick Start Guide.
+
+3.1 GAO Config File in Standard Mode
+3.1.1 Start Standard Mode GAO
+                        To launch the Standard Mode GAO configuration window, a
+                    configuration file (.gao/.rao) must first be created or loaded. The Standard
+                    Mode GAO creation types include "For RTL Design" and "For
+                    Post-Synthesis Netlist".
+                       The "For RTL Design" is used to capture RTL signal before synthesis,
+                        and the generated configuration file extension is .rao.
+                       The "For Post-Synthesis Netlist" is used to capture the netlist signal
+                        after synthesis, and the generated configuration file extension is .gao.
+                          The configuration procedures for the above two Standard Mode GAO
+                    types are similar. The following section introduces the configuration
+                    process for the "For Post-Synthesis Netlist" type of Standard Mode GAO
+                    configuration file only. Any differences will be noted in the text where
+                    applicable.
+                    Create GAO Config File in Standard Mode
+                        The steps are as follows:
+                    1. In the "Design" view, right-click and select "New File...". The "New"
+                       dialog box will open, as show in Figure 3-1.
+
+SUG114-3.4.4E                                                                                     5(59)
+3 GAO Config File                                                     3.1 GAO Config File in Standard Mode
+
+
+
+                    2. Select "GAO Config File" and click "OK". The "New GAO Wizard"
+                       dialog box opens, as shown in Figure 3-2. select "Standard", and then
+                       click "Next".
+                    3. Enter the config file name in "Name" editing box, select an appropriate
+                       path in the "Create in" path selection box, then click "Next", as shown
+                       in Figure 3-3.
+                    4. Check the GAO config. file mode and path, as shown in Figure 3-4.
+                       Click "Finish". You can see the config file in "GAO Config Files" view.
+                    Figure 3-1 Create a GAO Config File in Standard Mode
+
+
+
+
+                    Figure 3-2 New GAO Wizard (Standard Mode)
+
+
+
+
+SUG114-3.4.4E                                                                                        6(59)
+3 GAO Config File                                                   3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-3 File Name
+
+
+
+
+                    Figure 3-4 GAO Config File Mode and Path (Standard Mode)
+
+
+
+
+                    Load Standard Mode GAO File
+                         The steps are as follows:
+                    1. In the "Design" view, right-click and select "Add Files...", the "Select
+                       Files" dialog box opens.
+                    2. Select the config file (.gao) and load it to the project.
+                    Start Standard Mode GAO
+                        Double-click the configuration file (.gao) in the "Design" view. The
+                    "GAO Config View" will open, as shown in Figure 3-5. If the project has not
+                    synthesized, double-clicking on the .gao configuration file will bring up a
+                    warning box. GAO configuration window includes AO Core, Trigger Options,
+                    and Capture Options.
+
+
+SUG114-3.4.4E                                                                                      7(59)
+3 GAO Config File                                                           3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-5 Gowin GAO Window (Standard Mode)
+
+
+
+
+3.1.2 Standard Mode GAO Configuration
+                        GAO includes AO Core, Trigger Options, and Capture Options.
+                    AO Core Configuration
+                        The AO Core is used to display and configure the number of AO used
+                    by current project, as shown in Figure 3-6. The AO Core only includes
+                    Core0 by default, and it can support up to 16 cores. The following
+                    operations can be performed:
+                    1. Right click anywhere in the AO Core view and click "Add" to add new
+                       AO Core.
+                    2. Select and right click a core in AO Core view and click "Remove" to
+                       remove core.
+                    3. When a core is deleted, the subsequent core number decreases
+                       successively, and the core number increases continuously.
+                    4. Select a core, and the core configuration view will be displayed on the
+                       right, as shown in Figure 3-7. For example, when Core2 is selected in
+                       AO Core, on the right is the Core2 configuration.
+                    Note!
+                       When there is only one core in the AO Core, it is not allowed to delete it. If you select
+                        the core and click "Remove", the prompt will pop up.
+                       16 cores are supported at most. When there are more than 16 cores, an error prompt
+                        will pop up.
+
+
+
+
+SUG114-3.4.4E                                                                                               8(59)
+3 GAO Config File                                                  3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-6 AO Core View
+
+
+
+
+                    Figure 3-7 Select a Core
+
+
+
+
+                    Trigger Options
+                        Trigger options are used to configure signal trigger conditions, as
+                    shown in Figure 3-8.
+                       The upper-left corner displays the currently configured AO Core.
+                       The "Trigger Ports" view is used to configure the trigger ports of the
+                        functional core.
+                       The "Match Units" view is used to configure the trigger match units, and
+                        the "Expressions view" is used to configure the trigger expressions.
+
+
+
+
+SUG114-3.4.4E                                                                                     9(59)
+3 GAO Config File                                                   3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-8 Trigger Options View
+
+
+
+
+                    Trigger Ports Configuration
+                         The Trigger Ports is used to configure the AO trigger ports; there are
+                    16 trigger Ports (Trigger Port 0 ~ Trigger Port 15), and each trigger port
+                    width range is from 1 to 64. The steps are as follows:
+                    1. Double-click on trigger port. The dialog box will pop up, as shown in
+                       Figure 3-9.
+
+                    2. Click "  " and the "Search Nets" dialog box opens. Click "Search", as
+                       shown in Figure 3-10. The signals grayed out are not available.
+                    3. Select the trigger signals. As shown in Figure 3-10, the left side shows
+                       the filtered signals, and the right side displays the selected signals. You
+                       can use the "Add" or "Add all" buttons to move signals from the left to
+                       the right. Click “OK” to complete the trigger signal selection.
+                         After the netlist is updated, if the signal that has been selected in the
+                    "Trigger Port" dialog box does not exist in the netlist, the trigger signal is
+                    highlighted in red, and this function is currently only supported in For
+                    Post-Synthesis Netlist GAO, not in For RTL Design GAO.
+
+
+
+
+SUG114-3.4.4E                                                                                    10(59)
+3 GAO Config File                                                          3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-9 Trigger Port Dialog Box
+
+
+
+
+                    Note!
+                    MSB and LSB in Figure 3-9 indicate the most and least bit of the trigger port.
+                        You can perform the following operations:
+                       You can select signals by left-click, shift+left click, Ctrl+left to delete
+                        them by clicking "        ".
+                       You can select signals by left-click, shift+left click, Ctrl+left to sort by
+                        dragging.
+                       The same signal may not be added repeatedly in the same Trigger Port,
+                        and the rule is:
+                        -    If an individual signal is added repeatedly, the addition fails.
+                        -    If a sub signal of a Bus signal has already been added, when this
+                             Bus signal is added again, the added sub signal is deleted and the
+                             Bus signal is retained.
+                        -    If a Bus signal has already been added, the addition fails when its
+                             sub signal is added.
+
+
+
+
+SUG114-3.4.4E                                                                                            11(59)
+3 GAO Config File                                                  3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-10 Search Nets Dialog Box
+
+
+
+
+                         Normal, Wildcard, and Regular Expression are mutually exclusive.
+                       "Normal" means searching in a normal way. Click "Search" to match
+                        the string in "Name" text box, as shown in Figure 3-11.
+                       "Wildcard" means searching with wildcard. Click "Search" to match the
+                        string in "Name" text box. The string contains wildcards (*,? ) , as
+                        shown in Figure 3-12.
+                       "Regular" expression means searching with a regular expression. Click
+                        "Search" to match the string in "Name" text box. The string contains
+                        regular expression, as shown in Figure 3-13.
+                       If "Case Sensitive" is checked, the case-sensitive rule will be applied
+                        during signal matching. The signals area in the "Search Nets" dialog
+                        box supports left-click, Shift + left and Ctrl + left.
+
+
+
+
+SUG114-3.4.4E                                                                                   12(59)
+3 GAO Config File                                         3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-11 Normal Mode
+
+
+
+
+                    Figure 3-12 Wildcard Mode
+
+
+
+
+                    Figure 3-13 Regular Expression Mode
+
+
+
+
+SUG114-3.4.4E                                                                          13(59)
+3 GAO Config File                                                   3.1 GAO Config File in Standard Mode
+
+
+
+                         Select the "Advanced Filter" to further define filter conditions to search
+                    the required signals more specifically. Among them:
+                       The "Net Owner" is used to set the type of module where the signal
+                        belongs to. You can select a module or all. Note that this feature is not
+                        supported in the "For RTL Design" type GAO configuration interface
+                       The "Pin Directions" is used to set whether the signal is "Output only",
+                        "Input only" or "All Directions". Note that this feature is not supported in
+                        the "For RTL Design" type GAO configuration interface.
+                       The "Search In" is used to set which module to filter signals from.
+                       The "Include Subentries" is used to set whether to filter the signal from
+                        the submodule.
+                       Hierarchy View is used to display signals in hierarchical structure.
+                         As shown in Figure 3-14, the "Net Owner" selects IO_Buffer, "Pin
+                    Directions" selects "Output Only", "Search In" selects "top", and selects
+                    "Include Subentries" and "Hierarchy View". Click "Search" to display all
+                    output signals associated with IO_Buffer in top modules and their
+                    sub-modules in hierarchical structure.
+                    Figure 3-14 Advanced Filter
+
+
+
+
+                    Match Units Configuration
+                         The match units option is used to configure the match unit of trigger
+                    ports. There are up to 16 trigger match units, which range from M0-M15.
+                    Match unit is the minimum unit required by GAO to achieve trigger
+                    conditions. AO processes the trigger port signals designed by the user by
+                    the match unit and realizes the trigger if the trigger signal port signals meet
+                    the requirements.
+                        A trigger port can use one or more trigger match units, but a trigger
+                    match unit can only belong to one trigger port. The number of Match Units
+
+SUG114-3.4.4E                                                                                    14(59)
+3 GAO Config File                                                   3.1 GAO Config File in Standard Mode
+
+
+
+                    that can be used is related to the trigger expression. Select "Static" in
+                    "Expressions", up to16 trigger match units can be used; and select
+                    "Dynamic" in "Expressions", up to10 trigger match units can be used.
+                    1. In Match Units view, check the "Match Units" to the select trigger match
+                       unit, as shown in Figure 3-15.
+                    Figure 3-15 Match Units View
+
+
+
+
+                    2. Double-click one match unit to open "Match Unit Config" dialog box
+                       and configure the trigger conditions, as shown in Figure 3-16.
+                    Figure 3-16 Match Unit Config Dialog Box
+
+
+
+
+SUG114-3.4.4E                                                                                    15(59)
+3 GAO Config File                                                           3.1 GAO Config File in Standard Mode
+
+
+
+
+                    3. Click "On Trigger Port" drop-down list and select the trigger port.
+                    4. Select the match type and function from the "Match Type" and
+                       "Function" drop-down lists respectively. The details are as follows:
+                             Basic: Execute "= =" and "! = "operations, which are used for
+                              general signal comparison, and it save resource.
+                             Basic w/edges: Execute "= =" and "! = "and the jump test
+                              operations for control signal jump.
+                             Extended: Execute "=="、"!="、">"、">= "、"<"、and "<= "
+                              operations for the value of address or data signal.
+                             Extended w/edges: Execute "=="、"!="、">"、">= "、"<"、"<= "
+                              and jump test operations for the value of address or data signal or
+                              signal jump.
+                             Range: Execute "=="、"!="、">"、">= "、"<"、"<= ", in/out of the
+                              range detection operations for the value of specific address or data
+                              signal.
+                             Range: Execute "=="、"!="、">"、">= "、"<"、"<= ", in/out of the
+                              range detection and jump test operations for the value of specific
+                              address, data signal and signal jump.
+                        Value is used to set the bit value that correlates with the match type,
+                    as shown in Table 3-1. The bit value currently supports binary, hexadecimal,
+                    and octal forms.
+                    Table 3-1 Match Type Supported By Trigger Match Unit
+                    Type           Bit Values            Matching Function            Description
+                                                                                      Used for general
+                                                                                      signal comparison,
+                    Basic          0, 1, X               ==,!=
+                                                                                      and it can save
+                                                                                      resource.
+                    Basic                                                             Used to control signal
+                                   0, 1, X, R, F, B, N   = =,! =, jump detection
+                    w/edges                                                           jump.
+                                                                                      Used for the value of
+                    Extended       0, 1, X               ==,!=,>,>=,<, <=
+                                                                                      address or data signal.
+
+                    Extended                                                          Used for the value of
+                                                         ==,!=,>,>=,<,<=, jump
+                                   0, 1, X, R, F, B, N                                address or data signal
+                    w/edges                              detection
+                                                                                      and jump signal.
+                                                                                      Used for the value of
+                                                         ==,!=,>,>=,<,<=, in/out
+                    Range          0, 1, X                                            address or data signal
+                                                         of the range detection.
+                                                                                      in specific range.
+                                                                                      Used for the value of
+                    Range                                ==,!=,>,>=,<,<=, in/out
+                                                                                      address or data signal
+                                   0, 1, X, R, F, B, N   of the range detection,
+                    w/edges                                                           in specific range and
+                                                         jump detection
+                                                                                      jump detection.
+                    Note!
+                    In Bit Values:
+                     "0" means low level.
+
+SUG114-3.4.4E                                                                                            16(59)
+3 GAO Config File                                                          3.1 GAO Config File in Standard Mode
+
+
+
+                       "1" means high level.
+                       "X" means either of them.
+                       "R" indicates rising edge 0->1.
+                       "F" indicates falling edge 1->0.
+                       "B" indicates rising or falling edge transition.
+                       "N" means no logical level transition.
+                    5. If selecting "Range" or "Range w/edges" in "Match Type", and selecting
+                       in range or not in range in "Function", the value in the "Minimum" is the
+                       lower limit value, and the value in "Maximum" is the upper limit value,
+                       as shown in Figure 3-17. If the minimum is greater than the maximum,
+                       the "Value Invalid" prompt will pop up.
+                    6. When the cursor is hovering over the "Value" input box, the Value
+                       range will be displayed, as shown in Figure 3-17.
+                    Figure 3-17 Minimum/Maximum in/not in Range
+
+
+
+
+                    7. The rule for configuring Value are as follows:
+                            There are three types of signals: Bus, sub signal and single signal.
+                             Bus is the signal of Bus, sub signal is the sub signal of Bus signal,
+                             and single signal is the separate signal not belonging to sub signal.
+                            Bus, sub signal and single signal add right-click menu, including
+                             seven values X, 0, 1, R, F, B, N.
+                            For Bus, single signal, you can enter values via right-click menu or
+                             manually, while for sub signal, you can only enter values via
+                             right-click menu.
+                            The value selected by the right-click menu for Bus signals is valid
+                             for all sub signals.
+                    8. Each trigger match unit has a counter for sampling data after the trigger
+                       conditions are met N times, where N is the counter value.
+
+SUG114-3.4.4E                                                                                           17(59)
+3 GAO Config File                                                           3.1 GAO Config File in Standard Mode
+
+
+
+                            Check "Counter" to set and use the counter. If the counter is
+                             unused, capture data after matching 1 time by default.
+                            Check "Counter" and enter value in "Width", and modify or
+                             add/remove data in the box by clicking the up and down buttons on
+                             the right or using the mouse wheel.
+                            The range of the counter width is [1, 16], which determines the
+                             maximum value of the counter.
+                            If the counter width is set to 3, the maximum value is 23.
+                            Enter n in "Count". This triggers after matching n times. If the check
+                             "Continuous" is checked, enter value n in the "Count". This triggers
+                             after matching n times.
+                    Note!
+                       If the error prompt pops up, click the "Show Details" to show the details.
+                       When config file (.gao) is saved, if the number of signal trigger unit changes, but the
+                        match unit is not modified accordingly, the error prompt box will open, as shown in
+                        Figure 3-18.
+                     If the trigger port belonging to the match unit is not configured, the error prompt box
+                        will open when the .gao is saved, as shown in Figure 3-19.
+                    Figure 3-18 Error Prompt
+
+
+
+
+                    Figure 3-19 Prompt
+
+
+
+
+SUG114-3.4.4E                                                                                             18(59)
+3 GAO Config File                                                  3.1 GAO Config File in Standard Mode
+
+
+
+                    Trigger Expressions Configuration
+                         Expressions are used to set the trigger expressions. An AO has 16
+                    trigger expressions at most.
+                        In the "Expressions" view, the trigger expressions are sorted in order
+                    from Expression0~Expression15.
+                        The related operations are as follows:
+                       Select "Static" from the Mode drop-down list, and the number of Match
+                        Unit used is 16, but it cannot dynamically modify the trigger expression.
+                       Select "Dynamic" from the Mode drop-down list, and the number of
+                        Match Unit used is10. It can dynamically modify the trigger expression
+                        without re-synthesis and PnR. When the "Dynamic" type is selected,
+                        the implementation type of the trigger expression can be selected from
+                        the Implementation drop-down list, including BSRAM, SSRAM and
+                        REG, and the SSRAM option will not be displayed when there is no
+                        SSRAM resource in the device used.
+                       Double-click any trigger expression to edit.
+                       Right-click anywhere in Expressions, and select "Add" to add
+                        expression.
+                       The Expression dialog box will open, as shown in Figure 3-20. You can
+                        configure the trigger expressions in the dialog box. If the wrong syntax
+                        exists in the expression, the error will pop up when you click "OK" to
+                        save.
+                       Select the expression that you need to delete, right-click and select
+                        "Remove" to remove the trigger expression.
+                    Figure 3-20 Expression Dialog Box
+
+
+
+
+                         When "Static" is selected, the number of match unit that can be edited
+                    is 16, that is, M0~M15. When "Dynamic" is selected, the number of match
+                    unit that can be edited is 10, that is, M0~M9, and the M10~M15 are grayed
+                    out, as shown in Figure 3-20.
+
+
+SUG114-3.4.4E                                                                                   19(59)
+3 GAO Config File                                                  3.1 GAO Config File in Standard Mode
+
+
+
+                         Expression 0 ~ Expression 15 correspond to Level 0 ~ Level 15. When
+                    setting the AO trigger conditions, the minimum trigger Level is one (Level 0),
+                    and the maximum is 16 (Level 0 to Level15). The trigger level corresponds
+                    to the number of trigger expressions. If the trigger level is N and the first
+                    level trigger condition is met, the second level trigger condition will be
+                    estimated, and so on, until the Level. The final trigger signal is generated,
+                    and AO begins to capture data.
+                         Trigger expressions can logically combine one or more trigger match
+                    units, which follow these rules:
+                       Supports &, | and !. Supports logical operators, and "()".
+                       Trigger expression can only logically combine the selected trigger
+                        match units.
+                       The same trigger match unit can be used one or more times in a trigger
+                        expression.
+                       The logic combination that triggers match unit between different trigger
+                        expressions is not affected, and the same trigger match unit and
+                        operator can be used.
+                       Different expressions can call the same trigger match unit, or the same
+                        number or a different number of trigger match units.
+                         For example, if you set eight match units M0-M7, for each level of
+                    trigger expressions, any number of the match units from these eight can be
+                    logically combined. For example:
+                        M0&M1
+                        !M4&(M3|M6)
+                        ……
+                        Configure an expression by double-clicking the text box in the
+                    expression dialog. Click "OK" to finish.
+                         If "Dynamic" is checked, the resource usage of the triggering
+                    expression will change according to the Implementation, for example, when
+                    BSRAM is selected for the Implementation, BSRAM Usage will be
+                    displayed; when SSRAM is selected, SSRAM Usage will be displayed. As
+                    shown in Figure 3-21, it indicates that the Dynamic Expression occupies 2
+                    BSRAM resources.
+
+
+
+
+SUG114-3.4.4E                                                                                   20(59)
+3 GAO Config File                                                         3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-21 Select Dynamic
+
+
+
+
+                    Note!
+                       When the configuration file (.gao) is saved, the prompt will pop up if the unselected
+                        match units are used in expressions, as shown in Figure 3-22.
+                     An AO can add up to 16 expressions. If more than 16 expressions are added, an error
+                        prompt will pop up.
+                    Figure 3-22 Error Prompt
+
+
+
+
+                    Capture Conditions Configuration
+                        As shown in Figure 3-23, the Capture Options is mainly used to
+                    configure the following items.
+                       Sample clock
+                       Capture depth
+                       Storage mode of sampled signals (GAO Implementation)
+                       Trigger Position
+                       Sampling FPGA data during the initial power-up stage based on trigger
+                        conditions (Capture Initial Data)
+
+
+
+SUG114-3.4.4E                                                                                          21(59)
+3 GAO Config File                                                 3.1 GAO Config File in Standard Mode
+
+
+
+                       Clock edge selection for some registers inside the GAO IP driven by
+                        TCK (Force Trigger by Falling Edge)
+                       Sampling information of capture data signals and other signals, and
+                        displays the number of resources required to store the Capture Signals
+                        data of the current AO Core.
+                    Figure 3-23 Capture Options
+
+
+
+
+                    Sample Clock Configuration
+                         You can select the clock in the user design or other clocks as the
+                    sample. The sample clock frequency should be double or above the
+                    frequency of the configured expression and the sample data signal; it is
+                    recommended that the configured expression and sample data signal
+                    belong to the same clock domain. The sample clock supports sampling on
+                    rising edge and falling edge.
+                        You can employ the following two methods to add sample clock
+                    signals:
+                       Enter the sample clock name in the "Sample Clock" text box.
+                       Click the "     " next to the "Sample Clock" text field and the "Search
+                        Nets" dialog box will pop up to select the sample clock signal, as shown
+                        in Figure 3-24. Click "OK" to add the signal.
+
+
+
+
+SUG114-3.4.4E                                                                                  22(59)
+3 GAO Config File                                                          3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-24 Search Nets Dialog Box (Standard Mode)
+
+
+
+
+                    Note!
+                       If the configured sample clock does not exist when the configuration file (.gao) is
+                        saved, the error prompt box will appear, as shown in Figure 3-25.
+                     If there is no sample clock, the error dialog box, an error prompt will appear, as shown
+                        in Figure 3-26.
+                    Figure 3-25 Error Prompt
+
+
+
+
+                    Figure 3-26 Error Prompt
+
+
+
+
+SUG114-3.4.4E                                                                                           23(59)
+3 GAO Config File                                                   3.1 GAO Config File in Standard Mode
+
+
+
+                    Storage Configuration
+                         As shown in Figure 3-27, it is mainly used to configure the "Storage
+                    Size", "Segments Number", "Capture Amount", "GAO Implementation",
+                    "Trigger Position", and "Capture Initial Data".
+                    Figure 3-27 Capture Configuration
+
+
+
+
+                       "Storage Size" is the memory address depth for data capture. Click the
+                        "Storage Size" drop-down list and select the required size: 4, 8, 16, 32,
+                        64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536.
+                       "Segments Number" is the number of capture segments. AO uses the
+                        segment capture mode. The capture buffer is divided into one or more
+                        segments that have the same or multiple sizes. Each AO supports
+                        Storage Size/4 segments at most, and one segment at least. Select the
+                        number of segments number from the drop-down list.
+                       Capture Amount: The address depth of the memory being used on
+                        each capture buffer segment. Each capture segment has the same
+                        capture amount, and the total capture amount can not be more than
+                        the configured storage size. Select the capture amount from the
+                        drop-down list.
+                       GAO Implementation: Means sampled signal data storage method.
+                        Sampled signals can use BSRAM, SSRAM or REG resources to store
+                        the data, and you can select through the drop-down list. It should be
+                        noted that REG can be selected only when Storage Size*(Capture
+                        Signals + 1)<=512.
+                       "Trigger Position" is the capture data position in memory when
+                        triggering. Enter or select the required value in the "Trigger Position"
+                        text box. The address starts from 0.
+                       Capture Initial Data: After FPGA configuration is completed and the
+                        device enters the user logic running stage, the system automatically
+                        captures a segment of initial data with the specified capture depth
+                        when the trigger condition is met for the first time, before the "Start"
+                        button in the GAO capture interface is clicked manually.
+                    Force Trigger by Falling Edge Configuration
+                         When Force Trigger by Falling Edge is checked, you can modify some
+                    internal registers in GAO IP driven by the rising edge of the TCK clock to be
+                    driven by the falling edge, which is used to improve the timing of the TCK,
+                    and the default is unchecked.
+
+
+SUG114-3.4.4E                                                                                    24(59)
+3 GAO Config File                                                     3.1 GAO Config File in Standard Mode
+
+
+
+                    Capture Signals Configuration
+                         The "Capture Signals" in Figure 3-28 can be used to configure capture
+                    signals. The data port signal is the input signal of the data port specified in
+                    the user design.
+                    Figure 3-28 Capture Signal
+
+
+
+
+                       "Add" is used to select the signal. click "Add", and "Search Nets" dialog
+                        box pops up, then select your required data port signal, click "OK" to
+                        finish. Bus signals can also be added, such as ". [7:0]", as shown in
+                        Figure 3-28.
+                       You can use trigger signal as the capture signal if selecting "Add From
+                        Trigger". One or more trigger ports can be selected in the "Add From
+                        Trigger" list, as shown in Figure 3-29.
+                       You can delete signal by clicking "Remove".
+                       You can select signals by left-click, shift+left click, Ctrl+left to sort by
+                        dragging.
+                       Right-click the signal, and you can select Group, Ungroup, Rename,
+                        Restore Original Name, Reverse, Enable and Disable from the pop-up
+                        menu. As shown in Figure 3-30, after the signal Disable is grayed out
+                        and can not be captured, Enable the signal can be captured.
+                       After the netlist is updated, if the signal that has been selected in the
+                        Trigger window does not exist in the netlist, you can see Trigger Ports
+                        Configuration for details.
+                       The same signal may not be added repeatedly in the same Trigger Port,
+                        and you can see Trigger Ports Configuration for details.
+
+
+
+
+SUG114-3.4.4E                                                                                      25(59)
+3 GAO Config File                                                    3.1 GAO Config File in Standard Mode
+
+
+
+                    Figure 3-29 Add From Trigger
+
+
+
+
+                    Figure 3-30 Signal Right-Click Menu
+
+
+
+
+                    Resources Used by Capture Signals
+                         The number of BSRAM, SSRAM, or REG resources used by the
+                    current AO Core "Capture Signals" can be displayed, and it is related to the
+                    GAO Implementation. As shown in Figure 3-31, when BSRAM is selected
+                    for GAO Implementation, the number of BSRAM resources used by AO
+                    Core Capture Signals is displayed.
+                    Figure 3-31 Resources Used by AO Core Capture Signals
+
+
+
+
+3.1.3 Generate Bitstream File
+                        After GAO files configuration, double-click "Place & Route" in the
+                    "Process" to run PnR. Generate a bitstream file containing user designs
+                    and GAO configuration. The files are named after the AO name by default,
+                    such as "ao_0.fs", and they are stored in the project path "/impl/pnr/" by
+
+SUG114-3.4.4E                                                                                     26(59)
+3 GAO Config File                                                      3.2 GAO Config File in Lite Mode
+
+
+
+                    default.
+
+3.2 GAO Config File in Lite Mode
+3.2.1 Start Lite Mode GAO
+                        To launch the Lite Mode GAO configuration window, you must first
+                    create or load a configuration file (.gao/.rao). The Lite Mode GAO supports
+                    two creation types: "For RTL Design" and "For Post-Synthesis Netlist".
+                       The "For RTL Design" type is used to capture RTL signals before
+                        synthesis optimization, and the configuration file uses the .rao
+                        extension.
+                       The "For Post-Synthesis Netlist" type is used to capture Netlist signals
+                        after synthesis optimization, and the configuration file uses the .gao
+                        extension.
+                         The configuration processes for both Lite Mode GAO types are similar.
+                    The following description focuses on the "For Post-Synthesis Netlist" type,
+                    with any differences noted where applicable.
+                    Create GAO Config File in Lite Mode
+                        The steps are as follows:
+                    1. In the "Design" view, right-click and select "New File...".The "New"
+                       dialog box will open, as show in Figure 3-32.
+                    2. Select the "GAO Config File" and click "OK". The "New GAO Wizard"
+                       dialog box will open, as shown in Figure 3-33. Select "Lite", and then
+                       click "Next".
+                    3. Enter the config file name in the "Name" editing box, select an
+                       appropriate path in the "Create in" path selection box as shown in
+                       Figure 3-34, and then click "Next".
+                    4. Check the GAO config. file mode and path, as shown in Figure 3-35 .
+                       Click "Finish". You can see the config file in "GAO Config Files" view.
+
+
+
+
+SUG114-3.4.4E                                                                                   27(59)
+3 GAO Config File                                                     3.2 GAO Config File in Lite Mode
+
+
+
+                    Figure 3-32 Create GAO Config File (Lite Mode )
+
+
+
+
+                    Figure 3-33 New GAO Wizard (Lite Mode)
+
+
+
+
+SUG114-3.4.4E                                                                                  28(59)
+3 GAO Config File                                                           3.2 GAO Config File in Lite Mode
+
+
+
+                    Figure 3-34 GAO Config File Name (Lite Mode)
+
+
+
+
+                    Figure 3-35 GAO Config File Mode and Path (Lite Mode)
+
+
+
+
+                    Load GAO Config File
+                        The steps are as follows:
+                    1. In the "Design" view, right-click and select "Add Files..."; the "Select
+                       Files" dialog box opens.
+                    2. Select the config file (.gao) and load it to the project.
+                    Start Lite Mode GAO
+                       Double-click the configuration file (.gao) in the "Design" window. The
+                    "GAO Config" will open, as shown in Figure 3-36. If the project is without
+
+SUG114-3.4.4E                                                                                        29(59)
+3 GAO Config File                                                      3.2 GAO Config File in Lite Mode
+
+
+
+                    synthesis, when user double-clicks the config file (.gao), the "Warning"
+                    prompt will pop up.
+                        The GAO configuration window displays the capture options.
+                    Figure 3-36 Gowin GAO (Lite Mode)
+
+
+
+
+3.2.2 Lite Mode GAO Configuration
+                        The "Lite Mode GAO" is used to configure the signal capture
+                    conditions.
+                    Capture Signals Configuration
+                        As shown in Figure 3-37, the "Capture Options" includes the "Sample
+                    Clock", "Capture Signals", "Capture" and "Capture Utilization".
+
+
+
+
+SUG114-3.4.4E                                                                                   30(59)
+3 GAO Config File                                                               3.2 GAO Config File in Lite Mode
+
+
+
+                    Figure 3-37 Capture Options (Lite Mode)
+
+
+
+
+                        You can select the clock in the user design or other clocks as the
+                    sample. The sample clock supports sampling on rising edge and falling
+                    edge.
+                        You can employ the following two methods to add sample clock
+                    signals:
+                       Enter the sample clock name in the "Sample Clock" text box.
+                       Click the "     " next to the right of the "Sample Clock" text box and
+                        the "Select Nets" dialog box will pop up to select the sample clock
+                        signal, as shown in Figure 3-38. Click "OK" to add the signal.
+                    Figure 3-38 Search Nets Dialog Box (Lite Mode)
+
+
+
+
+                    Note!
+                       If the configured sample clock does not exist when the config file (.gao) is saved, the
+
+
+SUG114-3.4.4E                                                                                            31(59)
+3 GAO Config File                                                                3.2 GAO Config File in Lite Mode
+
+
+
+                        error prompt box will pop up, as shown in Figure 3-39.
+                       If there is no sample clock, the error dialog box, "No sample clock specified", will pop
+                        up, as shown in Figure 3-40.
+                    Figure 3-39 Error Prompt
+
+
+
+
+                    Figure 3-40 Error Prompt
+
+
+
+
+                    Storage Configuration
+                        As shown in Figure 3-41, it is used to configure "Capture Amount",
+                    "GAO Implementation", "Enable Capture Data Input Register", and
+                    "Capture Initial Data".
+                    Figure 3-41 Capture Configuration (Lite Mode)
+
+
+
+
+                       Capture Amount: The address depth of the memory being used on
+                        each capture buffer page.
+
+SUG114-3.4.4E                                                                                             32(59)
+3 GAO Config File                                                          3.2 GAO Config File in Lite Mode
+
+
+
+                       GAO Implementation: Means sampled signal data storage method.
+                        Sampled signals can use BSRAM, SSRAM or REG resources to store
+                        the data, and you can select through the drop-down list. It should be
+                        noted that REG can be selected only when Storage Size*(Capture
+                        Signals + 1)<=512.
+                       Enable Capture Data Input Register: Adjust timing. If there is a delay
+                        from the clk to BSRAM, you can select this option to adjust the timing to
+                        add a layer of reg for capture signal.
+                       Capture Initial Data: After FPGA configuration is completed and the
+                        device enters the user logic running stage, a continuous block of signal
+                        data, with a length equal to the sampling depth, is automatically
+                        captured during the initialization stage when the sampling clock is
+                        active.
+                    Capture Signals Configuration
+                         The "Capture Signals" in Figure 3-42 can be used to configure capture
+                    signals. The data port signal is the input signal of the data port specified in
+                    the user design.
+                    Figure 3-42 Capture Signals
+
+
+
+
+                       "Add" is used to select the signal. Click "Add", and "Search Nets"
+                        dialog box pops up, then select your required data port signal, click
+                        "OK" to finish. Bus signals can also be added, such as out[7:0] as
+                        shown in Figure 3-42.
+                       You can delete signal by clicking "Remove".
+                       You can select signals by left-click, shift+left click, Ctrl+left to sort by
+                        dragging.
+                       When a signal is selected and right-click on it, in the pop-up menu,
+                        there are operations such as "Group", "Ungroup", "Rename", "Restore
+                        Original Name", "Reverse", "Enable", and "Disable", as shown in
+                        Figure 3-43. A disabled signal is grayed out and cannot be captured,
+                        while an enabled signal can be captured.
+
+
+SUG114-3.4.4E                                                                                       33(59)
+3 GAO Config File                                                       3.2 GAO Config File in Lite Mode
+
+
+
+                       After the netlist is updated, if the signal that has been selected in the
+                        "Capture Signals" view does not exist in the netlist, the capture signal is
+                        highlighted in red, and this function is currently only supported in For
+                        Post-Synthesis Netlist GAO, not in For RTL Design GAO.
+                    Figure 3-43 Signal Right-click Menu
+
+
+
+
+                    Resources Used by Capture Signals
+                         It is used to display the number of BSRAM, SSRAM, or REG
+                    resources used by the current AO Core "Capture Signals", and it is related
+                    to the GAO Implementation. As shown in Figure 3-44, when BSRAM is
+                    selected for GAO Implementation, the number of BSRAM resources used
+                    by the AO Core Capture Signals is displayed.
+                    Figure 3-44 BSRAM Used by GAO
+
+
+
+
+3.2.3 Generate Bitstream File
+                        After GAO files configuration, double-click "Place & Route" in the
+                    "Process" to run PnR. Generate a bitstream file containing user designs
+                    and GAO configuration. The files are named after the AO name by default,
+                    such as "ao_0.fs", and they are stored in the project path "/impl/pnr" by
+                    default.
+
+
+
+
+SUG114-3.4.4E                                                                                    34(59)
+4 GAO Usage                                                       4.1 GAO Usage in Standard Mode
+
+
+
+
+                                                          4        GAO Usage
+
+                    GAO is used to display the capture signal waveform. It can also be
+                used to configure the AO capture segment number, capture amount, and
+                match conditions for match units via the JTAG. It helps you to observe data
+                signals much more directly and visually. For a simple GAO example, see
+                SUG918, Gowin Software Quick Start Guide.
+                    For RTL Design GAO (.rao), joint debugging with GVIO is supported.
+                For Post-Synthesis Netlist GAO (.gao), this is not allowed. For more details,
+                you can see SUG1189, Gowin Virtual Input Output User Guide.
+
+4.1 GAO Usage in Standard Mode
+4.1.1 Start GAO in Standard Mode
+                    Gowin Software can create either "For RTL Design" Standard Mode
+                GAO config file with extension .rao or the "For Post-Synthesis Netlist"
+                Standard Mode GAO config file with extension .gao, which has the same
+                capture window. Therefore, the capture interface for loading the .gao
+                configuration file is described here.
+                    The steps are as follows:
+                1. Select "Tools" from the menu bar.
+                2. Select "Gowin Analyzer Oscilloscope" from the pull-down list to start
+                   GAO and the .gao file can be loaded automatically. Or click "Open" to
+                   select Standard Mode config file (.gao) or waveform file
+                   (.gwd/.analyzer_prj) that you require.
+                3. According to "Static" and "Dynamic" in 3.1.2 Standard Mode GAO
+                   Configuration > Trigger Expressions Configuration, the capture
+                   windows after loading the .gao config file are different. When "Static" is
+                   configured, the capture interface is as shown in Figure 4-1. When
+                   "Dynamic" is configured, the capture window is shown in Figure 4-2.
+                   The difference is whether the trigger expression of the capture window
+                   can be dynamically edited, so only the capture window when the trigger
+                   expression is configured as "Dynamic" is described.
+                     You can also click " " to start GAO. In addition, GAO config file with
+                the extension .rao can also be loaded. For the configuration of the .gao/.rao
+                config file, see 3.1.1 Start Standard Mode GAO.
+SUG114-3.4.4E                                                                             35(59)
+4 GAO Usage                                                              4.1 GAO Usage in Standard Mode
+
+
+
+                Note!
+                Under the IDE installation path /IDE/bin, the GAO capture interface can be launched from
+                the command line, as shown in Figure 4-3, and the executable program is
+                gao_analyzer.exe, whose command parameters include:
+                 -gao: Specifies .gao or .rao file, and it is an optional command.
+                 -dir: Specifies the default path opened by the "Open" button in the GAO capture
+                     interface, and it is an optional command.
+                 -series: Specifies the chip series, and it is a mandatory command.
+                 -device: Specifies the device type, including device version, such as GW1N-4D (D is
+                     the device version), and it is a mandatory command.
+                 -fs: Specifies the fs file loaded by GAO-Programmer, and it is an optional command.
+                Figure 4-1 Gowin Analyzer Oscilloscope (Static Standard Mode)
+
+
+
+
+                Figure 4-2 Gowin Analyzer Oscilloscope (Dynamic Standard Mode)
+
+
+
+
+                Figure 4-3 Launch the GAO Capture Interface via Command Line
+
+
+
+
+SUG114-3.4.4E                                                                                     36(59)
+4 GAO Usage                                                       4.1 GAO Usage in Standard Mode
+
+
+
+
+4.1.2 Run GAO
+                     As shown in Figure 4-2, GAO window includes toolbar, Configuration
+                view and Core Waveform view.
+                   The toolbar allows operations such as loading configuration files
+                    (.gao/.rao) or waveform files (.gwd/.analyzer_prj), setting the Target
+                    Jtagserver, and performing device initialization.
+                   The "Configuration" view is used to configure dynamic parameters of
+                    functional cores,
+                   The "Core" waveform view is used for waveform display.
+                Toolbar
+                    GAO toolbar includes Open…, Target Jtagserver, Cable, Start/Stop
+                control, Auto Run, Force Trigger, Zoom in/out, Go to Cursor, Go to Time 0,
+                Go to Last Time, Previous Transition, Next Transition, Add Marker,
+                Previous Marker, Next Marker, Delete All Markers, Export, etc., as shown in
+                Figure 4-4.
+                Figure 4-4 Toolbar (Standard Mode)
+
+
+
+
+                    The detailed description is as follows:
+
+                   "   "：Open and load config files (.gao/.rao/.gwd/.analyzer_prj).
+                   Target Jtagserver: Used to connect GAO to a Local jtagserver or
+                    Remote jtagserver. As shown in Figure 4-5, click "Target Jtagserver",
+                    then the "Target Jtagserver Configuration" dialog box pops up, which
+                    includes:
+                    -   The "Connect to" dropdown menu includes "Local jtagserver" and
+                        "Remote jtagserver" options. The default is Local server.
+                    -   Connect to the Local jtagserver for local GAO debugging and local
+                        Programmer operations. Connect to the Remote server for remote
+                        GAO debugging and remote Programmer operations.
+                    -   Before connecting to a Remote jtagserver, start the jtagserver on
+                        the remote device. For details on starting the jtagserver, see the
+                        Section 3.14 in SUG502, Gowin Programmer User Guide. Figure
+                        4-6 shows the command-line launching of the remote jtagserver.
+                    -   When selecting Remote jtagserver, configure the remote device's
+                        "Host Name/IP" and "Port", as shown in Figure 4-7. The Host
+                        Name/IP can directly specify the IP address of the remote device or
+                        its Host Name. If the Host Name resolves to multiple IP addresses,
+                        the first IP address is connected by default. The port defaults to
+                        36548 but can be modified; it must match the port specified when
+                        starting the jtagserver on the remote device.
+                    -   Clicking the "Connect" button initiates the connection to the
+                        jtagserver. If the connection fails, the "Connect to" dropdown will
+
+SUG114-3.4.4E                                                                             37(59)
+4 GAO Usage                                                        4.1 GAO Usage in Standard Mode
+
+
+
+                         display "Local jtagserver connection failed" or "Remote jtagserver
+                         connection failed". If successful, it will display "Local jtagserver
+                         connection successful" or "Remote jtagserver connection
+                         successful".
+                    -    After successfully connecting to the Remote jtagserver, you can
+                         perform remote GAO debugging and remote Programmer
+                         operations, which are the same as those for the Local jtagserver.
+                Figure 4-5 Target Jtagserver Configuration
+
+
+
+
+                Figure 4-6 Start jtagserver
+
+
+
+
+                Figure 4-7 Connect to Remote jtagserver
+
+
+
+
+                   "          ": Gowin USB Cable (GWU2X), Gowin USB Cable (FT2CH),
+                    Gowin USB Cable (WINUSB), and Parallel Port (LPT) can be selected
+                    from pull-down list. The Cable type is automatically scanned when the
+
+SUG114-3.4.4E                                                                              38(59)
+4 GAO Usage                                                           4.1 GAO Usage in Standard Mode
+
+
+
+                    GAO Capture interface is opened, and the default is Gowin USB Cable
+                    (GWU2X). When using GAO Programmer to download Bitstream or
+                    use GAO to capture data, it is necessary to select the correct Cable
+                    type, otherwise there will be a Bitstream download failure or GAO can
+                    not be triggered.
+                                     : Automatically scans the connected cable and
+                    displays the corresponding location parameter and SN code parameter.
+                    When connecting dual-channel cable or more than one cable, you can
+                    manually select the corresponding cable according to the parameter to
+                    perform Bitstream download operation or GAO capture data operation.
+
+                   "   ", "   ", " ", "   "：Start, Auto Run, Force Trigger, and Stop. The
+                    shortcut keys are "F1", "F2", "F3" and "F4" in order.
+                    -   Start means Analyzer will perform one data capture
+                    -   Auto Run means Analyzer will loop and display the captured signal
+                        status in the Core waveform view until user clicks stop, and this
+                        function is only supported when the number of segment is 1
+                    -   Force Trigger means to force Analyzer to complete the data
+                        capture when the trigger condition is not reached
+                    -   Stop used to stop the data capture operation
+
+                   "    ", "   ", "   ": Zoom in/out and fullscreen. The shortcut keys are
+                    "F8", F7" and "F6" in order.
+
+                   "   ", "     ", "   ", "   ", "   ", "   ", "   ", "   ", "   "
+
+                    -   "      " Go to Cursor: Moves the view to the position of the cursor.
+
+                    -   "   " Go to Time 0: Moves the view to the position marked as 0 on
+                        the waveform view, i.e., the leftmost position of the waveform.
+
+                    -   "    " Go to Last Time: Moves the view to the position marked with
+                        the highest number on the waveform view, i.e., the rightmost
+                        position of the waveform.
+
+                    -   "   " Previous Transition: Searches backward from the current
+                        cursor position for the occurrences of a transition in the selected
+                        signal values.
+
+                    -   "    " Next Transition: Searches forward from the current cursor
+                        position for the occurrences of a transition in the selected signal
+                        values.
+
+                    -   "      " Add Marker: Creates a marker at the cursor position.
+
+                    -   "    " Previous Marker: Searches backward from the current cursor
+                        position for a marker.
+
+
+SUG114-3.4.4E                                                                                 39(59)
+4 GAO Usage                                                              4.1 GAO Usage in Standard Mode
+
+
+
+
+                    -   "    " Next Marker: Searches forward from the current cursor
+                        position for a marker.
+
+                    -   "      " Delete All Markers: Deletes all markers.
+                    Note!
+                    When a marker is selected, the other markers and cursors will use it as a reference
+                    and display the difference between them and the reference marker.
+
+                   "       ": Export waveform data.
+                AO Configuration
+                    AO Configuration has the following functions:
+                   Whether to use Programmer.
+                   Whether to use the device chain, you can select General JTAG device
+                    or Gowin device.
+                   Display AO sampling data, Expressions, and Match Unit.
+                   Modify configuration parameters.
+                     Configuration view includes Programmer and AO Core (Capture,
+                Trigger Expressions and Match Unit), as shown in Figure 4-8.
+                Figure 4-8 Configuration View
+
+
+
+
+                    Programmer has the following functions:
+
+
+SUG114-3.4.4E                                                                                      40(59)
+4 GAO Usage                                                       4.1 GAO Usage in Standard Mode
+
+
+
+                   After Enable Programmer is checked, Programmer is supported.
+                    According to GAO Programmer requirements, only Access Mode and
+                    Operation are supported. For the usage, see SUG502, Programmer
+                    User Guide.
+                   When connecting to a remote device for programming operations, the
+                    Programmer needs to connect to the remote device's jtagserver. For
+                    connection instructions, see the "Target jtagserver" descriptions in
+                    4.1.2 Run GAO -> Toolbar.
+
+                   Click "    " to scan device and display details, such as, Series, Device,
+                    Device Version, Operation, ID Code and IRCode. If the ID code of the
+                    scaning device is the same as the one of other devices, the popover
+                    displays all the devices with the same ID code for you to select.
+
+                   Device chain function can be implemented. Click "    " can add device.
+                    The default series is General JTAG Device (Non Gowin device). The
+                    default device is JTAG_NOP. Double-click Series and Device column of
+                    Device to pop up the drop-down list, you can select series and device
+                    as required. In addition, IRCode of General JTAG Device can be
+                    configured from 1 to 16. The IRCode of Gowin Device is 8 by default
+                    and can not be modified.
+
+                   Click "   " to delete the selected device.
+
+                   Click "   " to move up the selected device.
+
+                   Click "   " to move down the selected device.
+
+                   Click "   " to download bitstream file.
+                   Frequency can be used to select the frequency of the tck port when
+                    downloading Bitstream. Frequency can be selected when Cable is
+                    FT2CH or WINUSB, but not selected when Cable is GWU2X or LPT.
+                    Frequency defaults to 2.5 MHz, and the other options are 0.02 MHz,
+                    0.1 MHz, 0.3 MHz, 0.4 MHz, 0.5 MHz, 0.75 MHz, 0.9 MHz, 1.1 MHz,
+                    1.5 MHz, 2 MHz, 2.5 MHz, 10 MHz, 15 MHz.
+                   GAO can only capture the signal data of Gowin Device, but cannot
+                    capture the signal data of General JTAG Device, so you can only check
+                    Gowin Device in Enable column.
+                   Output view can display downloading information.
+                    AO Core view includes Capture, Trigger Expressions, and Match Unit.
+                    Capture has the following functions:
+                   Configure storage size, segment number, capture amount, and trigger
+                    position.
+                   Modify the above parameters. For the details, please refer to Storage
+                    Configuration.
+                    Trigger Expressions has the following functions:
+
+SUG114-3.4.4E                                                                             41(59)
+4 GAO Usage                                                         4.1 GAO Usage in Standard Mode
+
+
+
+                   After .gao file is loaded, all trigger expressions are checked by default
+                    on the capture window.
+                   Double-click any trigger expression to pop up the Expression dialog
+                    box, which can be edited. The Match Unit not checked will be grayed
+                    out, as shown in Figure 4-9.
+                   Trigger Expression can not be added.
+                   Any trigger is implemented when none of the trigger expressions is
+                    checked.
+                Figure 4-9 Expression Dialogue Box
+
+
+
+
+                     Match Unit includes the following functions:
+                   Display the name, trigger port, and match type, etc.
+                   Double click the match unit, modify the match functions and Bit Value in
+                    "Match Unit Config" dialog box, such as, AO Counter, and match times,
+                    as shown in Figure 4-10. For the details, see 3.1.2 Standard Mode
+                    GAO Configuration.
+
+
+
+
+SUG114-3.4.4E                                                                               42(59)
+4 GAO Usage                                                           4.1 GAO Usage in Standard Mode
+
+
+
+                Figure 4-10 Match Unit Config Dialog Box
+
+
+
+
+                Display Waveform
+                      Core waveform view is used to display signal waveform and supports
+                the following functions:
+                   Mark the position with marker.
+                   Display the segment number of the capture data
+                   Zoom in/out and fullscreen.
+                   Change the order of signals.
+                   Configure Group, Ungroup, Rename, Restore Original Name, Reverse,
+                    Long Name, Short Name, New Divider, and Delete Divider operations
+                    for signals, as well as Format conversions and Color modifications.
+
+                    Click " " or use shortcut "F1" to run GAO. When the trigger
+                conditions are met, GAO displays Core waveform view. Figure 4-11 shows
+                capture signal name, Value, and waveforms.
+
+                     If you click the ''     " and the trigger condition does not meet, you can
+                click the ''  " or use "F3" to force the trigger; or click the ''   " or use
+                shortcut "F4" to stop running.
+
+                    In addition, click the " " or use shortcut "F2" to start the GAO Auto
+                Run. At present, Auto Run is only supported when the number of Segments
+                and AO Core is both 1. Analyzer will loop and display the captured signal in
+                the Core waveform view in real time until you click stop.
+
+                     Click "   " or "      ", GAO Programmer is grayed out.
+
+SUG114-3.4.4E                                                                                  43(59)
+4 GAO Usage                                                            4.1 GAO Usage in Standard Mode
+
+
+
+                Figure 4-11 GAO Waveform Display (Standard Mode)
+
+
+
+
+                      As shown in Figure 4-12, initial position of cursor is the trigger position
+                by default. The trigger point is marked with yellow line. Right-click the blank
+                above the ruler to add a new marker. Move the mouse to a marker position,
+                left-click and drag the marker. Additionally, right-click on the marker to
+                select "Remove Marker" to delete the selected marker, or select "Remove
+                All Markers" to delete all markers.
+                Figure 4-12 Ruler and Cursor Display (Standard Mode)
+
+
+
+
+                     Right-click in the waveform display area to pop up the menu, as shown
+                in Figure 4-13.
+
+SUG114-3.4.4E                                                                                  44(59)
+4 GAO Usage                                                       4.1 GAO Usage in Standard Mode
+
+
+
+
+                    Click "Zoom In", "Zoom Out", or "    ", or "  ", or use the shortcut
+                keys "F8", "F7", or Ctrl+ mouse wheel to zoom in/out the waveform. Click
+                the "   ", or use the shortcut key "F6" to display the waveform fullscreen.
+                    The dropdown list on the right side of the Cursor includes five
+                submenus: Go to Cursor, Go to Time 0, Go to Last Time, Previous
+                Transition, and Next Transition.
+                    The dropdown list on the right side of the Markers includes four
+                submenus: Add Marker, Previous Marker, Next Marker, and Delete All
+                Markers.
+                Figure 4-13 Right-click Menu (Standard Mode)
+
+
+
+
+                    Change signals order by clicking signals in Name column.
+                    The Name column and Value column width can be adjusted, and the
+                adjustment made by you before the trigger is retained when triggered
+                again.
+                     In Name Column, you can select multiple signals. Right click and
+                select Group in the pop-up menu to group Bus signals. For signals with the
+                same name and continuous subscript, such as cnt[1], cnt[0], the grouped
+                Bus signal name is cnt[1:0]. For signals with different names or same
+                names but discontinuous subscriptions, the grouped Bus signal name
+                defaults to group_index[n:0], index and n are integers greater than or equal
+                to 0, as shown in Figure 4-14.
+
+
+
+
+SUG114-3.4.4E                                                                             45(59)
+4 GAO Usage                                                       4.1 GAO Usage in Standard Mode
+
+
+
+                Figure 4-14 Group Bus Signal (Standard Mode)
+
+
+
+
+                    The Core waveform view includes the following functions:
+
+                   Click "  " again to capture sampling signals waveform. The Bus signal
+                    generated by "Group" still exists.
+                   Do not close the GAO capture window to trigger again, and the
+                    waveform display view size remains the same as last time.
+                   Right-click the Bus signal\ in "Name" column and select "Ungroup" in
+                    the pop-up menu to ungroup Bus signal.
+                   Bus signals generated through "Group" are not saved as a .gwd
+                    waveform file. When reopening with GAO, they needs to be regrouped,
+                    and the manually created Bus signals are retained when they are
+                    saved as a .gwd waveform file, and the .gwd file is loaded by GAO.
+                   Bus signals can be added together or individually in the Capture
+                    Signals of GAO configuration view. When they are added together, the
+                    waveform view will directly display as Bus Signals, such as "out [7:0]",
+                    as shown in Figure 4-14.
+                   It is not allowed to select some sub Bus signals to group a new Bus.
+                    In Value area, select one signal and right-click to pop up the menu, as
+                shown in Figure 4-15.
+                   You can rename the selected signal by clicking Rename.
+                   You can restore signals to netlist names by clicking Restore Original
+                    Name.
+                   You can reverse the selected signals by clicking Reverse.
+                   Long Name displays the name with the signal path.
+                   Short Name displays the name without the signal path.
+
+SUG114-3.4.4E                                                                             46(59)
+4 GAO Usage                                                        4.1 GAO Usage in Standard Mode
+
+
+
+                   New Divider is used to add a signal divider.
+                   Delete Divider is used to delete a signal divider.
+                   Format is used to set the number base of the signal and the waveform
+                    display mode.
+                   You can modify the color of the selected signal by clicking color,
+                    including Green, Light Green, Dark Red, Red, Orange, Yellow, Blue,
+                    Light Blue, Dark Blue, Purple, and the waveform color is Green by
+                    default.
+                    Format includes two parts, as shown in Figure 4-15.
+                   One part includes Binary, Octal, Signed Decimal, Unsigned Decimal,
+                    Signed Magnitude, Hexadecimal, ASCII, Real, used to set the way of
+                    displaying the Value of the sampled signal; and by default, the Value is
+                    displayed in hexadecimal.
+                    -   The difference between Signed Decimal and Signed Magnitude is
+                        that Signed Decimal is the signed decimal two's complement
+                        representation, while Signed Magnitude is the signed decimal
+                        magnitude representation.
+                    -   ASCII: Every 8-bit data is converted to one ASCII code; data in the
+                        range of 8'h00~8'h20h and 8'h7F corresponding to ASCII code is
+                        converted to space, while other data is converted to the
+                        corresponding ASCII code.
+                    -   Real: Can be set to display as fixed point or floating point by the
+                        Type drop-down box, and the floating point includes single
+                        precision and double precision.
+                    -   For the Real fixed point setting, as shown in Figure 4-19, the
+                        precision range of Binary Point can be set to 0-80, and when the
+                        value of Binary Point exceeds the bit width of Bus, the
+                        corresponding value will be converted to "NA".
+                    -   For the Real Floating Point setting, as shown in Figure 4-20, Single
+                        Precision and Double Precision can be set, but it is required that
+                        the Bus bit width corresponding to Single Precision is 32 bits, and
+                        the Bus bit width corresponding to Double Precision is 64 bits;
+                        otherwise, the corresponding value will be converted to "NA"; for
+                        the converted infinity floating point number, it is "INF".
+                   The other part includes Unsigned Bar Chart, Unsigned Line Chart,
+                    Signed Bar Chart, Signed Line Chart, and Analog Settings, used to set
+                    the display of waveforms in bar chart or line chart, and they allow the
+                    configuration of the pixel height for bar and line charts, as well as the
+                    Y-axis range of the signals. An example of the Unsigned Bar Chart is
+                    shown in Figure 4-16, an example of the Unsigned Line Chart is shown
+                    in Figure 4-17, and the Analog Settings configuration interface is
+                    shown in Figure 4-18.
+
+
+
+
+SUG114-3.4.4E                                                                              47(59)
+4 GAO Usage                                                           4.1 GAO Usage in Standard Mode
+
+
+
+                Figure 4-15 Signal Right-click Menu (Standard Mode)
+
+
+
+
+                Figure 4-16 Unsigned Bar Chart
+
+
+
+
+SUG114-3.4.4E                                                                                 48(59)
+4 GAO Usage                                                       4.1 GAO Usage in Standard Mode
+
+
+
+                Figure 4-17 Unsigned Line Chart
+
+
+
+
+                Figure 4-18 Analog Settings
+
+
+
+
+                     In Figure 4-18, "Row Height" is used to set the pixel height, and "Y
+                Range" is used to set the range of signal values displayed within the
+                current pixel height. The options are:
+                   Auto: The waveform is displayed using the maximum value calculated
+                    from the bus width as Maximum, and the minimum value as Minimum.
+                   Fixed: The waveform is displayed using the Maximum and Minimum
+                    values set by the user. If Minimum ≥ Maximum, the waveform
+                    defaults to using the signal's maximum and minimum values from the
+                    current sampling display as Maximum and Minimum, respectively.
+
+
+
+
+SUG114-3.4.4E                                                                             49(59)
+4 GAO Usage                                                      4.1 GAO Usage in Standard Mode
+
+
+
+                Figure 4-19 Fixed Point Setting
+
+
+
+
+                Figure 4-20 Floating Point Setting
+
+
+
+
+                Monitor File
+                    GAO monitors whether the loaded .gao/.rao or .fs files are updated. If
+                they have been upated, you will be prompted.
+                1. GAO Config files Updated
+                   After GAO config file is updated, if GAO does not capture data at this
+                   time, the prompt will pop up immediately. Otherwise, the prompt will
+                   pop up after the data is captured, as shown in Figure 4-21. Click
+                   "Reload" to load the updated GAO config file. At the same time, GAO
+                   Programmer is updated to "Disable", and waveform view is closed, as
+                   shown in Figure 4-22.
+                Figure 4-21 Prompt
+
+
+
+
+SUG114-3.4.4E                                                                            50(59)
+4 GAO Usage                                                        4.1 GAO Usage in Standard Mode
+
+
+
+                Figure 4-22 Reload Config File
+
+
+
+
+                2. Bitstream File Updated
+                    -    If GAO prompts "Please program the device first", it will no longer
+                         prompt you to update the bitstream file.
+                    -    If GAO prompts "Ready to acquire", it will prompt you to update the
+                         bitstream file. If GAO does not capture data at this time, prompt will
+                         pop up immediately in GAO Programmer Output; otherwise,
+                         prompt will pop up after the data is captured, and the prompt
+                         updates to "Please program the device first", as shown in Figure
+                         4-23.
+                Figure 4-23 Prompt
+
+
+
+
+4.1.3 Export Waveform
+                     The steps are as follows:
+
+                1. Click the "       " in the toolbar.
+                2. The Export dialog box pops up, specifying the wave file information,
+                   where the clock signal (Clock Signal) is the sampled clock signal
+                   specified in GAO and cannot be changed, as shown in Figure 4-24.
+                    The GAO export file supports the following settings:
+
+SUG114-3.4.4E                                                                              51(59)
+4 GAO Usage                                                       4.1 GAO Usage in Standard Mode
+
+
+
+                   AO core (Export Core) that specifies the waveform data to be exported
+                    is supported.
+                   The specified file export path (Export to) is supported. The default path
+                    is /impl/wave, and it allows to specify the relative path, where the base
+                    path is the path of the current project file .gprj.
+                   File Name defaults to the name of the GAO configuration file enabled in
+                    the current project.
+                   The specified file export format, including *.csv(Comma Separated
+                    Values), *.vcd(Value Change Dump), *.prn(Tab_delimited Text), and
+                    *.gwd(Gowin Waveform Data).
+                   The output waveform data file supports binary, octal, decimal and
+                    hexadecimal.
+                   The gwd file is used to save the waveform data of the current capture
+                    window and its corresponding .gao/.rao files, including the group
+                    information, rename information and data conversion information set
+                    by users.
+                   Tab_delimited Text- (*.prn) consists of three forms, "All Signals/Buses",
+                    "Waveform Signals/Buses" and Only Buses, as shown in Figure 4-25.
+                    -   All Signals/Buses: The prn file will display all signals and buses
+                        signal, including the signals grouping the Buses.
+                    -   Waveform Signals/Buses: The prn file will display all signals and
+                        buses signal data, but does not include the signals grouping the
+                        Buses.
+                    -   Only Buses: The prn file will display only the Bus signal checked by
+                        the user, as shown in Figure 4-26.
+                   Clock period supports us, ns and ps. Since the GAO waveform
+                    interface's scale only indicates the position of captured data without
+                    reflecting the period, you can specify the clock period through Clock
+                    period.
+                Figure 4-24 Export Dialog Box
+
+
+
+
+SUG114-3.4.4E                                                                             52(59)
+4 GAO Usage                                                          4.2 GAO Usage in Standard Mode
+
+
+
+
+                Figure 4-25 Export Tab_delimited Text (*.prn) File
+
+
+
+
+                Figure 4-26 Export Only Buses prn File
+
+
+
+
+4.2 GAO Usage in Standard Mode
+4.2.1 Start Lite Mode GAO
+                     The steps are as follows:
+                1. Select "Tools" from the menu bar.
+                2. Select "Gowin Analyzer Oscilloscope" from the pull-down list to start
+                   GAO, click "Open" to select Lite Mode gao config file (.gao) or
+                   waveform file .gwd/.analyzer_prj you require, as shown in Figure 4-27.
+
+
+
+
+SUG114-3.4.4E                                                                                53(59)
+4 GAO Usage                                                         4.2 GAO Usage in Standard Mode
+
+
+
+                Figure 4-27 Gowin Analyzer Oscilloscope Window (Lite Mode)
+
+
+
+
+SUG114-3.4.4E                                                                               54(59)
+4 GAO Usage                                                        4.2 GAO Usage in Standard Mode
+
+
+
+
+4.2.2 Run GAO
+                Toolbar
+                     Please see 4.1.2 Run GAO > Toolbar for details.
+                Trigger
+                     This section is a bit different from 4.1.2 Run Gao > AO Configuration.
+                Only the differences are described here. For other details, you can see
+                4.1.2 Run Gao > AO Configuration.
+                    The differences are as follows: Lite GAO Trigger view is as shown in
+                Figure 4-28. Its main functions are as follows:
+                   Auto Trigger: click "Start" to trigger automatically when you select this
+                    option.
+                   Delay: configure the trigger delay.
+                Figure 4-28 Trigger View
+
+
+
+
+                Display Waveform
+                    Please see 4.1.2 Run GAO > Display Waveform for details.
+                Monitor File
+                     Please see 4.1.2 Run GAO > Monitor File for details.
+4.2.3 Output Waveform
+                     Please see 4.1.3 Export Waveform for details.
+
+
+
+
+SUG114-3.4.4E                                                                              55(59)
+5 Import Waveform File                                                        5.1 Import csv to Matlab
+
+
+
+
+                                        5          Import Waveform File
+
+                       GAO supports csv, vcd, prn, and gwd. csv and prn can be imported to
+                   Matlab; vcd can be imported to ModelSim; gwd can be imported to GAO.
+                   For Matlab and ModelSim, you need a third-party license to open them.
+
+5.1 Import csv to Matlab
+                       To analyze the data easily, the data is imported to csv file in the form of
+                   Bus. The following is an example of importing the csv in decimal to Matlab.
+                         The steps are as follows:
+                   1. As shown in Figure 5-1, click "Import Data" to select the file to be
+                      imported.
+                   2. Set the delimiter by clicking "Delimited". The content is separated by
+                      commas. Therefore, when importing csv file to Matlab, you need to set
+                      the delimiter as a comma. As shown in Figure 5-2, select "Comma" in
+                      "Delimited" drop-down list.
+                   3. Save only the variable name and waveform data in csv, delete the
+                      header annotation. Or import the data to Matlab, select the data range
+                      to be imported by "Range". As shown in Figure 5-2, the range is
+                      A6:N1023, that is, import 14 columns and 1024 rows of data.
+                   4. "Variable Names Row" can specify the row in which the variable name
+                      is in order to import the variable name. As shown in Figure 5-2, the row
+                      of the variable name is specified as the fourth.
+                   5. Click "Import Selection" to import the selected variable name and data
+                      in matrix, as shown in Figure 5-3.
+                   Figure 5-1 Matlab Import Data
+
+
+
+
+SUG114-3.4.4E                                                                                  56(59)
+5 Import Waveform File                                                           5.2 Import prn to Matlab
+
+
+
+                   Figure 5-2 Import csv to Matlab
+
+
+
+
+                   Figure 5-3 Import csv to Matlab in Matrix
+
+
+
+
+5.2 Import prn to Matlab
+                         To analyze the data easily, the data is usually exported to the prn file in
+                   Bus. Here the decimal prn file exported in "Only Buses" is used to import to
+                   the Matlab. The prn file only contains the Bus.
+                         Similar to the step of importing the csv file to Matlab, since the prn file
+                   does not have the header annotation and the variable name defaults to the
+                   first row, you do not need to manually select the range and specify the row
+                   of the variable name. In addition, the prn file is a file with tab as a delimiter,
+                   so when you import the prn file, you do not need to select a delimiter, as
+                   shown in Figure 5-4.
+                         The imported data displays in matrix, as shown in Figure 5-5.
+
+
+
+
+SUG114-3.4.4E                                                                                     57(59)
+5 Import Waveform File                                                   5.3 Import vcd to ModelSim
+
+
+
+                   Figure 5-4 Import prn to Matlab
+
+
+
+
+                   Figure 5-5 Import prn to Matlab in Matrix
+
+
+
+
+5.3 Import vcd to ModelSim
+                         The steps to open vcd waveform files with ModelSim are as follows.
+                   1. In ModelSim, use the command "vcd2wlf test.vcd test.wlf" to convert
+                      vcd to wlf, as shown in Figure 5 6.
+                   2. Use the command vsim -view test.wlf or click File > Open in the menu
+                      bar to open the wlf file; display the waveform in ModelSim through the
+                      right-click menu "Add Wave", as shown in Figure 5 7.
+
+
+
+
+SUG114-3.4.4E                                                                               58(59)
+5 Import Waveform File                                          5.3 Import vcd to ModelSim
+
+
+
+                   Figure 5-6 vcd to wlf
+
+
+
+
+                   Figure 5-7 Open vcd Waveform with ModelSim
+
+
+
+
+SUG114-3.4.4E                                                                      59(59)
+

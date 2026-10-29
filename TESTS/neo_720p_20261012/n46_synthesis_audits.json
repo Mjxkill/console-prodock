@@ -1,0 +1,172 @@
+{
+  "ddr_startup": {
+    "passed": true,
+    "errors": [],
+    "chains": {
+      "start_sync": [
+        {
+          "Q": "start_sync[0]",
+          "D": "VCC",
+          "CLK": "clk_d",
+          "CLEAR": "n7_5",
+          "CE": "VCC"
+        },
+        {
+          "Q": "start_sync[1]",
+          "D": "start_sync[0]",
+          "CLK": "clk_d",
+          "CLEAR": "n7_5",
+          "CE": "VCC"
+        }
+      ],
+      "cpu_sync": [
+        {
+          "Q": "cpu_sync[0]",
+          "D": "VCC",
+          "CLK": "vid_hclk",
+          "CLEAR": "n64_5",
+          "CE": "VCC"
+        },
+        {
+          "Q": "soc_dbg_232[0]",
+          "D": "cpu_sync[0]",
+          "CLK": "vid_hclk",
+          "CLEAR": "n64_5",
+          "CE": "VCC"
+        }
+      ]
+    },
+    "netlist_sha256": "c4a51b650cbf2eb1107822116199ca7e37170834f9cf84655490a73a2cd69458"
+  },
+  "system_reset": {
+    "passed": true,
+    "errors": [],
+    "drivers": [
+      {
+        "cell": "vid_hrstn_r_s1",
+        "ports": {
+          "Q": "vid_hrstn_r",
+          "D": "exts_hrstn",
+          "CLK": "vid_hclk",
+          "CLEAR": "GND",
+          "CE": "VCC"
+        }
+      },
+      {
+        "cell": "vid_hrstn_scanout_s1",
+        "ports": {
+          "Q": "vid_hrstn_scanout",
+          "D": "exts_hrstn",
+          "CLK": "vid_hclk",
+          "CLEAR": "GND",
+          "CE": "VCC"
+        }
+      },
+      {
+        "cell": "vid_hrstn_accel_s1",
+        "ports": {
+          "Q": "vid_hrstn_accel",
+          "D": "exts_hrstn",
+          "CLK": "vid_hclk",
+          "CLEAR": "GND",
+          "CE": "VCC"
+        }
+      },
+      {
+        "cell": "vid_hrstn_gamepads_s1",
+        "ports": {
+          "Q": "vid_hrstn_gamepads",
+          "D": "exts_hrstn",
+          "CLK": "vid_hclk",
+          "CLEAR": "GND",
+          "CE": "VCC"
+        }
+      },
+      {
+        "cell": "vid_hrstn_scan_queue_s1",
+        "ports": {
+          "Q": "vid_hrstn_scan_queue",
+          "D": "exts_hrstn",
+          "CLK": "vid_hclk",
+          "CLEAR": "GND",
+          "CE": "VCC"
+        }
+      },
+      {
+        "cell": "vid_hrstn_usb_trace_s1",
+        "ports": {
+          "Q": "vid_hrstn_usb_trace",
+          "D": "exts_hrstn",
+          "CLK": "vid_hclk",
+          "CLEAR": "GND",
+          "CE": "VCC"
+        }
+      },
+      {
+        "cell": "vid_hrstn_usb_msc_s1",
+        "ports": {
+          "Q": "vid_hrstn_usb_msc",
+          "D": "exts_hrstn",
+          "CLK": "vid_hclk",
+          "CLEAR": "GND",
+          "CE": "VCC"
+        }
+      }
+    ],
+    "netlist_sha256": "c4a51b650cbf2eb1107822116199ca7e37170834f9cf84655490a73a2cd69458"
+  },
+  "ddr_profile": {
+    "passed": true,
+    "profile": "neo-ddr6-300-fifo-registers",
+    "variant": "neo-ddr6-300-fifo-registers",
+    "base_profile": "prodock-g22r0-ddr",
+    "reference_bitstream_sha256": "fbbea9c357d0c4d5b33c3c4a7e54f9ed0ff8e31cc3fad1ac9dc1771f8e8cba5f",
+    "verified_files": 27,
+    "changed": [],
+    "system_reset_baseline_reconstructed": true,
+    "ddr_startup_baseline_reconstructed": true,
+    "scope": "Neo only: DDR3 6.0 regenerated at the existing PLL frequency of 300 MHz (tCK=3333 ps). Other legacy parameters and native ports retained. Controller BSRAM; CPU FIFOs in registers. Not board-qualified."
+  },
+  "mapped_startup_simulation": {
+    "passed": true,
+    "scope": "Exercise the synthesized startup sequencer using official functional models.\n\nNo SDF or metastability model; routed recovery/removal must also pass.\n",
+    "cases": [
+      {
+        "cpu_half_ns": "6.25",
+        "passed": true
+      },
+      {
+        "cpu_half_ns": "6.243",
+        "passed": true
+      },
+      {
+        "cpu_half_ns": "6.257",
+        "passed": true
+      },
+      {
+        "cpu_half_ns": "11.731",
+        "passed": true
+      }
+    ],
+    "sources": {
+      "tang/impl/console_neo_n46syn2/impl/gwsynthesis/console_neo.vg": "c4a51b650cbf2eb1107822116199ca7e37170834f9cf84655490a73a2cd69458",
+      "/home/michael/console/TESTS/rtl/neo_ddr_startup_tb.sv": "1e1d25fb7b183397b9ac9d63833d33a68b2b9577690d3a4c7c909ca6445c4d74",
+      "/home/michael/gowin/IDE/simlib/gw5a/prim_sim.v": "7db6e9953af24f1233dbc8f58352a1673e91d01bb69656a16ae893a68089f85d"
+    },
+    "primitive_types": [
+      "ALU",
+      "DFFCE",
+      "GND",
+      "GSR",
+      "INV",
+      "LUT2",
+      "LUT3",
+      "LUT4",
+      "MUX16",
+      "MUX2",
+      "MUX4",
+      "MUX8",
+      "VCC"
+    ]
+  }
+}

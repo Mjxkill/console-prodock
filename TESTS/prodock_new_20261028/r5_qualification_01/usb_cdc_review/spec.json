@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "prodock_r5_usb_cdc_reset_review_01",
+  "parent_task_id": "prodock_sd_boot_r5",
+  "domain": "fpga",
+  "task_type": "cdc_reset_review",
+  "difficulty": "hard",
+  "inputs": [
+    "CONTRACT.md",
+    "PROTECTED.json",
+    "context/SOURCE_PROVENANCE.json",
+    "context/console_top.v",
+    "context/ddr_dcfifo.v",
+    "context/netlist_taps.vo",
+    "context/timing.json",
+    "context/timing_reports.sdc",
+    "context/usb_idle_trace.v",
+    "context/usb_msc_port.v",
+    "context/usb_reset_release.v",
+    "owned/REPORT.md",
+    "owned/inspect_cdc.py",
+    "validate.py"
+  ],
+  "owned": [
+    "owned/inspect_cdc.py",
+    "owned/REPORT.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "validate.py"
+    ]
+  ],
+  "timeout_seconds": 30,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "acceptance_criteria": "Exact RTL/netlist/clock evidence distinguishes data synchronizers and asynchronous reset release risks, guards analyzed; no timing waiver or hardwareclaim; code/report tested after finalwrite",
+  "prompt": "Execute the bounded contract. Inspect exact protected sources and taps, derive checks in inspect_cdc.py, report uncertainty and next discriminating controls. Run official tests before editing and after report. No RTL patch, constraints change, Gowin or hardware."
+}

@@ -37,6 +37,8 @@ def main():
     parser.add_argument('--equiv-blitter-root',type=Path,help='Compare every blitter interface cycle with an unchanged RTL snapshot')
     parser.add_argument('--equiv-dma-delay',type=int,choices=(0,1),default=1)
     parser.add_argument('--affine',action='store_true',help='Exercise L12 inverse affine sampling and invalid descriptors')
+    parser.add_argument('--neo-response',action='store_true')
+    parser.add_argument('--mem-half-period',type=float,default=6.666)
     args=parser.parse_args();OUT=args.out.resolve()
     OUT.mkdir(exist_ok=True)
     font = [int(v,16) for v in (ROOT/'tang/rtl/video/font8x16.hex').read_text().split()]
@@ -278,8 +280,10 @@ def main():
         dma_path.write_text(dma.replace('module gpu_blit_dma (', 'module gpu_blit_dma_reference (', 1))
         extra_sources=[str(reference_path),str(triangle_path),str(dma_path),
                        str(ROOT/'TESTS/rtl/blitter_equiv.sv'),str(ROOT/'TESTS/rtl/gpu_dma_equiv.sv')]
+    if args.neo_response:extra_sources += [str(ROOT/'tang/boards/neo/neo_gpu_response.v')]
     with (OUT/'build.log').open('w') as log:
         subprocess.run(['verilator','--binary','--timing','-Wno-fatal','--top-module','gpu_accel_tb',
+                        f'-GNEO_RESPONSE={int(args.neo_response)}',f'-GMEM_HALF_PERIOD={args.mem_half_period}',
                         f'-DDMA_COMPLETION_DELAY={args.equiv_dma_delay}',
                         '--Mdir',str(OUT/'obj')]+[str((ROOT if s.startswith("TESTS/") else args.rtl_root)/s) for s in sources]+extra_sources,stdout=log,stderr=log,check=True)
     subprocess.run([str(OUT/'obj/Vgpu_accel_tb'),f'+ncmd={len(commands)//8}','+bad=1'],cwd=OUT,check=True)

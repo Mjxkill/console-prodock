@@ -1,0 +1,70 @@
+# UMSC read-only contract — proposal only (not executed)
+
+Scope: six 32-bit AHB reads maximum, targeting `0xE9003000` twice, `0xE9003004` twice, `0xE9003028` twice. No writes, no polling, no retry, no USB traffic. Decode authority is RTL `usb_msc_port.v:267-268`; the header comment at lines 8-14 is **not** exact (it says “configured” at bit 5, “firmware serves” at bit 8, etc.).
+
+## Allowed operation envelope
+- Read exactly twice from each address: `+00`, `+04`, `+28`; stop on first guard failure.
+- Forbidden: `+08`, `+20`, `+24`, `+0c`, `+10`, `+14`, `+1c`, any write, any retry, any USB/host action. This avoids consuming RX bytes (`+08`/`+20`, lines 232-240, 264-272) and avoids changing ownership.
+- Every accepted read in this window asserts `read_pending` and reloads the watchdog (`usb_msc_port.v:216-222,227-228`). The contract is therefore **not observationally pure**; reads can postpone owner abandonment.
+
+## `+04` decoder — exact RTL bit table
+| Bits | RTL field | Meaning / contract note |
+|---|---|---|
+| 31:16 | `level_h` | `pushed - sent_h`, 16-bit emitted-but-unacknowledged level (`:169`) |
+| 15:11 | `5'd0` | Reserved; must read zero |
+| 10 | `halted_h[1]` | Synchronized `ep_halted` (BOT guard error), not “locked” (`:56,159-161`) |
+| 9 | `serve` | Firmware service-request register (`:116,257`) |
+| 8 | `owner_h` | Synchronized USB-granted ownership (`:125,127`) |
+| 7 | `lost` | Loss/overflow flag (`:152,240,251-252`) |
+| 6 | `hs_s[1]` | Sampled `highspeed` synchronizer (`:105-109`) |
+| 5 | `online_s[1]` | Sampled `online` synchronizer (`:105-109`) |
+| 4 | `quiet_h` | Purge/quiet state (`:94,256`) |
+| 3 | `seen_bot_reset` | Sticky BOT reset seen; cleared only by `+14` write (`:253,261`) |
+| 2 | `seen_bus_reset` | Sticky bus reset seen; cleared only by `+14` write (`:254,260`) |
+| 1 | `level_h == 0` | TX level zero; not a general “USB idle” proof |
+| 0 | `gathered != 0 && !hreset` | RX byte gathered present; **not** a complete packet, and not to be validated via `+08`/`+20` |
+
+`+00` is constant `0x554D5343` (`:266`); `+28` is constant `0x00000001` (`:273`).
+
+## Pseudocode guards — fail-closed, non-runnable proposal
+```text
+ID  = 0x554D5343
+VER = 1
+UMSC = 0xE9003000
+
+# Exactly two reads per target; no loop, no retry, no other offset.
+id1 = READ32(UMSC + 0x00)
+id2 = READ32(UMSC + 0x00)
+if id1 != ID or id2 != ID: FAIL IDENTITY
+
+ver1 = READ32(UMSC + 0x28)
+ver2 = READ32(UMSC + 0x28)
+if ver1 != VER or ver2 != VER: FAIL VERSION
+
+st1 = READ32(UMSC + 0x04)
+st2 = READ32(UMSC + 0x04)
+
+guard(s):
+    if (s & 0x0000F800) != 0: FAIL RESERVED_BITS_NONZERO
+    if (s & 0x00000040) != 0 and (s & 0x00000020) == 0:
+        FAIL UNEXPECTED_MODE_HS_WITHOUT_ONLINE
+
+guard(st1)
+guard(st2)
+m1 = (st1 >> 5) & 3
+m2 = (st2 >> 5) & 3
+if m1 != m2: FAIL MODE_UNSETTLED
+ACCEPT record(id1, id2, ver1, ver2, st1, st2)
+```
+
+## Mandatory caveats
+- **Watchdog:** every read above refreshes the watchdog (`:221`); `+00` and `+28` are not neutral. Nominal expiry is `2^WATCHDOG_BITS` AHB clocks from parameter/comment (`:48,118`), not a measured frequency.
+- **Non-atomic synchronizers:** `hs_s[1]` and `online_s[1]` come from separate two-flop synchronizers (`:105-109`). A single `+04` word is not an atomic HS/online snapshot; two reads do not fix this. Mode agreement is only a bounded fail-closed check.
+- **No functional proof:** bits 5/6 are sampled synchronizer values only. Do not infer 60 MHz, High Speed, PHY 960 MHz, USB enumeration, or Bulk-Only correctness from this contract. The packet explicitly says USB observer ticks are not proof of HS/60 MHz/PHY.
+- **Reset ambiguity:** `reset_n` is common asynchronous; `hr`/`ur` release per domain and `hreset` includes `!owner_h`, `quiet_h`, and bus reset (`:128,146,207-214`). Status bit 0 can be forced zero. Sticky reset bits cannot be cleared without a forbidden `+14` write.
+- **Watchdog reset ambiguity:** reset loads `watchdog` all ones (`:211`), while a read reloads `{0, ones}` (`:221`); no status bit exposes expiry. Do not infer watchdog state from `+04`.
+
+## Evidence vs missing evidence
+- **Proven from packet/RTL:** constants and exact bit packing (`:266-268,273`); read-triggered watchdog reload (`:221,227-228`); `+08`/`+20` consumption semantics (`:232-240,264-272`); window select (`soft_usb.vh:31`).
+- **Missing:** actual identity/status/version values at runtime; HS/online/frequency behavior; watchdog interval measurement; reset behavior; USB functional qualification.
+- No tests were executed, no hardware was accessed, and no files were changed. Independent review and validation are required.

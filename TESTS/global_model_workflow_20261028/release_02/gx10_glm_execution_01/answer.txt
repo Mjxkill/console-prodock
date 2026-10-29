@@ -1,0 +1,19 @@
+Tests fail as expected (all 9 error with `NotImplementedError`), since the module is an unfinished stub. Let me look at the current stub before writing the implementation.The stub confirms only `summarize` is expected. Now I'll implement it per the contract: validate inputs strictly, key outcomes by `(launch_id, request_id, index)`, pair `run_tests` starts/finishes, and compute the four report fields.Implementation written. Running the protected tests again:One failure remains, and it's a real logic-ordering bug: the contract says non-relevant events (like `sandbox_start` with no `launch_id`) must be ignored, but my `_validate_common` validated `launch_id`/`request_id` before the relevance filter. I'll fix the ordering: validate the `event` string first, ignore non-relevant events, and only then validate identity fields.All 9 protected tests now pass. Task complete.
+
+## Files changed
+- `agent_audit.py` — implemented `summarize(records)` (the only file owned for this task; module is ~230 commented lines, well under the 1000-line limit, no imports, no I/O, pure function that never mutates its input).
+
+## Implementation summary
+- **Validation**: each record must be a dict with a string `event`; type errors, missing required fields, and invalid containers (`None`, `{}`, `[None]`, `[{'event': 1}]`) all raise `ValueError`. `launch_id` must be a nonempty string; `request_id` must be a nonempty string or an integer (never a bool); `tool_start`/`tool_finish` require a string `name`; `test_finish` requires an int `index` ∈ 0..1023, int `returncode` ∈ −255..255 (never bool), and true booleans `timeout`/`output_limited`.
+- **Relevance filtering first**: non-relevant events (`sandbox_start`, `launcher_exit`, …) are ignored *before* identity-field checks — this exact ordering was the one real bug found (first attempt validated `launch_id` before filtering and crashed on lifecycle events).
+- **Counting**: outcomes keyed by `(launch_id, request_id, index)` and deduplicated; conflicting repeats of the same identity raise `ValueError`; identical repeats are idempotent. `test_runs` = unique outcomes; `test_failures` = nonzero returncode OR `timeout` OR `output_limited`; `test_calls` = distinct `run_tests` request identities seen in starts OR finishes; `complete` requires run_tests starts to pair with finishes, every outcome to belong to a paired call, and every paired call to carry at least one outcome (empty input is complete with zero runs).
+
+## Tests observed
+- **Before edit**: 9/9 errored with `NotImplementedError: Implement the audited test-command counters` (initial failure as expected).
+- **After first implementation**: 8 passed, 1 error (`test_other_tools_and_lifecycle_do_not_inflate` — lifecycle records were rejected for missing `launch_id` before being ignored).
+- **After fix** (`taskbox_run_tests`): `Ran 9 tests ... OK` — returncode 0, 0 failures.
+
+## Limitations
+- Conflict detection for tool start/finish records is interpreted strictly (same `(launch, request)` reused with a different tool `name` → `ValueError`); the contract defines identity conflicts explicitly only for outcomes, so this is a reasonable but judgment-based reading.
+- Input must be exactly a `list` per the contract; other sequence types (e.g., tuple) raise `ValueError`.
+- Verification is limited to the protected test suite; edge cases beyond it (e.g., mixed run_tests/read_file reuse of the same request identity) are untested territory.

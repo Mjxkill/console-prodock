@@ -94,7 +94,7 @@ def render(path,scanout_inputs=None):
     # overlays retain all six palette bits, including low red/blue bits.
     image=((((base_pixels>>11)<<1)|((base_pixels>>15)&1))<<12)|(((base_pixels>>5)&63)<<6)|((base_pixels&31)<<1)|((base_pixels>>4)&1)
     palette=np.frombuffer(memory,dtype='<u4',count=256,offset=meta['assets']-BASE+64).copy()
-    width,height=400*scale,240*scale
+    width,height=target.shape[1]*scale,target.shape[0]*scale
 
     def overlay(indices,x,y):
         left=max(0,x);top=max(0,y);right=min(width,x+indices.shape[1]);bottom=min(height,y+indices.shape[0])

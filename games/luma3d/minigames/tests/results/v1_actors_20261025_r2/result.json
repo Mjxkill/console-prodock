@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "source_sha256": {
+    "l3_minigames.c": "1b8538b6b037499a998facc16158d5fe3efd444bfdb03ae2eca5c2d27750682f",
+    "l3_minigames.h": "a3bd99b497a1c0c965144a68c956e9232044752bf332ac2ebdac3a5115b92f0d",
+    "l3_mini_actors.h": "e02f6a91dca8c6d1e05170f2a478737c7115e12bf990cd8624f84b63c939816b",
+    "README.md": "1336764aa943ae1785158b2d1d77490ca4a53676063b32d261342e797e422822",
+    "tests/test_minigames.c": "dcca43cac1f0028ba334242a2581aefbf51b3e8f3cc3ebb72463a056644bed46",
+    "tests/run_tests.py": "32669dd490ac37f509c698c43078394075d298d7bf06bb1fbf81f8728b4124e0"
+  },
+  "inputs_stable": true,
+  "command_traces_sha256": {
+    "win_0.trace": "16cc64d2fb35b3701a51cd9f4ce1a70c79f8bc01b0b9a44c6ed9e22cfd32642e",
+    "win_1.trace": "e495189537a53deff21a6be80990cbbf94f6bd05a5b987757abccbfc837130c4",
+    "win_2.trace": "da84181cada82f01fa0cf33cdd841f66e0882787debedbf658d3263b2a675bef",
+    "win_3.trace": "328237b6f37fb7c1f23de92e5973d120d212a87c74b11eff94122c493ac2431a",
+    "win_4.trace": "adc41889ecba10199012aa190a25826b2969ab683225d0d7f4fd33be46d8f880"
+  },
+  "golden_traces_match": true,
+  "results": {
+    "strict": {
+      "compile_exit": 0,
+      "command": [
+        "cc",
+        "-std=c99",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-O2",
+        "/home/michael/console/games/luma3d/minigames/l3_minigames.c",
+        "/home/michael/console/games/luma3d/minigames/tests/test_minigames.c",
+        "-o",
+        "/tmp/luma-minigames-cgq5aa6r/strict"
+      ],
+      "test_exit": 0
+    },
+    "asan_ubsan": {
+      "compile_exit": 0,
+      "command": [
+        "cc",
+        "-std=c99",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-O1",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/home/michael/console/games/luma3d/minigames/l3_minigames.c",
+        "/home/michael/console/games/luma3d/minigames/tests/test_minigames.c",
+        "-o",
+        "/tmp/luma-minigames-cgq5aa6r/asan_ubsan"
+      ],
+      "test_exit": 0
+    }
+  },
+  "limitations": [
+    "LeakSanitizer disabled: incompatible with ptrace execution monitor",
+    "Host software tests only; no FPGA, timing or board qualification"
+  ]
+}

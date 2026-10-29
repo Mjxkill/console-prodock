@@ -1,0 +1,212 @@
+{
+  "prompt": [
+    17,
+    "bed1f303-024a-4f7c-9083-889bf052e655",
+    {
+      "unet": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "clip": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        }
+      },
+      "vae": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "qwen_image_vae.safetensors"
+        }
+      },
+      "shift": {
+        "class_type": "ModelSamplingAuraFlow",
+        "inputs": {
+          "model": [
+            "unet",
+            0
+          ],
+          "shift": 3.0
+        }
+      },
+      "latent": {
+        "class_type": "EmptySD3LatentImage",
+        "inputs": {
+          "width": 512,
+          "height": 512,
+          "batch_size": 1
+        }
+      },
+      "positive": {
+        "class_type": "TextEncodeQwenImageEditPlus",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "prompt": "Edit this illustration of the curly-haired adventurer. Preserve the exact face, hairstyle, orange coat, teal scarf, cream boots, lantern and hand-painted rendering. Change only the pose into a clear walking stride toward the viewer: the LEFT boot steps far forward with its heel down, the RIGHT leg stretches backward with heel lifted, the RIGHT arm swings forward, the LEFT arm swings backward. The stance must clearly differ from standing still. Keep the whole body visible in the same framing and same camera angle. One character only. Keep the background plain.",
+          "vae": [
+            "vae",
+            0
+          ],
+          "image1": [
+            "ref_crop",
+            0
+          ]
+        }
+      },
+      "negative": {
+        "class_type": "TextEncodeQwenImageEditPlus",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "prompt": "",
+          "vae": [
+            "vae",
+            0
+          ],
+          "image1": [
+            "ref_crop",
+            0
+          ]
+        }
+      },
+      "sample": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": [
+            "shift",
+            0
+          ],
+          "seed": 2310261502,
+          "steps": 24,
+          "cfg": 4.0,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "positive": [
+            "positive",
+            0
+          ],
+          "negative": [
+            "negative",
+            0
+          ],
+          "latent_image": [
+            "latent",
+            0
+          ],
+          "denoise": 1.0
+        }
+      },
+      "decode": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "sample",
+            0
+          ],
+          "vae": [
+            "vae",
+            0
+          ]
+        }
+      },
+      "save": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "decode",
+            0
+          ],
+          "filename_prefix": "luma_hero_stride_b"
+        }
+      },
+      "reference": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "luma_hero_sheet_00001_.png [output]"
+        }
+      },
+      "ref_crop": {
+        "class_type": "ImageCrop",
+        "inputs": {
+          "image": [
+            "reference",
+            0
+          ],
+          "x": 256,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        }
+      }
+    },
+    {
+      "client_id": "luma-art-20261023",
+      "create_time": 1792794056061
+    },
+    [
+      "save"
+    ]
+  ],
+  "outputs": {
+    "save": {
+      "images": [
+        {
+          "filename": "luma_hero_stride_b_00001_.png",
+          "subfolder": "",
+          "type": "output",
+          "metadata": {
+            "kind": "image",
+            "width": 512,
+            "height": 512
+          },
+          "id": "ecae8757-37b7-4fa8-b05f-000872503753"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "bed1f303-024a-4f7c-9083-889bf052e655",
+          "timestamp": 1792794056061
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [],
+          "prompt_id": "bed1f303-024a-4f7c-9083-889bf052e655",
+          "timestamp": 1792794056064
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "bed1f303-024a-4f7c-9083-889bf052e655",
+          "timestamp": 1792794157330
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "save": {
+      "node_id": "save",
+      "display_node": "save",
+      "parent_node": null,
+      "real_node_id": "save"
+    }
+  }
+}

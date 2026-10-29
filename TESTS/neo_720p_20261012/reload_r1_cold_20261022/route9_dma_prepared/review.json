@@ -1,0 +1,5586 @@
+{
+  "parent_inputs": "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150",
+  "measured_motivation": "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140",
+  "output": "/home/michael/console/tang/impl/console_neo_n56r9_route9_dma_c150",
+  "netlist_sha256": "0b5ea22b83faf2bae943f399bdb734dc1e66c8507310dc25e054290e24ad6157",
+  "sdc_sha256": "c8da535e839157a361e78b06b2f65b2912891f8e9dc48b02d5b315ae9f953113",
+  "semantic_test": {
+    "passed": true,
+    "added_cells": 8,
+    "existing_statements_unchanged": 403,
+    "hdmi_c150_unchanged": true,
+    "clock_io_and_nonplacement_unchanged": true
+  },
+  "source_changes": [
+    "tang/boards/neo/neo.cst"
+  ],
+  "hdmi_reset_column": 150,
+  "grouped_cells": 8,
+  "region": "R[40:65]C[65:90]",
+  "constrained_cells": [
+    {
+      "instance": "u_accel/u_dma/c_ack_s0",
+      "synthesis": {
+        "kind": "DFFRE",
+        "pins": {
+          "Q": "c_ack_Z",
+          "D": "pixel_write",
+          "CLK": "gpu_clk",
+          "RESET": "c_ack_4",
+          "CE": "VCC"
+        }
+      },
+      "explicit_init": "1'b0",
+      "routed": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_accel/u_dma/pixel_write",
+          "CLK": "gpu_clk",
+          "CE": "VCC",
+          "RESET": "u_accel/u_dma/c_ack_4",
+          "Q": "u_accel/c_ack_Z"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      },
+      "measured_locations": [
+        "R16C88[2][B]"
+      ],
+      "region": "R[40:65]C[65:90]"
+    },
+    {
+      "instance": "u_accel/u_dma/c_ack_s2",
+      "synthesis": {
+        "kind": "LUT2",
+        "pins": {
+          "F": "c_ack_4",
+          "I0": "b_grant",
+          "I1": "n66_10"
+        }
+      },
+      "explicit_init": "4'h7",
+      "routed": {
+        "kind": "LUT2",
+        "pins": {
+          "I0": "b_grant",
+          "I1": "u_accel/u_dma/n66_10",
+          "F": "u_accel/u_dma/c_ack_4"
+        }
+      },
+      "parameters": {
+        "INIT": "4'h7"
+      },
+      "measured_locations": [
+        "R65C39[1][A]"
+      ],
+      "region": "R[40:65]C[65:90]"
+    },
+    {
+      "instance": "u_accel/u_dma/f_done_s0",
+      "synthesis": {
+        "kind": "DFFRE",
+        "pins": {
+          "Q": "f_done_Z",
+          "D": "n84_5",
+          "CLK": "gpu_clk",
+          "RESET": "f_done_4",
+          "CE": "VCC"
+        }
+      },
+      "explicit_init": "1'b0",
+      "routed": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_accel/u_dma/n84_5",
+          "CLK": "gpu_clk",
+          "CE": "VCC",
+          "RESET": "u_accel/u_dma/f_done_4",
+          "Q": "u_accel/f_done_Z"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      },
+      "measured_locations": [
+        "R27C75[0][A]"
+      ],
+      "region": "R[40:65]C[65:90]"
+    },
+    {
+      "instance": "u_accel/u_dma/n66_s4",
+      "synthesis": {
+        "kind": "LUT4",
+        "pins": {
+          "F": "n66_10",
+          "I0": "gpu_debug_state_141[47]",
+          "I1": "state[1]",
+          "I2": "state[0]",
+          "I3": "state[2]"
+        }
+      },
+      "explicit_init": "16'h0008",
+      "routed": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "gpu_debug_state[47]",
+          "I1": "u_accel/u_dma/state[1]",
+          "I2": "u_accel/u_dma/state[0]",
+          "I3": "u_accel/u_dma/state[2]",
+          "F": "u_accel/u_dma/n66_10"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0008"
+      },
+      "measured_locations": [
+        "R65C38[3][B]"
+      ],
+      "region": "R[40:65]C[65:90]"
+    },
+    {
+      "instance": "u_accel/u_dma/n76_s2",
+      "synthesis": {
+        "kind": "LUT3",
+        "pins": {
+          "F": "n76_6",
+          "I0": "fill_write",
+          "I1": "pixel_write",
+          "I2": "c_ack_4"
+        }
+      },
+      "explicit_init": "8'h01",
+      "routed": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "u_accel/u_dma/fill_write",
+          "I1": "u_accel/u_dma/pixel_write",
+          "I2": "u_accel/u_dma/c_ack_4",
+          "F": "u_accel/u_dma/n76_6"
+        }
+      },
+      "parameters": {
+        "INIT": "8'h01"
+      },
+      "measured_locations": [
+        "R62C40[0][A]"
+      ],
+      "region": "R[40:65]C[65:90]"
+    },
+    {
+      "instance": "u_accel/u_dma/n84_s1",
+      "synthesis": {
+        "kind": "LUT2",
+        "pins": {
+          "F": "n84_5",
+          "I0": "c_ack_4",
+          "I1": "fill_write"
+        }
+      },
+      "explicit_init": "4'h4",
+      "routed": {
+        "kind": "LUT2",
+        "pins": {
+          "I0": "u_accel/u_dma/c_ack_4",
+          "I1": "u_accel/u_dma/fill_write",
+          "F": "u_accel/u_dma/n84_5"
+        }
+      },
+      "parameters": {
+        "INIT": "4'h4"
+      },
+      "measured_locations": [
+        "R62C40[3][A]"
+      ],
+      "region": "R[40:65]C[65:90]"
+    },
+    {
+      "instance": "u_accel/u_dma/w_done_s0",
+      "synthesis": {
+        "kind": "DFFRE",
+        "pins": {
+          "Q": "w_done_Z",
+          "D": "n76_6",
+          "CLK": "gpu_clk",
+          "RESET": "w_done_4",
+          "CE": "VCC"
+        }
+      },
+      "explicit_init": "1'b0",
+      "routed": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_accel/u_dma/n76_6",
+          "CLK": "gpu_clk",
+          "CE": "VCC",
+          "RESET": "u_accel/u_dma/w_done_4",
+          "Q": "u_accel/w_done_Z"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      },
+      "measured_locations": [
+        "R35C76[0][A]"
+      ],
+      "region": "R[40:65]C[65:90]"
+    },
+    {
+      "instance": "u_accel/u_dma/write_accepted_s0",
+      "synthesis": {
+        "kind": "DFFRE",
+        "pins": {
+          "Q": "write_accepted",
+          "D": "n66_10",
+          "CLK": "gpu_clk",
+          "RESET": "write_accepted_7",
+          "CE": "VCC"
+        }
+      },
+      "explicit_init": "1'b0",
+      "routed": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_accel/u_dma/n66_10",
+          "CLK": "gpu_clk",
+          "CE": "VCC",
+          "RESET": "u_accel/u_dma/write_accepted_7",
+          "Q": "u_accel/u_dma/write_accepted"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      },
+      "measured_locations": [
+        "R65C38[1][A]"
+      ],
+      "region": "R[40:65]C[65:90]"
+    }
+  ],
+  "boundary_nets": {
+    "u_accel/u_dma/pixel_write": {
+      "drivers": [
+        [
+          "u_accel/u_dma/pixel_write_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/n76_s2",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/c_ack_s0",
+          "DFFRE",
+          "D"
+        ]
+      ],
+      "load_count": 2,
+      "outside_loads": [],
+      "outside_drivers": [
+        [
+          "u_accel/u_dma/pixel_write_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ]
+    },
+    "u_accel/u_dma/c_ack_4": {
+      "drivers": [
+        [
+          "u_accel/u_dma/c_ack_s2",
+          "LUT2",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/n76_s2",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n84_s1",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/c_ack_s0",
+          "DFFRE",
+          "RESET"
+        ]
+      ],
+      "load_count": 3,
+      "outside_loads": [],
+      "outside_drivers": []
+    },
+    "u_accel/c_ack_Z": {
+      "drivers": [
+        [
+          "u_accel/u_dma/c_ack_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_blitter/n2466_s6",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2501_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2456_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2449_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2489_s16",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2487_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2483_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2481_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2480_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2467_s9",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2438_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2464_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2476_s20",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2488_s9",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2465_s8",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n2500_s11",
+          "LUT4",
+          "I0"
+        ]
+      ],
+      "load_count": 16,
+      "outside_loads": [
+        [
+          "u_accel/u_blitter/n2466_s6",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2501_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2456_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2449_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2489_s16",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2487_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2483_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2481_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2480_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2467_s9",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2438_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2464_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2476_s20",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2488_s9",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2465_s8",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n2500_s11",
+          "LUT4",
+          "I0"
+        ]
+      ],
+      "outside_drivers": []
+    },
+    "b_grant": {
+      "drivers": [
+        [
+          "u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s1",
+          "LUT3",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/n4432_s0",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/c_ack_s2",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n58_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2900_s13",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s7",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2897_s18",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/write_accepted_s3",
+          "INV",
+          "I"
+        ],
+        [
+          "u_soc/g_ddr.u_ddr/u_gpu_arb/n828_s2",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_s2",
+          "LUT4",
+          "I3"
+        ]
+      ],
+      "load_count": 9,
+      "outside_loads": [
+        [
+          "u_accel/n4432_s0",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n58_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2900_s13",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s7",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2897_s18",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/write_accepted_s3",
+          "INV",
+          "I"
+        ],
+        [
+          "u_soc/g_ddr.u_ddr/u_gpu_arb/n828_s2",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_s2",
+          "LUT4",
+          "I3"
+        ]
+      ],
+      "outside_drivers": [
+        [
+          "u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s1",
+          "LUT3",
+          "F"
+        ]
+      ]
+    },
+    "u_accel/u_dma/n66_10": {
+      "drivers": [
+        [
+          "u_accel/u_dma/n66_s4",
+          "LUT4",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/c_ack_s2",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/write_accepted_s0",
+          "DFFRE",
+          "D"
+        ]
+      ],
+      "load_count": 2,
+      "outside_loads": [],
+      "outside_drivers": []
+    },
+    "u_accel/u_dma/n84_5": {
+      "drivers": [
+        [
+          "u_accel/u_dma/n84_s1",
+          "LUT2",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/f_done_s0",
+          "DFFRE",
+          "D"
+        ]
+      ],
+      "load_count": 1,
+      "outside_loads": [],
+      "outside_drivers": []
+    },
+    "u_accel/u_dma/f_done_4": {
+      "drivers": [
+        [
+          "u_accel/u_dma/f_done_s2",
+          "LUT3",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/n2829_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2805_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2806_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2808_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2809_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2811_s12",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2813_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2814_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2816_s12",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2817_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2819_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2822_s12",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2823_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2825_s12",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2826_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2807_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2810_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2812_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2815_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2818_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2821_s16",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2824_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2827_s16",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/f_done_s0",
+          "DFFRE",
+          "RESET"
+        ]
+      ],
+      "load_count": 24,
+      "outside_loads": [
+        [
+          "u_accel/u_dma/n2829_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2805_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2806_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2808_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2809_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2811_s12",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2813_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2814_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2816_s12",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2817_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2819_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2822_s12",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2823_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2825_s12",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2826_s12",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2807_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2810_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2812_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2815_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2818_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2821_s16",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2824_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2827_s16",
+          "LUT4",
+          "I2"
+        ]
+      ],
+      "outside_drivers": [
+        [
+          "u_accel/u_dma/f_done_s2",
+          "LUT3",
+          "F"
+        ]
+      ]
+    },
+    "u_accel/f_done_Z": {
+      "drivers": [
+        [
+          "u_accel/u_dma/f_done_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_blitter/n2447_s3",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n2483_s8",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2490_s10",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2489_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2487_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2481_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2480_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2464_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2456_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2449_s8",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2438_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2501_s24",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2476_s15",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2488_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2490_s14",
+          "LUT4",
+          "I2"
+        ]
+      ],
+      "load_count": 15,
+      "outside_loads": [
+        [
+          "u_accel/u_blitter/n2447_s3",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n2483_s8",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2490_s10",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2489_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2487_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2481_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2480_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2464_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2456_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2449_s8",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2438_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2501_s24",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2476_s15",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2488_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2490_s14",
+          "LUT4",
+          "I2"
+        ]
+      ],
+      "outside_drivers": []
+    },
+    "gpu_debug_state[47]": {
+      "drivers": [
+        [
+          "u_accel/engine_resetn_3_s0",
+          "DFFCE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_gpu_debug/held_47_s0",
+          "DFFRE",
+          "D"
+        ],
+        [
+          "u_accel/u_blitter/zoom_cache_s4",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/m_first_1_s13",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n13107_s29",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n26357_s3",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/zoom_cache_s5",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n2449_s12",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2454_s11",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2476_s21",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2452_s5",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2478_s7",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2478_s8",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2477_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n26357_s4",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/affine_cache_s272",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/affine_cache_s273",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n13089_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n13047_s25",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n66_s4",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n133_s2",
+          "INV",
+          "I"
+        ]
+      ],
+      "load_count": 20,
+      "outside_loads": [
+        [
+          "u_gpu_debug/held_47_s0",
+          "DFFRE",
+          "D"
+        ],
+        [
+          "u_accel/u_blitter/zoom_cache_s4",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/m_first_1_s13",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n13107_s29",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n26357_s3",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/zoom_cache_s5",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n2449_s12",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2454_s11",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2476_s21",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2452_s5",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2478_s7",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2478_s8",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2477_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_blitter/n26357_s4",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/affine_cache_s272",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/affine_cache_s273",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n13089_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n13047_s25",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n133_s2",
+          "INV",
+          "I"
+        ]
+      ],
+      "outside_drivers": [
+        [
+          "u_accel/engine_resetn_3_s0",
+          "DFFCE",
+          "Q"
+        ]
+      ]
+    },
+    "u_accel/u_dma/state[1]": {
+      "drivers": [
+        [
+          "u_accel/u_dma/state_1_s1",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/n2902_s3",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2928_s12",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n3504_s5",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2992_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2900_s12",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2953_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/write_follow_addr_22_s3",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2897_s15",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2897_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2898_s15",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2898_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2899_s17",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s18",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s19",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2900_s13",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2900_s14",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_255_s7",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s6",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_29_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_27_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_25_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_23_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_21_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_19_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_17_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_15_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_13_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_11_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_9_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_7_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_5_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_3_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_1_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n113_s7",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n113_s9",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s7",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2897_s18",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2969_s19",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n66_s3",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n66_s4",
+          "LUT4",
+          "I1"
+        ]
+      ],
+      "load_count": 40,
+      "outside_loads": [
+        [
+          "u_accel/u_dma/n2902_s3",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2928_s12",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n3504_s5",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2992_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2900_s12",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2953_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/write_follow_addr_22_s3",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2897_s15",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2897_s16",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2898_s15",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2898_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2899_s17",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s18",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s19",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2900_s13",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2900_s14",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_255_s7",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s6",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_29_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_27_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_25_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_23_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_21_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_19_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_17_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_15_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_13_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_11_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_9_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_7_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_5_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_3_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_1_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n113_s7",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n113_s9",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s7",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2897_s18",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2969_s19",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n66_s3",
+          "LUT3",
+          "I0"
+        ]
+      ],
+      "outside_drivers": [
+        [
+          "u_accel/u_dma/state_1_s1",
+          "DFFRE",
+          "Q"
+        ]
+      ]
+    },
+    "u_accel/u_dma/state[0]": {
+      "drivers": [
+        [
+          "u_accel/u_dma/state_0_s1",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/n2902_s3",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2928_s12",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3488_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3489_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3490_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3491_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3492_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3493_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3494_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3495_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3496_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3497_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3498_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3499_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3500_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3501_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3502_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3503_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3504_s5",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2992_s5",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2953_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_data_255_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_239_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_223_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_207_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_191_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_175_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_159_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_143_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_127_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_111_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_95_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_79_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_63_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_47_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_31_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_15_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/write_follow_addr_22_s3",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n58_s4",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n175_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n176_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n177_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n178_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n179_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2810_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2811_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2812_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2813_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2814_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2815_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2816_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2817_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2818_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2819_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2820_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2821_s11",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2822_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2823_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2824_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2825_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2826_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2827_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2828_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2829_s11",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2865_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2865_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2866_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2866_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2867_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2868_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2869_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2870_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2871_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2872_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2873_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2874_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2875_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2876_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2877_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2878_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2879_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2880_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2881_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2882_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2883_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2884_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2885_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2886_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2887_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2888_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2889_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2890_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2891_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2892_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2893_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2894_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2895_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2896_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2897_s15",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2897_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2898_s15",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2898_s16",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2899_s17",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2899_s18",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2899_s19",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2900_s14",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2949_s15",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n3488_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3489_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3490_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3491_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3492_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3493_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3494_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3495_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s6",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_29_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_27_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_25_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_23_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_21_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_19_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_17_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_15_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_13_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_11_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_9_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_7_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_5_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_3_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_1_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n113_s7",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2898_s17",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2900_s15",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2900_s16",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n113_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s7",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2969_s19",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2953_s17",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n66_s3",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2962_s15",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2959_s16",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2952_s15",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n66_s4",
+          "LUT4",
+          "I2"
+        ]
+      ],
+      "load_count": 145,
+      "outside_loads": [
+        [
+          "u_accel/u_dma/n2902_s3",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2928_s12",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3488_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3489_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3490_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3491_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3492_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3493_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3494_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3495_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3496_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3497_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3498_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3499_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3500_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3501_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3502_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3503_s10",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n3504_s5",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2992_s5",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2953_s11",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_data_255_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_239_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_223_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_207_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_191_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_175_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_159_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_143_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_127_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_111_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_95_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_79_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_63_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_47_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_31_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_data_15_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/write_follow_addr_22_s3",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n58_s4",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n175_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n176_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n177_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n178_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n179_s1",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2810_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2811_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2812_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2813_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2814_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2815_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2816_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2817_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2818_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2819_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2820_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2821_s11",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2822_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2823_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2824_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2825_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2826_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2827_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2828_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2829_s11",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2865_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2865_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2866_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2866_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2867_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2868_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2869_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2870_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2871_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2872_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2873_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2874_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2875_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2876_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2877_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2878_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2879_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2880_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2881_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2882_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2883_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2884_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2885_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2886_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2887_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2888_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2889_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2890_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2891_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2892_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2893_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2894_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2895_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2896_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2897_s15",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2897_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2898_s15",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2898_s16",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2899_s17",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2899_s18",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2899_s19",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2900_s14",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2949_s15",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n3488_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3489_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3490_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3491_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3492_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3493_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3494_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3495_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s6",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_29_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_27_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_25_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_23_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_21_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_19_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_17_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_15_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_13_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_11_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_9_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_7_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_5_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_3_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_1_s5",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n113_s7",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2898_s17",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2900_s15",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2900_s16",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n113_s9",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s7",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2969_s19",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2953_s17",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n66_s3",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2962_s15",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2959_s16",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2952_s15",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s21",
+          "LUT4",
+          "I2"
+        ]
+      ],
+      "outside_drivers": [
+        [
+          "u_accel/u_dma/state_0_s1",
+          "DFFRE",
+          "Q"
+        ]
+      ]
+    },
+    "u_accel/u_dma/state[2]": {
+      "drivers": [
+        [
+          "u_accel/u_dma/state_2_s1",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/n2805_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2806_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2807_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2808_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2809_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2810_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2811_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2812_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2813_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2814_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2815_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2816_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2817_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2818_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2819_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2820_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2821_s10",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2822_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2823_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2824_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2825_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2826_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2827_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2828_s10",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2829_s10",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2865_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2867_s20",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2883_s20",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2887_s20",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2897_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2898_s14",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2900_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2902_s3",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2914_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2915_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2916_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2917_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2918_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2919_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2920_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2921_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2922_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2923_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2928_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3504_s5",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2992_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2928_s13",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2927_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2926_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2925_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2924_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2900_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2953_s11",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/write_follow_addr_22_s3",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2866_s23",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2868_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2869_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2870_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2871_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2872_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2873_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2874_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2875_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2876_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2877_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2878_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2879_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2880_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2881_s22",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2949_s15",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2969_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2970_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2970_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2971_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2972_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2972_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2973_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2973_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2974_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2975_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2975_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2976_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2976_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2977_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2978_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2978_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2979_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2979_s12",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2980_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2981_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2981_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2982_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2982_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2983_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2984_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2984_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2985_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2985_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2986_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2987_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2987_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2988_s12",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_data_255_s7",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s6",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_29_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_27_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_25_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_23_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_21_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_19_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_17_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_15_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_13_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_11_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_9_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_7_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_5_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_3_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_1_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n113_s7",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2889_s23",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2891_s23",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2895_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n113_s9",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2969_s18",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2971_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2897_s18",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2974_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2977_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2980_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2983_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2986_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2969_s19",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2953_s17",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n66_s3",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2962_s15",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2959_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2952_s15",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2913_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n66_s4",
+          "LUT4",
+          "I3"
+        ]
+      ],
+      "load_count": 142,
+      "outside_loads": [
+        [
+          "u_accel/u_dma/n2805_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2806_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2807_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2808_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2809_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2810_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2811_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2812_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2813_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2814_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2815_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2816_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2817_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2818_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2819_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2820_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2821_s10",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2822_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2823_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2824_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2825_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2826_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2827_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2828_s10",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2829_s10",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2865_s21",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2867_s20",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2883_s20",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2887_s20",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2897_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2898_s14",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2900_s11",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2902_s3",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2914_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2915_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2916_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2917_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2918_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2919_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2920_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2921_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2922_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2923_s10",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2928_s12",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n3504_s5",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2992_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2928_s13",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2927_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2926_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2925_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2924_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2900_s12",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2953_s11",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/write_follow_addr_22_s3",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2866_s23",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2868_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2869_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2870_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2871_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2872_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2873_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2874_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2875_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2876_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2877_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2878_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2879_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2880_s22",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2881_s22",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2949_s15",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2969_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2970_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2970_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2971_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2972_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2972_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2973_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2973_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2974_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2975_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2975_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2976_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2976_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2977_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2978_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2978_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2979_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2979_s12",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2980_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2981_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2981_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2982_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2982_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2983_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2984_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2984_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2985_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2985_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2986_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2987_s11",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2987_s12",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2988_s12",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_data_255_s7",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s6",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_29_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_27_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_25_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_23_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_21_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_19_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_17_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_15_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_13_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_11_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_9_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_7_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_5_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_3_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_1_s5",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n113_s7",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2889_s23",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2891_s23",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2895_s23",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n113_s9",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2969_s18",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2971_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/wr_mask_31_s7",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2897_s18",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2974_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2977_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2980_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2983_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2986_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2969_s19",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2953_s17",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n66_s3",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2962_s15",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2959_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2952_s15",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/n2913_s12",
+          "LUT3",
+          "I2"
+        ]
+      ],
+      "outside_drivers": [
+        [
+          "u_accel/u_dma/state_2_s1",
+          "DFFRE",
+          "Q"
+        ]
+      ]
+    },
+    "u_accel/u_dma/fill_write": {
+      "drivers": [
+        [
+          "u_accel/u_dma/fill_write_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/n76_s2",
+          "LUT3",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n84_s1",
+          "LUT2",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n58_s5",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2899_s17",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2897_s19",
+          "LUT4",
+          "I0"
+        ]
+      ],
+      "load_count": 5,
+      "outside_loads": [
+        [
+          "u_accel/u_dma/n58_s5",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2899_s17",
+          "LUT4",
+          "I1"
+        ],
+        [
+          "u_accel/u_dma/n2897_s19",
+          "LUT4",
+          "I0"
+        ]
+      ],
+      "outside_drivers": [
+        [
+          "u_accel/u_dma/fill_write_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ]
+    },
+    "u_accel/u_dma/n76_6": {
+      "drivers": [
+        [
+          "u_accel/u_dma/n76_s2",
+          "LUT3",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/w_done_s0",
+          "DFFRE",
+          "D"
+        ]
+      ],
+      "load_count": 1,
+      "outside_loads": [],
+      "outside_drivers": []
+    },
+    "u_accel/u_dma/w_done_4": {
+      "drivers": [
+        [
+          "u_accel/u_dma/w_done_s2",
+          "LUT2",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/n58_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s17",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_dma/w_done_s0",
+          "DFFRE",
+          "RESET"
+        ]
+      ],
+      "load_count": 3,
+      "outside_loads": [
+        [
+          "u_accel/u_dma/n58_s5",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2899_s17",
+          "LUT4",
+          "I3"
+        ]
+      ],
+      "outside_drivers": [
+        [
+          "u_accel/u_dma/w_done_s2",
+          "LUT2",
+          "F"
+        ]
+      ]
+    },
+    "u_accel/w_done_Z": {
+      "drivers": [
+        [
+          "u_accel/u_dma/w_done_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_blitter/n2490_s4",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2489_s6",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2487_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2483_s10",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2481_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2480_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2464_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2453_s5",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2449_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2438_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2501_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2491_s6",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2456_s11",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2476_s11",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2475_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2493_s12",
+          "LUT4",
+          "I2"
+        ]
+      ],
+      "load_count": 16,
+      "outside_loads": [
+        [
+          "u_accel/u_blitter/n2490_s4",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2489_s6",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2487_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2483_s10",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2481_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2480_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2464_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2453_s5",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_blitter/n2449_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2438_s4",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2501_s16",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2491_s6",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2456_s11",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2476_s11",
+          "LUT4",
+          "I3"
+        ],
+        [
+          "u_accel/u_blitter/n2475_s10",
+          "LUT4",
+          "I2"
+        ],
+        [
+          "u_accel/u_blitter/n2493_s12",
+          "LUT4",
+          "I2"
+        ]
+      ],
+      "outside_drivers": []
+    },
+    "u_accel/u_dma/write_accepted_7": {
+      "drivers": [
+        [
+          "u_accel/u_dma/write_accepted_s3",
+          "INV",
+          "O"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/write_accepted_s0",
+          "DFFRE",
+          "RESET"
+        ]
+      ],
+      "load_count": 1,
+      "outside_loads": [],
+      "outside_drivers": [
+        [
+          "u_accel/u_dma/write_accepted_s3",
+          "INV",
+          "O"
+        ]
+      ]
+    },
+    "u_accel/u_dma/write_accepted": {
+      "drivers": [
+        [
+          "u_accel/u_dma/write_accepted_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_accel/u_dma/addr_28_s3",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2969_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2970_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2971_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2972_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2973_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2974_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2975_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2976_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2977_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2978_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2979_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2980_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2981_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2982_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2983_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2984_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2985_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2986_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2987_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2988_s13",
+          "LUT3",
+          "I2"
+        ]
+      ],
+      "load_count": 21,
+      "outside_loads": [
+        [
+          "u_accel/u_dma/addr_28_s3",
+          "LUT2",
+          "I0"
+        ],
+        [
+          "u_accel/u_dma/n2969_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2970_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2971_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2972_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2973_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2974_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2975_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2976_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2977_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2978_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2979_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2980_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2981_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2982_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2983_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2984_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2985_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2986_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2987_s13",
+          "LUT3",
+          "I2"
+        ],
+        [
+          "u_accel/u_dma/n2988_s13",
+          "LUT3",
+          "I2"
+        ]
+      ],
+      "outside_drivers": []
+    }
+  },
+  "measured_paths": [
+    {
+      "slack_ns": -3.447,
+      "source": "u_accel/engine_resetn_3_s0",
+      "destination": "u_accel/u_dma/c_ack_s0",
+      "launch_clock": "ddr3_sys_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]",
+      "arrival_ns": 19.794,
+      "required_ns": 16.347,
+      "data_rows": [
+        {
+          "arrival_ns": 3.689,
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 663,
+          "location": "R60C90[0][A]",
+          "node": "u_accel/engine_resetn_3_s0/Q"
+        },
+        {
+          "arrival_ns": 14.499,
+          "delay_ns": 10.81,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/I0"
+        },
+        {
+          "arrival_ns": 14.91,
+          "delay_ns": 0.411,
+          "kind": "tINS",
+          "fanout": 2,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/F"
+        },
+        {
+          "arrival_ns": 15.067,
+          "delay_ns": 0.157,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C39[1][A]",
+          "node": "u_accel/u_dma/c_ack_s2/I1"
+        },
+        {
+          "arrival_ns": 15.327,
+          "delay_ns": 0.26,
+          "kind": "tINS",
+          "fanout": 3,
+          "location": "R65C39[1][A]",
+          "node": "u_accel/u_dma/c_ack_s2/F"
+        },
+        {
+          "arrival_ns": 19.794,
+          "delay_ns": 4.467,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R16C88[2][B]",
+          "node": "u_accel/u_dma/c_ack_s0/RESET"
+        }
+      ],
+      "route_ns": 15.435,
+      "cell_ns": 0.671,
+      "clock_to_q_ns": 0.331,
+      "longest_routes": [
+        {
+          "arrival_ns": 14.499,
+          "delay_ns": 10.81,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/I0"
+        },
+        {
+          "arrival_ns": 19.794,
+          "delay_ns": 4.467,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R16C88[2][B]",
+          "node": "u_accel/u_dma/c_ack_s0/RESET"
+        },
+        {
+          "arrival_ns": 15.067,
+          "delay_ns": 0.157,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C39[1][A]",
+          "node": "u_accel/u_dma/c_ack_s2/I1"
+        }
+      ]
+    },
+    {
+      "slack_ns": -3.334,
+      "source": "u_accel/engine_resetn_3_s0",
+      "destination": "u_accel/u_dma/f_done_s0",
+      "launch_clock": "ddr3_sys_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]",
+      "arrival_ns": 19.814,
+      "required_ns": 16.48,
+      "data_rows": [
+        {
+          "arrival_ns": 3.689,
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 663,
+          "location": "R60C90[0][A]",
+          "node": "u_accel/engine_resetn_3_s0/Q"
+        },
+        {
+          "arrival_ns": 14.499,
+          "delay_ns": 10.81,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/I0"
+        },
+        {
+          "arrival_ns": 14.91,
+          "delay_ns": 0.411,
+          "kind": "tINS",
+          "fanout": 2,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/F"
+        },
+        {
+          "arrival_ns": 15.067,
+          "delay_ns": 0.157,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C39[1][A]",
+          "node": "u_accel/u_dma/c_ack_s2/I1"
+        },
+        {
+          "arrival_ns": 15.327,
+          "delay_ns": 0.26,
+          "kind": "tINS",
+          "fanout": 3,
+          "location": "R65C39[1][A]",
+          "node": "u_accel/u_dma/c_ack_s2/F"
+        },
+        {
+          "arrival_ns": 16.111,
+          "delay_ns": 0.784,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R62C40[3][A]",
+          "node": "u_accel/u_dma/n84_s1/I0"
+        },
+        {
+          "arrival_ns": 16.604,
+          "delay_ns": 0.493,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R62C40[3][A]",
+          "node": "u_accel/u_dma/n84_s1/F"
+        },
+        {
+          "arrival_ns": 19.814,
+          "delay_ns": 3.21,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R27C75[0][A]",
+          "node": "u_accel/u_dma/f_done_s0/D"
+        }
+      ],
+      "route_ns": 14.961,
+      "cell_ns": 1.163,
+      "clock_to_q_ns": 0.331,
+      "longest_routes": [
+        {
+          "arrival_ns": 14.499,
+          "delay_ns": 10.81,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/I0"
+        },
+        {
+          "arrival_ns": 19.814,
+          "delay_ns": 3.21,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R27C75[0][A]",
+          "node": "u_accel/u_dma/f_done_s0/D"
+        },
+        {
+          "arrival_ns": 16.111,
+          "delay_ns": 0.784,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R62C40[3][A]",
+          "node": "u_accel/u_dma/n84_s1/I0"
+        }
+      ]
+    },
+    {
+      "slack_ns": -2.695,
+      "source": "u_accel/engine_resetn_3_s0",
+      "destination": "u_accel/u_dma/w_done_s0",
+      "launch_clock": "ddr3_sys_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]",
+      "arrival_ns": 19.117,
+      "required_ns": 16.422,
+      "data_rows": [
+        {
+          "arrival_ns": 3.689,
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 663,
+          "location": "R60C90[0][A]",
+          "node": "u_accel/engine_resetn_3_s0/Q"
+        },
+        {
+          "arrival_ns": 14.499,
+          "delay_ns": 10.81,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/I0"
+        },
+        {
+          "arrival_ns": 14.91,
+          "delay_ns": 0.411,
+          "kind": "tINS",
+          "fanout": 2,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/F"
+        },
+        {
+          "arrival_ns": 15.067,
+          "delay_ns": 0.157,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C39[1][A]",
+          "node": "u_accel/u_dma/c_ack_s2/I1"
+        },
+        {
+          "arrival_ns": 15.327,
+          "delay_ns": 0.26,
+          "kind": "tINS",
+          "fanout": 3,
+          "location": "R65C39[1][A]",
+          "node": "u_accel/u_dma/c_ack_s2/F"
+        },
+        {
+          "arrival_ns": 15.977,
+          "delay_ns": 0.65,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R62C40[0][A]",
+          "node": "u_accel/u_dma/n76_s2/I2"
+        },
+        {
+          "arrival_ns": 16.21,
+          "delay_ns": 0.233,
+          "kind": "tINS",
+          "fanout": 1,
+          "location": "R62C40[0][A]",
+          "node": "u_accel/u_dma/n76_s2/F"
+        },
+        {
+          "arrival_ns": 19.117,
+          "delay_ns": 2.907,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R35C76[0][A]",
+          "node": "u_accel/u_dma/w_done_s0/D"
+        }
+      ],
+      "route_ns": 14.525,
+      "cell_ns": 0.903,
+      "clock_to_q_ns": 0.331,
+      "longest_routes": [
+        {
+          "arrival_ns": 14.499,
+          "delay_ns": 10.81,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/I0"
+        },
+        {
+          "arrival_ns": 19.117,
+          "delay_ns": 2.907,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R35C76[0][A]",
+          "node": "u_accel/u_dma/w_done_s0/D"
+        },
+        {
+          "arrival_ns": 15.977,
+          "delay_ns": 0.65,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R62C40[0][A]",
+          "node": "u_accel/u_dma/n76_s2/I2"
+        }
+      ]
+    },
+    {
+      "slack_ns": 1.298,
+      "source": "u_accel/engine_resetn_3_s0",
+      "destination": "u_accel/u_dma/write_accepted_s0",
+      "launch_clock": "ddr3_sys_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]",
+      "arrival_ns": 15.308,
+      "required_ns": 16.606,
+      "data_rows": [
+        {
+          "arrival_ns": 3.689,
+          "delay_ns": 0.331,
+          "kind": "tC2Q",
+          "fanout": 663,
+          "location": "R60C90[0][A]",
+          "node": "u_accel/engine_resetn_3_s0/Q"
+        },
+        {
+          "arrival_ns": 14.499,
+          "delay_ns": 10.81,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/I0"
+        },
+        {
+          "arrival_ns": 14.91,
+          "delay_ns": 0.411,
+          "kind": "tINS",
+          "fanout": 2,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/F"
+        },
+        {
+          "arrival_ns": 15.308,
+          "delay_ns": 0.398,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[1][A]",
+          "node": "u_accel/u_dma/write_accepted_s0/D"
+        }
+      ],
+      "route_ns": 11.208,
+      "cell_ns": 0.411,
+      "clock_to_q_ns": 0.331,
+      "longest_routes": [
+        {
+          "arrival_ns": 14.499,
+          "delay_ns": 10.81,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[3][B]",
+          "node": "u_accel/u_dma/n66_s4/I0"
+        },
+        {
+          "arrival_ns": 15.308,
+          "delay_ns": 0.398,
+          "kind": "tNET",
+          "fanout": 1,
+          "location": "R65C38[1][A]",
+          "node": "u_accel/u_dma/write_accepted_s0/D"
+        }
+      ]
+    }
+  ],
+  "ddr_profile": {
+    "passed": true,
+    "profile": "neo-ddr-fifo-registers",
+    "variant": "neo-fifo-registers",
+    "base_profile": "prodock-g22r0-ddr",
+    "reference_bitstream_sha256": "fbbea9c357d0c4d5b33c3c4a7e54f9ed0ff8e31cc3fad1ac9dc1771f8e8cba5f",
+    "verified_files": 21,
+    "changed": [],
+    "system_reset_baseline_reconstructed": false,
+    "ddr_startup_baseline_reconstructed": false,
+    "scope": "Neo diagnostic only: explicit flip-flops for the four-slot 100/64-bit AHB DDR FIFOs; unchanged pointers, resets and head latency. Original Pro Dock DDR IP, adapter and arbiters. Not physically validated."
+  },
+  "hardware_access": false,
+  "synthesis": false,
+  "r8_result_required_for_preparation": false,
+  "predicted_timing": null,
+  "region_reason": "Between R7 reset R60C90, DMA LUTs R62..65 C38..40 and completion FFs R16..35 C75..88; no source reset/state FF or observer anchor is moved.",
+  "limits": [
+    "R8 is an independent baseline, possibly still routing. Its inputs are immutable; its future timing is not predicted.",
+    "Full placement/routing is recomputed. A small constraint delta can worsen unrelated paths and HDMI recovery/removal.",
+    "State[0..2] remains at R7 C38..39 and may acquire longer routes. External completion loads and synchronous reset inputs must be reviewed.",
+    "STA reports reset-source fanout663; the indexed postroute net alias gpu_debug_state[47] has20 direct pins. These are distinct report views, not interchangeable counts.",
+    "Existing R3/R8 global geometry CE is preserved as a baseline limitation, not newly qualified."
+  ],
+  "inputs_sha256": {
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/audit_geometry_controls.py": "eda6e03a44e1ee31bf4194a8f0b1389e7caabd80233768b35a384f7d7740a952",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/audit_gpu_control_inventory.py": "20bbdc81066291db7bd4f3b6beb4792337de54d21d700f5b5c3fd31d7d9015ed",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/build_geometry_controls.py": "b61189a21485c019e42cfca2c33cabff379df3bb25febf286f6614b2d24bdcdd",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/build_local_controls.py": "1809896e3d9f52092bde6df97139f656120259d4bf417bbd08545392ecf26408",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/build_observer_placement.py": "48fba72efb5b58198711238c159baf68aeb69953d846503e27634b72cf96379f",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/build_timing_placement.py": "9a8a2203c694c7d1c8ba46d470b78cbe674ac2e11596b7eb69cd09a908e268af",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/prove_geometry_controls.py": "f5accac0b699c81a6a10c55039c7bd3cd60b13dad9e138410562b1027724f568",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/audit_scan_observer.py": "5502b0e0ca0371d2db005568a8727e2895556232313f6f65e706bc9428246226",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/prepare_scan_observer.py": "df0da39a0e7928d6307eee437f268a82cd1af4883445412912fc39322a589c27",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/review_route7_paths.py": "5b78f94a035ca9f43c5933b17849a469b9b1978475e77f1d4638e10af32f9ddb",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route9_dma_cone.py": "20df236c2b4d9b0c7d4cf22b0cac5967a7ac38b5b2d310499e6d43c0b678530c",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route_observed_scan_reset.py": "bd06251d96bc14eb38e0a8b89d2b749241b1828cb0002dad62bedc3456022d57",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route_scan_observer.py": "51d346ba8211207148f28a7a376f6e1e89a76c85f4de50a88874df027523fdac",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route_scan_observer_placement.py": "f2e82409f54edcc4abe6fabb2202c96bd37c4926c9964a5fd1bf958303d8c92d",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route_scan_timing_candidates.py": "6a655936f20312f4e16f5d0423f337edf88d7e03888bb7780e58af772fe3c514",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/test_route9_dma_cone.py": "49e32da7d850292257483b4908145abc5dd147d2ef6bf08e721a41223349308e",
+    "/home/michael/console/optimizer/reports.py": "ff34ba04ee4d63a0466555479795aae11e04b6aeca28e2b52d15904408b31d74",
+    "/home/michael/console/optimizer/runtime.py": "4701e088a606882e4294b28feeb9647b04f61c2d630bd5245348deb0ec13ea1b",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/impl/pnr/console_neo.rpt.txt": "7913e2cfbc912d3edaa163c510cbb42085830939679e5bc03968c1fed5677f32",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140/automatic_checks.json": "45eff198c32eef0c2bb9a97657583f65b13a745ad94c0d8e9ac9729fdbfc8605",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140/build.log": "e0d13ec4ffbac32a95683b1fcf19e1da302f00e692cca2f1473a529e05c35a15",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140/console_neo.vg": "0b5ea22b83faf2bae943f399bdb734dc1e66c8507310dc25e054290e24ad6157",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140/impl/pnr/console_neo.fs": "941305b0e2df43cfc8eb9acd06ff220a807ad9af068f964e6e964459d62eda79",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140/impl/pnr/console_neo.tr": "7727550c6d134de0974785e55602fef807a03d8a6f740a06264a83007d9a70af",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140/impl/pnr/console_neo.vo": "4d4a5af77b850a2e194b8932c3e6a546db6cfe0a07e7e7f04e338e9d29816832",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140/qualification.json": "f9011589ce03dec5f4c31d0db29363a930f17c043b0325dc437f130da8b54d9e",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/build.tcl": "935c700d4b752e73159361c86f7c8ba984e084ecae9bbd0f49954c6de3a0d1de",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/console_neo.vg": "0b5ea22b83faf2bae943f399bdb734dc1e66c8507310dc25e054290e24ad6157",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/constraint_mapping.json": "789fb10341eb5e2e622379b46149dc9ef633c1498d049bb589d9a4e8c4b675c3",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/font8x16.hex": "4846bbd5a627479a58a6fc2f7aec106c7566812f8340d82febd21dd8c63d879f",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/rtl/usbhost/usb_hid_host_rom.hex": "44068d210a20cf987d6cb4eecc43a304919914c32f0f692f1e4a68fce2a97e4a",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/rtl/video/font8x16.hex": "4846bbd5a627479a58a6fc2f7aec106c7566812f8340d82febd21dd8c63d879f",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/source/tang/boards/neo/neo.cst": "99fa8e7965b60d9b25e54b3ae16dd67a6900f7eccbbefaccadb310b11f6bd567",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/source/tang/boards/neo/neo.sdc": "c8da535e839157a361e78b06b2f65b2912891f8e9dc48b02d5b315ae9f953113",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/source/tang/boards/neo/timing_closure.json": "c5cad2cb27378b89fc2dc45c7fd7d101b39d324ccd67dc226a82526768221f8c",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route8_hdmi_c150/sources.json": "9347bc6f5d7c89ec31cbcc90dc5eed1a6be1850500216c7458e4c0dbbc96d92d",
+    "/home/michael/console/tools/board_contract.py": "bb74b84eb1ca0fae5acf249649f49de437f7c933c61f160a4f48cbe5c4dde9d8",
+    "/home/michael/console/tools/check_ddr_profile.py": "0975e4804eaee26bab446fbc96592476d8a01c25b6fc90e01ca9e4d2d8c8a992",
+    "/home/michael/console/tools/check_neo_timing.py": "b5ad9677492098fb9431c8a7974ee0498e6b445bfa3399b4aadba6f9b7ccf1c0",
+    "/home/michael/console/tools/gowin_toolchain.py": "54c882d05815306c8dcfc38cf70c424280497a2b337090b5e2d14b147c990371"
+  },
+  "candidate_cst_sha256": "e08dd2bd88b2074a758a828a91393cbbbd5a870e77f99c7bc34071cf41a82c89",
+  "constraints_diff": "--- R8_C150\n+++ R9_DMA8_C150\n@@ -407,3 +407,13 @@\n \n // R9 route2 hardware: scanout reset remains 01; test local distribution.\n CLOCK_LOC \"scan_debug_live_178[1]\" LOCAL_CLOCK;\n+\n+// R9: eight DMA cells only; R8 HDMI C150 and all other anchors unchanged.\n+INS_LOC \"u_accel/u_dma/c_ack_s0\" R[40:65]C[65:90];\n+INS_LOC \"u_accel/u_dma/c_ack_s2\" R[40:65]C[65:90];\n+INS_LOC \"u_accel/u_dma/f_done_s0\" R[40:65]C[65:90];\n+INS_LOC \"u_accel/u_dma/n66_s4\" R[40:65]C[65:90];\n+INS_LOC \"u_accel/u_dma/n76_s2\" R[40:65]C[65:90];\n+INS_LOC \"u_accel/u_dma/n84_s1\" R[40:65]C[65:90];\n+INS_LOC \"u_accel/u_dma/w_done_s0\" R[40:65]C[65:90];\n+INS_LOC \"u_accel/u_dma/write_accepted_s0\" R[40:65]C[65:90];\n",
+  "local_regressions": {
+    "result": "TESTS/dual_board/20261024_luma3d_opaque_copy/result.json",
+    "sha256": "2b1a0175e0da2d33625381ba0155dfb4e1cdc40467bd7edf85ced4598b10cdc4",
+    "hardware_validation": false
+  }
+}

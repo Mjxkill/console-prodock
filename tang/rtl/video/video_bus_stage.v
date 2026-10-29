@@ -27,7 +27,9 @@ module video_bus_stage(
    CAPTURE:begin m_hwdata<=s_hwdata;state<=WAIT_IDLE;end
    WAIT_IDLE:if(m_hready)state<=ADDRESS;
    ADDRESS:state<=DATA;
-   DATA:if(m_hready)begin s_hrdata<=m_hrdata;state<=RESPONSE;end
+   // Data may be sampled during a wait; only RESPONSE makes it visible to
+   // the master. This removes distant HREADY from all 32 data enables.
+   DATA:begin s_hrdata<=m_hrdata;if(m_hready)state<=RESPONSE;end
    default:state<=IDLE;
   endcase
  end

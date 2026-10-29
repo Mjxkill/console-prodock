@@ -1,0 +1,34 @@
+{
+  "candidate": true,
+  "hardware": false,
+  "format": "D*",
+  "helper": "TESTS/neo_720p_20261012/capture_memory_20261027/neo_capture_memory.v",
+  "helper_sha256": "1051163608ea69c7f56ebb2a4363a7ac773285e7284e3f532b377054602f7a90",
+  "bus": "Existing R19 neo_capture_bus unchanged, NCP1 signature, 64-bit held mailbox",
+  "sample": {
+    "7:0": "COPY packet D bits87:80 (low8 source width), expected0x10 for canonical COPY16",
+    "15:8": "COPY packet Q bits87:80",
+    "16": "COPY packet CE n7630_6",
+    "17": "COPY engine reset qualifier active high, not packet FF RESET (constant GND)",
+    "18": "COPY_START trigger in parent pixel FSM",
+    "19": "COPY state IDLE predicate",
+    "20": "COPY state CHECK predicate (early snapshots normally false)",
+    "21": "COPY state VALIDATE predicate (early snapshots normally false)",
+    "22": "COPY bad (early snapshot is not final rejection reason)",
+    "23": "COPY done (early snapshot is not final completion)"
+  },
+  "mem_events": {
+    "0": "native_issue (CLEAR pixel engine)",
+    "1": "pixel producer valid native_valid OR cache_valid OR copy_valid, NOT v1_valid alias of pending",
+    "2": "v1_pending",
+    "3": "v1_accepted"
+  },
+  "sticky_contract": "Clear at acknowledged ARM; OR every subsequent GPU edge including SNAP edge; continue accumulating after SNAP until next ARM; held changes only at SNAP. Host waits for arm acknowledgement before command. ARM wins over coincident SNAP/events.",
+  "limits": [
+    "Eight width bits only, not entire COPY descriptor.",
+    "Two capture edges at COPY_START and next edge; later validation result not captured by those samples.",
+    "Sticky flags establish occurrence, not counts, order or temporal coincidence.",
+    "No new functional GPU/DDR/PLL/reset driver permitted.",
+    "Instrumented route and hardware must be validated separately; simulation cannot certify physical capture."
+  ]
+}

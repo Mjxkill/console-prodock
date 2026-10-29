@@ -13,6 +13,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import time
+from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = Path('/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller')
@@ -35,8 +36,7 @@ def main():
                    help='directory containing an official usb2_0_softphy.vo model and its companion usb2_0_softphy.v synthesis netlist')
     p.add_argument('--phy-internal-observers', choices=('auto','on','off'),default='auto',
                    help='enable model-specific internal observation only when available; never changes stimulus')
-    p.add_argument('--primitives', type=Path, default=Path(
-        '/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v'))
+    p.add_argument('--primitives', type=Path, default=PRIMITIVES)
     p.add_argument('--timeout', type=int, default=240)
     p.add_argument('--bare-config', action='store_true', help='test bulk immediately after SET_CONFIGURATION')
     p.add_argument('--ack-delay', type=int, default=20, help='UTMI cycles before host ACK')

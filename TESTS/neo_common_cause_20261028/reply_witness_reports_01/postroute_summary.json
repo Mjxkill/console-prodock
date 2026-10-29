@@ -1,0 +1,406 @@
+{
+  "schema": "neo-utw1-r22r1-postroute-summary-v1",
+  "candidate": true,
+  "hardware_access": false,
+  "hardware_qualified": false,
+  "route_status": "ROUTED_NOT_QUALIFIED",
+  "bitstream_sha256": "55601256120915adbb08279c0b6bd42caabf8deff261bf87b8a7b8d8cbf9c8aa",
+  "netlist_sha256": "0eb5638a63c4c2562f78db1dc71474830b7425b23c30b56674639bac4a4cb191",
+  "structure_passed": true,
+  "helper_ff": 402,
+  "target_requests_resolved": true,
+  "target_slacks_nonnegative": true,
+  "target_status_counts": {
+    "REPORTED_NONNEGATIVE": 2604
+  },
+  "target_minima": [
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "D",
+      "endpoints": 402,
+      "worst_slack_ns": 3.878,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_457/D"
+    },
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "CE",
+      "endpoints": 402,
+      "worst_slack_ns": 5.003,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_105/CE"
+    },
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "RESET",
+      "endpoints": 402,
+      "worst_slack_ns": 7.099,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_105/RESET"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "D",
+      "endpoints": 402,
+      "worst_slack_ns": 0.247,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_123/D"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "CE",
+      "endpoints": 402,
+      "worst_slack_ns": 0.971,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_532/CE"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "RESET",
+      "endpoints": 402,
+      "worst_slack_ns": 0.756,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_596/RESET"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "D",
+      "endpoints": 32,
+      "worst_slack_ns": 2.828,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_3_s0/D"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "CE",
+      "endpoints": 32,
+      "worst_slack_ns": 10.076,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_26_s0/CE"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "RESET",
+      "endpoints": 32,
+      "worst_slack_ns": 8.309,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_26_s0/RESET"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "D",
+      "endpoints": 32,
+      "worst_slack_ns": 0.559,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_3_s0/D"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "CE",
+      "endpoints": 32,
+      "worst_slack_ns": 0.515,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_19_s0/CE"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "RESET",
+      "endpoints": 32,
+      "worst_slack_ns": 0.661,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_19_s0/RESET"
+    }
+  ],
+  "target_clock_pairs": [
+    {
+      "launch": "bus80_clk:[R]",
+      "latch": "bus80_clk:[R]",
+      "paths": 5982
+    }
+  ],
+  "global_timing_qualification": "FAIL",
+  "global_summary": {
+    "Numbers of Paths Analyzed": 192679,
+    "Numbers of Endpoints Analyzed": 190580,
+    "Numbers of Falling Endpoints": 22,
+    "Numbers of Setup Violated Endpoints": 9,
+    "Numbers of Hold Violated Endpoints": 0
+  },
+  "global_reports": [
+    {
+      "analysis": "setup",
+      "command": "report_timing -setup -max_paths 1000 -max_common_paths 1",
+      "reported_paths": 1000,
+      "invalid_rows": 0,
+      "minimum_slack_ns": -1.013
+    },
+    {
+      "analysis": "hold",
+      "command": "report_timing -hold -max_paths 200 -max_common_paths 1",
+      "reported_paths": 200,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.13
+    },
+    {
+      "analysis": "recovery",
+      "command": "report_timing -recovery -max_paths 10000 -max_common_paths 3",
+      "reported_paths": 10000,
+      "invalid_rows": 0,
+      "minimum_slack_ns": -0.212
+    },
+    {
+      "analysis": "recovery",
+      "command": "report_timing -recovery -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3",
+      "reported_paths": 9,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 1.199
+    },
+    {
+      "analysis": "removal",
+      "command": "report_timing -removal -max_paths 10000 -max_common_paths 3",
+      "reported_paths": 5411,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.289
+    },
+    {
+      "analysis": "removal",
+      "command": "report_timing -removal -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3",
+      "reported_paths": 9,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.289
+    }
+  ],
+  "negative_paths": [
+    {
+      "analysis": "setup",
+      "valid": true,
+      "slack_ns": -1.013,
+      "source": "u_accel/u_blitter/wp_2_s0",
+      "destination": "u_accel/busy_sync_0_s0",
+      "endpoint_pin": "u_accel/busy_sync_0_s0/D",
+      "launch_clock": "ddr3_sys_clk:[R]",
+      "latch_clock": "bus80_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.212,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.212,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/after_event_13_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/after_event_13_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/at_event_12_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/at_event_12_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/at_event_13_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/at_event_13_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_0_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_0_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_1_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_1_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_2_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_2_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_3_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_3_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    }
+  ],
+  "global_summary_caveat": "Gowin labels 9 endpoints as Setup Violated; detailed reports show one setup and eight recovery destinations. Preserve both outputs without treating the summary label as nine ordinary setup paths.",
+  "reset_and_clock_netlist_facts": {
+    "u_soc/vid_hrstn_r_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_soc/exts_hrstn",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "GND",
+        "Q": "vid_hrstn"
+      },
+      "parameters": {
+        "u_soc/vid_hrstn_r_s0.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/n77_s2": {
+      "type": "INV",
+      "pins": {
+        "I": "vid_hrstn",
+        "O": "u_accel/u_v1/u_pixels/u_capture/n77_7"
+      },
+      "parameters": {}
+    },
+    "u_usb_idle_trace/n6_s1": {
+      "type": "LUT2",
+      "pins": {
+        "I0": "rst_usb",
+        "I1": "vid_hrstn",
+        "F": "n6_5"
+      },
+      "parameters": {
+        "u_usb_idle_trace/n6_s1.INIT": "4'hB"
+      }
+    },
+    "u_usb_idle_trace/hreset_s0": {
+      "type": "LUT2",
+      "pins": {
+        "I0": "u_usb_idle_trace/hr[2]",
+        "I1": "u_usb_idle_trace/uh[1]",
+        "F": "u_usb_idle_trace/hreset"
+      },
+      "parameters": {
+        "u_usb_idle_trace/hreset_s0.INIT": "4'h7"
+      }
+    },
+    "u_usb_idle_trace/utw_observer/utw_cell_105": {
+      "type": "DFFRE",
+      "pins": {
+        "D": "u_usb_idle_trace/utw_observer/utw_net_343",
+        "CLK": "vid_hclk",
+        "CE": "u_usb_idle_trace/utw_observer/utw_net_274",
+        "RESET": "u_usb_idle_trace/hreset",
+        "Q": "u_usb_idle_trace/utw_observer/utw_net_344"
+      },
+      "parameters": {
+        "u_usb_idle_trace/utw_observer/utw_cell_105.INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/hr_2_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_usb_idle_trace/hr[1]",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "n6_5",
+        "Q": "u_usb_idle_trace/hr[2]"
+      },
+      "parameters": {
+        "u_usb_idle_trace/hr_2_s0.INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/uh_1_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_usb_idle_trace/uh[0]",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "n6_5",
+        "Q": "u_usb_idle_trace/uh[1]"
+      },
+      "parameters": {
+        "u_usb_idle_trace/uh_1_s0.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_accel/u_v1/u_pixels/u_capture/n217_9",
+        "CLK": "gpu_clk",
+        "CE": "u_accel/u_v1/u_pixels/u_capture/complete_7",
+        "CLEAR": "u_accel/u_v1/u_pixels/u_capture/n77_7",
+        "Q": "u_accel/u_v1/u_pixels/u_capture/after_event[8]"
+      },
+      "parameters": {
+        "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/beat_0_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_accel/u_v1/u_pixels/u_capture/n491_6",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "CLEAR": "u_accel/u_v1/u_pixels/u_capture/n77_7",
+        "Q": "u_accel/u_v1/u_pixels/u_capture/beat[0]"
+      },
+      "parameters": {
+        "u_accel/u_v1/u_pixels/u_capture/beat_0_s0.INIT": "1'b0"
+      }
+    }
+  },
+  "reset_relationship": "Common upstream AE350 HRESETN is sampled by vid_hrstn_r on vid_hclk. GPU local capture takes inverse vid_hrstn as asynchronous CLEAR under gpu_clk. UTNA uses rst_usb OR !vid_hrstn for reset synchronizers and derives hreset from hr[2]/uh[1]; UTW1/hrdata use hreset synchronously under vid_hclk.",
+  "clock_warnings": {
+    "clk_d": "PR1014 present in both R19 and this build; input-buffer output serves reference PLLs and init/reset logic.",
+    "ae350_tck_d": "PR1014 present in both R19 and this build; debugger clock branch. No causality established."
+  },
+  "clock_caveat": "STA clock names/rates are the constraint model, not measured frequency or physical lock evidence.",
+  "not_individually_targeted": [
+    "PHY-side snapshot and send_index",
+    "FIFO write/CDC/synchronizer and flag paths",
+    "Original bank storage/validity, receive_index, snapshot_count, busy, read_pending",
+    "Asynchronous reset release of UTNA synchronizers",
+    "AHB/JTAG upstream and external return route beyond hrdata"
+  ],
+  "diagnostic_recommendation": "Suitable to consider for the reviewed bounded diagnostic with CPU parked and no GPU/DDR workload, followed by exact R19 restoration. This is not global timing closure or board qualification.",
+  "interpretation_bounds": [
+    "Version zero remains FAIL even with a coherent capture.",
+    "Witness=1/bank=0 places disagreement after sampled boundary only conditional on witness/read-path validity.",
+    "Witness=0/bank=0 cannot distinguish upstream zero from witness failure; does not prove a FIFO defect.",
+    "Shared reset origin is real; different branches do not imply independent reset correctness.",
+    "No listed negative path ends in UTNA/UTW1; this does not prove CDC/metastability correctness or external clock/reset behavior."
+  ],
+  "inputs": {
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/route_result.json": "57dce7f81c3f7e8e5d1033426ebb01aca3cde319dd6344058c75939c337bd06e",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/postroute_structure_01/result.json": "63bf08832be2a195d05651e83b4bd7c4bc3c1b6cfbca7260bd5d9a1dedd200a3",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/postroute_timing_01/result.json": "4b12da4edf20373d9dea7c7aa303e0831bd5a2143ed778108900803cc4cba6a0",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.vo": "2a2cd1361999c40a743d38f90935df947c5d2641887c6b666bb68ab0ba9ab81d",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.tr": "2f12219270c3eb965916cc29693b9d89fe9fb0f7ea069efb624a70f44c89d86b",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.fs": "55601256120915adbb08279c0b6bd42caabf8deff261bf87b8a7b8d8cbf9c8aa",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/summarize_route.py": "aead871489fb3e7df0b9b292040b972e619931d142dd81bfce0fd04c7999bc64"
+  }
+}

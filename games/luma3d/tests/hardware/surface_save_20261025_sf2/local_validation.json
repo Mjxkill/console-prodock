@@ -1,0 +1,77 @@
+{
+  "passed": true,
+  "hardware": false,
+  "build": "games/luma3d/build/terrain_surface_20261025_r2",
+  "runtime": {
+    "sha256": "ad74b613145bf410c55ac3501962ecea9089f448d84a40e3056bff8671f09d8d",
+    "bytes": 4755672,
+    "crc32": "d2a4c3ae"
+  },
+  "checks": {
+    "surface_query": {
+      "path": "games/luma3d/build/terrain_surface_20261025_tests_r2/result.json",
+      "sha256": "89caa57a98a8740351b39f5d65e8a0033718f43217c39e8fd49813e5f052f912"
+    },
+    "renderer": {
+      "path": "games/luma3d/build/terrain_surface_20261025_r2/validation_surface/contract/result.json",
+      "sha256": "d2acf969876965524462deceea3c7c73bfef241164564226b3753682c00174cb"
+    },
+    "scenario": {
+      "path": "games/luma3d/build/terrain_surface_20261025_r2/validation_surface/result.json",
+      "sha256": "c0cdb81bc50f2521a3ccbf886ba40e1c2ccd0d9bfd16f6d252688c2cfb07d2e4"
+    },
+    "save_cli": {
+      "path": "games/luma3d/build/terrain_surface_20261025_r2/save_cli/result.json",
+      "sha256": "f17d7bca8b73fa669a54d78bc7d22af382302095f492680337dd89e752a5b409"
+    },
+    "migration_and_bridge": {
+      "path": "games/luma3d/build/terrain_surface_20261025_r2/surface_game_r4/result.json",
+      "sha256": "0d27ab31f0d3d0202a93cc5e2ee858c7f2a7d9e1230998a41e89e110f7ea6ff5"
+    },
+    "forced_lod": {
+      "path": "games/luma3d/build/terrain_surface_20261025_r2/surface_lod/result.json",
+      "sha256": "cc42e62ca9b001d592d1ea74aac5d11e57b1d61d6124e0c2ae4adcb58e7c25b3"
+    },
+    "anchors": {
+      "path": "games/luma3d/candidates/terrain_surface_r1/world/anchor_validation.json",
+      "sha256": "a16210eeded96c6d62514a9722dff972df1eb33fe6b1f7cbce621a60a170e9c6"
+    },
+    "tables": {
+      "path": "games/luma3d/build/terrain_surface_20261025_tables_r3/result.json",
+      "sha256": "35b71ebd13a38ea8e8ba3123a4b5ec475d8bb2dd6819e379ca7a8dffe194ffed"
+    }
+  },
+  "scope": "Canonical existing packed LOD0 surface for ground and deck; local-only save inherited. Not a performance candidate or content extension.",
+  "proof": {
+    "projected_area_m2": 25600,
+    "coverage": "Exact integer topology; once, no holes or overlaps",
+    "shared_edge_height_gap_m": 0,
+    "query_samples": 154551,
+    "query_max_error_m": 5.50563144e-06,
+    "bridge_samples": 220,
+    "bridge_max_error_m": 9.91420697e-08,
+    "migrated_existing_surface_positions": 1960,
+    "max_actual_migration_m": 0.507027,
+    "bridge_walk_steps": 184,
+    "bridge_walk_gap_m": 0,
+    "forced_lod_frames_two_profiles": 52,
+    "migration_baseline": "Exact frozen art3 world.c + data.c, symbols renamed only for coexistence in test binary"
+  },
+  "cost": {
+    "cpu_readonly_table_bytes": 210940,
+    "gpu_added_resources_bytes": 0,
+    "gpu_added_draws_on_nine_story_views": 0,
+    "gpu_added_triangles_on_nine_story_views": 0,
+    "hardware_fps": null
+  },
+  "limits": [
+    "Far LODs remain visual approximations; canonical near surface enforced within 3.05 m of player",
+    "Old collision off-path intentionally changes to existing rendered surface",
+    "Inn +0.0686511 m and stone_8 -0.4527557 m, corresponding collider vertical extents moved",
+    "No new map, mission or hours of gameplay",
+    "No board/SD/FPGA/kernel access; art3 stays live",
+    "Query test first assertion incorrectly demanded a rounded edge point remain in original triangle; corrected oracle extrapolates adjacent continuous edge plane",
+    "Migration test first expected >1m relocation based on missing old bridge override; exact old bridge restored, actual viable cases max0.507m, all prior failed logs preserved",
+    "Earlier migration reports used updated collider bounds; final r4 links the exact old callbacks and catalogue, 1960 shared occupiable positions instead of1961"
+  ]
+}

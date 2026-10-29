@@ -1,0 +1,851 @@
+{
+  "schema": 1,
+  "task_id": "neo_cpu_liveness_oracle_sensitivity_01",
+  "run_id": "neo_cpu_oracle_minimax_20261028_01",
+  "status": "INSUFFICIENT_EXECUTION_EVIDENCE",
+  "session_id": "ses_e7b72b1acffeaRsy63zq71RLKh",
+  "attempts": [
+    {
+      "attempt": 0,
+      "returncode": 0,
+      "events_sha256": "f6b924c3038bf30143eb60842aa94deec0f1dae20ce78d1df36e1fc54b9eb167",
+      "parsed": {
+        "session_id": "ses_e7b72b1acffeaRsy63zq71RLKh",
+        "complete": true,
+        "errors": [],
+        "model_steps_started": 18,
+        "model_steps_finished": 18,
+        "tool_invocations_observed": 28,
+        "tools": [
+          {
+            "call_id": "call_3a9e1a440f2a403eb9ed22d4",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848d507c001s56EvK0uc713ny",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "ls",
+                "-la"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.004868297022767365, \"stdout\": \"total 144\\ndrwxrwxr-x  2 1000 1000  4096 Oct 28 22:06 .\\ndrwxr-xr-x 11 1000 1000   240 Oct 28 22:06 ..\\n-rw-------  1 1000 1000    33 Oct 28 22:06 ANALYSIS.md\\n-r--------  1 1000 1000  2902 Oct 28 22:06 CONTRACT.md\\n-r--------  1 1000 1000  2247 Oct 28 22:06 INPUTS.json\\n-r--------  1 1000 1000  1052 Oct 28 22:06 REFERENCE_HASHES.json\\n-r--------  1 1000 1000  8317 Oct 28 22:06 bench.sv\\n-r--------  1 1000 1000  6472 Oct 28 22:06 ddr_gpu_arb.v\\n-r--------  1 1000 1000  7199 Oct 28 22:06 ddr_ui_adapt.v\\n-r--------  1 1000 1000  7892 Oct 28 22:06 gpu_copy565.v\\n-r--------  1 1000 1000  5262 Oct 28 22:06 gpu_perspective.v\\n-r--------  1 1000 1000  3652 Oct 28 22:06 gpu_texture_cache.v\\n-r--------  1 1000 1000 10740 Oct 28 22:06 gpu_triangle.v\\n-r--------  1 1000 1000 35388 Oct 28 22:06 gpu_v1.v\\n-rw-------  1 1000 1000   112 Oct 28 22:06 mutation_runner.py\\n-r--------  1 1000 1000  2171 Oct 28 22:06 native_memory.sv\\n-r--------  1 1000 1000  9205 Oct 28 22:06 scenario.svh\\n-r--------  1 1000 1000  3336 Oct 28 22:06 test_liveness.py\\n-r--------  1 1000 1000  1891 Oct 28 22:06 validate.py\\n\"}",
+            "time": {
+              "start": 1793225218020,
+              "end": 1793225218037
+            }
+          },
+          {
+            "call_id": "call_83da3c5983b04a639ed077be",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d507c001s56EvK0uc713ny",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "CONTRACT.md"
+            },
+            "output": "{\"content\": \"# Sensitivity of the CPU/CLEAR simulation oracle\\n\\nConcrete task: implement `mutation_runner.py::run_suite(names)` and ANALYSIS.md.\\nNo other source may be changed. Reference RTL/harness are immutable. Work only\\non fresh TemporaryDirectory copies. No network/hardware. No FPGA conclusions.\\n\\nCurrent main bench passes8cases, but a passing oracle should be shown to reject\\nconcrete wrong bytes, mask, address and absent responses. This task tests that\\nremaining gap, not more runs of unchanged healthy tests. R19/G22 identical only\\nfor adapter/arb (see INPUTS), not all GPU files.\\n\\nAcross2groups return6records with name, compile_returncode, timeout(bool), executed_binary,\\nreturncode, log (actual stdout+stderr), elapsed_seconds. Run actual Verilator\\nand actual binary for each case. Never synthesize/fake rows or expected logs.\\nFixed `validate.py` checks records and reference hashes. Compilation failure,\\nexternal subprocess timeout or arbitrary crash does NOT count as detection.\\nPer-reference source copy, targeted replacement must match exactly once.\\n\\n0 baseline: no modifications, run +case=0, mustcomplete32CPUreads and2GPUdone.\\n1 return_low: in copy native_memory.sv, XOR1 into rd_data<=replies[rp]. Expected\\n  CPU_DATA index0. Do not edit CPU oracle or RTL.\\n2 return_upper: XORbit128 into same return. ExpectedCPU_DATA index4; this proves\\n  upper128bit return selection, not only lowword checking.\\n3 return_missing: in copy native_memory.sv prevent return emission, preserving\\n  native read acceptance. Expected bounded scenario CPU progress timeout from\\n  simulation itself; no successful zero-filled memory inference.\\n4 write_mask: at bench arbiter .b_wr_mask connection only, XOR1 bit into mask.\\n  Actual gpu_v1 output/RTL untouched. Expected ENDPOINT unexpectedCLEARfootprint.\\n5 write_address: at bench arbiter .b_addr connection only, XOR0x00800000 into\\n  native word address (adds32MiB to byteaddress). Expected bounded address\\n  rejection, proving upper address bits are not silently wrapped by endpoint.\\n\\nUse /usr/bin/verilator --binary --timing -j2 -Wno-fatal\\n -MAKEFLAGS VM_PARALLEL_BUILDS=0 --top-module bench --Mdir <tmp>/obj\\n followed by SOURCES from test_liveness.py. Compilation each\u226448s, binary\u22643s.\\nFixed tests invoke two groups of3compiles, each bounded60s.\\nrun_suite(names) runs only the three explicitly requested trial names. Capture\\nonly runlogs on success (compile failure detail bounded), no needless output.\\nUse a fresh directory for each mutant; source files copied, never linked.\\nNo baseline source changes allowed, and only connection/endpoint mutations.\\n\\nRun official fixed MCP run_tests BEFORE editing and AFTER all edits including\\nreport. Final action is successful fixed run_tests; no further write after.\\nReport every detected case, actual times, unexpected result if any, and limits\\n(no proof of physical fault, all mutations are external bench-side inputs).\\n\"}",
+            "time": {
+              "start": 1793225218028,
+              "end": 1793225218041
+            }
+          },
+          {
+            "call_id": "call_e518d1e3f9b747b5be32d557",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d583c0018IXdsbgSPLzC3A",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "test_liveness.py"
+            },
+            "output": "{\"content\": \"#!/usr/bin/env python3\\n\\\"\\\"\\\"Protected independent acceptance criteria; no physical-board claims.\\\"\\\"\\\"\\nimport json\\nfrom pathlib import Path\\nimport subprocess\\nimport sys\\nimport tempfile\\n\\nHERE=Path(__file__).resolve().parent\\nSOURCES=['bench.sv','native_memory.sv','ddr_ui_adapt.v','ddr_gpu_arb.v',\\n         'gpu_v1.v','gpu_triangle.v','gpu_copy565.v','gpu_texture_cache.v','gpu_perspective.v']\\n\\ndef main():\\n    with tempfile.TemporaryDirectory(prefix='cpu-liveness-') as t:\\n        obj=Path(t)/'obj'\\n        cmd=['/usr/bin/verilator','--binary','--timing','-j','2','-Wno-fatal',\\n             '-MAKEFLAGS','VM_PARALLEL_BUILDS=0','--top-module','bench','--Mdir',str(obj),*SOURCES]\\n        p=subprocess.run(cmd,cwd=HERE,capture_output=True,text=True,timeout=48)\\n        if p.returncode: print(p.stdout+p.stderr);return 1\\n        rows=[]\\n        for case in ([0] if '--infra' in sys.argv else range(8)):\\n            p=subprocess.run([str(obj/'Vbench'),f'+case={case}'],cwd=HERE,\\n                             capture_output=True,text=True,timeout=3)\\n            print(f'CASE {case} rc={p.returncode}\\\\n{p.stdout}{p.stderr}')\\n            if '--infra' in sys.argv:\\n                return int(p.returncode!=0 or 'INFRA_PASS' not in p.stdout)\\n            obs=[json.loads(line[4:]) for line in p.stdout.splitlines() if line.startswith('OBS ')]\\n            by={r['label']:r for r in obs}\\n            ok=p.returncode==0 and set(by)=={'blocked','final'}\\n            if ok:\\n                a,b=by['blocked'],by['final']\\n                ok=(a['case']==b['case']==case and b['cpu']==b['sent']==32\\n                    and b['rejected']==0 and b['full']==b['tags']==b['adapter_tags']==0\\n                    and b['cpu_pending']==0)\\n                if case in (1,2):\\n                    ok=ok and a['cpu']==0 and a['native_reads']==0 and a['native_writes']==0\\n                    ok=ok and a['cpu_pending']==1 and a['take_blitter']==1 and a['full']==0\\n                    ok=ok and a['gpu_done']==1 and a['busy']==1\\n                elif case==4:\\n                    ok=ok and a['cpu']==0 and a['full']==1 and a['tags']==16\\n                    ok=ok and a['gpu_valid']==1 and a['full_ready_cycles']>=20\\n                    ok=ok and a['native_reads']==16 and a['returned']==0 and a['native_writes']==0\\n                    ok=ok and b['scan_returns']==16 and b['native_reads']==48\\n                elif case==6:\\n                    ok=ok and a['cpu']==0 and a['native_reads']==1 and a['returned']==0\\n                    ok=ok and a['adapter_tags']==1 and a['tags']==1 and a['full']==0\\n                    ok=ok and a['gpu_done']==1 and a['busy']==1 and a['native_writes']>1\\n                if case in (3,6):\\n                    ok=ok and b['gpu_done']==1 and b['busy']==1 and b['native_writes']>1\\n                elif case in (5,7):\\n                    ok=ok and b['gpu_done']==1 and b['busy']==1 and b['native_writes']==0\\n                else:\\n                    ok=ok and b['gpu_done']==2 and b['busy']==0 and b['native_writes']==1\\n                if case!=4:ok=ok and b['native_reads']==b['returned']==32\\n            rows.append({'case':case,'passed':ok,'observations':obs})\\n        print(json.dumps({'passed':all(x['passed'] for x in rows),'cases':rows}))\\n        return int(not all(x['passed'] for x in rows))\\n\\nif __name__=='__main__':raise SystemExit(main())\\n\"}",
+            "time": {
+              "start": 1793225219627,
+              "end": 1793225219662
+            }
+          },
+          {
+            "call_id": "call_d33339b4ba16406794c14d68",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d583c0018IXdsbgSPLzC3A",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "mutation_runner.py"
+            },
+            "output": "{\"content\": \"\\\"\\\"\\\"Implement real compile/run mutation trials on disposable copies only.\\\"\\\"\\\"\\ndef run_suite(names):\\n    return []\\n\"}",
+            "time": {
+              "start": 1793225219633,
+              "end": 1793225219665
+            }
+          },
+          {
+            "call_id": "call_158b4eb3404d4b588c1d0745",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d583c0018IXdsbgSPLzC3A",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "INPUTS.json"
+            },
+            "output": "{\"content\": \"[\\n  {\\n    \\\"file\\\": \\\"ddr_gpu_arb.v\\\",\\n    \\\"r19\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v\\\",\\n    \\\"g22\\\": \\\"tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ddr_gpu_arb.v\\\",\\n    \\\"sha256\\\": \\\"b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5\\\",\\n    \\\"identical\\\": true\\n  },\\n  {\\n    \\\"file\\\": \\\"ddr_ui_adapt.v\\\",\\n    \\\"r19\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_ui_adapt.v\\\",\\n    \\\"g22\\\": \\\"tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ddr_ui_adapt.v\\\",\\n    \\\"sha256\\\": \\\"c5fce284cfff9bd3cca03ea1ee3ac8a769da28ca05c1c28cc1762040427c4d7a\\\",\\n    \\\"identical\\\": true\\n  },\\n  {\\n    \\\"file\\\": \\\"gpu_v1.v\\\",\\n    \\\"r19\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v\\\",\\n    \\\"g22\\\": \\\"tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_v1.v\\\",\\n    \\\"sha256\\\": \\\"2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71\\\",\\n    \\\"identical\\\": false\\n  },\\n  {\\n    \\\"file\\\": \\\"gpu_copy565.v\\\",\\n    \\\"r19\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_copy565.v\\\",\\n    \\\"g22\\\": \\\"tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_copy565.v\\\",\\n    \\\"sha256\\\": \\\"c0cbb102eb701ae861cc389b30827b7ac856e3b4b3ff341cda092fd61ecd0741\\\",\\n    \\\"identical\\\": false\\n  },\\n  {\\n    \\\"file\\\": \\\"gpu_texture_cache.v\\\",\\n    \\\"r19\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_texture_cache.v\\\",\\n    \\\"g22\\\": \\\"tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_texture_cache.v\\\",\\n    \\\"sha256\\\": \\\"1b6e2c46f0335f5741e321327881770d4690b4956641beaea1be6a6e031292b6\\\",\\n    \\\"identical\\\": false\\n  },\\n  {\\n    \\\"file\\\": \\\"gpu_triangle.v\\\",\\n    \\\"r19\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_triangle.v\\\",\\n    \\\"g22\\\": \\\"tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_triangle.v\\\",\\n    \\\"sha256\\\": \\\"992dda01586192f7bd8c031f897e5a0810f61d4500879a807b7c6953f49126a1\\\",\\n    \\\"identical\\\": true\\n  },\\n  {\\n    \\\"file\\\": \\\"gpu_perspective.v\\\",\\n    \\\"r19\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_perspective.v\\\",\\n    \\\"g22\\\": \\\"tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_perspective.v\\\",\\n    \\\"sha256\\\": \\\"a3c98ba32adc408a1c855d47a802d7ffb0c105744746a018cdafe30f0504681c\\\",\\n    \\\"identical\\\": false\\n  }\\n]\\n\"}",
+            "time": {
+              "start": 1793225219637,
+              "end": 1793225219670
+            }
+          },
+          {
+            "call_id": "call_a59cd28ea55b48fe8f9dce80",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d583c0018IXdsbgSPLzC3A",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "REFERENCE_HASHES.json"
+            },
+            "output": "{\"content\": \"{\\n  \\\"native_memory.sv\\\": \\\"2c772c7ab09faf8075dadabe45becdda007d79cedd3be531733535337031b680\\\",\\n  \\\"bench.sv\\\": \\\"7a2270933821fa8037223970f0437c405c3eef58c7a999df7d8e917872fe71fb\\\",\\n  \\\"scenario.svh\\\": \\\"0b6dcdf797eeabb921ac42746ce2992927f6a0c271c3c3e2182cf587b62de635\\\",\\n  \\\"gpu_v1.v\\\": \\\"2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71\\\",\\n  \\\"test_liveness.py\\\": \\\"b502d9c09da76a6e76640c0648499e35226b2e9416a3b4b72cb43bd3e2fb5627\\\",\\n  \\\"INPUTS.json\\\": \\\"116ee4e145fc518d29acfb84a245a7e50dee8647986dd8f46b0affc915110bce\\\",\\n  \\\"gpu_triangle.v\\\": \\\"992dda01586192f7bd8c031f897e5a0810f61d4500879a807b7c6953f49126a1\\\",\\n  \\\"gpu_texture_cache.v\\\": \\\"1b6e2c46f0335f5741e321327881770d4690b4956641beaea1be6a6e031292b6\\\",\\n  \\\"ddr_gpu_arb.v\\\": \\\"b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5\\\",\\n  \\\"gpu_copy565.v\\\": \\\"c0cbb102eb701ae861cc389b30827b7ac856e3b4b3ff341cda092fd61ecd0741\\\",\\n  \\\"gpu_perspective.v\\\": \\\"a3c98ba32adc408a1c855d47a802d7ffb0c105744746a018cdafe30f0504681c\\\",\\n  \\\"ddr_ui_adapt.v\\\": \\\"c5fce284cfff9bd3cca03ea1ee3ac8a769da28ca05c1c28cc1762040427c4d7a\\\"\\n}\\n\"}",
+            "time": {
+              "start": 1793225219641,
+              "end": 1793225219671
+            }
+          },
+          {
+            "call_id": "call_d3f9b7d4d07f4dc3b24b3132",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d583c0018IXdsbgSPLzC3A",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "validate.py"
+            },
+            "output": "{\"content\": \"#!/usr/bin/env python3\\n\\\"\\\"\\\"Protected checks of records; supervisor separately inspects implementation.\\\"\\\"\\\"\\nimport hashlib\\nimport json\\nimport sys\\nfrom pathlib import Path\\nfrom mutation_runner import run_suite\\n\\nHERE=Path(__file__).resolve().parent\\nEXPECTED={'baseline':None,'return_low':'CPU_DATA index0',\\n          'return_upper':'CPU_DATA index4','return_missing':'CPU progress timeout',\\n          'write_mask':'ENDPOINT unexpected CLEAR footprint',\\n          'write_address':'ENDPOINT address outside scratch128B'}\\n\\ndef main():\\n    refs=json.loads((HERE/'REFERENCE_HASHES.json').read_text())\\n    check=lambda:all(hashlib.sha256((HERE/k).read_bytes()).hexdigest()==v for k,v in refs.items())\\n    assert check(),'Protected input changed before tests'\\n    group=int(sys.argv[1]) if len(sys.argv)>1 else 0\\n    names=list(EXPECTED)[group*3:group*3+3]\\n    rows=run_suite(names)\\n    assert check(),'Protected input changed during tests'\\n    assert type(rows) is list and len(rows)==len(names),'Need3real trials in each group'\\n    assert {x['name'] for x in rows}==set(names),'Wrong/missing trial set'\\n    for row in rows:\\n        assert row['compile_returncode']==0,'Compile failure not sensitivity'\\n        assert row['timeout'] is False,'External timeout not sensitivity'\\n        assert row['executed_binary'] is True,'Need actual compiled executable'\\n        expected=EXPECTED[row['name']]\\n        if expected is None:\\n            assert row['returncode']==0,'Baseline must succeed'\\n            final=[json.loads(x[4:]) for x in row['log'].splitlines() if x.startswith('OBS ') and '\\\"final\\\"' in x]\\n            assert len(final)==1 and final[0]['cpu']==32 and final[0]['gpu_done']==2\\n        else:\\n            assert row['returncode']!=0 and expected in row['log'],f'No specific detection:{row[\\\"name\\\"]}'\\n    print(json.dumps({'passed':True,'trials':rows},indent=2))\\n\\nif __name__=='__main__':main()\\n\"}",
+            "time": {
+              "start": 1793225219645,
+              "end": 1793225219673
+            }
+          },
+          {
+            "call_id": "call_91e67eaa141941039221677b",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d583c0018IXdsbgSPLzC3A",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "ANALYSIS.md"
+            },
+            "output": "{\"content\": \"# Pending real sensitivity tests\\n\"}",
+            "time": {
+              "start": 1793225219650,
+              "end": 1793225219675
+            }
+          },
+          {
+            "call_id": "call_404950eae6fd4355be1f32b4",
+            "name": "taskbox_run_tests",
+            "message_id": "msg_1848d5e620019kWUWJKU0Fx8M8",
+            "status": "completed",
+            "exit_code": null,
+            "input": {},
+            "output": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.029183132108300924, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 38, in <module>\\n    if __name__=='__main__':main()\\n                            ^^^^^^\\n  File \\\"/work/validate.py\\\", line 23, in main\\n    assert type(rows) is list and len(rows)==len(names),'Need3real trials in each group'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Need3real trials in each group\\n\"}, {\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.030708019039593637, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 38, in <module>\\n    if __name__=='__main__':main()\\n                            ^^^^^^\\n  File \\\"/work/validate.py\\\", line 23, in main\\n    assert type(rows) is list and len(rows)==len(names),'Need3real trials in each group'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Need3real trials in each group\\n\"}], \"test_runs\": 2, \"test_failures\": 2, \"passed\": false}",
+            "time": {
+              "start": 1793225221384,
+              "end": 1793225221461
+            }
+          },
+          {
+            "call_id": "call_920bf241d09045ac8a18e460",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d5e620019kWUWJKU0Fx8M8",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "bench.sv"
+            },
+            "output": "{\"content\": \"// Cross-client DDR composition bench.\\n// CPU128 -> ddr_ui_adapt -> ddr_gpu_arb <- scanout/blitter -> native_memory.\\n// The scoreboard builds its byte image only from high-level operations and\\n// compares each client response with an independently computed request value.\\n`timescale 1ns/1ps\\nmodule bench;\\n\\n    // ---------------------------------------------------------------------\\n    // Clock/reset and public DUT ports\\n    // ---------------------------------------------------------------------\\n    reg clk = 1'b0;\\n    always #5 clk = ~clk;\\n\\n    reg rst_n = 1'b0;\\n\\n    // 128-bit CPU side of the adapter.\\n    reg         u_cmd_en = 0;\\n    reg  [2:0]  u_cmd = 0;\\n    reg  [28:0] u_addr = 0;\\n    wire        u_cmd_ready;\\n    reg         u_wr_data_en = 0;\\n    reg         u_wr_data_end = 0;\\n    reg  [127:0] u_wr_data = 0;\\n    reg  [15:0]  u_wr_data_mask = 0;\\n    wire        u_wr_data_rdy;\\n    wire [127:0] u_rd_data;\\n    wire        u_rd_data_valid;\\n    wire        u_rd_data_end;\\n\\n    // Adapter 256-bit IP side, wired to the arbiter CPU port.\\n    wire        ip_cmd_en;\\n    wire [2:0]  ip_cmd;\\n    wire [28:0] ip_addr;\\n    wire        ip_cmd_ready;\\n    wire        ip_wr_data_en;\\n    wire        ip_wr_data_end;\\n    wire [255:0] ip_wr_data;\\n    wire [31:0]  ip_wr_data_mask;\\n    wire         ip_wr_data_rdy;\\n    wire [255:0] ip_rd_data;\\n    wire         ip_rd_data_valid;\\n    wire         ip_rd_data_end;\\n\\n    // Scanout producer.\\n    reg         g_valid = 0;\\n    reg  [28:0] g_addr = 0;\\n    wire        g_ready;\\n    wire [255:0] g_data;\\n    wire        g_data_valid;\\n\\n    // Blitter/GPU producer.\\n    wire        b_valid;\\n    wire        b_write;\\n    wire [28:0] b_addr;\\n    wire [255:0] b_wr_data;\\n    wire [31:0] b_wr_mask;\\n    wire        b_ready;\\n    wire [255:0] b_rd_data;\\n    wire        b_rd_valid;\\n\\n    // Ordered native terminal.\\n    wire        m_en;\\n    wire [2:0]  m_cmd;\\n    wire [28:0] m_addr;\\n    wire        m_ready;\\n    wire        m_wr_en;\\n    wire        m_wr_end;\\n    wire [255:0] m_wr_data;\\n    wire [31:0]  m_wr_mask;\\n    wire        m_wr_ready;\\n    wire [255:0] m_rd_data;\\n    wire        m_rd_valid;\\n    wire        m_rd_end;\\n\\n    // ---------------------------------------------------------------------\\n    // DUT composition.\\n    // ---------------------------------------------------------------------\\n    ddr_ui_adapt u_adapter (\\n        .clk(clk), .rst_n(rst_n),\\n        .u_cmd_en(u_cmd_en), .u_cmd(u_cmd), .u_addr(u_addr),\\n        .u_cmd_ready(u_cmd_ready),\\n        .u_wr_data_en(u_wr_data_en), .u_wr_data_end(u_wr_data_end),\\n        .u_wr_data(u_wr_data), .u_wr_data_mask(u_wr_data_mask),\\n        .u_wr_data_rdy(u_wr_data_rdy),\\n        .u_rd_data(u_rd_data), .u_rd_data_valid(u_rd_data_valid),\\n        .u_rd_data_end(u_rd_data_end),\\n        .ip_cmd_en(ip_cmd_en), .ip_cmd(ip_cmd), .ip_addr(ip_addr),\\n        .ip_cmd_ready(ip_cmd_ready),\\n        .ip_wr_data_en(ip_wr_data_en), .ip_wr_data_end(ip_wr_data_end),\\n        .ip_wr_data(ip_wr_data), .ip_wr_data_mask(ip_wr_data_mask),\\n        .ip_wr_data_rdy(ip_wr_data_rdy),\\n        .ip_rd_data(ip_rd_data), .ip_rd_data_valid(ip_rd_data_valid),\\n        .ip_rd_data_end(ip_rd_data_end)\\n    );\\n\\n    ddr_gpu_arb u_arb (\\n        .clk(clk), .rst_n(rst_n),\\n        .c_en(ip_cmd_en), .c_cmd(ip_cmd), .c_addr(ip_addr),\\n        .c_ready(ip_cmd_ready),\\n        .c_wr_en(ip_wr_data_en), .c_wr_end(ip_wr_data_end),\\n        .c_wr_data(ip_wr_data), .c_wr_mask(ip_wr_data_mask),\\n        .c_wr_ready(ip_wr_data_rdy),\\n        .c_rd_data(ip_rd_data), .c_rd_valid(ip_rd_data_valid),\\n        .c_rd_end(ip_rd_data_end),\\n        .g_valid(g_valid), .g_addr(g_addr), .g_ready(g_ready),\\n        .g_data(g_data), .g_data_valid(g_data_valid),\\n        .b_valid(b_valid && !suppress_request), .b_write(b_write), .b_addr(b_addr),\\n        .b_wr_data(b_wr_data), .b_wr_mask(b_wr_mask), .b_ready(b_ready),\\n        .b_rd_data(b_rd_data), .b_rd_valid(b_rd_valid),\\n        .m_en(m_en), .m_cmd(m_cmd), .m_addr(m_addr), .m_ready(m_ready),\\n        .m_wr_en(m_wr_en), .m_wr_end(m_wr_end), .m_wr_data(m_wr_data),\\n        .m_wr_mask(m_wr_mask), .m_wr_ready(m_wr_ready),\\n        .m_rd_data(m_rd_data), .m_rd_valid(m_rd_valid), .m_rd_end(m_rd_end)\\n    );\\n\\n    native_memory u_native (\\n        .clk(clk), .resetn(rst_n), .hold_command(hold_command),\\n        .hold_write(hold_write), .hold_returns(hold_returns), .en(m_en), .cmd(m_cmd), .addr(m_addr),\\n        .ready(m_ready), .wr_en(m_wr_en), .wr_end(m_wr_end),\\n        .wr_data(m_wr_data), .wr_mask(m_wr_mask), .wr_ready(m_wr_ready),\\n        .rd_data(m_rd_data), .rd_valid(m_rd_valid), .rd_end(m_rd_end)\\n    );\\n\\n    // Test-only fault controls. They are real top-level connections, never\\n    // force/deposit internal RTL state. Driver may only change these inputs.\\n    reg hold_command=0,hold_write=0,hold_returns=0;\\n    reg cut_feedback=0,suppress_request=0;\\n    reg start=0;\\n    reg [255:0] command=0;\\n    wire gpu_done,gpu_busy,target_valid;\\n    wire [31:0] rejected;\\n    integer gpu_done_count=0;\\n    gpu_v1 gpu(.clk(clk),.rst(!rst_n),.child_resetn({4{rst_n}}),\\n      .start(start),.command(command),.done(gpu_done),.busy(gpu_busy),\\n      .observe_packet_word0(),.target_config_valid(target_valid),\\n      .material_config_valid(),.rejected(rejected),.fragments(),.passed(),\\n      .texture_hits(),.texture_misses(),.valid(b_valid),.write(b_write),\\n      .addr(b_addr),.wr_data(b_wr_data),.wr_mask(b_wr_mask),\\n      .ready(b_ready && !cut_feedback && !suppress_request),\\n      .rd_valid(b_rd_valid),.rd_data(b_rd_data));\\n    always @(posedge clk) if(rst_n && gpu_done) gpu_done_count<=gpu_done_count+1;\\n\\n    integer scenario=0,cycle=0,full_block_ready_cycles=0;\\n    reg cpu_begin=0;\\n    integer cpu_count=0,cpu_sent=0,scan_count=0;\\n    reg [31:0] cpu_words[0:31];\\n    initial $value$plusargs(\\\"case=%d\\\",scenario);\\n    always @(posedge clk)begin\\n      cycle<=cycle+1;\\n      if(rst_n && u_arb.full && b_valid && m_ready && m_wr_ready)\\n        full_block_ready_cycles<=full_block_ready_cycles+1;\\n      if(cycle>12000)$fatal(1,\\\"HARNESS bounded watchdog\\\");\\n      if(rst_n && g_data_valid)scan_count<=scan_count+1;\\n    end\\n    // A serial CPU-side proxy: one upstream 128-bit beat per requested\\n    // 32-bit load, 32 loads over scratch128B. Real AE350/AHB/CDC not modeled.\\n    // We align to16B and select the corresponding 32-bit lane independently.\\n    initial begin : cpu_reader\\n      integer i,n; reg[31:0] word,expected;\\n      wait(cpu_begin); @(negedge clk);\\n      for(i=0;i<32;i=i+1)begin\\n        n=0;\\n        while(!u_cmd_ready && n<6000)begin @(negedge clk);n=n+1;end\\n        if(!u_cmd_ready)$fatal(1,\\\"CPU request watchdog\\\");\\n        u_cmd=1;u_addr=(32'h12000000+(i/4)*16)>>1;u_cmd_en=1;\\n        @(negedge clk);u_cmd_en=0;cpu_sent=cpu_sent+1;n=0;\\n        while(!u_rd_data_valid && n<6000)begin @(negedge clk);n=n+1;end\\n        if(!u_rd_data_valid)$fatal(1,\\\"CPU response watchdog\\\");\\n        word=u_rd_data[(i%4)*32+:32];\\n        expected=(32'h12000000+4*i)^32'ha5396c17;\\n        if(scenario!=5 && scenario!=7 && i>=8 && i<16)expected=32'h6b4d6b4d;\\n        if(word!==expected)$fatal(1,\\\"CPU_DATA index%0d got%08x expected%08x\\\",i,word,expected);\\n        cpu_words[i]=word;cpu_count=cpu_count+1;\\n        @(negedge clk);\\n      end\\n    end\\n    task automatic report(input string label);\\n      $display(\\\"OBS {\\\\\\\"case\\\\\\\":%0d,\\\\\\\"label\\\\\\\":\\\\\\\"%s\\\\\\\",\\\\\\\"cpu\\\\\\\":%0d,\\\\\\\"sent\\\\\\\":%0d,\\\\\\\"gpu_done\\\\\\\":%0d,\\\\\\\"busy\\\\\\\":%0d,\\\\\\\"rejected\\\\\\\":%0d,\\\\\\\"native_reads\\\\\\\":%0d,\\\\\\\"native_writes\\\\\\\":%0d,\\\\\\\"returned\\\\\\\":%0d,\\\\\\\"scan_returns\\\\\\\":%0d,\\\\\\\"full\\\\\\\":%0d,\\\\\\\"tags\\\\\\\":%0d,\\\\\\\"cpu_pending\\\\\\\":%0d,\\\\\\\"take_blitter\\\\\\\":%0d,\\\\\\\"prefer_blitter\\\\\\\":%0d,\\\\\\\"adapter_tags\\\\\\\":%0d,\\\\\\\"gpu_valid\\\\\\\":%0d,\\\\\\\"gpu_ready\\\\\\\":%0d,\\\\\\\"command_ready\\\\\\\":%0d,\\\\\\\"write_ready\\\\\\\":%0d,\\\\\\\"full_ready_cycles\\\\\\\":%0d,\\\\\\\"cycle\\\\\\\":%0d}\\\",\\n        scenario,label,cpu_count,cpu_sent,gpu_done_count,gpu_busy,rejected,\\n        u_native.reads,u_native.writes,u_native.returned,scan_count,\\n        u_arb.full,(u_arb.wp-u_arb.rp)&31,u_arb.cpu_pending,\\n        u_arb.take_blitter,u_arb.prefer_blitter,(u_adapter.tq_w-u_adapter.tq_r)&31,\\n        b_valid,b_ready&&!cut_feedback&&!suppress_request,m_ready,m_wr_ready,full_block_ready_cycles,cycle);\\n    endtask\\n    // Driver implements reset, TARGET, CLEAR, faults and bounded observation.\\n    // Fixed test wrapper and above byte oracle remain read-only to the agent.\\n    `include \\\"scenario.svh\\\"\\nendmodule\\n\"}",
+            "time": {
+              "start": 1793225221390,
+              "end": 1793225221464
+            }
+          },
+          {
+            "call_id": "call_79bfba967667460ba5076817",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d5e620019kWUWJKU0Fx8M8",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "native_memory.sv"
+            },
+            "output": "{\"content\": \"`timescale 1ns/1ps\\n// Independent byte-addressed, in-order terminal. Not a model of PHY/calibration.\\n// Scratch range is checked before indexing; no truncation/alias of upper bits.\\nmodule native_memory(\\n input wire clk, resetn, hold_command, hold_write, hold_returns,\\n input wire en, input wire [2:0] cmd, input wire [28:0] addr,\\n output wire ready, input wire wr_en,wr_end,\\n input wire [255:0] wr_data, input wire [31:0] wr_mask,\\n output wire wr_ready, output reg [255:0] rd_data=0,\\n output reg rd_valid=0,rd_end=0\\n);\\n localparam [31:0] BASE=32'h12000000;\\n reg[7:0] bytes[0:127];\\n reg[255:0] replies[0:255];\\n integer due[0:255];\\n integer tick=0,wp=0,rp=0,reads=0,writes=0,returned=0;\\n integer i,base; reg[31:0] value;\\n initial begin\\n  for(i=0;i<32;i=i+1) begin\\n   value=(BASE+4*i)^32'ha5396c17;\\n   bytes[4*i]=value[7:0];bytes[4*i+1]=value[15:8];\\n   bytes[4*i+2]=value[23:16];bytes[4*i+3]=value[31:24];\\n  end\\n end\\n assign ready=resetn && !hold_command && tick%7!=2;\\n assign wr_ready=resetn && !hold_write && tick%5!=1;\\n always @(posedge clk) begin\\n  if(!resetn) begin tick<=0;wp=0;rp=0;reads=0;writes=0;returned=0;rd_valid<=0;rd_end<=0;end\\n  else begin\\n   tick<=tick+1;rd_valid<=0;rd_end<=0;\\n   if(!hold_returns && rp<wp && tick>=due[rp])begin\\n    rd_data<=replies[rp];rd_valid<=1;rd_end<=1;rp=rp+1;returned=returned+1;\\n   end\\n   if(en)begin\\n    if(!ready)$fatal(1,\\\"ENDPOINT command without ready\\\");\\n    if(addr[2:0]!=0 || addr*4<BASE || addr*4>BASE+96)\\n     $fatal(1,\\\"ENDPOINT address outside scratch128B\\\");\\n    base=addr*4-BASE;\\n    if(cmd==0)begin\\n     if(!wr_en || !wr_end || !wr_ready)$fatal(1,\\\"ENDPOINT missing write handshake\\\");\\n     if(base!=32 || wr_mask!=0 || wr_data!={16{16'h6b4d}})\\n      $fatal(1,\\\"ENDPOINT unexpected CLEAR footprint\\\");\\n     for(i=0;i<32;i=i+1)bytes[base+i]=wr_data[i*8+:8];\\n     writes=writes+1;\\n    end else if(cmd==1)begin\\n     if(wp>=256)$fatal(1,\\\"ENDPOINT queue bound\\\");\\n     for(i=0;i<32;i=i+1)replies[wp][i*8+:8]=bytes[base+i];\\n     due[wp]=tick+4+(reads%4);wp=wp+1;reads=reads+1;\\n    end else $fatal(1,\\\"ENDPOINT unknown command\\\");\\n   end\\n   if(wr_en && !(en && cmd==0))$fatal(1,\\\"ENDPOINT unmatched write data\\\");\\n  end\\n end\\nendmodule\\n\"}",
+            "time": {
+              "start": 1793225221395,
+              "end": 1793225221466
+            }
+          },
+          {
+            "call_id": "call_ad3d982ebc54408db51aeb40",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d6563001e8EGLJ4f81gcnG",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "scenario.svh"
+            },
+            "output": "{\"content\": \"// Bounded CPU-liveness scenarios for the real composition bench.\\n// Only top-level inputs are driven, and every drive change is made at negedge.\\n// The five fault flags are real bench inputs; no internal signal is forced.\\n// Internal values are only observed (report()/wait helpers) and never written.\\n\\n// Native word address 0x12000060 / 4. It is eight-word aligned and inside the\\n// terminal's checked 128-byte scratch range. Used only as synthetic scan history.\\nlocalparam [28:0] SCAN_ADDR = 29'h04800018;\\n\\n// ---------------------------------------------------------------------------\\n// Packet helpers. command/start are sampled by gpu_v1 on the next posedge.\\n// ---------------------------------------------------------------------------\\ntask automatic pulse_packet(input [255:0] pkt);\\n    command = pkt;\\n    start   = 1'b1;\\n    @(negedge clk);\\n    start   = 1'b0;\\nendtask\\n\\ntask automatic send_target;\\n    // 16x1 target, colour base 0x12000020, Z base 0x12000040, stride 32.\\n    pulse_packet({32'd0, 32'd0, 32'd0, 32'h00200020,\\n                  32'h00100001, 32'h12000040, 32'h12000020, 32'h16000000});\\nendtask\\n\\ntask automatic send_clear;\\n    // opcode 0x1c, flags=1 (RGB565 colour), 0x6b4d, rectangle 16x1.\\n    pulse_packet({32'd0, 32'd0, 32'h00100001, 32'd0,\\n                  32'd0, 32'h6b4d, 32'd1, 32'h1c000000});\\nendtask\\n\\n// ---------------------------------------------------------------------------\\n// Bounded observation helpers (read-only).\\n// ---------------------------------------------------------------------------\\ntask automatic wait_gpu_done(input integer want);\\n    integer n;\\n    n = 0;\\n    while (gpu_done_count < want && n < 2000) begin\\n        @(negedge clk);\\n        n = n + 1;\\n    end\\n    if (gpu_done_count < want) $fatal(1, \\\"scenario: GPU done timeout\\\");\\nendtask\\n\\ntask automatic wait_cpu(input integer want);\\n    integer n;\\n    n = 0;\\n    while (cpu_count < want && n < 4000) begin\\n        @(negedge clk);\\n        n = n + 1;\\n    end\\n    if (cpu_count < want) $fatal(1, \\\"scenario: CPU progress timeout\\\");\\nendtask\\n\\ntask automatic wait_bvalid;\\n    integer n;\\n    n = 0;\\n    while (!b_valid && n < 1000) begin\\n        @(negedge clk);\\n        n = n + 1;\\n    end\\n    if (!b_valid) $fatal(1, \\\"scenario: native VALID timeout\\\");\\nendtask\\n\\ntask automatic wait_native_reads(input integer want);\\n    integer n;\\n    n = 0;\\n    while (u_native.reads < want && n < 2000) begin\\n        @(negedge clk);\\n        n = n + 1;\\n    end\\n    if (u_native.reads < want) $fatal(1, \\\"scenario: native read timeout\\\");\\nendtask\\n\\ntask automatic wait_native_writes(input integer want);\\n    integer n;\\n    n = 0;\\n    while (u_native.writes < want && n < 2000) begin\\n        @(negedge clk);\\n        n = n + 1;\\n    end\\n    if (u_native.writes < want) $fatal(1, \\\"scenario: native write timeout\\\");\\nendtask\\n\\ntask automatic wait_scan_returns(input integer want);\\n    integer n;\\n    n = 0;\\n    while (scan_count < want && n < 2000) begin\\n        @(negedge clk);\\n        n = n + 1;\\n    end\\n    if (scan_count < want) $fatal(1, \\\"scenario: scan return timeout\\\");\\nendtask\\n\\n// ---------------------------------------------------------------------------\\n// Case 4 synthetic pending scan history.\\n// g_valid is held until exactly `count` real g_valid/g_ready accepts happened.\\n// Sampling at posedge counts the actual handshake; deassertion happens at the\\n// following negedge, so no extra request can be accepted.\\n// ---------------------------------------------------------------------------\\ntask automatic scan_burst(input integer count);\\n    integer n;\\n    n = 0;\\n    g_addr  = SCAN_ADDR;\\n    g_valid = 1'b1;\\n    while (n < count) begin\\n        @(posedge clk);\\n        if (g_valid && g_ready) n = n + 1;\\n        @(negedge clk);\\n    end\\n    g_valid = 1'b0;\\nendtask\\n\\ntask automatic wait_arb_full_16reads;\\n    integer n;\\n    n = 0;\\n    while (!(u_arb.full && u_native.reads >= 16) && n < 2000) begin\\n        @(negedge clk);\\n        n = n + 1;\\n    end\\n    if (!(u_arb.full && u_native.reads >= 16))\\n        $fatal(1, \\\"scenario: arbiter did not fill from 16 scan reads\\\");\\nendtask\\n\\n// ---------------------------------------------------------------------------\\n// Driver.\\n// ---------------------------------------------------------------------------\\ninitial begin : scenario_driver\\n    repeat (8) @(negedge clk);\\n    rst_n = 1'b1;\\n    repeat (8) @(negedge clk);\\n\\n    // Common TARGET. Wait for completion before any CLEAR scenario so that the\\n    // target configuration is exactly the protected 16x1/stride-32 packet.\\n    send_target();\\n    wait_gpu_done(1);\\n    if (!target_valid || rejected != 0) $fatal(1, \\\"scenario: TARGET failed\\\");\\n\\n    case (scenario)\\n        // 0: healthy composition. CLEAR completes, then CPU does 32 reads.\\n        0: begin\\n            send_clear();\\n            wait_gpu_done(2);\\n            cpu_begin = 1'b1;\\n            wait_cpu(16);\\n            report(\\\"blocked\\\");      // observation window: CLEAR finished\\n            wait_cpu(32);\\n            repeat (8) @(negedge clk);\\n            report(\\\"final\\\");\\n        end\\n\\n        // 1: terminal command channel held before CLEAR.\\n        1: begin\\n            hold_command = 1'b1;\\n            send_clear();\\n            wait_bvalid();\\n            cpu_begin = 1'b1;\\n            repeat (80) @(negedge clk);   // >=80 cycles with CLEAR held\\n            report(\\\"blocked\\\");\\n            hold_command = 1'b0;\\n            wait_cpu(32);\\n            wait_gpu_done(2);\\n            repeat (8) @(negedge clk);\\n            report(\\\"final\\\");\\n        end\\n\\n        // 2: terminal write channel held before CLEAR. The command port is\\n        // available, but the blitter write cannot be accepted, so CPU reads\\n        // are stalled despite command_ready remaining high.\\n        2: begin\\n            hold_write = 1'b1;\\n            send_clear();\\n            wait_bvalid();\\n            cpu_begin = 1'b1;\\n            repeat (80) @(negedge clk);\\n            report(\\\"blocked\\\");\\n            hold_write = 1'b0;\\n            wait_cpu(32);\\n            wait_gpu_done(2);\\n            repeat (8) @(negedge clk);\\n            report(\\\"final\\\");\\n        end\\n\\n        // 3: feedback cut before CLEAR. The arbiter/terminal keep accepting\\n        // blitter writes repeatedly, but the GPU never observes b_ready.\\n        3: begin\\n            cut_feedback = 1'b1;\\n            send_clear();\\n            wait_bvalid();\\n            repeat (40) @(negedge clk);   // >=40 cycles before starting CPU\\n            wait_native_writes(2);\\n            cpu_begin = 1'b1;\\n            wait_cpu(8);\\n            report(\\\"blocked\\\");\\n            wait_cpu(32);\\n            repeat (8) @(negedge clk);\\n            report(\\\"final\\\");              // cut_feedback still asserted\\n        end\\n\\n        // 4: synthetic pending scan history. hold_returns prevents any reply,\\n        // so the arbiter fills with 16 queued read tags.\\n        4: begin\\n            hold_returns = 1'b1;\\n            scan_burst(16);\\n            wait_arb_full_16reads();\\n            send_clear();\\n            wait_bvalid();  // Observe CLEAR native request, not its decode latency.\\n            cpu_begin = 1'b1;\\n            repeat (80) @(negedge clk);\\n            report(\\\"blocked\\\");            // full=1, tags=16, native VALID held\\n            hold_returns = 1'b0;\\n            wait_cpu(32);\\n            wait_scan_returns(16);\\n            wait_gpu_done(2);\\n            repeat (8) @(negedge clk);\\n            report(\\\"final\\\");\\n        end\\n\\n        // 5: GPU native VALID is withheld from the arbiter (and its feedback is\\n        // withheld). CPU reads still use unchanged seed memory.\\n        5: begin\\n            suppress_request = 1'b1;\\n            send_clear();\\n            wait_bvalid();\\n            cpu_begin = 1'b1;\\n            wait_cpu(32);\\n            repeat (8) @(negedge clk);\\n            report(\\\"blocked\\\");\\n            repeat (8) @(negedge clk);\\n            report(\\\"final\\\");\\n        end\\n\\n        // 6: feedback cut plus held returns. Writes keep being accepted while\\n        // exactly one CPU read is outstanding with a missing return.\\n        6: begin\\n            cut_feedback = 1'b1;\\n            hold_returns = 1'b1;\\n            send_clear();\\n            wait_bvalid();\\n            wait_native_writes(2);\\n            cpu_begin = 1'b1;\\n            wait_native_reads(1);\\n            repeat (80) @(negedge clk);   // >=80 cycles with return held\\n            report(\\\"blocked\\\");\\n            hold_returns = 1'b0;          // release returns only\\n            wait_cpu(32);\\n            repeat (8) @(negedge clk);\\n            report(\\\"final\\\");              // cut_feedback still asserted\\n        end\\n\\n        // 7: request suppression plus write-channel hold. CPU reads complete,\\n        // while no GPU write reaches the terminal at any point.\\n        7: begin\\n            suppress_request = 1'b1;\\n            hold_write       = 1'b1;\\n            send_clear();\\n            wait_bvalid();\\n            cpu_begin = 1'b1;\\n            wait_cpu(32);\\n            repeat (8) @(negedge clk);\\n            report(\\\"blocked\\\");\\n            repeat (8) @(negedge clk);\\n            report(\\\"final\\\");              // both faults still asserted\\n        end\\n\\n        default: $fatal(1, \\\"scenario: unsupported case %0d\\\", scenario);\\n    endcase\\n\\n    $finish;\\nend\\n\"}",
+            "time": {
+              "start": 1793225229939,
+              "end": 1793225229960
+            }
+          },
+          {
+            "call_id": "call_97fefb1d91254287834eaeb0",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d6563001e8EGLJ4f81gcnG",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "ddr_gpu_arb.v"
+            },
+            "output": "{\"content\": \"// Shared native DDR3 UI: CPU adapter, scanout reads and blitter reads/writes.\\n// Addresses are 32-bit words, aligned to eight words (32 bytes).\\n// CPU upstream issues command+data pulses only when ready; capture them in a\\n// one-entry buffer to break the ready chain through the legacy CPU adapter.\\n// Scanout has priority for bounded line fetches; CPU/blitter alternate otherwise.\\n// Their grant is registered, so changing clients may insert an idle cycle.\\n`default_nettype none\\nmodule ddr_gpu_arb (\\n    input wire clk, rst_n,\\n    input wire c_en,\\n    input wire [2:0] c_cmd,\\n    input wire [28:0] c_addr,\\n    output wire c_ready,\\n    input wire c_wr_en, c_wr_end,\\n    input wire [255:0] c_wr_data,\\n    input wire [31:0] c_wr_mask,\\n    output wire c_wr_ready,\\n    output wire [255:0] c_rd_data,\\n    output wire c_rd_valid, c_rd_end,\\n    input wire g_valid,\\n    input wire [28:0] g_addr,\\n    output wire g_ready,\\n    output wire [255:0] g_data,\\n    output wire g_data_valid,\\n    input wire b_valid, b_write,\\n    input wire [28:0] b_addr,\\n    input wire [255:0] b_wr_data,\\n    input wire [31:0] b_wr_mask,\\n    output wire b_ready,\\n    output wire [255:0] b_rd_data,\\n    output wire b_rd_valid,\\n    output wire m_en,\\n    output wire [2:0] m_cmd,\\n    output wire [28:0] m_addr,\\n    input wire m_ready,\\n    output wire m_wr_en, m_wr_end,\\n    output wire [255:0] m_wr_data,\\n    output wire [31:0] m_wr_mask,\\n    input wire m_wr_ready,\\n    input wire [255:0] m_rd_data,\\n    input wire m_rd_valid, m_rd_end\\n);\\n    reg [1:0] tags [0:15]; // 0 CPU, 1 scanout, 2 blitter\\n    reg [4:0] wp = 0, rp = 0;\\n    reg full = 0;\\n    wire empty = wp == rp;\\n    wire issue = rst_n && !full;\\n    reg cpu_pending = 0;\\n    reg [2:0] cpu_cmd;\\n    reg [28:0] cpu_addr;\\n    reg [255:0] cpu_data;\\n    reg [31:0] cpu_mask;\\n    reg prefer_blitter = 1;\\n    reg take_blitter = 0;\\n    // Two scanout request slots isolate its distant owner/request decode\\n    // from DDR arbitration. READY acknowledges enqueueing; responses still\\n    // follow DDR issue order. The FIFO sustains one request per cycle when\\n    // DDR accepts continuously, and never depends on DDR READY at its input.\\n    reg [28:0] scan_addresses [0:1];\\n    reg scan_wp=0,scan_rp=0;\\n    reg [1:0] scan_count=0;\\n    wire scan_valid=scan_count!=0;\\n    wire [28:0] scan_addr=scan_addresses[scan_rp];\\n    assign g_ready = rst_n && scan_count!=2;\\n    wire scan_enqueue=g_valid && g_ready;\\n    wire scan_issue=scan_valid && issue && m_ready;\\n    always @(posedge clk)begin\\n        if(!rst_n)begin scan_wp<=0;scan_rp<=0;scan_count<=0;end\\n        else begin\\n            if(scan_enqueue)begin scan_addresses[scan_wp]<=g_addr;scan_wp<=!scan_wp;end\\n            if(scan_issue)scan_rp<=!scan_rp;\\n            case({scan_enqueue,scan_issue})\\n                2'b10:scan_count<=scan_count+1'b1;\\n                2'b01:scan_count<=scan_count-1'b1;\\n                default:;\\n            endcase\\n        end\\n    end\\n    // b_grant est gard\u00e9 tel quel par la synth\u00e8se (syn_keep) : sans cela, la LUT de b_ready \u00e9tait partag\u00e9e\\n    // avec m_wr_en, qui d\u00e9pend de b_valid, et l'analyse de timing comptait une boucle combinatoire\\n    // b_valid -> arbitre -> b_ready -> blitter/V1 qui n'existe pas logiquement (r600, -0,47 ns).\\n    wire b_grant /* synthesis syn_keep=1 */ = issue && !scan_valid && take_blitter && m_ready && (!b_write || m_wr_ready);\\n    assign b_ready = b_grant;\\n    assign c_ready = rst_n && !cpu_pending;\\n    assign c_wr_ready = c_ready;\\n    wire cpu_fire = issue && !scan_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);\\n    assign m_en = scan_issue || (b_valid && b_ready) || cpu_fire;\\n    assign m_cmd = scan_valid ? 3'b001 : take_blitter ? {2'b0,!b_write} : cpu_cmd;\\n    assign m_addr = scan_valid ? scan_addr : take_blitter ? b_addr : cpu_addr;\\n    assign m_wr_en = (b_valid && b_ready && b_write) || (cpu_fire && cpu_cmd == 0);\\n    assign m_wr_end = m_wr_en;\\n    assign m_wr_data = take_blitter ? b_wr_data : cpu_data;\\n    assign m_wr_mask = take_blitter ? b_wr_mask : cpu_mask;\\n    wire push = scan_issue || (b_valid && b_ready && !b_write) || (cpu_fire && cpu_cmd == 1);\\n    wire pop = m_rd_valid && !empty;\\n    wire [4:0] next_wp = wp + {4'b0, push};\\n    wire [4:0] next_rp = rp + {4'b0, pop};\\n    wire [4:0] incremented_wp = wp + 5'd1;\\n    wire one_slot_left = incremented_wp == {~rp[4],rp[3:0]};\\n    always @(posedge clk) begin\\n        if (!rst_n) begin\\n            wp <= 0; rp <= 0; full <= 0; prefer_blitter <= 1;\\n            take_blitter<=0;\\n            cpu_pending <= 0; cpu_cmd <= 0; cpu_addr <= 0; cpu_data <= 0; cpu_mask <= 32'hffffffff;\\n        end\\n        else begin\\n            // Cut the valid -> arbitration -> ready round trip. A stale grant\\n            // can only insert a bubble: native commands still require valid.\\n            // Acknowledgement remains the actual DDR command/data acceptance.\\n            if(b_valid && b_ready) take_blitter<=0;\\n            else take_blitter<=b_valid && (prefer_blitter || !cpu_pending);\\n            // While empty, sample the payload independently of the late\\n            // upstream request. The acceptance cycle captures the same words;\\n            // once pending, every word remains held until DDR accepts it.\\n            // This leaves c_en driving only the valid bit, not 320 payload CEs.\\n            if (!cpu_pending) begin\\n                cpu_cmd <= c_cmd; cpu_addr <= c_addr;\\n                cpu_data <= c_wr_data; cpu_mask <= c_wr_mask;\\n            end\\n            if (c_en && c_ready) cpu_pending <= 1;\\n            else if (cpu_fire) cpu_pending <= 0;\\n            if (!scan_valid) begin\\n                if (b_valid && b_ready) prefer_blitter <= 0;\\n                else if (cpu_fire) prefer_blitter <= 1;\\n            end\\n            if (push) tags[wp[3:0]] <= scan_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;\\n            wp <= next_wp; rp <= next_rp;\\n            // Compare stable pointers before the late command acceptance.\\n            // Simultaneous push/pop leaves occupancy unchanged.\\n            if(push && !pop)full<=one_slot_left;\\n            else if(pop && !push)full<=0;\\n        end\\n    end\\n    assign c_rd_data = m_rd_data;\\n    assign g_data = m_rd_data;\\n    assign c_rd_valid = pop && tags[rp[3:0]] == 0;\\n    assign c_rd_end = c_rd_valid && m_rd_end;\\n    assign g_data_valid = pop && tags[rp[3:0]] == 1;\\n    assign b_rd_data = m_rd_data;\\n    assign b_rd_valid = pop && tags[rp[3:0]] == 2;\\nendmodule\\n`default_nettype wire\\n\"}",
+            "time": {
+              "start": 1793225229944,
+              "end": 1793225229966
+            }
+          },
+          {
+            "call_id": "call_c089d63644234f409ae233d1",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848d6563001e8EGLJ4f81gcnG",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "ddr_ui_adapt.v"
+            },
+            "output": "{\"content\": \"// ddr_ui_adapt.v \u2014 adaptateur de largeur entre l'interface utilisateur \u00ab 16 bits \u00bb (128 bits par rafale, adresses en\\n// mots de 16 bits, s\u00e9mantique du contr\u00f4leur DDR3 Gowin en DQ 16 telle que mod\u00e9lis\u00e9e dans sim/ddr3_ui_model.py et\\n// valid\u00e9e sur carte en E1/E2) et l'IP DDR3 configur\u00e9e en DQ 32 bits (256 bits par rafale, adresses en mots de 32 bits,\\n// 1 Go) \u2014 ARCHI_V3 \u00a7 11 (E2-f1). Il permet de garder le pont Sipeed, ddr_arb et ddr_writer tels quels.\\n//\\n// S\u00e9mantique reproduite (c\u00f4t\u00e9 amont, \u00ab u_* \u00bb) :\\n//   - adresse u_addr en mots de 16 bits ; une rafale couvre les 16 octets \u00e0 (u_addr & ~7) \u00d7 2 ; si u_addr n'est pas\\n//     align\u00e9e, la donn\u00e9e \u00e9crite et le masque sont TOURN\u00c9S de (u_addr & 7) mots (c'est ce que faisait le contr\u00f4leur\\n//     16 bits : \u00ab la donn\u00e9e pr\u00e9sent\u00e9e commence au mot demand\u00e9 \u00bb), et une lecture rend la rafale tourn\u00e9e en sens\\n//     inverse (mot demand\u00e9 en t\u00eate) ;\\n//   - masque : 1 = octet non \u00e9crit.\\n// C\u00f4t\u00e9 IP 32 bits (\u00ab ip_* \u00bb) : commandes toujours ALIGN\u00c9ES sur la rafale de 32 octets (ip_addr = octets / 4 avec les\\n// 3 bits bas \u00e0 0) ; la moiti\u00e9 de 128 bits vis\u00e9e est u_addr[3] (octet 16 de la rafale), l'autre moiti\u00e9 est masqu\u00e9e.\\n// Hypoth\u00e8se \u00e0 v\u00e9rifier sur carte : rafale align\u00e9e = 8 mots de 32 bits en petit-boutiste (mot 0 en bas), comme en 16 bits.\\n// Lectures : l'IP rend dans l'ordre \u2192 file d'\u00e9tiquettes {moiti\u00e9, rotation} ; cmd_ready amont = IP pr\u00eate ET file non\\n// pleine (jamais de commande perdue en silence). Donn\u00e9es d'\u00e9criture : wr_data_en passe tel quel (l'IP les apparie).\\n`default_nettype none\\nmodule ddr_ui_adapt #(\\n    parameter TAG_LOG2 = 4                  // 16 lectures en vol au plus (le pont n'en a qu'une, le writer aucune)\\n) (\\n    input  wire         clk,\\n    input  wire         rst_n,\\n    // amont : interface 128 bits (sortie de ddr_arb)\\n    input  wire         u_cmd_en,\\n    input  wire [2:0]   u_cmd,\\n    input  wire [28:0]  u_addr,\\n    output wire         u_cmd_ready,\\n    input  wire         u_wr_data_en,\\n    input  wire         u_wr_data_end,\\n    input  wire [127:0] u_wr_data,\\n    input  wire [15:0]  u_wr_data_mask,\\n    output wire         u_wr_data_rdy,\\n    output wire [127:0] u_rd_data,\\n    output wire         u_rd_data_valid,\\n    output wire         u_rd_data_end,\\n    // aval : IP DDR3 en DQ 32 (256 bits)\\n    output wire         ip_cmd_en,\\n    output wire [2:0]   ip_cmd,\\n    output wire [28:0]  ip_addr,\\n    input  wire         ip_cmd_ready,\\n    output wire         ip_wr_data_en,\\n    output wire         ip_wr_data_end,\\n    output wire [255:0] ip_wr_data,\\n    output wire [31:0]  ip_wr_data_mask,\\n    input  wire         ip_wr_data_rdy,\\n    input  wire [255:0] ip_rd_data,\\n    input  wire         ip_rd_data_valid,\\n    input  wire         ip_rd_data_end\\n);\\n    // --- rotation d'un mot de 128 bits par n mots de 16 bits (gauche pour \u00e9crire, droite pour lire) -------------\\n    function [127:0] rotl128; input [127:0] d; input [2:0] n;\\n        begin rotl128 = (d << (16 * n)) | (d >> (128 - 16 * n)); end\\n    endfunction\\n    function [127:0] rotr128; input [127:0] d; input [2:0] n;\\n        begin rotr128 = (d >> (16 * n)) | (d << (128 - 16 * n)); end\\n    endfunction\\n    function [15:0] rotl16; input [15:0] m; input [2:0] n;\\n        begin rotl16 = (m << (2 * n)) | (m >> (16 - 2 * n)); end\\n    endfunction\\n\\n    // --- file d'\u00e9tiquettes des lectures en vol ------------------------------------------------------------------\\n    localparam DEPTH = 1 << TAG_LOG2;\\n    reg  [3:0]          tags [0:DEPTH-1];                    // {half, rot}\\n    reg  [TAG_LOG2:0]   tq_w = 0, tq_r = 0;\\n    // `tq_full` REGISTR\u00c9 (calcul\u00e9 sur les pointeurs du cycle suivant) : combinatoire, il entrait dans u_cmd_ready \u2192\\n    // arbitre \u2192 mux de donn\u00e9es 256 bits \u2192 tampon d'\u00e9criture de l'IP, chemin en violation de 1 ns (E2-f1, sdc corrig\u00e9).\\n    // Pessimiste d'un cycle sur la lib\u00e9ration d'une place (16 lectures en vol, le pont n'en a qu'une) : sans effet.\\n    reg                 tq_full = 1'b0;\\n    wire                tq_empty = (tq_w == tq_r);\\n    assign u_cmd_ready = ip_cmd_ready && !tq_full;\\n    wire   push = u_cmd_en && u_cmd_ready && (u_cmd == 3'b001);\\n    wire   pop  = ip_rd_data_valid;\\n    wire [TAG_LOG2:0] tq_w_n = tq_w + {{TAG_LOG2{1'b0}}, push};\\n    wire [TAG_LOG2:0] tq_r_n = tq_r + {{TAG_LOG2{1'b0}}, pop};\\n    wire [TAG_LOG2:0] tq_count = tq_w - tq_r;\\n    always @(posedge clk) begin\\n        if (!rst_n) begin\\n            tq_w <= 0; tq_r <= 0; tq_full <= 1'b0;\\n        end else begin\\n            // The write slot is free whenever the queue is not full. Prepare\\n            // its tag every such cycle; only push publishes it by advancing\\n            // tq_w. Never overwrite this slot while full: it is then the head.\\n            // This removes upstream arbitration from the RAM write enable.\\n            if (!tq_full) tags[tq_w[TAG_LOG2-1:0]] <= {half, rot};\\n            tq_w <= tq_w_n; tq_r <= tq_r_n;\\n            // L11 : m\u00eame valeur que (tq_w_n, tq_r_n) \u00ab \u00e9cart = DEPTH \u00bb, calcul\u00e9e sur les pointeurs courants ; push et\\n            // pop, qui arrivent tard (arbitre, IP), ne font plus que choisir entre trois comparaisons d\u00e9j\u00e0 pr\u00eates.\\n            tq_full <= (push && !pop) ? tq_count == DEPTH - 1 : (!push && pop) ? tq_count == DEPTH + 1 : tq_count == DEPTH;\\n        end\\n    end\\n    /* verilator lint_off UNUSEDSIGNAL */\\n    wire tq_underflow = pop && tq_empty;                     // donn\u00e9e rendue sans lecture en vol : incoh\u00e9rence (banc)\\n    /* verilator lint_on UNUSEDSIGNAL */\\n\\n    // --- commande --------------------------------------------------------------------------------------------\\n    // Le masque et la donn\u00e9e d'\u00e9criture d\u00e9pendent de l'adresse de la commande : le pont et le writer pr\u00e9sentent\\n    // wr_data_en au m\u00eame cycle que cmd_en (ddr_arb : ui_wr_data_end = ui_wr_data_en), on utilise donc u_addr du cycle.\\n    wire [2:0] rot  = u_addr[2:0];\\n    wire       half = u_addr[3];\\n    // Contrat amont (celui de ddr_arb) : u_cmd_en seulement quand u_cmd_ready ; on verrouille quand m\u00eame la file\\n    // pleine c\u00f4t\u00e9 IP pour qu'une lecture sans \u00e9tiquette ne puisse jamais partir (d\u00e9synchronisation silencieuse).\\n    assign ip_cmd_en = u_cmd_en && !tq_full;\\n    assign ip_cmd    = u_cmd;\\n    assign ip_addr   = {1'b0, u_addr[28:4], 3'b000};        // octets / 4, align\u00e9 sur la rafale de 32 octets\\n    wire [127:0] wdata_eff = rotl128(u_wr_data, rot);\\n    wire [15:0]  wmask_eff = rotl16(u_wr_data_mask, rot);\\n    assign ip_wr_data      = {wdata_eff, wdata_eff};\\n    assign ip_wr_data_mask = half ? {wmask_eff, 16'hFFFF} : {16'hFFFF, wmask_eff};\\n    assign ip_wr_data_en   = u_wr_data_en;\\n    assign ip_wr_data_end  = u_wr_data_end;\\n    assign u_wr_data_rdy   = ip_wr_data_rdy;\\n\\n    // --- donn\u00e9es lues : moiti\u00e9 demand\u00e9e, tourn\u00e9e pour que le mot demand\u00e9 soit en t\u00eate -----------------------------\\n    wire [3:0]   tag_r  = tags[tq_r[TAG_LOG2-1:0]];\\n    wire [127:0] rhalf  = tag_r[3] ? ip_rd_data[255:128] : ip_rd_data[127:0];\\n    assign u_rd_data       = rotr128(rhalf, tag_r[2:0]);\\n    assign u_rd_data_valid = ip_rd_data_valid;\\n    assign u_rd_data_end   = ip_rd_data_end;\\nendmodule\\n`default_nettype wire\\n\"}",
+            "time": {
+              "start": 1793225229949,
+              "end": 1793225229970
+            }
+          },
+          {
+            "call_id": "call_64114e922c6241d18f54dd96",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848d86c0001b5Tirw7xhDJP05",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "pwd; ls -la /work | head -40; /usr/bin/verilator --version; nproc; python3 --version"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.08491829794365913, \"stdout\": \"/work\\ntotal 144\\ndrwxrwxr-x  2 1000 1000  4096 Oct 28 22:06 .\\ndrwxr-xr-x 11 1000 1000   240 Oct 28 22:06 ..\\n-rw-------  1 1000 1000    33 Oct 28 22:06 ANALYSIS.md\\n-r--------  1 1000 1000  2902 Oct 28 22:06 CONTRACT.md\\n-r--------  1 1000 1000  2247 Oct 28 22:06 INPUTS.json\\n-r--------  1 1000 1000  1052 Oct 28 22:06 REFERENCE_HASHES.json\\n-r--------  1 1000 1000  8317 Oct 28 22:06 bench.sv\\n-r--------  1 1000 1000  6472 Oct 28 22:06 ddr_gpu_arb.v\\n-r--------  1 1000 1000  7199 Oct 28 22:06 ddr_ui_adapt.v\\n-r--------  1 1000 1000  7892 Oct 28 22:06 gpu_copy565.v\\n-r--------  1 1000 1000  5262 Oct 28 22:06 gpu_perspective.v\\n-r--------  1 1000 1000  3652 Oct 28 22:06 gpu_texture_cache.v\\n-r--------  1 1000 1000 10740 Oct 28 22:06 gpu_triangle.v\\n-r--------  1 1000 1000 35388 Oct 28 22:06 gpu_v1.v\\n-rw-------  1 1000 1000   112 Oct 28 22:06 mutation_runner.py\\n-r--------  1 1000 1000  2171 Oct 28 22:06 native_memory.sv\\n-r--------  1 1000 1000  9205 Oct 28 22:06 scenario.svh\\n-r--------  1 1000 1000  3336 Oct 28 22:06 test_liveness.py\\n-r--------  1 1000 1000  1891 Oct 28 22:06 validate.py\\nVerilator 5.020 2024-01-01 rev (Debian 5.020-1)\\n32\\nPython 3.12.3\\n\"}",
+            "time": {
+              "start": 1793225246284,
+              "end": 1793225246384
+            }
+          },
+          {
+            "call_id": "call_6a7f974a89634a75a6846fae",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848d86c0001b5Tirw7xhDJP05",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "cd /work && git status --porcelain 2>&1 | head -20; git log --oneline -5 2>&1 | head"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.005448882933706045, \"stdout\": \"fatal: not a git repository (or any parent up to mount point /)\\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\\nfatal: not a git repository (or any parent up to mount point /)\\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\\n\"}",
+            "time": {
+              "start": 1793225246292,
+              "end": 1793225246389
+            }
+          },
+          {
+            "call_id": "call_0a2ca93fad6149efbe54d863",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848dc6c2001QWU1kWCV6zyY9Z",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "set -e; rm -rf /tmp/t0; mkdir -p /tmp/t0; cd /work; cp bench.sv native_memory.sv ddr_ui_adapt.v ddr_gpu_arb.v gpu_v1.v gpu_triangle.v gpu_copy565.v gpu_texture_cache.v gpu_perspective.v scenario.svh /tmp/t0/; cd /tmp/t0; time /usr/bin/verilator --binary --timing -j 2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0 --top-module bench --Mdir /tmp/t0/obj bench.sv native_memory.sv ddr_ui_adapt.v ddr_gpu_arb.v gpu_v1.v gpu_triangle.v gpu_copy565.v gpu_texture_cache.v gpu_perspective.v > /tmp/t0/compile.log 2>&1; echo \"compile rc=$?\"; ls -la /tmp/t0/obj/Vbench"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 9.08945762598887, \"stdout\": \"\\nreal\\t0m9.079s\\nuser\\t0m11.265s\\nsys\\t0m0.758s\\ncompile rc=0\\n-rwxrwxr-x 1 1000 1000 346728 Oct 28 22:07 /tmp/t0/obj/Vbench\\n\"}",
+            "time": {
+              "start": 1793225250081,
+              "end": 1793225259178
+            }
+          },
+          {
+            "call_id": "call_deacf8bad3044acdbf60b6c5",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848df8b9001DxvtQCD7nn4BRx",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "cd /tmp/t0; time ./obj/Vbench +case=0 > /tmp/t0/run0.log 2>&1; echo \"rc=$?\"; cat /tmp/t0/run0.log; echo ---; tail -20 /tmp/t0/compile.log"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.012088482035323977, \"stdout\": \"\\nreal\\t0m0.005s\\nuser\\t0m0.001s\\nsys\\t0m0.005s\\nrc=0\\nOBS {\\\"case\\\":0,\\\"label\\\":\\\"blocked\\\",\\\"cpu\\\":16,\\\"sent\\\":16,\\\"gpu_done\\\":2,\\\"busy\\\":0,\\\"rejected\\\":0,\\\"native_reads\\\":16,\\\"native_writes\\\":1,\\\"returned\\\":16,\\\"scan_returns\\\":0,\\\"full\\\":0,\\\"tags\\\":0,\\\"cpu_pending\\\":0,\\\"take_blitter\\\":0,\\\"prefer_blitter\\\":1,\\\"adapter_tags\\\":0,\\\"gpu_valid\\\":0,\\\"gpu_ready\\\":0,\\\"command_ready\\\":1,\\\"write_ready\\\":1,\\\"full_ready_cycles\\\":0,\\\"cycle\\\":183}\\nOBS {\\\"case\\\":0,\\\"label\\\":\\\"final\\\",\\\"cpu\\\":32,\\\"sent\\\":32,\\\"gpu_done\\\":2,\\\"busy\\\":0,\\\"rejected\\\":0,\\\"native_reads\\\":32,\\\"native_writes\\\":1,\\\"returned\\\":32,\\\"scan_returns\\\":0,\\\"full\\\":0,\\\"tags\\\":0,\\\"cpu_pending\\\":0,\\\"take_blitter\\\":0,\\\"prefer_blitter\\\":1,\\\"adapter_tags\\\":0,\\\"gpu_valid\\\":0,\\\"gpu_ready\\\":0,\\\"command_ready\\\":1,\\\"write_ready\\\":1,\\\"full_ready_cycles\\\":0,\\\"cycle\\\":331}\\n- scenario.svh:269: Verilog $finish\\n---\\n      |                                      ^\\n%Warning-WIDTHEXPAND: gpu_v1.v:618:29: Operator GT expects 11 bits on the RHS, but RHS's VARREF 'chunk_count' generates 5 bits.\\n                                     : ... note: In instance 'bench.gpu'\\n  618 |                 if(span_left>chunk_count)begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=58'b1<<RECT_CHUNK;end\\n      |                             ^\\n%Warning-WIDTHTRUNC: bench.sv:165:23: Operator ASSIGN expects 29 bits on the Assign RHS, but Assign RHS's SHIFTR generates 32 bits.\\n                                    : ... note: In instance 'bench'\\n  165 |         u_cmd=1;u_addr=(32'h12000000+(i/4)*16)>>1;u_cmd_en=1;\\n      |                       ^\\nmake: Entering directory '/tmp/t0/obj'\\ng++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated.o /usr/share/verilator/include/verilated.cpp\\ng++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_timing.o /usr/share/verilator/include/verilated_timing.cpp\\ng++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -c -o verilated_threads.o /usr/share/verilator/include/verilated_threads.cpp\\n/usr/bin/python3 /usr/share/verilator/bin/verilator_includer -DVL_INCLUDE_OPT=include Vbench.cpp Vbench___024root__DepSet_h0cc030f4__0.cpp Vbench___024root__DepSet_h97d444dc__0.cpp Vbench__main.cpp Vbench__ConstPool_0.cpp Vbench___024root__Slow.cpp Vbench___024root__DepSet_h0cc030f4__0__Slow.cpp Vbench___024root__DepSet_h97d444dc__0__Slow.cpp Vbench__Syms.cpp > Vbench__ALL.cpp\\necho \\\"\\\" > Vbench__ALL.verilator_deplist.tmp\\ng++ -Os  -I.  -MMD -I/usr/share/verilator/include -I/usr/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-overloaded-virtual -Wno-shadow -Wno-sign-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable     -DVL_TIME_CONTEXT   -fcoroutines -c -o Vbench__ALL.o Vbench__ALL.cpp\\nArchive ar -rcs Vbench__ALL.a Vbench__ALL.o\\ng++     verilated.o verilated_timing.o verilated_threads.o Vbench__ALL.a    -pthread -lpthread -latomic   -o Vbench\\nrm Vbench__ALL.verilator_deplist.tmp\\nmake: Leaving directory '/tmp/t0/obj'\\n\"}",
+            "time": {
+              "start": 1793225260954,
+              "end": 1793225260970
+            }
+          },
+          {
+            "call_id": "call_4ae18834c2404e818e4928bd",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848dffdf001qkrsQ38aCyNNzJ",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "set -e\ncd /tmp\nrm -rf /tmp/m_low /tmp/m_up /tmp/m_miss /tmp/m_mask /tmp/m_addr\nfor d in m_low m_up m_miss m_mask m_addr; do\n  mkdir -p /tmp/$d\n  cp /work/bench.sv /work/native_memory.sv /work/ddr_ui_adapt.v /work/ddr_gpu_arb.v /work/gpu_v1.v /work/gpu_triangle.v /work/gpu_copy565.v /work/gpu_texture_cache.v /work/gpu_perspective.v /work/scenario.svh /tmp/$d/\ndone\n# return_low\npython3 - <<'EOF'\nfrom pathlib import Path\ndef patch(p, old, new):\n    t=Path(p).read_text()\n    n=t.count(old)\n    assert n==1, (p, n, old)\n    Path(p).write_text(t.replace(old,new))\npatch('/tmp/m_low/native_memory.sv','rd_data<=replies[rp];','rd_data<=replies[rp] ^ 256\\'d1;')\npatch('/tmp/m_up/native_memory.sv','rd_data<=replies[rp];','rd_data<=replies[rp] ^ (256\\'d1 << 128);')\npatch('/tmp/m_miss/native_memory.sv','if(!hold_returns && rp<wp && tick>=due[rp])begin','if(1\\'b0 && !hold_returns && rp<wp && tick>=due[rp])begin')\npatch('/tmp/m_mask/bench.sv','.b_wr_mask(b_wr_mask),','.b_wr_mask(b_wr_mask ^ 32\\'h00000001),')\npatch('/tmp/m_addr/bench.sv','.b_addr(b_addr),','.b_addr(b_addr ^ 29\\'h00800000),')\nprint(\"patched ok\")\nEOF\ngrep -n \"rd_data<=replies\" /tmp/m_low/native_memory.sv /tmp/m_up/native_memory.sv\ngrep -n \"1'b0 && !hold_returns\" /tmp/m_miss/native_memory.sv\ngrep -n \"b_wr_mask(b_wr_mask\" /tmp/m_mask/bench.sv\ngrep -n \"b_addr(b_addr\" /tmp/m_addr/bench.sv"
+              ]
+            },
+            "output": "{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.034387762076221406, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"<stdin>\\\", line 7, in <module>\\n  File \\\"<stdin>\\\", line 6, in patch\\n  File \\\"/usr/lib/python3.12/pathlib.py\\\", line 1049, in write_text\\n    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:\\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"/usr/lib/python3.12/pathlib.py\\\", line 1015, in open\\n    return io.open(self, mode, buffering, encoding, errors, newline)\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nPermissionError: [Errno 13] Permission denied: '/tmp/m_low/native_memory.sv'\\n\"}",
+            "time": {
+              "start": 1793225266258,
+              "end": 1793225266298
+            }
+          },
+          {
+            "call_id": "call_75097c4b64284948a0101f6c",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848e14b70018Gzg17JVfHYYWd",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "set -e\nchmod -R u+w /tmp/m_low /tmp/m_up /tmp/m_miss /tmp/m_mask /tmp/m_addr\npython3 - <<'EOF'\nfrom pathlib import Path\ndef patch(p, old, new):\n    t=Path(p).read_text()\n    n=t.count(old)\n    assert n==1, (p, n, old)\n    Path(p).write_text(t.replace(old,new))\npatch('/tmp/m_low/native_memory.sv','rd_data<=replies[rp];','rd_data<=replies[rp] ^ 256\\'d1;')\npatch('/tmp/m_up/native_memory.sv','rd_data<=replies[rp];','rd_data<=replies[rp] ^ (256\\'d1 << 128);')\npatch('/tmp/m_miss/native_memory.sv','if(!hold_returns && rp<wp && tick>=due[rp])begin','if(1\\'b0 && !hold_returns && rp<wp && tick>=due[rp])begin')\npatch('/tmp/m_mask/bench.sv','.b_wr_mask(b_wr_mask),','.b_wr_mask(b_wr_mask ^ 32\\'h00000001),')\npatch('/tmp/m_addr/bench.sv','.b_addr(b_addr),','.b_addr(b_addr ^ 29\\'h00800000),')\nprint(\"patched ok\")\nEOF\ngrep -n \"rd_data<=replies\" /tmp/m_low/native_memory.sv /tmp/m_up/native_memory.sv\ngrep -n \"1'b0 && !hold_returns\" /tmp/m_miss/native_memory.sv\ngrep -n \"b_wr_mask(b_wr_mask\" /tmp/m_mask/bench.sv\ngrep -n \"b_addr(b_addr\" /tmp/m_addr/bench.sv"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.030947068938985467, \"stdout\": \"patched ok\\n/tmp/m_low/native_memory.sv:32:    rd_data<=replies[rp] ^ 256'd1;rd_valid<=1;rd_end<=1;rp=rp+1;returned=returned+1;\\n/tmp/m_up/native_memory.sv:32:    rd_data<=replies[rp] ^ (256'd1 << 128);rd_valid<=1;rd_end<=1;rp=rp+1;returned=returned+1;\\n31:   if(1'b0 && !hold_returns && rp<wp && tick>=due[rp])begin\\n108:        .b_wr_data(b_wr_data), .b_wr_mask(b_wr_mask ^ 32'h00000001), .b_ready(b_ready),\\n107:        .b_valid(b_valid && !suppress_request), .b_write(b_write), .b_addr(b_addr ^ 29'h00800000),\\n\"}",
+            "time": {
+              "start": 1793225268804,
+              "end": 1793225268839
+            }
+          },
+          {
+            "call_id": "call_6631935aa0074614b311c896",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848e1e83001428Foxk2WPbam9",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "cd /tmp\nSRC=\"bench.sv native_memory.sv ddr_ui_adapt.v ddr_gpu_arb.v gpu_v1.v gpu_triangle.v gpu_copy565.v gpu_texture_cache.v gpu_perspective.v\"\nfor d in m_low m_up m_miss m_mask m_addr; do\n ( cd /tmp/$d && /usr/bin/verilator --binary --timing -j 2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0 --top-module bench --Mdir /tmp/$d/obj $SRC > /tmp/$d/compile.log 2>&1; echo \"$d compile_rc=$?\" ) &\ndone\nwait\nfor d in m_low m_up m_miss m_mask m_addr; do\n  echo \"=== $d ===\"\n  if [ -x /tmp/$d/obj/Vbench ]; then\n    ( cd /tmp/$d && timeout 3 ./obj/Vbench +case=0 > /tmp/$d/run.log 2>&1; echo \"run_rc=$?\" )\n    tail -5 /tmp/$d/run.log\n  else\n    echo \"NO BINARY\"; tail -20 /tmp/$d/compile.log\n  fi\ndone"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 9.032908371998928, \"stdout\": \"m_up compile_rc=0\\nm_addr compile_rc=0\\nm_miss compile_rc=0\\nm_mask compile_rc=0\\nm_low compile_rc=0\\n=== m_low ===\\nbash: line 10:   279 Aborted                 timeout 3 ./obj/Vbench +case=0 > /tmp/$d/run.log 2>&1\\nrun_rc=134\\n[490000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index0 gotb7396c16 expectedb7396c17\\n%Error: bench.sv:172: Verilog $stop\\nAborting...\\ntimeout: the monitored command dumped core\\n=== m_up ===\\nbash: line 10:   314 Aborted                 timeout 3 ./obj/Vbench +case=0 > /tmp/$d/run.log 2>&1\\nrun_rc=134\\n[840000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index4 gotb7396c06 expectedb7396c07\\n%Error: bench.sv:172: Verilog $stop\\nAborting...\\ntimeout: the monitored command dumped core\\n=== m_miss ===\\nbash: line 10:   349 Aborted                 timeout 3 ./obj/Vbench +case=0 > /tmp/$d/run.log 2>&1\\nrun_rc=134\\n[40420000] %Fatal: scenario.svh:52: Assertion failed in TOP.bench.wait_cpu: scenario: CPU progress timeout\\n%Error: scenario.svh:52: Verilog $stop\\nAborting...\\ntimeout: the monitored command dumped core\\n=== m_mask ===\\nbash: line 10:   384 Aborted                 timeout 3 ./obj/Vbench +case=0 > /tmp/$d/run.log 2>&1\\nrun_rc=134\\n[375000] %Fatal: native_memory.sv:42: Assertion failed in TOP.bench.u_native: ENDPOINT unexpected CLEAR footprint\\n%Error: native_memory.sv:42: Verilog $stop\\nAborting...\\ntimeout: the monitored command dumped core\\n=== m_addr ===\\nbash: line 10:   419 Aborted                 timeout 3 ./obj/Vbench +case=0 > /tmp/$d/run.log 2>&1\\nrun_rc=134\\n[375000] %Fatal: native_memory.sv:37: Assertion failed in TOP.bench.u_native: ENDPOINT address outside scratch128B\\n%Error: native_memory.sv:37: Verilog $stop\\nAborting...\\ntimeout: the monitored command dumped core\\n\"}",
+            "time": {
+              "start": 1793225271124,
+              "end": 1793225280179
+            }
+          },
+          {
+            "call_id": "call_3cb68f64f2d34610a28c3c81",
+            "name": "taskbox_write_file",
+            "message_id": "msg_1848e4abc001bA1bIy02y4XmzH",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "mutation_runner.py",
+              "content": "\"\"\"Real compile/run mutation trials for the CPU/CLEAR simulation oracle.\n\nEvery trial below is executed for real:\n\n  * the reference sources are *copied* (never linked, never edited in place)\n    into a fresh ``tempfile.TemporaryDirectory``;\n  * the trial's targeted mutation is applied to that disposable copy only and\n    the anchor text must match exactly once, otherwise the trial aborts;\n  * the copy is compiled with the real Verilator (``/usr/bin/verilator\n    --binary --timing -j2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0\n    --top-module bench --Mdir <tmp>/obj``) and the reference SOURCES;\n  * the produced ``Vbench`` binary is executed for real with ``+case=0``.\n\nNothing is synthesised.  A compile failure, a missing binary or an external\nsubprocess timeout is reported as such (compile_returncode / timeout) instead\nof being dressed up as a detection: only a non-zero exit of the executed\nbinary whose own log carries the endpoint/byte-oracle message counts.\n\nThe trials are external bench-side stimuli only.  They say nothing about\nphysical DDR/GPU faults: no FPGA, board or PHY is involved here.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport os\nimport shutil\nimport subprocess\nimport tempfile\nimport time\nfrom concurrent.futures import ThreadPoolExecutor\nfrom pathlib import Path\n\nHERE = Path(__file__).resolve().parent\n\n# Reference compile set, identical to the protected test_liveness.py list.\nSOURCES = ['bench.sv', 'native_memory.sv', 'ddr_ui_adapt.v', 'ddr_gpu_arb.v',\n           'gpu_v1.v', 'gpu_triangle.v', 'gpu_copy565.v', 'gpu_texture_cache.v',\n           'gpu_perspective.v']\n# scenario.svh is not listed as a source: bench.sv pulls it in with\n# `include \"scenario.svh\"`, so it must sit next to the copied bench.sv.\nSUPPORT = SOURCES + ['scenario.svh']\n\nVERILATOR = '/usr/bin/verilator'\nCOMPILE_TIMEOUT = 48.0        # CONTRACT.md: compilation each <= 48 s\nRUN_TIMEOUT = 3.0             # CONTRACT.md: binary <= 3 s\nSCENARIO = '+case=0'          # healthy composition: 32 CPU reads + 2 GPU done\nMAX_COMPILE_DETAIL = 4000     # bounded detail kept when a compile fails\n\n# Trial catalogue.  Each mutation is a targeted replacement inside ONE\n# disposable copy of ONE reference file; the anchor must occur exactly once.\n#\n#   baseline      no modification at all (reference sources, byte for byte)\n#   return_low    native_memory.sv: corrupt the low word of the returned beat\n#   return_upper  native_memory.sv: corrupt bit 128 (upper 128-bit half)\n#   return_missing native_memory.sv: accept the read but never emit the reply\n#   write_mask    bench.sv: XOR one mask bit on the arbiter .b_wr_mask wire\n#   write_address bench.sv: XOR 0x00800000 on the arbiter .b_addr wire\nMUTATIONS = {\n    'return_low': {\n        'file': 'native_memory.sv',\n        'old': 'rd_data<=replies[rp];',\n        'new': \"rd_data<=replies[rp] ^ 256'd1;\",\n        'note': 'XOR 1 into the low word of the native return',\n    },\n    'return_upper': {\n        'file': 'native_memory.sv',\n        'old': 'rd_data<=replies[rp];',\n        'new': \"rd_data<=replies[rp] ^ (256'd1 << 128);\",\n        'note': 'XOR bit 128 into the native return (upper 128-bit half)',\n    },\n    'return_missing': {\n        'file': 'native_memory.sv',\n        'old': 'if(!hold_returns && rp<wp && tick>=due[rp])begin',\n        'new': \"if(1'b0 && !hold_returns && rp<wp && tick>=due[rp])begin\",\n        'note': 'suppress return emission, keep native read acceptance',\n    },\n    'write_mask': {\n        'file': 'bench.sv',\n        'old': '.b_wr_mask(b_wr_mask),',\n        'new': \".b_wr_mask(b_wr_mask ^ 32'h00000001),\",\n        'note': 'XOR 1 into the write mask at the arbiter .b_wr_mask connection',\n    },\n    'write_address': {\n        'file': 'bench.sv',\n        'old': '.b_addr(b_addr),',\n        'new': \".b_addr(b_addr ^ 29'h00800000),\",\n        'note': 'XOR 0x00800000 words (+32 MiB) into the arbiter .b_addr connection',\n    },\n}\n\nTRIAL_NAMES = ('baseline', 'return_low', 'return_upper',\n               'return_missing', 'write_mask', 'write_address')\n\n\ndef _compile_cmd(obj: Path):\n    \"\"\"Exact Verilator invocation mandated by CONTRACT.md.\"\"\"\n    return [VERILATOR, '--binary', '--timing', '-j', '2', '-Wno-fatal',\n            '-MAKEFLAGS', 'VM_PARALLEL_BUILDS=0', '--top-module', 'bench',\n            '--Mdir', str(obj), *SOURCES]\n\n\ndef _as_text(blob) -> str:\n    \"\"\"Normalise captured stdout/stderr chunks (bytes or str) to text.\"\"\"\n    if blob is None:\n        return ''\n    if isinstance(blob, bytes):\n        return blob.decode('utf-8', 'replace')\n    return blob\n\n\ndef _materialise(name: str, work: Path) -> None:\n    \"\"\"Copy the reference sources into `work` and apply this trial's mutation.\n\n    The copies are real copies (shutil.copy2), never links, so the reference\n    tree is never touched.  The targeted replacement is refused unless its\n    anchor matches exactly once in the copied file.\n    \"\"\"\n    for src in SUPPORT:\n        dst = work / src\n        shutil.copy2(HERE / src, dst)\n        os.chmod(dst, 0o644)          # reference files are shipped read-only\n    spec = MUTATIONS.get(name)\n    if spec is None:\n        return                        # baseline: untouched copies\n    target = work / spec['file']\n    text = target.read_text()\n    hits = text.count(spec['old'])\n    if hits != 1:\n        raise RuntimeError(\n            f'trial {name}: anchor matched {hits} times in {spec[\"file\"]}, expected exactly 1')\n    target.write_text(text.replace(spec['old'], spec['new']))\n\n\ndef _run_trial(name: str) -> dict:\n    \"\"\"Compile and execute one trial on its own disposable copy.\"\"\"\n    started = time.monotonic()\n    with tempfile.TemporaryDirectory(prefix=f'sens-{name}-') as tmp:\n        work = Path(tmp)\n        _materialise(name, work)\n        obj = work / 'obj'\n        compile_rc = None\n        compile_detail = ''\n        timed_out = False\n        try:\n            comp = subprocess.run(_compile_cmd(obj), cwd=str(work),\n                                  capture_output=True, text=True,\n                                  timeout=COMPILE_TIMEOUT)\n            compile_rc = comp.returncode\n            compile_detail = _as_text(comp.stdout) + _as_text(comp.stderr)\n        except subprocess.TimeoutExpired as exc:\n            timed_out = True\n            compile_rc = 124          # conventional \"command timed out\" code\n            compile_detail = _as_text(exc.stdout) + _as_text(exc.stderr)\n\n        binary = obj / 'Vbench'\n        executed = False\n        run_rc = None\n        log = ''\n        if compile_rc == 0 and binary.exists():\n            try:\n                run = subprocess.run([str(binary), SCENARIO], cwd=str(work),\n                                     capture_output=True, text=True,\n                                     timeout=RUN_TIMEOUT)\n                executed = True\n                run_rc = run.returncode\n                log = _as_text(run.stdout)\n                err = _as_text(run.stderr)\n                if err:\n                    if log and not log.endswith('\\n'):\n                        log += '\\n'\n                    log += err\n            except subprocess.TimeoutExpired as exc:\n                timed_out = True\n                executed = True       # the process was started and killed\n                log = _as_text(exc.stdout)\n                err = _as_text(exc.stderr)\n                if err:\n                    if log and not log.endswith('\\n'):\n                        log += '\\n'\n                    log += err\n                log += f'\\nEXTERNAL TIMEOUT after {RUN_TIMEOUT:.1f}s (not a detection)\\n'\n        else:\n            reason = 'compile failed' if compile_rc != 0 else 'no Vbench binary produced'\n            log = (f'{reason} (compile_returncode={compile_rc}); '\n                   f'no binary executed\\n')\n            log += compile_detail[-MAX_COMPILE_DETAIL:]\n\n        return {\n            'name': name,\n            'compile_returncode': compile_rc,\n            'timeout': timed_out,\n            'executed_binary': executed,\n            'returncode': run_rc,\n            'log': log,\n            'elapsed_seconds': round(time.monotonic() - started, 3),\n        }\n\n\ndef run_suite(names):\n    \"\"\"Run exactly the requested trials and return one real record per trial.\n\n    `names` is the explicit list of trials asked for (the fixed acceptance\n    harness asks for three of them per group).  Each trial owns a fresh\n    disposable directory; the compiles of the requested trials run in parallel\n    because they are completely independent.\n    \"\"\"\n    requested = list(names)\n    unknown = [n for n in requested if n not in TRIAL_NAMES]\n    if unknown:\n        raise ValueError(f'unknown trial name(s): {unknown}')\n    if not requested:\n        return []\n    with ThreadPoolExecutor(max_workers=len(requested)) as pool:\n        records = list(pool.map(_run_trial, requested))\n    return records\n\n\nif __name__ == '__main__':\n    import json\n    import sys\n    wanted = sys.argv[1:] or list(TRIAL_NAMES)\n    print(json.dumps(run_suite(wanted), indent=2))\n"
+            },
+            "output": "{\"written_bytes\": 9021}",
+            "time": {
+              "start": 1793225314037,
+              "end": 1793225314042
+            }
+          },
+          {
+            "call_id": "call_da2a63a4bd034390a2e7b4a7",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848ecf4300145S6JqABtKxQFJ",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "cd /work && time python3 validate.py 0 > /tmp/g0.json 2>/tmp/g0.err; echo \"group0 rc=$?\"; tail -3 /tmp/g0.err; python3 - <<'EOF'\nimport json\ntry:\n    d=json.load(open('/tmp/g0.json'))\n    print('passed',d['passed'])\n    for t in d['trials']:\n        print(t['name'],t['compile_returncode'],t['timeout'],t['executed_binary'],t['returncode'],t['elapsed_seconds'])\n        print('   log tail:', t['log'].strip().splitlines()[-1][:160] if t['log'].strip() else '(empty)')\nexcept Exception as e:\n    print('ERR',e); print(open('/tmp/g0.json').read()[:2000]); print(open('/tmp/g0.err').read()[:3000])\nEOF"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 9.7107188180089, \"stdout\": \"\\nreal\\t0m9.684s\\nuser\\t0m33.037s\\nsys\\t0m1.967s\\ngroup0 rc=0\\npassed True\\nbaseline 0 False True 0 9.118\\n   log tail: - scenario.svh:269: Verilog $finish\\nreturn_low 0 False True -6 9.362\\n   log tail: Aborting...\\nreturn_upper 0 False True -6 9.639\\n   log tail: Aborting...\\n\"}",
+            "time": {
+              "start": 1793225316790,
+              "end": 1793225326506
+            }
+          },
+          {
+            "call_id": "call_6a1ce15ced9e4965bcba8af3",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848effb5001erpM1yhIypMCOy",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "cd /work && time python3 validate.py 1 > /tmp/g1.json 2>/tmp/g1.err; echo \"group1 rc=$?\"; tail -3 /tmp/g1.err; python3 - <<'EOF'\nimport json\ntry:\n    d=json.load(open('/tmp/g1.json'))\n    print('passed',d['passed'])\n    for t in d['trials']:\n        print(t['name'],t['compile_returncode'],t['timeout'],t['executed_binary'],t['returncode'],t['elapsed_seconds'])\n        print('   log tail:', t['log'].strip().splitlines()[-3:])\nexcept Exception as e:\n    print('ERR',e); print(open('/tmp/g1.json').read()[:2000]); print(open('/tmp/g1.err').read()[:3000])\nEOF"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.742373036104254, \"stdout\": \"\\nreal\\t0m8.716s\\nuser\\t0m30.047s\\nsys\\t0m1.935s\\ngroup1 rc=0\\npassed True\\nreturn_missing 0 False True -6 7.961\\n   log tail: ['[40420000] %Fatal: scenario.svh:52: Assertion failed in TOP.bench.wait_cpu: scenario: CPU progress timeout', '%Error: scenario.svh:52: Verilog $stop', 'Aborting...']\\nwrite_mask 0 False True -6 8.667\\n   log tail: ['[375000] %Fatal: native_memory.sv:42: Assertion failed in TOP.bench.u_native: ENDPOINT unexpected CLEAR footprint', '%Error: native_memory.sv:42: Verilog $stop', 'Aborting...']\\nwrite_address 0 False True -6 8.101\\n   log tail: ['[375000] %Fatal: native_memory.sv:37: Assertion failed in TOP.bench.u_native: ENDPOINT address outside scratch128B', '%Error: native_memory.sv:37: Verilog $stop', 'Aborting...']\\n\"}",
+            "time": {
+              "start": 1793225328444,
+              "end": 1793225337190
+            }
+          },
+          {
+            "call_id": "call_706a91b34a8b419aaabf950d",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848f2971001ZHB6SpXpacybr3",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "ls -d /tmp/sens-* 2>/dev/null | head; echo \"leftover_count=$(ls -d /tmp/sens-* 2>/dev/null | wc -l)\"; echo ---; python3 - <<'EOF'\nimport json\nfor f in ('/tmp/g0.json','/tmp/g1.json'):\n    d=json.load(open(f))\n    for t in d['trials']:\n        print('='*20,t['name'],'rc',t['returncode'],'elapsed',t['elapsed_seconds'])\n        print(t['log'])\nEOF"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.028506341041065753, \"stdout\": \"leftover_count=0\\n---\\n==================== baseline rc 0 elapsed 9.118\\nOBS {\\\"case\\\":0,\\\"label\\\":\\\"blocked\\\",\\\"cpu\\\":16,\\\"sent\\\":16,\\\"gpu_done\\\":2,\\\"busy\\\":0,\\\"rejected\\\":0,\\\"native_reads\\\":16,\\\"native_writes\\\":1,\\\"returned\\\":16,\\\"scan_returns\\\":0,\\\"full\\\":0,\\\"tags\\\":0,\\\"cpu_pending\\\":0,\\\"take_blitter\\\":0,\\\"prefer_blitter\\\":1,\\\"adapter_tags\\\":0,\\\"gpu_valid\\\":0,\\\"gpu_ready\\\":0,\\\"command_ready\\\":1,\\\"write_ready\\\":1,\\\"full_ready_cycles\\\":0,\\\"cycle\\\":183}\\nOBS {\\\"case\\\":0,\\\"label\\\":\\\"final\\\",\\\"cpu\\\":32,\\\"sent\\\":32,\\\"gpu_done\\\":2,\\\"busy\\\":0,\\\"rejected\\\":0,\\\"native_reads\\\":32,\\\"native_writes\\\":1,\\\"returned\\\":32,\\\"scan_returns\\\":0,\\\"full\\\":0,\\\"tags\\\":0,\\\"cpu_pending\\\":0,\\\"take_blitter\\\":0,\\\"prefer_blitter\\\":1,\\\"adapter_tags\\\":0,\\\"gpu_valid\\\":0,\\\"gpu_ready\\\":0,\\\"command_ready\\\":1,\\\"write_ready\\\":1,\\\"full_ready_cycles\\\":0,\\\"cycle\\\":331}\\n- scenario.svh:269: Verilog $finish\\n\\n==================== return_low rc -6 elapsed 9.362\\n[490000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index0 gotb7396c16 expectedb7396c17\\n%Error: bench.sv:172: Verilog $stop\\nAborting...\\n\\n==================== return_upper rc -6 elapsed 9.639\\n[840000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index4 gotb7396c06 expectedb7396c07\\n%Error: bench.sv:172: Verilog $stop\\nAborting...\\n\\n==================== return_missing rc -6 elapsed 7.961\\n[40420000] %Fatal: scenario.svh:52: Assertion failed in TOP.bench.wait_cpu: scenario: CPU progress timeout\\n%Error: scenario.svh:52: Verilog $stop\\nAborting...\\n\\n==================== write_mask rc -6 elapsed 8.667\\n[375000] %Fatal: native_memory.sv:42: Assertion failed in TOP.bench.u_native: ENDPOINT unexpected CLEAR footprint\\n%Error: native_memory.sv:42: Verilog $stop\\nAborting...\\n\\n==================== write_address rc -6 elapsed 8.101\\n[375000] %Fatal: native_memory.sv:37: Assertion failed in TOP.bench.u_native: ENDPOINT address outside scratch128B\\n%Error: native_memory.sv:37: Verilog $stop\\nAborting...\\n\\n\"}",
+            "time": {
+              "start": 1793225339708,
+              "end": 1793225339744
+            }
+          },
+          {
+            "call_id": "call_8bf1221ff51e4d80be28a9f5",
+            "name": "taskbox_read_file",
+            "message_id": "msg_1848f338e001q8YBs5cQel7rNQ",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "mutation_runner.py"
+            },
+            "output": "{\"content\": \"\\\"\\\"\\\"Real compile/run mutation trials for the CPU/CLEAR simulation oracle.\\n\\nEvery trial below is executed for real:\\n\\n  * the reference sources are *copied* (never linked, never edited in place)\\n    into a fresh ``tempfile.TemporaryDirectory``;\\n  * the trial's targeted mutation is applied to that disposable copy only and\\n    the anchor text must match exactly once, otherwise the trial aborts;\\n  * the copy is compiled with the real Verilator (``/usr/bin/verilator\\n    --binary --timing -j2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0\\n    --top-module bench --Mdir <tmp>/obj``) and the reference SOURCES;\\n  * the produced ``Vbench`` binary is executed for real with ``+case=0``.\\n\\nNothing is synthesised.  A compile failure, a missing binary or an external\\nsubprocess timeout is reported as such (compile_returncode / timeout) instead\\nof being dressed up as a detection: only a non-zero exit of the executed\\nbinary whose own log carries the endpoint/byte-oracle message counts.\\n\\nThe trials are external bench-side stimuli only.  They say nothing about\\nphysical DDR/GPU faults: no FPGA, board or PHY is involved here.\\n\\\"\\\"\\\"\\n\\nfrom __future__ import annotations\\n\\nimport os\\nimport shutil\\nimport subprocess\\nimport tempfile\\nimport time\\nfrom concurrent.futures import ThreadPoolExecutor\\nfrom pathlib import Path\\n\\nHERE = Path(__file__).resolve().parent\\n\\n# Reference compile set, identical to the protected test_liveness.py list.\\nSOURCES = ['bench.sv', 'native_memory.sv', 'ddr_ui_adapt.v', 'ddr_gpu_arb.v',\\n           'gpu_v1.v', 'gpu_triangle.v', 'gpu_copy565.v', 'gpu_texture_cache.v',\\n           'gpu_perspective.v']\\n# scenario.svh is not listed as a source: bench.sv pulls it in with\\n# `include \\\"scenario.svh\\\"`, so it must sit next to the copied bench.sv.\\nSUPPORT = SOURCES + ['scenario.svh']\\n\\nVERILATOR = '/usr/bin/verilator'\\nCOMPILE_TIMEOUT = 48.0        # CONTRACT.md: compilation each <= 48 s\\nRUN_TIMEOUT = 3.0             # CONTRACT.md: binary <= 3 s\\nSCENARIO = '+case=0'          # healthy composition: 32 CPU reads + 2 GPU done\\nMAX_COMPILE_DETAIL = 4000     # bounded detail kept when a compile fails\\n\\n# Trial catalogue.  Each mutation is a targeted replacement inside ONE\\n# disposable copy of ONE reference file; the anchor must occur exactly once.\\n#\\n#   baseline      no modification at all (reference sources, byte for byte)\\n#   return_low    native_memory.sv: corrupt the low word of the returned beat\\n#   return_upper  native_memory.sv: corrupt bit 128 (upper 128-bit half)\\n#   return_missing native_memory.sv: accept the read but never emit the reply\\n#   write_mask    bench.sv: XOR one mask bit on the arbiter .b_wr_mask wire\\n#   write_address bench.sv: XOR 0x00800000 on the arbiter .b_addr wire\\nMUTATIONS = {\\n    'return_low': {\\n        'file': 'native_memory.sv',\\n        'old': 'rd_data<=replies[rp];',\\n        'new': \\\"rd_data<=replies[rp] ^ 256'd1;\\\",\\n        'note': 'XOR 1 into the low word of the native return',\\n    },\\n    'return_upper': {\\n        'file': 'native_memory.sv',\\n        'old': 'rd_data<=replies[rp];',\\n        'new': \\\"rd_data<=replies[rp] ^ (256'd1 << 128);\\\",\\n        'note': 'XOR bit 128 into the native return (upper 128-bit half)',\\n    },\\n    'return_missing': {\\n        'file': 'native_memory.sv',\\n        'old': 'if(!hold_returns && rp<wp && tick>=due[rp])begin',\\n        'new': \\\"if(1'b0 && !hold_returns && rp<wp && tick>=due[rp])begin\\\",\\n        'note': 'suppress return emission, keep native read acceptance',\\n    },\\n    'write_mask': {\\n        'file': 'bench.sv',\\n        'old': '.b_wr_mask(b_wr_mask),',\\n        'new': \\\".b_wr_mask(b_wr_mask ^ 32'h00000001),\\\",\\n        'note': 'XOR 1 into the write mask at the arbiter .b_wr_mask connection',\\n    },\\n    'write_address': {\\n        'file': 'bench.sv',\\n        'old': '.b_addr(b_addr),',\\n        'new': \\\".b_addr(b_addr ^ 29'h00800000),\\\",\\n        'note': 'XOR 0x00800000 words (+32 MiB) into the arbiter .b_addr connection',\\n    },\\n}\\n\\nTRIAL_NAMES = ('baseline', 'return_low', 'return_upper',\\n               'return_missing', 'write_mask', 'write_address')\\n\\n\\ndef _compile_cmd(obj: Path):\\n    \\\"\\\"\\\"Exact Verilator invocation mandated by CONTRACT.md.\\\"\\\"\\\"\\n    return [VERILATOR, '--binary', '--timing', '-j', '2', '-Wno-fatal',\\n            '-MAKEFLAGS', 'VM_PARALLEL_BUILDS=0', '--top-module', 'bench',\\n            '--Mdir', str(obj), *SOURCES]\\n\\n\\ndef _as_text(blob) -> str:\\n    \\\"\\\"\\\"Normalise captured stdout/stderr chunks (bytes or str) to text.\\\"\\\"\\\"\\n    if blob is None:\\n        return ''\\n    if isinstance(blob, bytes):\\n        return blob.decode('utf-8', 'replace')\\n    return blob\\n\\n\\ndef _materialise(name: str, work: Path) -> None:\\n    \\\"\\\"\\\"Copy the reference sources into `work` and apply this trial's mutation.\\n\\n    The copies are real copies (shutil.copy2), never links, so the reference\\n    tree is never touched.  The targeted replacement is refused unless its\\n    anchor matches exactly once in the copied file.\\n    \\\"\\\"\\\"\\n    for src in SUPPORT:\\n        dst = work / src\\n        shutil.copy2(HERE / src, dst)\\n        os.chmod(dst, 0o644)          # reference files are shipped read-only\\n    spec = MUTATIONS.get(name)\\n    if spec is None:\\n        return                        # baseline: untouched copies\\n    target = work / spec['file']\\n    text = target.read_text()\\n    hits = text.count(spec['old'])\\n    if hits != 1:\\n        raise RuntimeError(\\n            f'trial {name}: anchor matched {hits} times in {spec[\\\"file\\\"]}, expected exactly 1')\\n    target.write_text(text.replace(spec['old'], spec['new']))\\n\\n\\ndef _run_trial(name: str) -> dict:\\n    \\\"\\\"\\\"Compile and execute one trial on its own disposable copy.\\\"\\\"\\\"\\n    started = time.monotonic()\\n    with tempfile.TemporaryDirectory(prefix=f'sens-{name}-') as tmp:\\n        work = Path(tmp)\\n        _materialise(name, work)\\n        obj = work / 'obj'\\n        compile_rc = None\\n        compile_detail = ''\\n        timed_out = False\\n        try:\\n            comp = subprocess.run(_compile_cmd(obj), cwd=str(work),\\n                                  capture_output=True, text=True,\\n                                  timeout=COMPILE_TIMEOUT)\\n            compile_rc = comp.returncode\\n            compile_detail = _as_text(comp.stdout) + _as_text(comp.stderr)\\n        except subprocess.TimeoutExpired as exc:\\n            timed_out = True\\n            compile_rc = 124          # conventional \\\"command timed out\\\" code\\n            compile_detail = _as_text(exc.stdout) + _as_text(exc.stderr)\\n\\n        binary = obj / 'Vbench'\\n        executed = False\\n        run_rc = None\\n        log = ''\\n        if compile_rc == 0 and binary.exists():\\n            try:\\n                run = subprocess.run([str(binary), SCENARIO], cwd=str(work),\\n                                     capture_output=True, text=True,\\n                                     timeout=RUN_TIMEOUT)\\n                executed = True\\n                run_rc = run.returncode\\n                log = _as_text(run.stdout)\\n                err = _as_text(run.stderr)\\n                if err:\\n                    if log and not log.endswith('\\\\n'):\\n                        log += '\\\\n'\\n                    log += err\\n            except subprocess.TimeoutExpired as exc:\\n                timed_out = True\\n                executed = True       # the process was started and killed\\n                log = _as_text(exc.stdout)\\n                err = _as_text(exc.stderr)\\n                if err:\\n                    if log and not log.endswith('\\\\n'):\\n                        log += '\\\\n'\\n                    log += err\\n                log += f'\\\\nEXTERNAL TIMEOUT after {RUN_TIMEOUT:.1f}s (not a detection)\\\\n'\\n        else:\\n            reason = 'compile failed' if compile_rc != 0 else 'no Vbench binary produced'\\n            log = (f'{reason} (compile_returncode={compile_rc}); '\\n                   f'no binary executed\\\\n')\\n            log += compile_detail[-MAX_COMPILE_DETAIL:]\\n\\n        return {\\n            'name': name,\\n            'compile_returncode': compile_rc,\\n            'timeout': timed_out,\\n            'executed_binary': executed,\\n            'returncode': run_rc,\\n            'log': log,\\n            'elapsed_seconds': round(time.monotonic() - started, 3),\\n        }\\n\\n\\ndef run_suite(names):\\n    \\\"\\\"\\\"Run exactly the requested trials and return one real record per trial.\\n\\n    `names` is the explicit list of trials asked for (the fixed acceptance\\n    harness asks for three of them per group).  Each trial owns a fresh\\n    disposable directory; the compiles of the requested trials run in parallel\\n    because they are completely independent.\\n    \\\"\\\"\\\"\\n    requested = list(names)\\n    unknown = [n for n in requested if n not in TRIAL_NAMES]\\n    if unknown:\\n        raise ValueError(f'unknown trial name(s): {unknown}')\\n    if not requested:\\n        return []\\n    with ThreadPoolExecutor(max_workers=len(requested)) as pool:\\n        records = list(pool.map(_run_trial, requested))\\n    return records\\n\\n\\nif __name__ == '__main__':\\n    import json\\n    import sys\\n    wanted = sys.argv[1:] or list(TRIAL_NAMES)\\n    print(json.dumps(run_suite(wanted), indent=2))\\n\"}",
+            "time": {
+              "start": 1793225344955,
+              "end": 1793225345011
+            }
+          },
+          {
+            "call_id": "call_f24d88c25547412994869931",
+            "name": "taskbox_write_file",
+            "message_id": "msg_1848f480b001tAfKI0m1XcOXGA",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "content": "\"\"\"Real compile/run mutation trials for the CPU/CLEAR simulation oracle.\n\nEvery trial below is executed for real:\n\n  * the reference sources are *copied* (never linked, never edited in place)\n    into a fresh ``tempfile.TemporaryDirectory``;\n  * the trial's targeted mutation is applied to that disposable copy only and\n    the anchor text must match exactly once, otherwise the trial aborts;\n  * the copy is compiled with the real Verilator (``/usr/bin/verilator\n    --binary --timing -j2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0\n    --top-module bench --Mdir <tmp>/obj``) and the reference SOURCES;\n  * the produced ``Vbench`` binary is executed for real with ``+case=0``.\n\nNothing is synthesised.  A compile failure, a missing binary or an external\nsubprocess timeout is reported as such (compile_returncode / timeout) instead\nof being dressed up as a detection: only a non-zero exit of the executed\nbinary whose own log carries the endpoint/byte-oracle message counts.\n\nThe trials are external bench-side stimuli only.  They say nothing about\nphysical DDR/GPU faults: no FPGA, board or PHY is involved here.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport os\nimport shutil\nimport subprocess\nimport tempfile\nimport time\nfrom concurrent.futures import ThreadPoolExecutor\nfrom pathlib import Path\n\nHERE = Path(__file__).resolve().parent\n\n# Reference compile set, identical to the protected test_liveness.py list.\nSOURCES = ['bench.sv', 'native_memory.sv', 'ddr_ui_adapt.v', 'ddr_gpu_arb.v',\n           'gpu_v1.v', 'gpu_triangle.v', 'gpu_copy565.v', 'gpu_texture_cache.v',\n           'gpu_perspective.v']\n# scenario.svh is not listed as a source: bench.sv pulls it in with\n# `include \"scenario.svh\"`, so it must sit next to the copied bench.sv.\nSUPPORT = SOURCES + ['scenario.svh']\n\nVERILATOR = '/usr/bin/verilator'\nCOMPILE_TIMEOUT = 48.0        # CONTRACT.md: compilation each <= 48 s\nRUN_TIMEOUT = 3.0             # CONTRACT.md: binary <= 3 s\nSCENARIO = '+case=0'          # healthy composition: 32 CPU reads + 2 GPU done\nMAX_COMPILE_DETAIL = 4000     # bounded detail kept when a compile fails\n\n# Trial catalogue.  Each mutation is a targeted replacement inside ONE\n# disposable copy of ONE reference file; the anchor must occur exactly once.\n#\n#   baseline       no modification at all (reference sources, byte for byte)\n#   return_low     native_memory.sv: corrupt the low word of the returned beat\n#   return_upper   native_memory.sv: corrupt bit 128 (upper 128-bit half)\n#   return_missing native_memory.sv: accept the read but never emit the reply\n#   write_mask     bench.sv: XOR one mask bit on the arbiter .b_wr_mask wire\n#   write_address  bench.sv: XOR 0x00800000 on the arbiter .b_addr wire\nMUTATIONS = {\n    'return_low': {\n        'file': 'native_memory.sv',\n        'old': 'rd_data<=replies[rp];',\n        'new': \"rd_data<=replies[rp] ^ 256'd1;\",\n        'note': 'XOR 1 into the low word of the native return',\n    },\n    'return_upper': {\n        'file': 'native_memory.sv',\n        'old': 'rd_data<=replies[rp];',\n        'new': \"rd_data<=replies[rp] ^ (256'd1 << 128);\",\n        'note': 'XOR bit 128 into the native return (upper 128-bit half)',\n    },\n    'return_missing': {\n        'file': 'native_memory.sv',\n        'old': 'if(!hold_returns && rp<wp && tick>=due[rp])begin',\n        'new': \"if(1'b0 && !hold_returns && rp<wp && tick>=due[rp])begin\",\n        'note': 'suppress return emission, keep native read acceptance',\n    },\n    'write_mask': {\n        'file': 'bench.sv',\n        'old': '.b_wr_mask(b_wr_mask),',\n        'new': \".b_wr_mask(b_wr_mask ^ 32'h00000001),\",\n        'note': 'XOR 1 into the write mask at the arbiter .b_wr_mask connection',\n    },\n    'write_address': {\n        'file': 'bench.sv',\n        'old': '.b_addr(b_addr),',\n        'new': \".b_addr(b_addr ^ 29'h00800000),\",\n        'note': 'XOR 0x00800000 words (+32 MiB) into the arbiter .b_addr connection',\n    },\n}\n\nTRIAL_NAMES = ('baseline', 'return_low', 'return_upper',\n               'return_missing', 'write_mask', 'write_address')\n\n\ndef _compile_cmd(obj: Path):\n    \"\"\"Exact Verilator invocation mandated by CONTRACT.md.\"\"\"\n    return [VERILATOR, '--binary', '--timing', '-j', '2', '-Wno-fatal',\n            '-MAKEFLAGS', 'VM_PARALLEL_BUILDS=0', '--top-module', 'bench',\n            '--Mdir', str(obj), *SOURCES]\n\n\ndef _as_text(blob) -> str:\n    \"\"\"Normalise captured stdout/stderr chunks (bytes or str) to text.\"\"\"\n    if blob is None:\n        return ''\n    if isinstance(blob, bytes):\n        return blob.decode('utf-8', 'replace')\n    return blob\n\n\ndef _join(out, err) -> str:\n    \"\"\"Concatenate captured stdout and stderr without gluing two lines.\"\"\"\n    log = _as_text(out)\n    err = _as_text(err)\n    if err:\n        if log and not log.endswith('\\n'):\n            log += '\\n'\n        log += err\n    return log\n\n\ndef _materialise(name: str, work: Path) -> None:\n    \"\"\"Copy the reference sources into `work` and apply this trial's mutation.\n\n    The copies are real copies (shutil.copy2), never links, so the reference\n    tree is never touched.  The targeted replacement is refused unless its\n    anchor matches exactly once in the copied file.\n    \"\"\"\n    for src in SUPPORT:\n        dst = work / src\n        shutil.copy2(HERE / src, dst)\n        os.chmod(dst, 0o644)          # reference files are shipped read-only\n    spec = MUTATIONS.get(name)\n    if spec is None:\n        return                        # baseline: untouched copies\n    target = work / spec['file']\n    text = target.read_text()\n    hits = text.count(spec['old'])\n    if hits != 1:\n        raise RuntimeError(\n            f'trial {name}: anchor matched {hits} times in {spec[\"file\"]}, expected exactly 1')\n    target.write_text(text.replace(spec['old'], spec['new']))\n\n\ndef _run_trial(name: str) -> dict:\n    \"\"\"Compile and execute one trial on its own disposable copy.\"\"\"\n    started = time.monotonic()\n    with tempfile.TemporaryDirectory(prefix=f'sens-{name}-') as tmp:\n        work = Path(tmp)\n        _materialise(name, work)\n        obj = work / 'obj'\n        compile_rc = None\n        compile_detail = ''\n        timed_out = False\n        try:\n            comp = subprocess.run(_compile_cmd(obj), cwd=str(work),\n                                  capture_output=True, text=True,\n                                  timeout=COMPILE_TIMEOUT)\n            compile_rc = comp.returncode\n            compile_detail = _join(comp.stdout, comp.stderr)\n        except subprocess.TimeoutExpired as exc:\n            timed_out = True\n            compile_rc = 124          # conventional \"command timed out\" code\n            compile_detail = _join(exc.stdout, exc.stderr)\n\n        binary = obj / 'Vbench'\n        executed = False\n        run_rc = None\n        log = ''\n        if compile_rc == 0 and binary.exists():\n            try:\n                run = subprocess.run([str(binary), SCENARIO], cwd=str(work),\n                                     capture_output=True, text=True,\n                                     timeout=RUN_TIMEOUT)\n                executed = True\n                run_rc = run.returncode\n                log = _join(run.stdout, run.stderr)\n            except subprocess.TimeoutExpired as exc:\n                timed_out = True\n                executed = True       # the process was started and killed\n                log = _join(exc.stdout, exc.stderr)\n                log += (f'\\nEXTERNAL TIMEOUT after {RUN_TIMEOUT:.1f}s '\n                        '(not a detection)\\n')\n        else:\n            reason = ('compile failed' if compile_rc != 0\n                      else 'no Vbench binary produced')\n            log = (f'{reason} (compile_returncode={compile_rc}); '\n                   'no binary executed\\n')\n            log += compile_detail[-MAX_COMPILE_DETAIL:]\n\n        return {\n            'name': name,\n            'compile_returncode': compile_rc,\n            'timeout': timed_out,\n            'executed_binary': executed,\n            'returncode': run_rc,\n            'log': log,\n            'elapsed_seconds': round(time.monotonic() - started, 3),\n        }\n\n\ndef _worker_count(trials: int) -> int:\n    \"\"\"Parallel compiles, but never more workers than usable CPUs.\"\"\"\n    try:\n        available = len(os.sched_getaffinity(0))\n    except AttributeError:                    # pragma: no cover - portability\n        available = os.cpu_count() or 1\n    return max(1, min(trials, available))\n\n\ndef run_suite(names):\n    \"\"\"Run exactly the requested trials and return one real record per trial.\n\n    `names` is the explicit list of trials asked for (the fixed acceptance\n    harness asks for three of them per group).  Each trial owns a fresh\n    disposable directory; the compiles of the requested trials run in parallel\n    because they are completely independent.\n    \"\"\"\n    requested = list(names)\n    unknown = [n for n in requested if n not in TRIAL_NAMES]\n    if unknown:\n        raise ValueError(f'unknown trial name(s): {unknown}')\n    if not requested:\n        return []\n    with ThreadPoolExecutor(max_workers=_worker_count(len(requested))) as pool:\n        records = list(pool.map(_run_trial, requested))\n    return records\n\n\nif __name__ == '__main__':\n    import json\n    import sys\n    wanted = sys.argv[1:] or list(TRIAL_NAMES)\n    print(json.dumps(run_suite(wanted), indent=2))\n",
+              "path": "mutation_runner.py"
+            },
+            "output": "{\"written_bytes\": 9301}",
+            "time": {
+              "start": 1793225352308,
+              "end": 1793225352314
+            }
+          },
+          {
+            "call_id": "call_e2a9128f449540c482a41abd",
+            "name": "taskbox_exec",
+            "message_id": "msg_1848f64c9001tBzIw8u49hYuGn",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "bash",
+                "-lc",
+                "cd /work && for g in 0 1; do echo \"== group $g ==\"; /usr/bin/time -f \"wall=%es\" python3 validate.py $g > /tmp/g$g.json 2>/tmp/g$g.time; echo \"rc=$?\"; cat /tmp/g$g.time | tail -2; python3 -c \"\nimport json;d=json.load(open('/tmp/g$g.json'));print('passed',d['passed']);\n[print(' ',t['name'],'compile_rc',t['compile_returncode'],'timeout',t['timeout'],'exec',t['executed_binary'],'rc',t['returncode'],'elapsed',t['elapsed_seconds']) for t in d['trials']]\"; done"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 17.73771828005556, \"stdout\": \"== group 0 ==\\nrc=0\\nwall=8.49s\\npassed True\\n  baseline compile_rc 0 timeout False exec True rc 0 elapsed 8.45\\n  return_low compile_rc 0 timeout False exec True rc -6 elapsed 8.334\\n  return_upper compile_rc 0 timeout False exec True rc -6 elapsed 8.381\\n== group 1 ==\\nrc=0\\nwall=9.19s\\npassed True\\n  return_missing compile_rc 0 timeout False exec True rc -6 elapsed 8.946\\n  write_mask compile_rc 0 timeout False exec True rc -6 elapsed 8.979\\n  write_address compile_rc 0 timeout False exec True rc -6 elapsed 9.147\\n\"}",
+            "time": {
+              "start": 1793225355299,
+              "end": 1793225373043
+            }
+          }
+        ],
+        "finishes": [
+          {
+            "message_id": "msg_1848d507c001s56EvK0uc713ny",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 1064,
+              "input": 726,
+              "output": 82,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 256
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848d583c0018IXdsbgSPLzC3A",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 2499,
+              "input": 1545,
+              "output": 186,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 768
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848d5e620019kWUWJKU0Fx8M8",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 5857,
+              "input": 3391,
+              "output": 162,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 2304
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848d6563001e8EGLJ4f81gcnG",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 11745,
+              "input": 4179,
+              "output": 1934,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 5632
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848d86c0001b5Tirw7xhDJP05",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 22400,
+              "input": 8885,
+              "output": 3787,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 9728
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848dc6c2001QWU1kWCV6zyY9Z",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 23736,
+              "input": 4683,
+              "output": 621,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 18432
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848df8b9001DxvtQCD7nn4BRx",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 23999,
+              "input": 813,
+              "output": 146,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 23040
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848dffdf001qkrsQ38aCyNNzJ",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 26670,
+              "input": 1633,
+              "output": 1229,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 23808
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848e14b70018Gzg17JVfHYYWd",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 27370,
+              "input": 1548,
+              "output": 478,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 25344
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848e1e83001428Foxk2WPbam9",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 28003,
+              "input": 741,
+              "output": 382,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 26880
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848e4abc001bA1bIy02y4XmzH",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 37836,
+              "input": 1230,
+              "output": 9214,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 27392
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848ecf4300145S6JqABtKxQFJ",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 38179,
+              "input": 9442,
+              "output": 321,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 28416
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848effb5001erpM1yhIypMCOy",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 38587,
+              "input": 707,
+              "output": 248,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 37632
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848f2971001ZHB6SpXpacybr3",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 39225,
+              "input": 741,
+              "output": 340,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 38144
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848f338e001q8YBs5cQel7rNQ",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 40709,
+              "input": 1215,
+              "output": 838,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 38656
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848f480b001tAfKI0m1XcOXGA",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 45578,
+              "input": 3501,
+              "output": 2397,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 39680
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848f64c9001tBzIw8u49hYuGn",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 46020,
+              "input": 2592,
+              "output": 420,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 43008
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1848fb580001V5WRlHD5ToBtl6",
+            "reason": "stop",
+            "tokens": {
+              "total": 47422,
+              "input": 833,
+              "output": 1021,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 45568
+              }
+            },
+            "cost": 0
+          }
+        ],
+        "answer": "I'll start by exploring the working directory and reading the contract and test files.\nNow let me prototype each mutation in disposable `/tmp` copies to verify actual detection behavior before writing the runner.\nAll five mutations produce the exact expected detections with real Verilator compiles. Now let me write the runner implementation.\nBoth groups pass locally. Let me refine worker capping for CPU-constrained environments, then re-verify.\n**Maximum tool steps reached \u2014 no further tool calls are possible from here. Below is the state of the work as it actually stands, based on the tool evidence collected.**\n\n## What was accomplished (with evidence)\n\n**1. Read the contract and the protected inputs**\n- `CONTRACT.md`, `test_liveness.py`, `validate.py`, `INPUTS.json`, `REFERENCE_HASHES.json`, `bench.sv`, `native_memory.sv`, `scenario.svh`, `ddr_gpu_arb.v`, `ddr_ui_adapt.v` were all read and understood.\n- `validate.py` was confirmed to require: exactly the 3 requested trial names per group, `compile_returncode==0`, `timeout is False`, `executed_binary is True`, and for each mutant `returncode!=0` **and** a specific detection string in the log (`CPU_DATA index0`, `CPU_DATA index4`, `CPU progress timeout`, `ENDPOINT unexpected CLEAR footprint`, `ENDPOINT address outside scratch128B`); baseline must exit 0 with one `OBS ... \"final\"` line showing `cpu==32`, `gpu_done==2`.\n\n**2. Ran the fixed tests BEFORE any edits** \u2014 `taskbox_run_tests` returned 2 failures, both `AssertionError: Need3real trials in each group` (the stub `run_suite` returned `[]`).\n\n**3. Prototyped all five mutations in disposable `/tmp` copies** (real Verilator 5.020 compiles, real binary runs) and confirmed every detection string appears exactly as required:\n- `return_low` \u2192 `CPU_DATA index0 gotb7396c16 expectedb7396c17`\n- `return_upper` \u2192 `CPU_DATA index4 gotb7396c06 expectedb7396c07`\n- `return_missing` \u2192 `scenario: CPU progress timeout` (scenario.svh:52)\n- `write_mask` \u2192 `ENDPOINT unexpected CLEAR footprint` (native_memory.sv:42)\n- `write_address` \u2192 `ENDPOINT address outside scratch128B` (native_memory.sv:37)\n\n**4. Implemented `mutation_runner.py`** (only owned file written besides the report): copies all reference sources (plus `scenario.svh` needed by the `include`) with `shutil.copy2` into a fresh `tempfile.TemporaryDirectory` per trial, applies one targeted replacement whose anchor must match **exactly once** (raises otherwise), compiles with the exact mandated command `/usr/bin/verilator --binary --timing -j 2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0 --top-module bench --Mdir <tmp>/obj <SOURCES>`, then executes the real `Vbench +case=0` binary with a 3 s external timeout. Records carry exactly `name, compile_returncode, timeout, executed_binary, returncode, log, elapsed_seconds`; compile failures/timeouts are reported honestly and never dressed up as detections. Worker count is capped by usable CPUs; ~200 lines, commented.\n\n**5. Verified locally after the refactor** (real runs): group 0 wall 8.49 s, group 1 wall 9.19 s, both `passed True`, all six records `compile_rc 0 / timeout False / exec True`, baseline rc 0, five mutants rc \u22126 (SIGABRT from the simulation's own `$fatal`). No leftover temp dirs.\n\n## Remaining tasks (not completed)\n\n- **`ANALYSIS.md` was not written.** The file still contains only its original placeholder text (`# Pending real sensitivity tests`). This is the one deliverable still outstanding.\n- **The final official `taskbox_run_tests` after all writes was not executed** (the last run was before the final `mutation_runner.py` refactor; the two most recent confirmations were direct `python3 validate.py 0/1` invocations, which passed).\n\n## Recommended next steps\n\n1. Write `ANALYSIS.md` (the only remaining owned-file change), reporting: the six trials and their exact mutation anchors, the verbatim detection messages and observed return codes (`0` for baseline, `-6`/SIGABRT for each mutant), actual elapsed times (per-trial ~8.3\u20139.1 s; group wall 8.5 s / 9.2 s), that every compile was real Verilator on a disposable copy, that no protected source was modified (reference-hash assertions in `validate.py` passed before and after each run), and the limits: simulation-only, no FPGA/board/PHY evidence, all mutations are external bench-side inputs (return-path corruption in the terminal model and connection-level XORs on the arbiter wires).\n2. Then run the official fixed `taskbox_run_tests` as the **final** action, with no writes afterwards, and confirm both groups report `passed True`.",
+        "api_requests_observed": null,
+        "note": "API attempts are measured separately by the provider gateway"
+      },
+      "validation": {
+        "passed": true,
+        "returncode": 0,
+        "tests_returncode": 0,
+        "policy_ok": true,
+        "infrastructure_ok": true,
+        "test_runs": 2,
+        "test_failures": 0,
+        "tests_log": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.6509747490054, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"trials\\\": [\\n    {\\n      \\\"name\\\": \\\"baseline\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": 0,\\n      \\\"log\\\": \\\"OBS {\\\\\\\"case\\\\\\\":0,\\\\\\\"label\\\\\\\":\\\\\\\"blocked\\\\\\\",\\\\\\\"cpu\\\\\\\":16,\\\\\\\"sent\\\\\\\":16,\\\\\\\"gpu_done\\\\\\\":2,\\\\\\\"busy\\\\\\\":0,\\\\\\\"rejected\\\\\\\":0,\\\\\\\"native_reads\\\\\\\":16,\\\\\\\"native_writes\\\\\\\":1,\\\\\\\"returned\\\\\\\":16,\\\\\\\"scan_returns\\\\\\\":0,\\\\\\\"full\\\\\\\":0,\\\\\\\"tags\\\\\\\":0,\\\\\\\"cpu_pending\\\\\\\":0,\\\\\\\"take_blitter\\\\\\\":0,\\\\\\\"prefer_blitter\\\\\\\":1,\\\\\\\"adapter_tags\\\\\\\":0,\\\\\\\"gpu_valid\\\\\\\":0,\\\\\\\"gpu_ready\\\\\\\":0,\\\\\\\"command_ready\\\\\\\":1,\\\\\\\"write_ready\\\\\\\":1,\\\\\\\"full_ready_cycles\\\\\\\":0,\\\\\\\"cycle\\\\\\\":183}\\\\nOBS {\\\\\\\"case\\\\\\\":0,\\\\\\\"label\\\\\\\":\\\\\\\"final\\\\\\\",\\\\\\\"cpu\\\\\\\":32,\\\\\\\"sent\\\\\\\":32,\\\\\\\"gpu_done\\\\\\\":2,\\\\\\\"busy\\\\\\\":0,\\\\\\\"rejected\\\\\\\":0,\\\\\\\"native_reads\\\\\\\":32,\\\\\\\"native_writes\\\\\\\":1,\\\\\\\"returned\\\\\\\":32,\\\\\\\"scan_returns\\\\\\\":0,\\\\\\\"full\\\\\\\":0,\\\\\\\"tags\\\\\\\":0,\\\\\\\"cpu_pending\\\\\\\":0,\\\\\\\"take_blitter\\\\\\\":0,\\\\\\\"prefer_blitter\\\\\\\":1,\\\\\\\"adapter_tags\\\\\\\":0,\\\\\\\"gpu_valid\\\\\\\":0,\\\\\\\"gpu_ready\\\\\\\":0,\\\\\\\"command_ready\\\\\\\":1,\\\\\\\"write_ready\\\\\\\":1,\\\\\\\"full_ready_cycles\\\\\\\":0,\\\\\\\"cycle\\\\\\\":331}\\\\n- scenario.svh:269: Verilog $finish\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.224\\n    },\\n    {\\n      \\\"name\\\": \\\"return_low\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[490000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index0 gotb7396c16 expectedb7396c17\\\\n%Error: bench.sv:172: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.602\\n    },\\n    {\\n      \\\"name\\\": \\\"return_upper\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[840000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index4 gotb7396c06 expectedb7396c07\\\\n%Error: bench.sv:172: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.491\\n    }\\n  ]\\n}\\n\"}, {\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.844888900057413, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"trials\\\": [\\n    {\\n      \\\"name\\\": \\\"return_missing\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[40420000] %Fatal: scenario.svh:52: Assertion failed in TOP.bench.wait_cpu: scenario: CPU progress timeout\\\\n%Error: scenario.svh:52: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.45\\n    },\\n    {\\n      \\\"name\\\": \\\"write_mask\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[375000] %Fatal: native_memory.sv:42: Assertion failed in TOP.bench.u_native: ENDPOINT unexpected CLEAR footprint\\\\n%Error: native_memory.sv:42: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.79\\n    },\\n    {\\n      \\\"name\\\": \\\"write_address\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[375000] %Fatal: native_memory.sv:37: Assertion failed in TOP.bench.u_native: ENDPOINT address outside scratch128B\\\\n%Error: native_memory.sv:37: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.73\\n    }\\n  ]\\n}\\n\"}], \"test_runs\": 2, \"test_failures\": 0, \"passed\": true}\n",
+        "changed_files": [
+          "mutation_runner.py"
+        ],
+        "feedback": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.6509747490054, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"trials\\\": [\\n    {\\n      \\\"name\\\": \\\"baseline\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": 0,\\n      \\\"log\\\": \\\"OBS {\\\\\\\"case\\\\\\\":0,\\\\\\\"label\\\\\\\":\\\\\\\"blocked\\\\\\\",\\\\\\\"cpu\\\\\\\":16,\\\\\\\"sent\\\\\\\":16,\\\\\\\"gpu_done\\\\\\\":2,\\\\\\\"busy\\\\\\\":0,\\\\\\\"rejected\\\\\\\":0,\\\\\\\"native_reads\\\\\\\":16,\\\\\\\"native_writes\\\\\\\":1,\\\\\\\"returned\\\\\\\":16,\\\\\\\"scan_returns\\\\\\\":0,\\\\\\\"full\\\\\\\":0,\\\\\\\"tags\\\\\\\":0,\\\\\\\"cpu_pending\\\\\\\":0,\\\\\\\"take_blitter\\\\\\\":0,\\\\\\\"prefer_blitter\\\\\\\":1,\\\\\\\"adapter_tags\\\\\\\":0,\\\\\\\"gpu_valid\\\\\\\":0,\\\\\\\"gpu_ready\\\\\\\":0,\\\\\\\"command_ready\\\\\\\":1,\\\\\\\"write_ready\\\\\\\":1,\\\\\\\"full_ready_cycles\\\\\\\":0,\\\\\\\"cycle\\\\\\\":183}\\\\nOBS {\\\\\\\"case\\\\\\\":0,\\\\\\\"label\\\\\\\":\\\\\\\"final\\\\\\\",\\\\\\\"cpu\\\\\\\":32,\\\\\\\"sent\\\\\\\":32,\\\\\\\"gpu_done\\\\\\\":2,\\\\\\\"busy\\\\\\\":0,\\\\\\\"rejected\\\\\\\":0,\\\\\\\"native_reads\\\\\\\":32,\\\\\\\"native_writes\\\\\\\":1,\\\\\\\"returned\\\\\\\":32,\\\\\\\"scan_returns\\\\\\\":0,\\\\\\\"full\\\\\\\":0,\\\\\\\"tags\\\\\\\":0,\\\\\\\"cpu_pending\\\\\\\":0,\\\\\\\"take_blitter\\\\\\\":0,\\\\\\\"prefer_blitter\\\\\\\":1,\\\\\\\"adapter_tags\\\\\\\":0,\\\\\\\"gpu_valid\\\\\\\":0,\\\\\\\"gpu_ready\\\\\\\":0,\\\\\\\"command_ready\\\\\\\":1,\\\\\\\"write_ready\\\\\\\":1,\\\\\\\"full_ready_cycles\\\\\\\":0,\\\\\\\"cycle\\\\\\\":331}\\\\n- scenario.svh:269: Verilog $finish\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.224\\n    },\\n    {\\n      \\\"name\\\": \\\"return_low\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[490000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index0 gotb7396c16 expectedb7396c17\\\\n%Error: bench.sv:172: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.602\\n    },\\n    {\\n      \\\"name\\\": \\\"return_upper\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[840000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index4 gotb7396c06 expectedb7396c07\\\\n%Error: bench.sv:172: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.491\\n    }\\n  ]\\n}\\n\"}, {\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.844888900057413, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"trials\\\": [\\n    {\\n      \\\"name\\\": \\\"return_missing\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[40420000] %Fatal: scenario.svh:52: Assertion failed in TOP.bench.wait_cpu: scenario: CPU progress timeout\\\\n%Error: scenario.svh:52: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.45\\n    },\\n    {\\n      \\\"name\\\": \\\"write_mask\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[375000] %Fatal: native_memory.sv:42: Assertion failed in TOP.bench.u_native: ENDPOINT unexpected CLEAR footprint\\\\n%Error: native_memory.sv:42: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.79\\n    },\\n    {\\n      \\\"name\\\": \\\"write_address\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[375000] %Fatal: native_memory.sv:37: Assertion failed in TOP.bench.u_native: ENDPOINT address outside scratch128B\\\\n%Error: native_memory.sv:37: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.73\\n    }\\n  ]\\n}\\n\"}], \"test_runs\": 2, \"test_failures\": 0, \"passed\": true}\n",
+        "changes": {
+          "policy_ok": true,
+          "changed_files": [
+            "mutation_runner.py"
+          ],
+          "changes": [
+            {
+              "path": "mutation_runner.py",
+              "status": "modified",
+              "before_sha256": "fc3e7002d2ec82c9f770372b6712961f01b9f93e0b44455f7cb197c406773446",
+              "after_sha256": "b197ad2de6cd0d24667ba45d9aa82a43a8e507a3b2ece15ba28c7bd1a29eb647"
+            }
+          ],
+          "diff": "--- a/mutation_runner.py\n+++ b/mutation_runner.py\n@@ -1,3 +1,234 @@\n-\"\"\"Implement real compile/run mutation trials on disposable copies only.\"\"\"\n+\"\"\"Real compile/run mutation trials for the CPU/CLEAR simulation oracle.\n+\n+Every trial below is executed for real:\n+\n+  * the reference sources are *copied* (never linked, never edited in place)\n+    into a fresh ``tempfile.TemporaryDirectory``;\n+  * the trial's targeted mutation is applied to that disposable copy only and\n+    the anchor text must match exactly once, otherwise the trial aborts;\n+  * the copy is compiled with the real Verilator (``/usr/bin/verilator\n+    --binary --timing -j2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0\n+    --top-module bench --Mdir <tmp>/obj``) and the reference SOURCES;\n+  * the produced ``Vbench`` binary is executed for real with ``+case=0``.\n+\n+Nothing is synthesised.  A compile failure, a missing binary or an external\n+subprocess timeout is reported as such (compile_returncode / timeout) instead\n+of being dressed up as a detection: only a non-zero exit of the executed\n+binary whose own log carries the endpoint/byte-oracle message counts.\n+\n+The trials are external bench-side stimuli only.  They say nothing about\n+physical DDR/GPU faults: no FPGA, board or PHY is involved here.\n+\"\"\"\n+\n+from __future__ import annotations\n+\n+import os\n+import shutil\n+import subprocess\n+import tempfile\n+import time\n+from concurrent.futures import ThreadPoolExecutor\n+from pathlib import Path\n+\n+HERE = Path(__file__).resolve().parent\n+\n+# Reference compile set, identical to the protected test_liveness.py list.\n+SOURCES = ['bench.sv', 'native_memory.sv', 'ddr_ui_adapt.v', 'ddr_gpu_arb.v',\n+           'gpu_v1.v', 'gpu_triangle.v', 'gpu_copy565.v', 'gpu_texture_cache.v',\n+           'gpu_perspective.v']\n+# scenario.svh is not listed as a source: bench.sv pulls it in with\n+# `include \"scenario.svh\"`, so it must sit next to the copied bench.sv.\n+SUPPORT = SOURCES + ['scenario.svh']\n+\n+VERILATOR = '/usr/bin/verilator'\n+COMPILE_TIMEOUT = 48.0        # CONTRACT.md: compilation each <= 48 s\n+RUN_TIMEOUT = 3.0             # CONTRACT.md: binary <= 3 s\n+SCENARIO = '+case=0'          # healthy composition: 32 CPU reads + 2 GPU done\n+MAX_COMPILE_DETAIL = 4000     # bounded detail kept when a compile fails\n+\n+# Trial catalogue.  Each mutation is a targeted replacement inside ONE\n+# disposable copy of ONE reference file; the anchor must occur exactly once.\n+#\n+#   baseline       no modification at all (reference sources, byte for byte)\n+#   return_low     native_memory.sv: corrupt the low word of the returned beat\n+#   return_upper   native_memory.sv: corrupt bit 128 (upper 128-bit half)\n+#   return_missing native_memory.sv: accept the read but never emit the reply\n+#   write_mask     bench.sv: XOR one mask bit on the arbiter .b_wr_mask wire\n+#   write_address  bench.sv: XOR 0x00800000 on the arbiter .b_addr wire\n+MUTATIONS = {\n+    'return_low': {\n+        'file': 'native_memory.sv',\n+        'old': 'rd_data<=replies[rp];',\n+        'new': \"rd_data<=replies[rp] ^ 256'd1;\",\n+        'note': 'XOR 1 into the low word of the native return',\n+    },\n+    'return_upper': {\n+        'file': 'native_memory.sv',\n+        'old': 'rd_data<=replies[rp];',\n+        'new': \"rd_data<=replies[rp] ^ (256'd1 << 128);\",\n+        'note': 'XOR bit 128 into the native return (upper 128-bit half)',\n+    },\n+    'return_missing': {\n+        'file': 'native_memory.sv',\n+        'old': 'if(!hold_returns && rp<wp && tick>=due[rp])begin',\n+        'new': \"if(1'b0 && !hold_returns && rp<wp && tick>=due[rp])begin\",\n+        'note': 'suppress return emission, keep native read acceptance',\n+    },\n+    'write_mask': {\n+        'file': 'bench.sv',\n+        'old': '.b_wr_mask(b_wr_mask),',\n+        'new': \".b_wr_mask(b_wr_mask ^ 32'h00000001),\",\n+        'note': 'XOR 1 into the write mask at the arbiter .b_wr_mask connection',\n+    },\n+    'write_address': {\n+        'file': 'bench.sv',\n+        'old': '.b_addr(b_addr),',\n+        'new': \".b_addr(b_addr ^ 29'h00800000),\",\n+        'note': 'XOR 0x00800000 words (+32 MiB) into the arbiter .b_addr connection',\n+    },\n+}\n+\n+TRIAL_NAMES = ('baseline', 'return_low', 'return_upper',\n+               'return_missing', 'write_mask', 'write_address')\n+\n+\n+def _compile_cmd(obj: Path):\n+    \"\"\"Exact Verilator invocation mandated by CONTRACT.md.\"\"\"\n+    return [VERILATOR, '--binary', '--timing', '-j', '2', '-Wno-fatal',\n+            '-MAKEFLAGS', 'VM_PARALLEL_BUILDS=0', '--top-module', 'bench',\n+            '--Mdir', str(obj), *SOURCES]\n+\n+\n+def _as_text(blob) -> str:\n+    \"\"\"Normalise captured stdout/stderr chunks (bytes or str) to text.\"\"\"\n+    if blob is None:\n+        return ''\n+    if isinstance(blob, bytes):\n+        return blob.decode('utf-8', 'replace')\n+    return blob\n+\n+\n+def _join(out, err) -> str:\n+    \"\"\"Concatenate captured stdout and stderr without gluing two lines.\"\"\"\n+    log = _as_text(out)\n+    err = _as_text(err)\n+    if err:\n+        if log and not log.endswith('\\n'):\n+            log += '\\n'\n+        log += err\n+    return log\n+\n+\n+def _materialise(name: str, work: Path) -> None:\n+    \"\"\"Copy the reference sources into `work` and apply this trial's mutation.\n+\n+    The copies are real copies (shutil.copy2), never links, so the reference\n+    tree is never touched.  The targeted replacement is refused unless its\n+    anchor matches exactly once in the copied file.\n+    \"\"\"\n+    for src in SUPPORT:\n+        dst = work / src\n+        shutil.copy2(HERE / src, dst)\n+        os.chmod(dst, 0o644)          # reference files are shipped read-only\n+    spec = MUTATIONS.get(name)\n+    if spec is None:\n+        return                        # baseline: untouched copies\n+    target = work / spec['file']\n+    text = target.read_text()\n+    hits = text.count(spec['old'])\n+    if hits != 1:\n+        raise RuntimeError(\n+            f'trial {name}: anchor matched {hits} times in {spec[\"file\"]}, expected exactly 1')\n+    target.write_text(text.replace(spec['old'], spec['new']))\n+\n+\n+def _run_trial(name: str) -> dict:\n+    \"\"\"Compile and execute one trial on its own disposable copy.\"\"\"\n+    started = time.monotonic()\n+    with tempfile.TemporaryDirectory(prefix=f'sens-{name}-') as tmp:\n+        work = Path(tmp)\n+        _materialise(name, work)\n+        obj = work / 'obj'\n+        compile_rc = None\n+        compile_detail = ''\n+        timed_out = False\n+        try:\n+            comp = subprocess.run(_compile_cmd(obj), cwd=str(work),\n+                                  capture_output=True, text=True,\n+                                  timeout=COMPILE_TIMEOUT)\n+            compile_rc = comp.returncode\n+            compile_detail = _join(comp.stdout, comp.stderr)\n+        except subprocess.TimeoutExpired as exc:\n+            timed_out = True\n+            compile_rc = 124          # conventional \"command timed out\" code\n+            compile_detail = _join(exc.stdout, exc.stderr)\n+\n+        binary = obj / 'Vbench'\n+        executed = False\n+        run_rc = None\n+        log = ''\n+        if compile_rc == 0 and binary.exists():\n+            try:\n+                run = subprocess.run([str(binary), SCENARIO], cwd=str(work),\n+                                     capture_output=True, text=True,\n+                                     timeout=RUN_TIMEOUT)\n+                executed = True\n+                run_rc = run.returncode\n+                log = _join(run.stdout, run.stderr)\n+            except subprocess.TimeoutExpired as exc:\n+                timed_out = True\n+                executed = True       # the process was started and killed\n+                log = _join(exc.stdout, exc.stderr)\n+                log += (f'\\nEXTERNAL TIMEOUT after {RUN_TIMEOUT:.1f}s '\n+                        '(not a detection)\\n')\n+        else:\n+            reason = ('compile failed' if compile_rc != 0\n+                      else 'no Vbench binary produced')\n+            log = (f'{reason} (compile_returncode={compile_rc}); '\n+                   'no binary executed\\n')\n+            log += compile_detail[-MAX_COMPILE_DETAIL:]\n+\n+        return {\n+            'name': name,\n+            'compile_returncode': compile_rc,\n+            'timeout': timed_out,\n+            'executed_binary': executed,\n+            'returncode': run_rc,\n+            'log': log,\n+            'elapsed_seconds': round(time.monotonic() - started, 3),\n+        }\n+\n+\n+def _worker_count(trials: int) -> int:\n+    \"\"\"Parallel compiles, but never more workers than usable CPUs.\"\"\"\n+    try:\n+        available = len(os.sched_getaffinity(0))\n+    except AttributeError:                    # pragma: no cover - portability\n+        available = os.cpu_count() or 1\n+    return max(1, min(trials, available))\n+\n+\n def run_suite(names):\n-    return []\n+    \"\"\"Run exactly the requested trials and return one real record per trial.\n+\n+    `names` is the explicit list of trials asked for (the fixed acceptance\n+    harness asks for three of them per group).  Each trial owns a fresh\n+    disposable directory; the compiles of the requested trials run in parallel\n+    because they are completely independent.\n+    \"\"\"\n+    requested = list(names)\n+    unknown = [n for n in requested if n not in TRIAL_NAMES]\n+    if unknown:\n+        raise ValueError(f'unknown trial name(s): {unknown}')\n+    if not requested:\n+        return []\n+    with ThreadPoolExecutor(max_workers=_worker_count(len(requested))) as pool:\n+        records = list(pool.map(_run_trial, requested))\n+    return records\n+\n+\n+if __name__ == '__main__':\n+    import json\n+    import sys\n+    wanted = sys.argv[1:] or list(TRIAL_NAMES)\n+    print(json.dumps(run_suite(wanted), indent=2))\n",
+          "originals_unchanged": true,
+          "context_unchanged": true,
+          "violations": []
+        },
+        "evidence_ok": false
+      },
+      "api_requests_observed": 18
+    }
+  ],
+  "task_count": 1,
+  "model_steps_observed": 18,
+  "tool_invocations_observed": 28,
+  "api_requests_observed": 18,
+  "baseline": {
+    "passed": false,
+    "returncode": 1,
+    "tests_returncode": 1,
+    "policy_ok": true,
+    "infrastructure_ok": true,
+    "test_runs": 2,
+    "test_failures": 2,
+    "tests_log": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.028194606071338058, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 38, in <module>\\n    if __name__=='__main__':main()\\n                            ^^^^^^\\n  File \\\"/work/validate.py\\\", line 23, in main\\n    assert type(rows) is list and len(rows)==len(names),'Need3real trials in each group'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Need3real trials in each group\\n\"}, {\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.029040622990578413, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 38, in <module>\\n    if __name__=='__main__':main()\\n                            ^^^^^^\\n  File \\\"/work/validate.py\\\", line 23, in main\\n    assert type(rows) is list and len(rows)==len(names),'Need3real trials in each group'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Need3real trials in each group\\n\"}], \"test_runs\": 2, \"test_failures\": 2, \"passed\": false}\n"
+  },
+  "validation": {
+    "passed": true,
+    "returncode": 0,
+    "tests_returncode": 0,
+    "policy_ok": true,
+    "infrastructure_ok": true,
+    "test_runs": 2,
+    "test_failures": 0,
+    "tests_log": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.6509747490054, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"trials\\\": [\\n    {\\n      \\\"name\\\": \\\"baseline\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": 0,\\n      \\\"log\\\": \\\"OBS {\\\\\\\"case\\\\\\\":0,\\\\\\\"label\\\\\\\":\\\\\\\"blocked\\\\\\\",\\\\\\\"cpu\\\\\\\":16,\\\\\\\"sent\\\\\\\":16,\\\\\\\"gpu_done\\\\\\\":2,\\\\\\\"busy\\\\\\\":0,\\\\\\\"rejected\\\\\\\":0,\\\\\\\"native_reads\\\\\\\":16,\\\\\\\"native_writes\\\\\\\":1,\\\\\\\"returned\\\\\\\":16,\\\\\\\"scan_returns\\\\\\\":0,\\\\\\\"full\\\\\\\":0,\\\\\\\"tags\\\\\\\":0,\\\\\\\"cpu_pending\\\\\\\":0,\\\\\\\"take_blitter\\\\\\\":0,\\\\\\\"prefer_blitter\\\\\\\":1,\\\\\\\"adapter_tags\\\\\\\":0,\\\\\\\"gpu_valid\\\\\\\":0,\\\\\\\"gpu_ready\\\\\\\":0,\\\\\\\"command_ready\\\\\\\":1,\\\\\\\"write_ready\\\\\\\":1,\\\\\\\"full_ready_cycles\\\\\\\":0,\\\\\\\"cycle\\\\\\\":183}\\\\nOBS {\\\\\\\"case\\\\\\\":0,\\\\\\\"label\\\\\\\":\\\\\\\"final\\\\\\\",\\\\\\\"cpu\\\\\\\":32,\\\\\\\"sent\\\\\\\":32,\\\\\\\"gpu_done\\\\\\\":2,\\\\\\\"busy\\\\\\\":0,\\\\\\\"rejected\\\\\\\":0,\\\\\\\"native_reads\\\\\\\":32,\\\\\\\"native_writes\\\\\\\":1,\\\\\\\"returned\\\\\\\":32,\\\\\\\"scan_returns\\\\\\\":0,\\\\\\\"full\\\\\\\":0,\\\\\\\"tags\\\\\\\":0,\\\\\\\"cpu_pending\\\\\\\":0,\\\\\\\"take_blitter\\\\\\\":0,\\\\\\\"prefer_blitter\\\\\\\":1,\\\\\\\"adapter_tags\\\\\\\":0,\\\\\\\"gpu_valid\\\\\\\":0,\\\\\\\"gpu_ready\\\\\\\":0,\\\\\\\"command_ready\\\\\\\":1,\\\\\\\"write_ready\\\\\\\":1,\\\\\\\"full_ready_cycles\\\\\\\":0,\\\\\\\"cycle\\\\\\\":331}\\\\n- scenario.svh:269: Verilog $finish\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.224\\n    },\\n    {\\n      \\\"name\\\": \\\"return_low\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[490000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index0 gotb7396c16 expectedb7396c17\\\\n%Error: bench.sv:172: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.602\\n    },\\n    {\\n      \\\"name\\\": \\\"return_upper\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[840000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index4 gotb7396c06 expectedb7396c07\\\\n%Error: bench.sv:172: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.491\\n    }\\n  ]\\n}\\n\"}, {\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.844888900057413, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"trials\\\": [\\n    {\\n      \\\"name\\\": \\\"return_missing\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[40420000] %Fatal: scenario.svh:52: Assertion failed in TOP.bench.wait_cpu: scenario: CPU progress timeout\\\\n%Error: scenario.svh:52: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.45\\n    },\\n    {\\n      \\\"name\\\": \\\"write_mask\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[375000] %Fatal: native_memory.sv:42: Assertion failed in TOP.bench.u_native: ENDPOINT unexpected CLEAR footprint\\\\n%Error: native_memory.sv:42: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.79\\n    },\\n    {\\n      \\\"name\\\": \\\"write_address\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[375000] %Fatal: native_memory.sv:37: Assertion failed in TOP.bench.u_native: ENDPOINT address outside scratch128B\\\\n%Error: native_memory.sv:37: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.73\\n    }\\n  ]\\n}\\n\"}], \"test_runs\": 2, \"test_failures\": 0, \"passed\": true}\n",
+    "changed_files": [
+      "mutation_runner.py"
+    ],
+    "feedback": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.6509747490054, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"trials\\\": [\\n    {\\n      \\\"name\\\": \\\"baseline\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": 0,\\n      \\\"log\\\": \\\"OBS {\\\\\\\"case\\\\\\\":0,\\\\\\\"label\\\\\\\":\\\\\\\"blocked\\\\\\\",\\\\\\\"cpu\\\\\\\":16,\\\\\\\"sent\\\\\\\":16,\\\\\\\"gpu_done\\\\\\\":2,\\\\\\\"busy\\\\\\\":0,\\\\\\\"rejected\\\\\\\":0,\\\\\\\"native_reads\\\\\\\":16,\\\\\\\"native_writes\\\\\\\":1,\\\\\\\"returned\\\\\\\":16,\\\\\\\"scan_returns\\\\\\\":0,\\\\\\\"full\\\\\\\":0,\\\\\\\"tags\\\\\\\":0,\\\\\\\"cpu_pending\\\\\\\":0,\\\\\\\"take_blitter\\\\\\\":0,\\\\\\\"prefer_blitter\\\\\\\":1,\\\\\\\"adapter_tags\\\\\\\":0,\\\\\\\"gpu_valid\\\\\\\":0,\\\\\\\"gpu_ready\\\\\\\":0,\\\\\\\"command_ready\\\\\\\":1,\\\\\\\"write_ready\\\\\\\":1,\\\\\\\"full_ready_cycles\\\\\\\":0,\\\\\\\"cycle\\\\\\\":183}\\\\nOBS {\\\\\\\"case\\\\\\\":0,\\\\\\\"label\\\\\\\":\\\\\\\"final\\\\\\\",\\\\\\\"cpu\\\\\\\":32,\\\\\\\"sent\\\\\\\":32,\\\\\\\"gpu_done\\\\\\\":2,\\\\\\\"busy\\\\\\\":0,\\\\\\\"rejected\\\\\\\":0,\\\\\\\"native_reads\\\\\\\":32,\\\\\\\"native_writes\\\\\\\":1,\\\\\\\"returned\\\\\\\":32,\\\\\\\"scan_returns\\\\\\\":0,\\\\\\\"full\\\\\\\":0,\\\\\\\"tags\\\\\\\":0,\\\\\\\"cpu_pending\\\\\\\":0,\\\\\\\"take_blitter\\\\\\\":0,\\\\\\\"prefer_blitter\\\\\\\":1,\\\\\\\"adapter_tags\\\\\\\":0,\\\\\\\"gpu_valid\\\\\\\":0,\\\\\\\"gpu_ready\\\\\\\":0,\\\\\\\"command_ready\\\\\\\":1,\\\\\\\"write_ready\\\\\\\":1,\\\\\\\"full_ready_cycles\\\\\\\":0,\\\\\\\"cycle\\\\\\\":331}\\\\n- scenario.svh:269: Verilog $finish\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.224\\n    },\\n    {\\n      \\\"name\\\": \\\"return_low\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[490000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index0 gotb7396c16 expectedb7396c17\\\\n%Error: bench.sv:172: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.602\\n    },\\n    {\\n      \\\"name\\\": \\\"return_upper\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[840000] %Fatal: bench.sv:172: Assertion failed in TOP.bench.cpu_reader: CPU_DATA index4 gotb7396c06 expectedb7396c07\\\\n%Error: bench.sv:172: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.491\\n    }\\n  ]\\n}\\n\"}, {\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 8.844888900057413, \"stdout\": \"{\\n  \\\"passed\\\": true,\\n  \\\"trials\\\": [\\n    {\\n      \\\"name\\\": \\\"return_missing\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[40420000] %Fatal: scenario.svh:52: Assertion failed in TOP.bench.wait_cpu: scenario: CPU progress timeout\\\\n%Error: scenario.svh:52: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.45\\n    },\\n    {\\n      \\\"name\\\": \\\"write_mask\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[375000] %Fatal: native_memory.sv:42: Assertion failed in TOP.bench.u_native: ENDPOINT unexpected CLEAR footprint\\\\n%Error: native_memory.sv:42: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.79\\n    },\\n    {\\n      \\\"name\\\": \\\"write_address\\\",\\n      \\\"compile_returncode\\\": 0,\\n      \\\"timeout\\\": false,\\n      \\\"executed_binary\\\": true,\\n      \\\"returncode\\\": -6,\\n      \\\"log\\\": \\\"[375000] %Fatal: native_memory.sv:37: Assertion failed in TOP.bench.u_native: ENDPOINT address outside scratch128B\\\\n%Error: native_memory.sv:37: Verilog $stop\\\\nAborting...\\\\n\\\",\\n      \\\"elapsed_seconds\\\": 8.73\\n    }\\n  ]\\n}\\n\"}], \"test_runs\": 2, \"test_failures\": 0, \"passed\": true}\n",
+    "changes": {
+      "policy_ok": true,
+      "changed_files": [
+        "mutation_runner.py"
+      ],
+      "changes": [
+        {
+          "path": "mutation_runner.py",
+          "status": "modified",
+          "before_sha256": "fc3e7002d2ec82c9f770372b6712961f01b9f93e0b44455f7cb197c406773446",
+          "after_sha256": "b197ad2de6cd0d24667ba45d9aa82a43a8e507a3b2ece15ba28c7bd1a29eb647"
+        }
+      ],
+      "diff": "--- a/mutation_runner.py\n+++ b/mutation_runner.py\n@@ -1,3 +1,234 @@\n-\"\"\"Implement real compile/run mutation trials on disposable copies only.\"\"\"\n+\"\"\"Real compile/run mutation trials for the CPU/CLEAR simulation oracle.\n+\n+Every trial below is executed for real:\n+\n+  * the reference sources are *copied* (never linked, never edited in place)\n+    into a fresh ``tempfile.TemporaryDirectory``;\n+  * the trial's targeted mutation is applied to that disposable copy only and\n+    the anchor text must match exactly once, otherwise the trial aborts;\n+  * the copy is compiled with the real Verilator (``/usr/bin/verilator\n+    --binary --timing -j2 -Wno-fatal -MAKEFLAGS VM_PARALLEL_BUILDS=0\n+    --top-module bench --Mdir <tmp>/obj``) and the reference SOURCES;\n+  * the produced ``Vbench`` binary is executed for real with ``+case=0``.\n+\n+Nothing is synthesised.  A compile failure, a missing binary or an external\n+subprocess timeout is reported as such (compile_returncode / timeout) instead\n+of being dressed up as a detection: only a non-zero exit of the executed\n+binary whose own log carries the endpoint/byte-oracle message counts.\n+\n+The trials are external bench-side stimuli only.  They say nothing about\n+physical DDR/GPU faults: no FPGA, board or PHY is involved here.\n+\"\"\"\n+\n+from __future__ import annotations\n+\n+import os\n+import shutil\n+import subprocess\n+import tempfile\n+import time\n+from concurrent.futures import ThreadPoolExecutor\n+from pathlib import Path\n+\n+HERE = Path(__file__).resolve().parent\n+\n+# Reference compile set, identical to the protected test_liveness.py list.\n+SOURCES = ['bench.sv', 'native_memory.sv', 'ddr_ui_adapt.v', 'ddr_gpu_arb.v',\n+           'gpu_v1.v', 'gpu_triangle.v', 'gpu_copy565.v', 'gpu_texture_cache.v',\n+           'gpu_perspective.v']\n+# scenario.svh is not listed as a source: bench.sv pulls it in with\n+# `include \"scenario.svh\"`, so it must sit next to the copied bench.sv.\n+SUPPORT = SOURCES + ['scenario.svh']\n+\n+VERILATOR = '/usr/bin/verilator'\n+COMPILE_TIMEOUT = 48.0        # CONTRACT.md: compilation each <= 48 s\n+RUN_TIMEOUT = 3.0             # CONTRACT.md: binary <= 3 s\n+SCENARIO = '+case=0'          # healthy composition: 32 CPU reads + 2 GPU done\n+MAX_COMPILE_DETAIL = 4000     # bounded detail kept when a compile fails\n+\n+# Trial catalogue.  Each mutation is a targeted replacement inside ONE\n+# disposable copy of ONE reference file; the anchor must occur exactly once.\n+#\n+#   baseline       no modification at all (reference sources, byte for byte)\n+#   return_low     native_memory.sv: corrupt the low word of the returned beat\n+#   return_upper   native_memory.sv: corrupt bit 128 (upper 128-bit half)\n+#   return_missing native_memory.sv: accept the read but never emit the reply\n+#   write_mask     bench.sv: XOR one mask bit on the arbiter .b_wr_mask wire\n+#   write_address  bench.sv: XOR 0x00800000 on the arbiter .b_addr wire\n+MUTATIONS = {\n+    'return_low': {\n+        'file': 'native_memory.sv',\n+        'old': 'rd_data<=replies[rp];',\n+        'new': \"rd_data<=replies[rp] ^ 256'd1;\",\n+        'note': 'XOR 1 into the low word of the native return',\n+    },\n+    'return_upper': {\n+        'file': 'native_memory.sv',\n+        'old': 'rd_data<=replies[rp];',\n+        'new': \"rd_data<=replies[rp] ^ (256'd1 << 128);\",\n+        'note': 'XOR bit 128 into the native return (upper 128-bit half)',\n+    },\n+    'return_missing': {\n+        'file': 'native_memory.sv',\n+        'old': 'if(!hold_returns && rp<wp && tick>=due[rp])begin',\n+        'new': \"if(1'b0 && !hold_returns && rp<wp && tick>=due[rp])begin\",\n+        'note': 'suppress return emission, keep native read acceptance',\n+    },\n+    'write_mask': {\n+        'file': 'bench.sv',\n+        'old': '.b_wr_mask(b_wr_mask),',\n+        'new': \".b_wr_mask(b_wr_mask ^ 32'h00000001),\",\n+        'note': 'XOR 1 into the write mask at the arbiter .b_wr_mask connection',\n+    },\n+    'write_address': {\n+        'file': 'bench.sv',\n+        'old': '.b_addr(b_addr),',\n+        'new': \".b_addr(b_addr ^ 29'h00800000),\",\n+        'note': 'XOR 0x00800000 words (+32 MiB) into the arbiter .b_addr connection',\n+    },\n+}\n+\n+TRIAL_NAMES = ('baseline', 'return_low', 'return_upper',\n+               'return_missing', 'write_mask', 'write_address')\n+\n+\n+def _compile_cmd(obj: Path):\n+    \"\"\"Exact Verilator invocation mandated by CONTRACT.md.\"\"\"\n+    return [VERILATOR, '--binary', '--timing', '-j', '2', '-Wno-fatal',\n+            '-MAKEFLAGS', 'VM_PARALLEL_BUILDS=0', '--top-module', 'bench',\n+            '--Mdir', str(obj), *SOURCES]\n+\n+\n+def _as_text(blob) -> str:\n+    \"\"\"Normalise captured stdout/stderr chunks (bytes or str) to text.\"\"\"\n+    if blob is None:\n+        return ''\n+    if isinstance(blob, bytes):\n+        return blob.decode('utf-8', 'replace')\n+    return blob\n+\n+\n+def _join(out, err) -> str:\n+    \"\"\"Concatenate captured stdout and stderr without gluing two lines.\"\"\"\n+    log = _as_text(out)\n+    err = _as_text(err)\n+    if err:\n+        if log and not log.endswith('\\n'):\n+            log += '\\n'\n+        log += err\n+    return log\n+\n+\n+def _materialise(name: str, work: Path) -> None:\n+    \"\"\"Copy the reference sources into `work` and apply this trial's mutation.\n+\n+    The copies are real copies (shutil.copy2), never links, so the reference\n+    tree is never touched.  The targeted replacement is refused unless its\n+    anchor matches exactly once in the copied file.\n+    \"\"\"\n+    for src in SUPPORT:\n+        dst = work / src\n+        shutil.copy2(HERE / src, dst)\n+        os.chmod(dst, 0o644)          # reference files are shipped read-only\n+    spec = MUTATIONS.get(name)\n+    if spec is None:\n+        return                        # baseline: untouched copies\n+    target = work / spec['file']\n+    text = target.read_text()\n+    hits = text.count(spec['old'])\n+    if hits != 1:\n+        raise RuntimeError(\n+            f'trial {name}: anchor matched {hits} times in {spec[\"file\"]}, expected exactly 1')\n+    target.write_text(text.replace(spec['old'], spec['new']))\n+\n+\n+def _run_trial(name: str) -> dict:\n+    \"\"\"Compile and execute one trial on its own disposable copy.\"\"\"\n+    started = time.monotonic()\n+    with tempfile.TemporaryDirectory(prefix=f'sens-{name}-') as tmp:\n+        work = Path(tmp)\n+        _materialise(name, work)\n+        obj = work / 'obj'\n+        compile_rc = None\n+        compile_detail = ''\n+        timed_out = False\n+        try:\n+            comp = subprocess.run(_compile_cmd(obj), cwd=str(work),\n+                                  capture_output=True, text=True,\n+                                  timeout=COMPILE_TIMEOUT)\n+            compile_rc = comp.returncode\n+            compile_detail = _join(comp.stdout, comp.stderr)\n+        except subprocess.TimeoutExpired as exc:\n+            timed_out = True\n+            compile_rc = 124          # conventional \"command timed out\" code\n+            compile_detail = _join(exc.stdout, exc.stderr)\n+\n+        binary = obj / 'Vbench'\n+        executed = False\n+        run_rc = None\n+        log = ''\n+        if compile_rc == 0 and binary.exists():\n+            try:\n+                run = subprocess.run([str(binary), SCENARIO], cwd=str(work),\n+                                     capture_output=True, text=True,\n+                                     timeout=RUN_TIMEOUT)\n+                executed = True\n+                run_rc = run.returncode\n+                log = _join(run.stdout, run.stderr)\n+            except subprocess.TimeoutExpired as exc:\n+                timed_out = True\n+                executed = True       # the process was started and killed\n+                log = _join(exc.stdout, exc.stderr)\n+                log += (f'\\nEXTERNAL TIMEOUT after {RUN_TIMEOUT:.1f}s '\n+                        '(not a detection)\\n')\n+        else:\n+            reason = ('compile failed' if compile_rc != 0\n+                      else 'no Vbench binary produced')\n+            log = (f'{reason} (compile_returncode={compile_rc}); '\n+                   'no binary executed\\n')\n+            log += compile_detail[-MAX_COMPILE_DETAIL:]\n+\n+        return {\n+            'name': name,\n+            'compile_returncode': compile_rc,\n+            'timeout': timed_out,\n+            'executed_binary': executed,\n+            'returncode': run_rc,\n+            'log': log,\n+            'elapsed_seconds': round(time.monotonic() - started, 3),\n+        }\n+\n+\n+def _worker_count(trials: int) -> int:\n+    \"\"\"Parallel compiles, but never more workers than usable CPUs.\"\"\"\n+    try:\n+        available = len(os.sched_getaffinity(0))\n+    except AttributeError:                    # pragma: no cover - portability\n+        available = os.cpu_count() or 1\n+    return max(1, min(trials, available))\n+\n+\n def run_suite(names):\n-    return []\n+    \"\"\"Run exactly the requested trials and return one real record per trial.\n+\n+    `names` is the explicit list of trials asked for (the fixed acceptance\n+    harness asks for three of them per group).  Each trial owns a fresh\n+    disposable directory; the compiles of the requested trials run in parallel\n+    because they are completely independent.\n+    \"\"\"\n+    requested = list(names)\n+    unknown = [n for n in requested if n not in TRIAL_NAMES]\n+    if unknown:\n+        raise ValueError(f'unknown trial name(s): {unknown}')\n+    if not requested:\n+        return []\n+    with ThreadPoolExecutor(max_workers=_worker_count(len(requested))) as pool:\n+        records = list(pool.map(_run_trial, requested))\n+    return records\n+\n+\n+if __name__ == '__main__':\n+    import json\n+    import sys\n+    wanted = sys.argv[1:] or list(TRIAL_NAMES)\n+    print(json.dumps(run_suite(wanted), indent=2))\n",
+      "originals_unchanged": true,
+      "context_unchanged": true,
+      "violations": []
+    },
+    "evidence_ok": false
+  },
+  "elapsed_seconds": 182.69591149198823,
+  "quality_status": "pending_independent_evaluation",
+  "automatic_quality_score": null,
+  "source_integrated": false
+}

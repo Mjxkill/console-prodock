@@ -1,10 +1,10 @@
 `timescale 1ns/1ps
 // Replay actual NEBULA resources and descriptors through the real scanout.
 // The Python reference writes post-raster memory and independent RGB666 pixels.
-module nebula_scanout_tb;
+module nebula_scanout_tb #(parameter WIDTH=800,HEIGHT=480,H_TOTAL=1193,V_TOTAL=533,H_START=182,V_START=8,H_SYNC=210,V_SYNC=45,parameter realtime HALF_PIXEL=14.285);
     reg hc=0,pc=0,mc=0,rst=0;
     always #6.25 hc=~hc;
-    always #14.285 pc=~pc;
+    always #(HALF_PIXEL) pc=~pc;
     always #6.666 mc=~mc;
     reg sel=0,wr=0;
     reg [31:0] addr=0,data=0;
@@ -15,14 +15,14 @@ module nebula_scanout_tb;
     reg fr=0,fdv=0;
     reg [255:0] fd=0;
     wire [5:0] r,g,b;
-    gpu_scanout dut(.hclk(hc),.hresetn(rst),.hsel(sel),.hwrite(wr),.haddr(addr),
+    gpu_scanout #(.WIDTH(WIDTH),.HEIGHT(HEIGHT),.H_TOTAL(H_TOTAL),.V_TOTAL(V_TOTAL),.H_START(H_START),.V_START(V_START),.H_SYNC(H_SYNC),.V_SYNC(V_SYNC)) dut(.hclk(hc),.hresetn(rst),.hsel(sel),.hwrite(wr),.haddr(addr),
         .hwdata(data),.htrans(trans),.hrdata(result),.hready(ready),.pixel_clk(pc),
         .mem_clk(mc),.fetch_valid(fv),.fetch_addr(fa),.fetch_ready(fr),
         .fetch_data(fd),.fetch_data_valid(fdv),.lcd_en(de),.lcd_hs(hs),.lcd_vs(vs),
         .lcd_r(r),.lcd_g(g),.lcd_b(b));
     byte unsigned memory[0:14*1024*1024-1];
     reg [31:0] scene[0:391],palette[0:255];
-    reg [17:0] expected[0:800*480-1];
+    reg [17:0] expected[0:WIDTH*HEIGHT-1];
     string directory;
     integer f,n,addresses[$],due[$],cycle=0,last_due=0;
     always @(negedge mc) begin
@@ -52,7 +52,7 @@ module nebula_scanout_tb;
     always @(negedge pc)begin
         if(!vs && previous_vs)begin
             if(frames==4)begin
-                if(pixels!=384000)$fatal(1,"Pixel count %0d",pixels);
+                if(pixels!=WIDTH*HEIGHT)$fatal(1,"Pixel count %0d",pixels);
                 $display("NEBULA_SCANOUT pixels=%0d mismatches=%0d sum=%h underflows=%0d",pixels,bad,checksum,dut.r_underflows);
                 if(bad || dut.r_underflows)$fatal(1,"Scanout reference mismatch");
                 $finish;
@@ -60,9 +60,9 @@ module nebula_scanout_tb;
             frames++;pixels=0;checksum=0;bad=0;
         end
         if(de && frames==4)begin
-            if(pixels>=384000)$fatal(1,"Too many pixels");
+            if(pixels>=WIDTH*HEIGHT)$fatal(1,"Too many pixels");
             if({r,g,b}!==expected[pixels])begin
-                if(bad<20)$display("MISMATCH x=%0d y=%0d actual=%h expected=%h",pixels%800,pixels/800,{r,g,b},expected[pixels]);
+                if(bad<20)$display("MISMATCH x=%0d y=%0d actual=%h expected=%h",pixels%WIDTH,pixels/WIDTH,{r,g,b},expected[pixels]);
                 bad++;
             end
             checksum+={14'd0,r,g,b};pixels++;

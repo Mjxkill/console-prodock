@@ -1,0 +1,151 @@
+{
+  "schema": 1,
+  "status": "quiet_water_imported_pending_R5_capture",
+  "accepted_import_sources": [
+    {
+      "name": "terrain_sheet",
+      "sha256": "a97f82881a57b7ba3726d5a7ebb6e37c198d4ad31f8c047aaaf67c6a33319433",
+      "provenance": "provenance/terrain_sheet.json"
+    },
+    {
+      "name": "scenery_sheet",
+      "sha256": "24d607327fd941976797229236056d7027c19c6bb7f1133af039331d201f35fc",
+      "provenance": "provenance/scenery_sheet.json"
+    },
+    {
+      "name": "hero_sheet",
+      "sha256": "f1d378d4354590ae390655fec81a130bf0a195e649257a60f7e75778d9a9368b",
+      "provenance": "provenance/hero_sheet.json"
+    },
+    {
+      "name": "cast_sheet",
+      "sha256": "8dcd09f2ab6b6acc01217c86fa796bb24732156645794f663dc7840e3870a65a",
+      "provenance": "provenance/cast_sheet.json"
+    },
+    {
+      "name": "travel_sheet",
+      "sha256": "c949fda48bbbd250e7380fdcf01d5292f7b6d45eb5f0e6d9d59c4b1abe5f4cba",
+      "provenance": "provenance/travel_sheet.json"
+    },
+    {
+      "name": "ground_grass",
+      "sha256": "345426d28ccffc47372de66bd5cf2c2f94420e75b33554e2e71e4c1270aaac2b",
+      "provenance": "provenance/ground_grass.json"
+    },
+    {
+      "name": "ground_path",
+      "sha256": "3676fe62644d46cedf557ce043e59a2e4bd24bfd5c08a50afe8b09191ad9beb4",
+      "provenance": "provenance/ground_path.json"
+    },
+    {
+      "name": "hero_stride_a",
+      "sha256": "4e79ed54ce9fa653f1381e4d2bc2182297cc0d8585203f1a000a8d2bb06f9428",
+      "provenance": "provenance/hero_stride_a.json"
+    },
+    {
+      "name": "hero_stride_opposite",
+      "sha256": "1e85c0d155163531619293db2be3e182d88826323f358a2ce7fd89b327b74c33",
+      "provenance": "provenance/hero_stride_opposite.json"
+    },
+    {
+      "name": "kick_scooter_illustrated",
+      "sha256": "bbf640cb5436ed8062e78fe8e90176a29ee46b5cad6220994324ad255e93835d",
+      "provenance": "provenance/kick_scooter_illustrated.json"
+    },
+    {
+      "name": "glider_illustrated",
+      "sha256": "3b196d73083dc83f5708144a873260eb5232a6f9836e063f12a86320aadea3e1",
+      "provenance": "provenance/glider_illustrated.json"
+    },
+    {
+      "name": "parachute_illustrated",
+      "sha256": "181775d0dacffac2312d0fbbbeecfc4de7ce816f63ab47d641f6460d948d87a9",
+      "provenance": "provenance/parachute_illustrated.json"
+    },
+    {
+      "name": "hero_back_full",
+      "sha256": "552d217b551dfddc19a39bfca42c15fa051b394f58813f03b9c05874df388889",
+      "provenance": "provenance/hero_back_full.json"
+    },
+    {
+      "name": "hero_side_idle",
+      "sha256": "db686d25178668424b82cee39326e0c380be85632edb06038f9dbb00e10e7e6e",
+      "provenance": "provenance/hero_side_idle.json"
+    },
+    {
+      "name": "hero_west",
+      "sha256": "7d664b500ee28e9890a45847eb0f409e50ae9b3889d721caf628452d12f475ff",
+      "provenance": "provenance/hero_west.json"
+    }
+  ],
+  "rejected_sources": {
+    "hero_walk_s": "Wrong rendering style and directions.",
+    "hero_stride_b": "Did not produce the opposite support leg.",
+    "hero_stride_c": "Did not produce the opposite support leg.",
+    "ground_water": "Visible rings/shoreline are unsuitable for quiet repeated water.",
+    "kick_scooter": "Photorealistic subject inconsistent with the illustrated hero.",
+    "glider_fixed": "Photorealistic subject inconsistent with the illustrated hero.",
+    "parachute_fixed": "Photorealistic subject inconsistent with the illustrated hero.",
+    "hero_back_idle": "Hair outline clipped at the upper image edge.",
+    "hero_back_stride": "Hair clipped; not used in atlas."
+  },
+  "partial_sources": {
+    "hero_sheet": "Only player_s cell1 retained; hats, incorrect directions and duplicate poses rejected.",
+    "travel_sheet": "Incorrect glider/parachute/scooter and nonconforming horse directions excluded in importer."
+  },
+  "import_command": "python3 games/luma_adventure/art/import_assets.py --reviewed terrain_sheet scenery_sheet hero_sheet cast_sheet travel_sheet ground_grass ground_path hero_stride_a hero_stride_opposite kick_scooter_illustrated glider_illustrated parachute_illustrated hero_back_full hero_side_idle hero_west",
+  "outputs": {
+    "atlas.png": "cb6c38927eef5c40ca7c5445caeb90531335dc1342b94025b612e9765dde5ac7",
+    "atlas.json": "0fd7621e745e47fc715438653da967bd8be3443af123cb6020a289c3ca25e64b",
+    "terrain.png": "2c6817cc38f70c91c053f9b9d3312aa4e227cdce85043431f1f39976761ebffd",
+    "terrain.json": "b087508898d0075d37f8e24a16e9b17f15382213a3c9f34f61df3e2a8d38137e"
+  },
+  "sprite_ids": 70,
+  "terrain_ids": 70,
+  "hero_animation": {
+    "idle": "player",
+    "cycle": [
+      "player1",
+      "player2",
+      "player3",
+      "player4"
+    ],
+    "directions_validated": [
+      "front"
+    ],
+    "opposite_phase": "Local ComfyUI masked leg transform. Upper body and lantern preserved; derived provenance retained."
+  },
+  "review_evidence": [
+    "atlas_review.png",
+    "terrain_repeat_review.png",
+    "hero_cycle_review.png",
+    "hero_cycle_preview.gif",
+    "../build/village_r5.png",
+    "hero_directions_review.png",
+    "source/candidates/water_r1/repeat32.png"
+  ],
+  "limitations": [
+    "Directional animations pending.",
+    "shrine_lit and chest_open are explicit aliases, not separate states.",
+    "Some ground seams remain; final judgement uses the integrated game, not source sheets.",
+    "Music QA is technical only; audition pending."
+  ],
+  "static_directions": {
+    "front": "player",
+    "back": "player_n",
+    "right": "player_e",
+    "left": "player_w",
+    "integration": "awaiting engine; front walk unchanged",
+    "mirror_note": "Left is a local ComfyUI mirror; lantern hand changes in side views."
+  },
+  "candidate_sources": {
+    "hero_side_stride": "Clear side stride; segmentation and consistent cycle review pending."
+  },
+  "additional_import_commands": [
+    "python3 games/luma_adventure/art/source/candidates/sanctuary_r1/import_candidate.py",
+    "python3 games/luma_adventure/art/source/candidates/sanctuary_r1/merge_into_live.py",
+    "python3 games/luma_adventure/art/source/candidates/water_r1/import_into_live.py"
+  ],
+  "sanctuary_review": "source/candidates/sanctuary_r1/review.json",
+  "water_review": "source/candidates/water_r1/import_report.json"
+}

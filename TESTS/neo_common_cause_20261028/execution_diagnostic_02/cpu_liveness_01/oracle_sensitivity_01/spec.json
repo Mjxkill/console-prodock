@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "neo_cpu_liveness_oracle_sensitivity_01",
+  "parent_task_id": "neo_clear_cpu_liveness_01",
+  "inputs": [
+    "ANALYSIS.md",
+    "CONTRACT.md",
+    "INPUTS.json",
+    "REFERENCE_HASHES.json",
+    "bench.sv",
+    "ddr_gpu_arb.v",
+    "ddr_ui_adapt.v",
+    "gpu_copy565.v",
+    "gpu_perspective.v",
+    "gpu_texture_cache.v",
+    "gpu_triangle.v",
+    "gpu_v1.v",
+    "mutation_runner.py",
+    "native_memory.sv",
+    "scenario.svh",
+    "test_liveness.py",
+    "validate.py"
+  ],
+  "owned": [
+    "mutation_runner.py",
+    "ANALYSIS.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "validate.py",
+      "0"
+    ],
+    [
+      "/usr/bin/python3",
+      "-B",
+      "validate.py",
+      "1"
+    ]
+  ],
+  "timeout_seconds": 60,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "min_model_steps": 2,
+    "min_tool_calls": 4,
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "domain": "fpga",
+  "task_type": "test_design",
+  "difficulty": "medium",
+  "task_family": "neo_liveness_oracle_sensitivity",
+  "acceptance_criteria": "Six real compiled trials, healthy32reads and5specific detected external mutations; unchanged protected RTL; exactlogs and bounded outputs.",
+  "prompt": "Read CONTRACT.md and test_liveness.py. Implement real sensitivity trials only in mutation_runner.py and report ANALYSIS.md. Run fixed taskbox_run_tests before edits, use disposable copies, actual compilation and simulation; final tool fixed taskbox_run_tests after allwrites. Six specific checks, no modifications of protected sources or active project. No invented logs."
+}

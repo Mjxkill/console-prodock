@@ -1,0 +1,67 @@
+LUMA — Poste des Reflets, validation locale du 24 octobre 2026
+
+Résultat
+--------
+36 cartes jouables : six régions et trente salles de trois sanctuaires.
+La nouvelle Poste des Reflets apporte dix salles de lumière : miroirs,
+récepteurs traversants, circuits à garder éteints, occultation par caisse,
+sources sélectionnées et rencontre à couvert. Les boucles sont bornées.
+Au retour, c17_reflections ouvre une galerie entre deux quais du chapitre 3.
+L'annexe et la conversation supplémentaire restent des propositions.
+
+Le parcours utilise uniquement les commandes normales de jeu, y compris
+les passages de portes. Il accomplit les 96 missions et les trois sanctuaires,
+puis emprunte la galerie dans les deux sens sans nouvelle récompense.
+2 966,3 secondes simulées / 177 995 pas / 65 ennemis vaincus / 15 morts /
+613 tirs. Ce sont 49,4 minutes avec solutions connues, sans lecture ni
+recherche : ce chiffre ne mesure PAS une durée humaine. L'objectif de
+plusieurs heures, cible de conception 6–10 h, reste non atteint/non mesuré.
+
+Les sols et décors viennent de ComfyUI. Les cinq images d'optiques restent
+des icônes procédurales provisoires. Les captures jointes sont de vrais
+rendus PC du binaire de cette révision, aucune vidéo ni qualification LCD.
+
+Vérifications effectuées
+-----------------------
+make test riscv indexed-riscv test-indexed : PASS, journal validation.log.
+PC SDL et exécutables statiques AE350 compilés, RGB565 et fond indexé.
+ASAN/UBSAN : sauvegardes, logique, mécanismes, codec et réseaux de lumière.
+Les 36 cartes sont chargées et rendues aux deux résolutions.
+Comparateur GPU indépendant : tous les pixels passent pour effets et
+faisceaux, en 800×480 et 1280×720 (2 611 200 pixels pour ces quatre captures).
+Les changements d'orientation effacent les anciens faisceaux sur les deux
+pages ; les sprites du héros restent réservés dans une scène dense.
+
+Reprise et progression
+---------------------
+Format v5, lecture v4/v5 : orientations, caisses et progression par ID stable.
+Migration depuis le véritable save.c R5 v4 et sa table de 26 cartes : PASS.
+15 missions du chapitre 3, santé, inventaire et coffres conservés ; c17 neuve
+reste incomplète. L'ancien lecteur refuse v5 sans modifier le fichier.
+Les données du test de migration sont une fixture synthétique, distincte
+du parcours par commandes normales.
+
+Réinitialiser une salle conserve trésors et récompenses, restaure caisses
+et orientations. Les dalles et la lumière sont recalculées avant E, après
+entrée/chargement et après une éventuelle récupération au spawn. Le test
+reproduit une ancienne dalle active qui aurait pu ouvrir une porte à tort.
+L'usage d'une porte locale demande l'autosauvegarde rapide.
+L'écran de fin est fermable ; exploration, voyages et sauvegarde conservent
+la fin obtenue. Une reprise de partie retourne directement à l'exploration.
+
+Limites matérielles
+-------------------
+Aucun accès Pro Dock pour ce lot. Les preuves R5 et R6–R8 sont inchangées.
+NEBULA a été restauré au terme du dernier essai R8 ; cette révision optique
+n'a PAS été essayée sur Pro Dock. Aucun FPGA, pilote, noyau, SD ou inventaire
+global modifié. Les nouvelles métriques de rendu carte restent en attente.
+Neo : essai matériel du jeu toujours en attente. Les tests PC 1280×720 ne
+constituent pas une qualification Neo. Musique automatique non qualifiée,
+sortie audio carte toujours indisponible.
+
+Identités
+---------
+source_manifest.json lie les sources, données, outils, ABI et ressources.
+result.json identifie les journaux, images, archives et binaires du lot.
+sources.tar.gz et indexed_runtime.tar.gz conservent les octets locaux testés.
+Ces archives sont des candidats locaux ; elles ne remplacent aucune référence.

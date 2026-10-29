@@ -1,0 +1,59 @@
+{
+  "status": "PASS",
+  "module": "platform",
+  "source_sha256": {
+    "l3_platform.c": "60c07d7264332c5d10b2f72bc7bb171de7facc546705841632da566a5855d00d",
+    "l3_platform.h": "bbc5bdb4f2c1f3335d839f197d29c6921c1dd5820b4a5b4c4ac1db58bdfb7556",
+    "l3_minigames.h": "a3bd99b497a1c0c965144a68c956e9232044752bf332ac2ebdac3a5115b92f0d",
+    "tests/test_platform.c": "c7ce228a7e46f0ad22cbdc00b4fbc08e05894e162f415e8d70c63eea8df7f698",
+    "PLATFORM.md": "0d6635050c4eed8ea387bd590e29c520f0fcb2a18844d41035ccd30d41debf4a",
+    "tests/run_arcade_tests.py": "ab1dd3c98f9fb1aed1d44df0ef62d6e44a7f5597d6b71223a9b8f3e52f1ff1ce"
+  },
+  "inputs_stable": true,
+  "golden_trace_sha256": "21a6d97b39b6063a312f4f17222e0f8ceab8b35d86c724a5b5afe790e6e582e9",
+  "results": {
+    "strict": {
+      "compile_exit": 0,
+      "command": [
+        "cc",
+        "-std=c99",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-O2",
+        "/home/michael/console/games/luma3d/minigames/l3_platform.c",
+        "/home/michael/console/games/luma3d/minigames/tests/test_platform.c",
+        "-o",
+        "/tmp/luma-arcade-g7e3wqew/strict"
+      ],
+      "test_exit": 0,
+      "trace_sha256": "21a6d97b39b6063a312f4f17222e0f8ceab8b35d86c724a5b5afe790e6e582e9"
+    },
+    "asan_ubsan": {
+      "compile_exit": 0,
+      "command": [
+        "cc",
+        "-std=c99",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-pedantic",
+        "-O1",
+        "-g",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "/home/michael/console/games/luma3d/minigames/l3_platform.c",
+        "/home/michael/console/games/luma3d/minigames/tests/test_platform.c",
+        "-o",
+        "/tmp/luma-arcade-g7e3wqew/asan_ubsan"
+      ],
+      "test_exit": 0,
+      "trace_sha256": "21a6d97b39b6063a312f4f17222e0f8ceab8b35d86c724a5b5afe790e6e582e9"
+    }
+  },
+  "limitations": [
+    "LeakSanitizer disabled because ptrace monitor is incompatible",
+    "Host-only logic tests, no FPGA/timing/board qualification"
+  ]
+}

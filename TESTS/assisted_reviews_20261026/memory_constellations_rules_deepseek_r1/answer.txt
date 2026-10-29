@@ -1,0 +1,1135 @@
+## 0. Limite de preuve
+
+Le paquet fourni ne contient **aucun nom de fichier ni numéro de ligne**. Je ne peux donc pas citer de lignes sources : les références ci-dessous sont les champs et expressions de l’énoncé (`seed`, `rng`, `matched_mask`, `phase`, `known`, etc.). Je n’ai exécuté aucun test ni modifié de fichier ; le code proposé est une référence à compiler et à valider par la racine.
+
+---
+
+## 1. Faits, hypothèses, preuves manquantes
+
+### Faits explicitement fournis
+- Moteur Memory indépendant, sans GPU/IO/horloge dans les règles.
+- Bornes fixes : 30 cartes, difficultés 12/20/30 cartes = 6/10/15 paires.
+- État demandé : `uint32 seed, rng, turns, matched_mask, wins[3], best[3]; uint8 difficulty, phase, first, second, cards[30], known[30]`.
+- Phases : `READY=0, ONE=1, TWO=2, WON=3`.
+- Index absent : `255`.
+- Actions : `FLIP(index)`, `RESOLVE`, `NEXT`.
+- Le deuxième flip incrémente `turns` ; `RESOLVE` seulement en `TWO`.
+- Une paire trouvée reste visible via `matched_mask` ; `wins` n’est incrémenté qu’à la complétion.
+- Progression : départ difficulté 0 ; après victoire, `NEXT` passe à 1, puis 2, puis relance une manche 30 cartes.
+- Sérialisation : 128 octets, little-endian, magic `MRY1`, version 1, CRC, décodage à longueur exacte, validation sémantique transactionnelle.
+- Adversaire/démo : le conseiller ne doit utiliser que `known` (informations déjà révélées) et la vue publique, jamais le tableau caché `cards`.
+
+### Hypothèses de la référence ci-dessous
+1. `known[i]` stocke **l’identité** de la carte déjà vue (`0..14`) ou `255` inconnue, et non un simple booléen. C’est la lecture la plus compatible avec « seen known matches actual » et « known memory optional separate ».
+2. `wins[d]` et `best[d]` sont indexés par difficulté `d`. `best` = meilleur nombre de `turns` pour une manche gagnée.
+3. `turns` est remis à 0 à chaque nouvelle manche ; `wins`/`best` sont conservés.
+4. Après une victoire en difficulté 2, `NEXT` garde `difficulty=2`, conserve `wins[2]`, `best[2]`, et redistribue 30 cartes.
+5. CRC choisi : CRC-32/ISO-HDLC, polynôme `0xEDB88320`.
+6. `mem_validate` ne peut pas prouver l’historique de révélation ni l’immutabilité passée de `seed` ; il valide seulement les invariants structurels. Un CRC n’est **pas** une authentification.
+
+### Preuves manquantes
+- ABI/format exact attendu par les 4 moteurs Festival existants (le paquet dit qu’ils ne changent pas, mais ne fournit pas leurs en-têtes).
+- Choix `known` booléen vs identité.
+- Comportement attendu de `NEXT` après la manche 30 cartes : conserver difficulté 2 ou revenir à 0.
+- Menace anti-triche : simple corruption accidentelle ou attaquant qui recalcule le CRC ?
+- Politique de cooldown côté renderer (non incluse dans le moteur, conforme à l’énoncé).
+- Compilateur/C standard cible et format de test.
+
+---
+
+## 2. Code de référence complet
+
+### `memory.h`
+
+```c
+#ifndef MEMORY_H
+#define MEMORY_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#define MEM_CARDS        30u
+#define MEM_SERIAL_SIZE 128u
+#define MEM_NONE        255u
+
+enum {
+    MEM_PHASE_READY = 0,
+    MEM_PHASE_ONE   = 1,
+    MEM_PHASE_TWO   = 2,
+    MEM_PHASE_WON   = 3
+};
+
+enum {
+    MEM_ACT_FLIP    = 0,
+    MEM_ACT_RESOLVE = 1,
+    MEM_ACT_NEXT    = 2
+};
+
+typedef struct {
+    uint32_t seed;
+    uint32_t rng;
+    uint32_t turns;
+    uint32_t matched_mask;
+    uint32_t wins[3];
+    uint32_t best[3];
+    uint8_t  difficulty;
+    uint8_t  phase;
+    uint8_t  first;
+    uint8_t  second;
+    uint8_t  cards[MEM_CARDS];
+    uint8_t  known[MEM_CARDS];
+} MemGame;
+
+typedef struct {
+    uint8_t  face[MEM_CARDS];   /* 255 = cachee */
+    uint8_t  first;
+    uint8_t  second;
+    uint8_t  difficulty;
+    uint8_t  phase;
+    uint8_t  pairs_matched;
+    uint8_t  pairs_total;
+    uint32_t matched_mask;
+    uint32_t turns;
+} MemView;
+
+int    mem_init(MemGame *g, uint32_t seed);
+int    mem_action(MemGame *g, int action, uint8_t index);
+int    mem_view(const MemGame *g, MemView *out);
+int    mem_known_view(const MemGame *g, uint8_t known_out[MEM_CARDS]);
+int    mem_validate(const MemGame *g);
+
+size_t mem_encode(const MemGame *g, uint8_t out[MEM_SERIAL_SIZE]);
+int    mem_decode(MemGame *dst, const uint8_t in[MEM_SERIAL_SIZE], size_t len);
+
+/* Conseil fair-play : aucun acces a cards[]. */
+int    mem_adviser(const MemView *v,
+                   const uint8_t known[MEM_CARDS],
+                   int *action,
+                   uint8_t *index);
+
+#endif
+```
+
+### `memory.c`
+
+```c
+#include "memory.h"
+#include <string.h>
+
+/* ---------- utilitaires internes ---------- */
+
+static unsigned mem_n(uint8_t d)
+{
+    static const unsigned n[3] = { 12u, 20u, 30u };
+    return (d < 3u) ? n[d] : 0u;
+}
+
+static uint32_t xs32(uint32_t *s)
+{
+    uint32_t x = *s;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    *s = x;
+    return x;
+}
+
+/* tirage non biaise, n > 0 */
+static uint32_t rnd_below(uint32_t *s, uint32_t n)
+{
+    uint32_t limit = UINT32_MAX - (UINT32_MAX % n);
+    uint32_t r;
+    do {
+        r = xs32(s);
+    } while (r >= limit);
+    return r % n;
+}
+
+static void deal_round(MemGame *g)
+{
+    uint8_t deck[MEM_CARDS];
+    unsigned n = mem_n(g->difficulty);
+    unsigned i;
+
+    for (i = 0; i < MEM_CARDS; ++i) {
+        g->cards[i] = MEM_NONE;
+        g->known[i] = MEM_NONE;
+    }
+
+    for (i = 0; i < n / 2u; ++i) {
+        deck[2u * i]      = (uint8_t)i;
+        deck[2u * i + 1u] = (uint8_t)i;
+    }
+
+    for (i = n; i > 1u; --i) {
+        unsigned j = rnd_below(&g->rng, i);
+        uint8_t t = deck[i - 1u];
+        deck[i - 1u] = deck[j];
+        deck[j] = t;
+    }
+
+    for (i = 0; i < n; ++i) {
+        g->cards[i] = deck[i];
+    }
+
+    g->matched_mask = 0u;
+    g->turns = 0u;
+    g->phase = MEM_PHASE_READY;
+    g->first = MEM_NONE;
+    g->second = MEM_NONE;
+}
+
+/* ---------- moteur ---------- */
+
+int mem_init(MemGame *g, uint32_t seed)
+{
+    if (!g) return 0;
+
+    memset(g, 0, sizeof(*g));
+    g->seed = seed;
+    g->rng = seed ? seed : 0x9E3779B9u;
+    g->difficulty = 0u;
+
+    deal_round(g);
+
+    return mem_validate(g) ? 1 : 0;
+}
+
+int mem_action(MemGame *g, int action, uint8_t index)
+{
+    MemGame t;
+    unsigned n;
+
+    if (!g || !mem_validate(g)) return 0;
+
+    t = *g;
+    n = mem_n(t.difficulty);
+
+    switch (action) {
+    case MEM_ACT_FLIP:
+        if (index >= n) return 0;
+        if (t.matched_mask & (1u << index)) return 0;
+
+        if (t.phase == MEM_PHASE_READY) {
+            t.known[index] = t.cards[index];
+            t.first = index;
+            t.second = MEM_NONE;
+            t.phase = MEM_PHASE_ONE;
+        } else if (t.phase == MEM_PHASE_ONE) {
+            if (index == t.first) return 0;
+            t.known[index] = t.cards[index];
+            t.second = index;
+            t.phase = MEM_PHASE_TWO;
+            ++t.turns;
+        } else {
+            return 0;
+        }
+        break;
+
+    case MEM_ACT_RESOLVE:
+        if (t.phase != MEM_PHASE_TWO) return 0;
+        if (t.first >= n || t.second >= n || t.first == t.second) return 0;
+
+        if (t.cards[t.first] == t.cards[t.second]) {
+            t.matched_mask |= (1u << t.first) | (1u << t.second);
+            t.first = MEM_NONE;
+            t.second = MEM_NONE;
+
+            if (t.matched_mask == ((1u << n) - 1u)) {
+                unsigned d = t.difficulty;
+                t.phase = MEM_PHASE_WON;
+                ++t.wins[d];
+                if (t.wins[d] == 1u || t.turns < t.best[d]) {
+                    t.best[d] = t.turns;
+                }
+            } else {
+                t.phase = MEM_PHASE_READY;
+            }
+        } else {
+            t.first = MEM_NONE;
+            t.second = MEM_NONE;
+            t.phase = MEM_PHASE_READY;
+        }
+        break;
+
+    case MEM_ACT_NEXT:
+        if (t.phase != MEM_PHASE_WON) return 0;
+        if (t.difficulty < 2u) {
+            ++t.difficulty;
+        }
+        deal_round(&t);
+        break;
+
+    default:
+        return 0;
+    }
+
+    if (!mem_validate(&t)) return 0;
+    *g = t;
+    return 1;
+}
+
+int mem_view(const MemGame *g, MemView *out)
+{
+    unsigned n, i;
+
+    if (!g || !out || !mem_validate(g)) return 0;
+
+    memset(out, 0, sizeof(*out));
+    n = mem_n(g->difficulty);
+
+    for (i = 0; i < MEM_CARDS; ++i) {
+        out->face[i] = MEM_NONE;
+    }
+
+    for (i = 0; i < n; ++i) {
+        int up = (g->matched_mask & (1u << i)) != 0u;
+        if (g->phase == MEM_PHASE_ONE && i == g->first) up = 1;
+        if (g->phase == MEM_PHASE_TWO &&
+            (i == g->first || i == g->second)) up = 1;
+        if (up) out->face[i] = g->cards[i];
+    }
+
+    out->first = (g->phase == MEM_PHASE_ONE ||
+                  g->phase == MEM_PHASE_TWO) ? g->first : MEM_NONE;
+    out->second = (g->phase == MEM_PHASE_TWO) ? g->second : MEM_NONE;
+    out->difficulty = g->difficulty;
+    out->phase = g->phase;
+    out->matched_mask = g->matched_mask;
+    out->turns = g->turns;
+    out->pairs_total = (uint8_t)(n / 2u);
+
+    {
+        unsigned matched = 0u;
+        for (i = 0; i < n; ++i) {
+            if (g->matched_mask & (1u << i)) ++matched;
+        }
+        out->pairs_matched = (uint8_t)(matched / 2u);
+    }
+
+    return 1;
+}
+
+int mem_known_view(const MemGame *g, uint8_t known_out[MEM_CARDS])
+{
+    if (!g || !known_out || !mem_validate(g)) return 0;
+    memcpy(known_out, g->known, MEM_CARDS);
+    return 1;
+}
+
+/* ---------- validation semantique ---------- */
+
+int mem_validate(const MemGame *g)
+{
+    uint8_t cnt[15];
+    unsigned n, i, c, matched_bits, matched_pairs;
+    uint32_t full;
+
+    if (!g) return 0;
+    if (g->difficulty > 2u || g->phase > 3u) return 0;
+    if (g->rng == 0u) return 0;
+
+    n = mem_n(g->difficulty);
+    if (n == 0u) return 0;
+    full = (1u << n) - 1u;
+
+    if (g->matched_mask & ~full) return 0;
+
+    for (i = n; i < MEM_CARDS; ++i) {
+        if (g->cards[i] != MEM_NONE || g->known[i] != MEM_NONE) return 0;
+    }
+
+    memset(cnt, 0, sizeof(cnt));
+    for (i = 0; i < n; ++i) {
+        uint8_t card = g->cards[i];
+        if (card >= n / 2u) return 0;
+        ++cnt[card];
+        if (g->known[i] != MEM_NONE && g->known[i] != card) return 0;
+    }
+
+    for (c = 0; c < n / 2u; ++c) {
+        if (cnt[c] != 2u) return 0;
+    }
+
+    /* matched_mask : soit les deux occurrences, soit aucune */
+    for (c = 0; c < n / 2u; ++c) {
+        unsigned m = 0u;
+        for (i = 0; i < n; ++i) {
+            if (g->cards[i] == c && (g->matched_mask & (1u << i))) ++m;
+        }
+        if (m != 0u && m != 2u) return 0;
+    }
+
+    matched_bits = 0u;
+    for (i = 0; i < n; ++i) {
+        if (g->matched_mask & (1u << i)) {
+            ++matched_bits;
+            if (g->known[i] == MEM_NONE) return 0; /* toute paire connue */
+        }
+    }
+    matched_pairs = matched_bits / 2u;
+
+    if (g->phase == MEM_PHASE_READY) {
+        if (g->first != MEM_NONE || g->second != MEM_NONE) return 0;
+    } else if (g->phase == MEM_PHASE_ONE) {
+        if (g->first >= n || g->first == MEM_NONE ||
+            g->second != MEM_NONE) return 0;
+        if (g->matched_mask & (1u << g->first)) return 0;
+        if (g->known[g->first] != g->cards[g->first]) return 0;
+    } else if (g->phase == MEM_PHASE_TWO) {
+        if (g->first >= n || g->second >= n ||
+            g->first == g->second) return 0;
+        if ((g->matched_mask & (1u << g->first)) ||
+            (g->matched_mask & (1u << g->second))) return 0;
+        if (g->known[g->first] != g->cards[g->first]) return 0;
+        if (g->known[g->second] != g->cards[g->second]) return 0;
+    } else { /* WON */
+        if (g->first != MEM_NONE || g->second != MEM_NONE) return 0;
+        if (g->matched_mask != full) return 0;
+    }
+
+    if (g->phase != MEM_PHASE_WON && g->matched_mask == full) return 0;
+    if (g->turns < matched_pairs) return 0;
+    if (g->phase == MEM_PHASE_TWO && g->turns == 0u) return 0;
+
+    for (c = 0; c < 3u; ++c) {
+        if (g->wins[c] == 0u) {
+            if (g->best[c] != 0u) return 0;
+        } else {
+            if (g->best[c] == 0u) return 0;
+        }
+    }
+
+    if (g->difficulty > 0u) {
+        for (c = 0; c < g->difficulty; ++c) {
+            if (g->wins[c] == 0u) return 0;
+        }
+    }
+
+    return 1;
+}
+
+/* ---------- codec 128 octets ---------- */
+
+enum {
+    OFF_MAGIC   = 0,
+    OFF_VERSION = 4,
+    OFF_DIFF    = 5,
+    OFF_PHASE   = 6,
+    OFF_FIRST   = 7,
+    OFF_SECOND  = 8,
+    OFF_RES     = 9,
+    OFF_TURNS   = 10,
+    OFF_SEED    = 14,
+    OFF_RNG     = 18,
+    OFF_MATCH   = 22,
+    OFF_WINS    = 26,
+    OFF_BEST    = 38,
+    OFF_CARDS   = 50,
+    OFF_KNOWN   = 80,
+    OFF_PAD     = 110,
+    OFF_CRC     = 124
+};
+
+static void wr32(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+static uint32_t rd32(const uint8_t *p)
+{
+    return (uint32_t)p[0]
+         | ((uint32_t)p[1] << 8)
+         | ((uint32_t)p[2] << 16)
+         | ((uint32_t)p[3] << 24);
+}
+
+static uint32_t crc32_iso(const uint8_t *p, size_t n)
+{
+    uint32_t c = 0xFFFFFFFFu;
+    while (n--) {
+        c ^= *p++;
+        for (int k = 0; k < 8; ++k) {
+            c = (c >> 1) ^ (0xEDB88320u & (0u - (c & 1u)));
+        }
+    }
+    return ~c;
+}
+
+size_t mem_encode(const MemGame *g, uint8_t out[MEM_SERIAL_SIZE])
+{
+    unsigned i;
+
+    if (!g || !out || !mem_validate(g)) return 0;
+
+    memset(out, 0, MEM_SERIAL_SIZE);
+    out[OFF_MAGIC + 0] = 'M';
+    out[OFF_MAGIC + 1] = 'R';
+    out[OFF_MAGIC + 2] = 'Y';
+    out[OFF_MAGIC + 3] = '1';
+    out[OFF_VERSION] = 1u;
+    out[OFF_DIFF] = g->difficulty;
+    out[OFF_PHASE] = g->phase;
+    out[OFF_FIRST] = g->first;
+    out[OFF_SECOND] = g->second;
+
+    wr32(out + OFF_TURNS, g->turns);
+    wr32(out + OFF_SEED, g->seed);
+    wr32(out + OFF_RNG, g->rng);
+    wr32(out + OFF_MATCH, g->matched_mask);
+
+    for (i = 0; i < 3u; ++i) {
+        wr32(out + OFF_WINS + 4u * i, g->wins[i]);
+        wr32(out + OFF_BEST + 4u * i, g->best[i]);
+    }
+
+    for (i = 0; i < MEM_CARDS; ++i) {
+        out[OFF_CARDS + i] = g->cards[i];
+        out[OFF_KNOWN + i] = g->known[i];
+    }
+
+    wr32(out + OFF_CRC, crc32_iso(out, OFF_CRC));
+    return MEM_SERIAL_SIZE;
+}
+
+int mem_decode(MemGame *dst, const uint8_t in[MEM_SERIAL_SIZE], size_t len)
+{
+    uint8_t buf[MEM_SERIAL_SIZE];
+    MemGame t;
+    unsigned i;
+
+    if (!dst || !in || len != MEM_SERIAL_SIZE) return 0;
+
+    memcpy(buf, in, MEM_SERIAL_SIZE);
+
+    if (rd32(buf + OFF_CRC) != crc32_iso(buf, OFF_CRC)) return 0;
+
+    if (buf[OFF_MAGIC + 0] != 'M' ||
+        buf[OFF_MAGIC + 1] != 'R' ||
+        buf[OFF_MAGIC + 2] != 'Y' ||
+        buf[OFF_MAGIC + 3] != '1') return 0;
+
+    if (buf[OFF_VERSION] != 1u || buf[OFF_RES] != 0u) return 0;
+
+    for (i = OFF_PAD; i < OFF_CRC; ++i) {
+        if (buf[i] != 0u) return 0;
+    }
+
+    memset(&t, 0, sizeof(t));
+    t.difficulty = buf[OFF_DIFF];
+    t.phase = buf[OFF_PHASE];
+    t.first = buf[OFF_FIRST];
+    t.second = buf[OFF_SECOND];
+    t.turns = rd32(buf + OFF_TURNS);
+    t.seed = rd32(buf + OFF_SEED);
+    t.rng = rd32(buf + OFF_RNG);
+    t.matched_mask = rd32(buf + OFF_MATCH);
+
+    for (i = 0; i < 3u; ++i) {
+        t.wins[i] = rd32(buf + OFF_WINS + 4u * i);
+        t.best[i] = rd32(buf + OFF_BEST + 4u * i);
+    }
+
+    for (i = 0; i < MEM_CARDS; ++i) {
+        t.cards[i] = buf[OFF_CARDS + i];
+        t.known[i] = buf[OFF_KNOWN + i];
+    }
+
+    if (!mem_validate(&t)) return 0;
+
+    *dst = t;
+    return 1;
+}
+
+/* ---------- conseiller fair-play ---------- */
+
+int mem_adviser(const MemView *v,
+                const uint8_t known[MEM_CARDS],
+                int *action,
+                uint8_t *index)
+{
+    unsigned n, i, j;
+
+    if (!v || !known || !action || !index) return 0;
+    n = mem_n(v->difficulty);
+    if (n == 0u) return 0;
+
+    if (v->phase == MEM_PHASE_WON) {
+        *action = MEM_ACT_NEXT;
+        *index = MEM_NONE;
+        return 1;
+    }
+
+    if (v->phase == MEM_PHASE_TWO) {
+        *action = MEM_ACT_RESOLVE;
+        *index = MEM_NONE;
+        return 1;
+    }
+
+    if (v->phase == MEM_PHASE_READY) {
+        /* 1. paire deja connue */
+        for (i = 0; i < n; ++i) {
+            if ((v->matched_mask & (1u << i)) || known[i] == MEM_NONE) {
+                continue;
+            }
+            for (j = i + 1u; j < n; ++j) {
+                if (!(v->matched_mask & (1u << j)) &&
+                    known[j] == known[i]) {
+                    *action = MEM_ACT_FLIP;
+                    *index = (uint8_t)i;
+                    return 1;
+                }
+            }
+        }
+
+        /* 2. carte inconnue */
+        for (i = 0; i < n; ++i) {
+            if (!(v->matched_mask & (1u << i)) &&
+                known[i] == MEM_NONE) {
+                *action = MEM_ACT_FLIP;
+                *index = (uint8_t)i;
+                return 1;
+            }
+        }
+
+        /* 3. secours : etat valide ne devrait pas y arriver */
+        for (i = 0; i < n; ++i) {
+            if (!(v->matched_mask & (1u << i))) {
+                *action = MEM_ACT_FLIP;
+                *index = (uint8_t)i;
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    if (v->phase == MEM_PHASE_ONE) {
+        uint8_t id;
+        unsigned f = v->first;
+
+        if (f >= n || (v->matched_mask & (1u << f))) return 0;
+
+        id = v->face[f];
+        if (id == MEM_NONE) id = known[f];
+        if (id == MEM_NONE) return 0;
+
+        /* 1. partenaire connu de la premiere carte */
+        for (j = 0; j < n; ++j) {
+            if (j != f && !(v->matched_mask & (1u << j)) &&
+                known[j] == id) {
+                *action = MEM_ACT_FLIP;
+                *index = (uint8_t)j;
+                return 1;
+            }
+        }
+
+        /* 2. carte inconnue */
+        for (j = 0; j < n; ++j) {
+            if (j != f && !(v->matched_mask & (1u << j)) &&
+                known[j] == MEM_NONE) {
+                *action = MEM_ACT_FLIP;
+                *index = (uint8_t)j;
+                return 1;
+            }
+        }
+
+        /* 3. secours */
+        for (j = 0; j < n; ++j) {
+            if (j != f && !(v->matched_mask & (1u << j))) {
+                *action = MEM_ACT_FLIP;
+                *index = (uint8_t)j;
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+```
+
+---
+
+## 3. Tests fournis (non exécutés ici)
+
+Compilation indicative :
+
+```sh
+cc -std=c99 -Wall -Wextra -Werror memory.c test_memory.c -o test_memory
+./test_memory
+```
+
+### `test_memory.c`
+
+```c
+#include "memory.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define CHECK(x) do { \
+    if (!(x)) { \
+        fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #x); \
+        exit(1); \
+    } \
+} while (0)
+
+static void wr32le(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)v;
+    p[1] = (uint8_t)(v >> 8);
+    p[2] = (uint8_t)(v >> 16);
+    p[3] = (uint8_t)(v >> 24);
+}
+
+static uint32_t test_crc(const uint8_t *p, size_t n)
+{
+    uint32_t c = 0xFFFFFFFFu;
+    while (n--) {
+        c ^= *p++;
+        for (int k = 0; k < 8; ++k) {
+            c = (c >> 1) ^ (0xEDB88320u & (0u - (c & 1u)));
+        }
+    }
+    return ~c;
+}
+
+static void fix_crc(uint8_t b[128])
+{
+    wr32le(b + 124, test_crc(b, 124));
+}
+
+static void expect_reject(const uint8_t *p, size_t len)
+{
+    MemGame d;
+    MemGame keep;
+    memset(&d, 0xA5, sizeof(d));
+    keep = d;
+    CHECK(mem_decode(&d, p, len) == 0);
+    CHECK(memcmp(&d, &keep, sizeof(d)) == 0);
+}
+
+static void solve_current(MemGame *g)
+{
+    unsigned guard = 0;
+    while (g->phase != MEM_PHASE_WON) {
+        MemView v;
+        uint8_t known[MEM_CARDS];
+        int act;
+        uint8_t idx;
+
+        CHECK(mem_view(g, &v));
+        CHECK(mem_known_view(g, known));
+        CHECK(mem_adviser(&v, known, &act, &idx));
+        CHECK(mem_action(g, act, idx));
+        CHECK(++guard < 100000u);
+    }
+}
+
+static void test_seed_repeat(void)
+{
+    MemGame a, b;
+
+    CHECK(mem_init(&a, 0x12345678u));
+    CHECK(mem_init(&b, 0x12345678u));
+    CHECK(a.seed == b.seed);
+    CHECK(a.rng == b.rng);
+    CHECK(memcmp(&a, &b, sizeof(a)) == 0);
+
+    CHECK(mem_action(&a, MEM_ACT_FLIP, 0));
+    CHECK(mem_action(&b, MEM_ACT_FLIP, 0));
+    CHECK(mem_action(&a, MEM_ACT_FLIP, 1));
+    CHECK(mem_action(&b, MEM_ACT_FLIP, 1));
+    CHECK(memcmp(&a, &b, sizeof(a)) == 0);
+}
+
+static void test_adverse_actions(void)
+{
+    MemGame g, snap;
+    MemGame h;
+    int a = -1, b = -1;
+    int i, j;
+
+    CHECK(!mem_init(NULL, 1u));
+    CHECK(!mem_action(NULL, MEM_ACT_FLIP, 0));
+
+    CHECK(mem_init(&g, 7u));
+    snap = g;
+
+    CHECK(!mem_action(&g, MEM_ACT_FLIP, 12));
+    CHECK(memcmp(&g, &snap, sizeof(g)) == 0);
+
+    CHECK(!mem_action(&g, MEM_ACT_FLIP, 255));
+    CHECK(memcmp(&g, &snap, sizeof(g)) == 0);
+
+    CHECK(!mem_action(&g, MEM_ACT_RESOLVE, 255));
+    CHECK(memcmp(&g, &snap, sizeof(g)) == 0);
+
+    CHECK(!mem_action(&g, MEM_ACT_NEXT, 255));
+    CHECK(memcmp(&g, &snap, sizeof(g)) == 0);
+
+    CHECK(!mem_action(&g, 99, 0));
+    CHECK(memcmp(&g, &snap, sizeof(g)) == 0);
+
+    CHECK(mem_action(&g, MEM_ACT_FLIP, 0));
+    CHECK(g.phase == MEM_PHASE_ONE);
+    CHECK(g.first == 0);
+    CHECK(g.known[0] == g.cards[0]);
+
+    snap = g;
+    CHECK(!mem_action(&g, MEM_ACT_FLIP, 0));
+    CHECK(!mem_action(&g, MEM_ACT_FLIP, 12));
+    CHECK(!mem_action(&g, MEM_ACT_RESOLVE, 255));
+    CHECK(!mem_action(&g, MEM_ACT_NEXT, 255));
+    CHECK(memcmp(&g, &snap, sizeof(g)) == 0);
+
+    CHECK(mem_action(&g, MEM_ACT_FLIP, 1));
+    CHECK(g.phase == MEM_PHASE_TWO);
+    CHECK(g.turns == 1u);
+
+    snap = g;
+    CHECK(!mem_action(&g, MEM_ACT_FLIP, 2));
+    CHECK(!mem_action(&g, MEM_ACT_NEXT, 255));
+    CHECK(memcmp(&g, &snap, sizeof(g)) == 0);
+
+    CHECK(mem_action(&g, MEM_ACT_RESOLVE, 255));
+    CHECK(g.phase == MEM_PHASE_READY || g.phase == MEM_PHASE_WON);
+
+    /* carte deja appariee */
+    CHECK(mem_init(&h, 99u));
+    for (i = 0; i < 12 && a < 0; ++i) {
+        for (j = i + 1; j < 12; ++j) {
+            if (h.cards[i] == h.cards[j]) {
+                a = i;
+                b = j;
+                break;
+            }
+        }
+    }
+    CHECK(a >= 0 && b >= 0);
+    CHECK(mem_action(&h, MEM_ACT_FLIP, (uint8_t)a));
+    CHECK(mem_action(&h, MEM_ACT_FLIP, (uint8_t)b));
+    CHECK(mem_action(&h, MEM_ACT_RESOLVE, 255));
+    CHECK(h.matched_mask & (1u << a));
+    CHECK(h.matched_mask & (1u << b));
+
+    snap = h;
+    CHECK(!mem_action(&h, MEM_ACT_FLIP, (uint8_t)a));
+    CHECK(!mem_action(&h, MEM_ACT_FLIP, (uint8_t)b));
+    CHECK(memcmp(&h, &snap, sizeof(h)) == 0);
+}
+
+static void test_view(void)
+{
+    MemGame g;
+    MemView v;
+    unsigned i;
+
+    CHECK(mem_init(&g, 0xABCDEF01u));
+    CHECK(mem_view(&g, &v));
+
+    for (i = 0; i < MEM_CARDS; ++i) {
+        CHECK(v.face[i] == MEM_NONE);
+    }
+
+    CHECK(mem_action(&g, MEM_ACT_FLIP, 0));
+    CHECK(mem_view(&g, &v));
+    CHECK(v.face[0] == g.cards[0]);
+    for (i = 1; i < MEM_CARDS; ++i) {
+        CHECK(v.face[i] == MEM_NONE);
+    }
+
+    CHECK(mem_action(&g, MEM_ACT_FLIP, 1));
+    CHECK(mem_view(&g, &v));
+    CHECK(v.face[0] == g.cards[0]);
+    CHECK(v.face[1] == g.cards[1]);
+
+    CHECK(mem_action(&g, MEM_ACT_RESOLVE, 255));
+    CHECK(mem_view(&g, &v));
+    if (g.cards[0] == g.cards[1]) {
+        CHECK(v.face[0] == g.cards[0]);
+        CHECK(v.face[1] == g.cards[1]);
+    } else {
+        CHECK(v.face[0] == MEM_NONE);
+        CHECK(v.face[1] == MEM_NONE);
+    }
+}
+
+static void test_codec(void)
+{
+    MemGame g, d;
+    uint8_t buf[128];
+    uint8_t bad[128];
+    uint8_t big[129];
+
+    CHECK(mem_encode(NULL, buf) == 0);
+    CHECK(mem_init(&g, 0xDEADBEEFu));
+    CHECK(mem_encode(&g, NULL) == 0);
+    CHECK(mem_encode(&g, buf) == MEM_SERIAL_SIZE);
+
+    CHECK(mem_decode(&d, buf, 128));
+    CHECK(memcmp(&g, &d, sizeof(g)) == 0);
+
+    expect_reject(buf, 127);
+
+    memcpy(big, buf, 128);
+    big[128] = 0;
+    expect_reject(big, 129);
+
+    {
+        MemGame keep;
+        memset(&d, 0x5A, sizeof(d));
+        keep = d;
+        CHECK(mem_decode(&d, NULL, 128) == 0);
+        CHECK(memcmp(&d, &keep, sizeof(d)) == 0);
+    }
+
+    /* magic faux, CRC recalcule */
+    memcpy(bad, buf, 128);
+    bad[0] = 'X';
+    fix_crc(bad);
+    expect_reject(bad, 128);
+
+    /* version fausse */
+    memcpy(bad, buf, 128);
+    bad[4] = 2;
+    fix_crc(bad);
+    expect_reject(bad, 128);
+
+    /* CRC corrompu */
+    memcpy(bad, buf, 128);
+    bad[124] ^= 1u;
+    expect_reject(bad, 128);
+
+    /* identite dupliquee, CRC recalcule */
+    memcpy(bad, buf, 128);
+    bad[50] = (uint8_t)((bad[50] + 1u) % 15u);
+    fix_crc(bad);
+    expect_reject(bad, 128);
+
+    /* matched_mask orphelin */
+    memcpy(bad, buf, 128);
+    bad[22] = 1u;
+    fix_crc(bad);
+    expect_reject(bad, 128);
+
+    /* phase ONE sans known */
+    memcpy(bad, buf, 128);
+    bad[6] = MEM_PHASE_ONE;
+    bad[7] = 0u;
+    bad[8] = MEM_NONE;
+    bad[80] = MEM_NONE;
+    fix_crc(bad);
+    expect_reject(bad, 128);
+
+    /* carte non utilisee non 255 */
+    memcpy(bad, buf, 128);
+    bad[50 + 12] = 0u;
+    fix_crc(bad);
+    expect_reject(bad, 128);
+
+    /* difficulte 1 sans victoire en difficulte 0 */
+    memcpy(bad, buf, 128);
+    bad[5] = 1u;
+    fix_crc(bad);
+    expect_reject(bad, 128);
+}
+
+static void test_adviser_no_hidden(void)
+{
+    MemView v;
+    uint8_t known[MEM_CARDS];
+    int act;
+    uint8_t idx;
+    unsigned i;
+
+    memset(&v, 0, sizeof(v));
+    for (i = 0; i < MEM_CARDS; ++i) v.face[i] = MEM_NONE;
+    v.difficulty = 0u;
+    v.phase = MEM_PHASE_READY;
+    v.first = MEM_NONE;
+    v.second = MEM_NONE;
+    v.matched_mask = 0u;
+    v.pairs_total = 6u;
+
+    memset(known, MEM_NONE, sizeof(known));
+
+    /* paire connue -> choisir cette paire */
+    known[0] = 3u;
+    known[1] = 3u;
+    CHECK(mem_adviser(&v, known, &act, &idx));
+    CHECK(act == MEM_ACT_FLIP);
+    CHECK(idx == 0u);
+
+    /* pas de paire connue -> carte inconnue, pas une carte connue seule */
+    known[1] = 4u;
+    CHECK(mem_adviser(&v, known, &act, &idx));
+    CHECK(act == MEM_ACT_FLIP);
+    CHECK(idx == 2u);
+    CHECK(known[idx] == MEM_NONE);
+
+    /* phase ONE : partenaire connu */
+    v.phase = MEM_PHASE_ONE;
+    v.first = 0u;
+    v.face[0] = 3u;
+    known[1] = 3u;
+    CHECK(mem_adviser(&v, known, &act, &idx));
+    CHECK(act == MEM_ACT_FLIP);
+    CHECK(idx == 1u);
+
+    /* phase ONE : pas de partenaire connu -> inconnue */
+    known[1] = 4u;
+    known[2] = MEM_NONE;
+    CHECK(mem_adviser(&v, known, &act, &idx));
+    CHECK(act == MEM_ACT_FLIP);
+    CHECK(idx != 0u);
+    CHECK(known[idx] == MEM_NONE);
+
+    /* poison : face cachee non valide, ne doit pas etre utilisee */
+    v.face[2] = 4u;
+    v.face[3] = 3u;
+    known[2] = MEM_NONE;
+    known[3] = MEM_NONE;
+    CHECK(mem_adviser(&v, known, &act, &idx));
+    CHECK(act == MEM_ACT_FLIP);
+    CHECK(idx == 2u); /* choix fair : premiere inconnue, pas la face[3] piegee */
+
+    v.phase = MEM_PHASE_TWO;
+    CHECK(mem_adviser(&v, known, &act, &idx));
+    CHECK(act == MEM_ACT_RESOLVE);
+    CHECK(idx == MEM_NONE);
+
+    v.phase = MEM_PHASE_WON;
+    CHECK(mem_adviser(&v, known, &act, &idx));
+    CHECK(act == MEM_ACT_NEXT);
+    CHECK(idx == MEM_NONE);
+}
+
+static void test_progression(void)
+{
+    MemGame g;
+    MemView v;
+    uint32_t best2;
+
+    CHECK(mem_init(&g, 0xC0FFEEu));
+    CHECK(g.difficulty == 0u);
+    CHECK(g.phase == MEM_PHASE_READY);
+    CHECK(mem_view(&g, &v));
+    CHECK(v.pairs_total == 6u);
+    CHECK(v.pairs_matched == 0u);
+
+    solve_current(&g);
+    CHECK(g.phase == MEM_PHASE_WON);
+    CHECK(g.wins[0] == 1u);
+    CHECK(g.best[0] > 0u);
+    CHECK(g.matched_mask == ((1u << 12) - 1u));
+
+    {
+        MemGame snap = g;
+        CHECK(!mem_action(&g, MEM_ACT_RESOLVE, 255));
+        CHECK(!mem_action(&g, MEM_ACT_FLIP, 0));
+        CHECK(memcmp(&g, &snap, sizeof(g)) == 0);
+        CHECK(g.wins[0] == 1u); /* pas de double victoire */
+    }
+
+    CHECK(mem_action(&g, MEM_ACT_NEXT, 255));
+    CHECK(g.difficulty == 1u);
+    CHECK(g.phase == MEM_PHASE_READY);
+    CHECK(g.turns == 0u);
+    CHECK(g.matched_mask == 0u);
+    CHECK(g.wins[0] == 1u);
+    CHECK(g.wins[1] == 0u);
+    CHECK(g.best[0] > 0u);
+    CHECK(mem_view(&g, &v));
+    CHECK(v.pairs_total == 10u);
+
+    solve_current(&g);
+    CHECK(g.wins[1] == 1u);
+
+    CHECK(mem_action(&g, MEM_ACT_NEXT, 255));
+    CHECK(g.difficulty == 2u);
+    CHECK(g.wins[1] == 1u);
+    CHECK(mem_view(&g, &v));
+    CHECK(v.pairs_total == 15u);
+
+    solve_current(&g);
+    CHECK(g.wins[2] == 1u);
+    CHECK(g.best[2] > 0u);
+    best2 = g.best[2];
+
+    CHECK(mem_action(&g, MEM_ACT_NEXT, 255));
+    CHECK(g.difficulty == 2u);
+    CHECK(g.phase == MEM_PHASE_READY);
+    CHECK(g.wins[2] == 1u);
+    CHECK(g.turns == 0u);
+    CHECK(g.matched_mask == 0u);
+    CHECK(mem_view(&g, &v));
+    CHECK(v.pairs_total == 15u);
+
+    solve_current(&g);
+    CHECK(g.wins[2] == 2u);
+    CHECK(g.best[2] <= best2);
+    CHECK(mem_validate(&g));
+}
+
+int main(void)
+{
+    test_seed_repeat();
+    test_adverse_actions();
+    test_view();
+    test_codec();
+    test_adviser_no_hidden();
+    test_progression();
+
+    puts("OK");
+    return 0;
+}
+```
+
+---
+
+## 4. Hazards concrets et patchs minimaux
+
+1. **Le CRC ne protège pas contre la triche.**  
+   Un payload forgé avec CRC recalculé et `known[]` cohérent peut déclarer des cartes cachées comme connues. `mem_validate` ne peut pas prouver « révélée à un moment donné ».  
+   *Patch minimal* : ne pas persister `known[]` dans une sauvegarde faisant autorité, ou ajouter un HMAC avec clé côté hôte, ou rejeter au décodage tout `known[i] != 255` pour une carte non actuellement visible/non appariée. Ce dernier patch est plus strict mais empêche la mémoire inter-manche.
+
+2. **`seed` immuable non prouvable par validation.**  
+   Le code ne modifie `seed` que dans `mem_init`; `mem_action` copie et ne le touche pas.  
+   *Test discriminant* : snapshot de `seed` avant/après toutes les actions et tous les `NEXT`.
+
+3. **Ambiguïté `known` booléen vs identité.**  
+   La référence stocke l’identité. Si la racine attend `0/1`, le layout 128 octets et la validation changent.  
+   *Patch* : confirmer le contrat avant de figer le codec.
+
+4. **Ambiguïté `NEXT` après la manche 30 cartes.**  
+   La référence conserve `difficulty=2` et relance 30 cartes. Si le besoin est de revenir à 0, remplacer dans `MEM_ACT_NEXT` :
+   ```c
+   if (t.difficulty < 2u) ++t.difficulty; else t.difficulty = 0u;
+   ```
+   mais cela contredirait « then new 30-card round » selon la lecture retenue.
+
+5. **`wins[0]`/`wins[1]` non bornés à 1.**  
+   La progression spécifiée ne revient jamais en arrière, donc ils devraient valoir 0 ou 1. La validation ne l’impose pas pour rester minimale.  
+   *Patch* : ajouter `if (g->wins[0] > 1u || g->wins[1] > 1u) return 0;` si le contrat le confirme.
+
+6. **`mem_validate` est appelé à chaque action.**  
+   C’est volontaire pour la garantie transactionnelle et les tests, mais coûteux. Le moteur n’a pas d’horloge ; ce coût est hors règles. Si nécessaire, le retirer du chemin chaud et le garder au décodage/chargement.
+
+7. **Le conseiller a un chemin de secours qui peut choisir une carte connue non partenaire si la vue est invalide.**  
+   Sur un état valide, ce chemin est inatteignable. Le test « poison » vérifie qu’il ne lit pas `face[]` pour les cartes cachées.
+
+---
+
+## 5. Tests discriminants à ajouter côté racine
+
+- **Répétition de seed** : même seed, même suite d’actions ⇒ `cards`, `rng`, `known`, `matched_mask` identiques.
+- **Actions adverses** : `FLIP` hors borne, `FLIP` sur carte appariée, `FLIP` du même index, `RESOLVE` en `READY/ONE/WON`, `NEXT` hors `WON` ⇒ retour 0 et `memcmp` état inchangé.
+- **Codec** : magic faux, version fausse, CRC corrompu, longueurs 127/129, pointeurs NULL.
+- **Payload sémantique forgé avec CRC recalculé** : identité dupliquée, `matched_mask` orphelin, `phase=ONE` sans `known`, carte non utilisée ≠ 255, difficulté 1 sans `wins[0]`.
+- **Décodage transactionnel** : `dst` rempli de `0xA5`, rejet ⇒ `dst` inchangé.
+- **Vue publique** : aucune carte cachée dans `face[]` ; `known_view` séparé.
+- **Bot fair-play** : l’API ne reçoit jamais `MemGame`/`cards[]` ; test avec `face[]` caché empoisonné ; politique « paire connue puis inconnue » ; résolution complète des trois difficultés avec garde-fou.
+- **Progression** : `wins[0]=1`, `NEXT` → difficulté 1 ; `wins[1]=1`, `NEXT` → difficulté 2 ; victoire 30 cartes, `NEXT` → nouvelle manche 30 cartes, `wins[2]` conservé, `best[2]` = min.

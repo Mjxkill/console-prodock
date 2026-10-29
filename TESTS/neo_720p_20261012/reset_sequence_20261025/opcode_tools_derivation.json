@@ -1,0 +1,107 @@
+{
+  "audit_opcode_probe.py": {
+    "parent": "audit_pixel_probe.py",
+    "parent_sha256": "b55bdf8e9a425cefa7d1e1ede80191bb974b5a1c40b12f40c93c81d546d218ad",
+    "sha256": "27be500806fc1a7320b37d6e67f430083e7523681473f02e568b5faa703d0c65",
+    "substitutions": [
+      [
+        "the single R16 observation build",
+        "the single R17 opcode observation build"
+      ],
+      [
+        "from pixel_trace import HERE, BUILD, sha, audit_wrapper",
+        "from opcode_wrapper import HERE, BUILD, sha, audit_wrapper"
+      ],
+      [
+        "'pixel_probe_postroute_01'",
+        "'opcode_probe_postroute_01'"
+      ],
+      [
+        "0101011010110000",
+        "0101011010110001"
+      ]
+    ],
+    "final_sha256": "ee4e7440979202b0cb91c6ce0e24353497b8375628025061567d16a6503535f0",
+    "additional_changes": "Include R17 decoder/wrapper/builder and generated GAO files in stable input hashes; record limited opcode visibility."
+  },
+  "load_opcode_probe.py": {
+    "parent": "load_pixel_probe.py",
+    "parent_sha256": "36fc5a598792dee784772a61e793aa6684903e9283a949a8f179237406d2e75c",
+    "sha256": "d36df9370efee46faa15c7431f19a1449724c6ee6eafd6253d65e0d0e9b54d1c",
+    "substitutions": [
+      [
+        "R16",
+        "R17"
+      ],
+      [
+        "r16",
+        "r17"
+      ],
+      [
+        "from pixel_trace import HERE, ROOT, BUILD, sha, audit_wrapper",
+        "from opcode_wrapper import HERE, ROOT, BUILD, sha, audit_wrapper"
+      ],
+      [
+        "pixel_probe_postroute_01",
+        "opcode_probe_postroute_01"
+      ],
+      [
+        "pixel_probe_trial_01",
+        "opcode_probe_trial_01"
+      ]
+    ],
+    "final_sha256": "d36df9370efee46faa15c7431f19a1449724c6ee6eafd6253d65e0d0e9b54d1c"
+  },
+  "read_opcode_probe.py": {
+    "parent": "read_pixel_probe.py",
+    "parent_sha256": "78d405c756ea30779a42cb2a50eda10248ae54f01ac1c8e04a3ad3dc6e2ce8b0",
+    "sha256": "13d6033568f617f7c0477ba8fdcde63acecf802a94f637d3236feee64ca152b7",
+    "substitutions": [
+      [
+        "R16",
+        "R17"
+      ],
+      [
+        "r16",
+        "r17"
+      ],
+      [
+        "from pixel_trace import HERE, ROOT, BUILD, sha, mapping, parse_csv, analyze, audit_wrapper, word",
+        "from opcode_wrapper import HERE, ROOT, BUILD, sha, mapping, parse_csv, analyze, audit_wrapper, word"
+      ],
+      [
+        "pixel_probe_trial_01",
+        "opcode_probe_trial_01"
+      ],
+      [
+        "pixel_probe_read_01",
+        "opcode_probe_read_01"
+      ],
+      [
+        "pixel_capture.gao",
+        "opcode_capture.gao"
+      ],
+      [
+        "assert sha(config)=='24da500f42e5128784e512468c03298bf60eee27a4daf22892d965a97e54ef3d'",
+        "assert sha(config)==json.loads((BUILD/'observation_preparation.json').read_text())['inputs']['source/tang/boards/neo/opcode_capture.gao']"
+      ],
+      [
+        "r['idle_host_pixel_headers']=[loaded['raw']['AFTER_'+str(i)][1] for i in range(3)]",
+        "r['idle_host_pixel_headers']=[loaded['raw']['AFTER_'+str(i)][1] for i in range(3)]\n            r['idle_host_pixel_opcodes']=[v & 0xff000000 for v in r['idle_host_pixel_headers']]"
+      ],
+      [
+        "gao_final_four_pixel_headers",
+        "gao_final_four_pixel_opcodes"
+      ],
+      [
+        "value==r['idle_host_pixel_headers'][0]",
+        "value==r['idle_host_pixel_opcodes'][0]"
+      ],
+      [
+        "r['gao_final_four_pixel_opcodes']+r['idle_host_pixel_headers']",
+        "r['gao_final_four_pixel_opcodes']+r['idle_host_pixel_opcodes']"
+      ]
+    ],
+    "final_sha256": "13d6033568f617f7c0477ba8fdcde63acecf802a94f637d3236feee64ca152b7"
+  }
+}

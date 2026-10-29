@@ -24,7 +24,12 @@
 #include "prodock-validate.h"
 #include "prodock-text-model.h"
 #define FB_BASE 0x01700000U
-#define FB_SIZE (800 * 480 * 2)
+#define PD_CELL_STRIDE 160
+#define PD_CELL_ROWS 45
+#define PD_CELLS (PD_CELL_STRIDE * PD_CELL_ROWS)
+#define PD_DEBUG_ROWS 23
+#define PD_DEBUG_CELLS (PD_CELL_STRIDE * PD_DEBUG_ROWS)
+#define PD_SNAPSHOT_CELLS (PD_CELLS + PD_DEBUG_CELLS)
 struct prodock_gpu {
     void __iomem *display, *accel, *memory, *text_io, *usb;
     struct mutex lock;
@@ -38,7 +43,10 @@ struct prodock_gpu {
     bool opened, faulted;
     spinlock_t text_lock;
     struct delayed_work text_work;
-    u16 cells[3000], debug_cells[1500], snapshot[4500];
+    u16 cells[PD_CELLS], debug_cells[PD_DEBUG_CELLS], snapshot[PD_SNAPSHOT_CELLS];
+    struct prodock_display_geometry geometry;
+    unsigned width, height, pitch, fb_size, columns, rows, debug_rows;
+    unsigned map_width, map_height, map_bytes, map_w_log2, map_h_log2;
     u8 font[4096], font_snapshot[4096];
     u32 text_palette[16];
     u8 *atlas;
@@ -78,7 +86,7 @@ static int fb_restore(struct prodock_gpu *p)
     unsigned i;
     int ret;
     if (p->text_ready) {
-        p->scene = (struct prodock_scene){ .base = FB_BASE, .stride = 1600, .format = 3 };
+        p->scene = (struct prodock_scene){ .base = FB_BASE, .stride = p->pitch, .format = 3 };
         return text_present(p);
     }
     ret = display_wait(p);
@@ -89,7 +97,7 @@ static int fb_restore(struct prodock_gpu *p)
     for (i = 0; i < 128; ++i) writel(0, p->display + 0x800 + i * 4);
     for (i = 0; i < 256; ++i) writel(0, p->display + 0xc00 + i * 4);
     writel(FB_BASE, p->display + 4);
-    writel(1600, p->display + 0x6c);
+    writel(p->pitch, p->display + 0x6c);
     writel(1, p->display + 0x30); writel(0, p->display + 0x40);
     writel(3, p->display + 8); writel(1, p->display + 12);
     return display_wait(p);
@@ -127,6 +135,7 @@ static int gpu_release(struct inode *inode, struct file *file)
 static int submit(struct prodock_gpu *p, const struct prodock_batch *batch)
 {
     unsigned i, j, expected;
+    bool geometry = false;
     u32 val;
     int ret;
     u64 stamp;
@@ -135,7 +144,12 @@ static int submit(struct prodock_gpu *p, const struct prodock_batch *batch)
     for (i = 0; i < batch->count; ++i) {
         ret = prodock_command(batch->commands[i]);
         if (ret) return ret;
+        if ((batch->commands[i][0] >> 24) >= PRODOCK_GEOM_MATRIX) geometry = true;
     }
+    /* A missing optional frontend must not reach the FIFO or fault the GPU.
+     * Legacy batches do not add any MMIO/capability polling to their path. */
+    if (geometry && readl(p->accel + 0x48) != PRODOCK_GEOMETRY_SIGNATURE)
+        return -EOPNOTSUPP;
     if (gpu_errors(p)) return -EIO;
     expected = (readl(p->accel + 8) + batch->count) & 65535;
     stamp = ktime_get_ns();
@@ -219,12 +233,12 @@ static int present_raw(struct prodock_gpu *p, const struct prodock_scene *s)
 static int present(struct prodock_gpu *p, const struct prodock_scene *s)
 {
     unsigned i;
-    int ret = prodock_scene_valid(s);
+    int ret = prodock_scene_valid_for(s, p->width, p->height);
     if (ret) return ret;
     /* A half-resolution desktop surface uses the same 1600-byte pitch and
      * 480-row allocation in both layouts. The split scanout reads full
      * lines; opaque terminal planes cover the unused right/bottom pixels. */
-    if (s->format == 7 && (s->stride < 1600 || !prodock_range(s->base, (__u64)s->stride * 480)))
+    if (s->format == 7 && (s->stride < p->pitch || !prodock_range(s->base, (__u64)s->stride * p->height)))
         return -ERANGE;
     for (i = 12; i < 16; ++i)
         if (s->layers_enabled && (s->layers[i][6] & 1)) return -EBUSY;
@@ -249,11 +263,29 @@ static long gpu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         struct prodock_info info;
         mutex_lock(&p->lock);
         info = (struct prodock_info){ .abi = PRODOCK_ABI, .memory_base = PRODOCK_GPU_BASE,
-            .memory_bytes = PRODOCK_GPU_BYTES, .width = 800, .height = 480,
+            .memory_bytes = PRODOCK_GPU_BYTES, .width = p->width, .height = p->height,
             .caps = readl(p->accel + 48), .done = readl(p->accel + 8),
             .errors = gpu_errors(p), .underflows = readl(p->display + 28),
             .frames = readl(p->display + 24), .checksum = readl(p->display + 0x60),
             .faulted = p->faulted };
+        mutex_unlock(&p->lock);
+        return copy_to_user(user, &info, sizeof(info)) ? -EFAULT : 0;
+    }
+    if (cmd == PRODOCK_GEOMETRY_INFO) {
+        struct prodock_geometry_info info = {0};
+        mutex_lock(&p->lock);
+        info.signature = readl(p->accel + 0x48);
+        if (info.signature != PRODOCK_GEOMETRY_SIGNATURE) {
+            mutex_unlock(&p->lock);
+            return -EOPNOTSUPP;
+        }
+        info.errors = readl(p->accel + 0x4c);
+        info.vertices = readl(p->accel + 0x50);
+        info.triangles = readl(p->accel + 0x54);
+        info.culled = readl(p->accel + 0x58);
+        info.intersections = readl(p->accel + 0x5c);
+        info.slivers = readl(p->accel + 0x60);
+        info.cycles = readl(p->accel + 0x64);
         mutex_unlock(&p->lock);
         return copy_to_user(user, &info, sizeof(info)) ? -EFAULT : 0;
     }
@@ -307,7 +339,7 @@ static void fb_flush(struct work_struct *work)
     struct prodock_gpu *p = container_of(to_delayed_work(work), struct prodock_gpu, flush);
     mutex_lock(&p->lock);
     if (!p->text_ready && !p->opened && !p->faulted) {
-        memcpy_toio(p->fb_io, p->fb->screen_buffer, FB_SIZE);
+        memcpy_toio(p->fb_io, p->fb->screen_buffer, p->fb_size);
         if (prodock_cache_sync()) p->faulted = true;
     }
     mutex_unlock(&p->lock);
@@ -315,16 +347,18 @@ static void fb_flush(struct work_struct *work)
 static void fb_damage(struct fb_info *info, off_t offset, size_t length)
 {
     struct prodock_gpu *p = info->par;
-    if (offset >= 0 && offset < FB_SIZE && length)
+    if (offset >= 0 && offset < p->fb_size && length)
         schedule_delayed_work(&p->flush, max(1, HZ / 20));
 }
 static void fb_area(struct fb_info *info, u32 x, u32 y, u32 w, u32 h)
 {
-    if (y < 480 && w && h) fb_damage(info, y * 1600, min(h, 480 - y) * 1600);
+    struct prodock_gpu *p = info->par;
+    if (y < p->height && w && h) fb_damage(info, y * p->pitch, min(h, p->height - y) * p->pitch);
 }
 static void fb_deferred(struct fb_info *info, struct list_head *pages)
 {
-    fb_damage(info, 0, FB_SIZE);
+    struct prodock_gpu *p = info->par;
+    fb_damage(info, 0, p->fb_size);
 }
 FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(prodock_fb, fb_damage, fb_area)
 static int fb_color(unsigned n, unsigned r, unsigned g, unsigned b, unsigned a, struct fb_info *info)
@@ -345,7 +379,9 @@ static int fb_color(unsigned n, unsigned r, unsigned g, unsigned b, unsigned a, 
 }
 static int fb_check(struct fb_var_screeninfo *v, struct fb_info *info)
 {
-    if (!((v->xres == 800 && v->yres == 480) || (v->xres == 400 && v->yres == 240)) ||
+    struct prodock_gpu *p = info->par;
+    if (!((v->xres == p->width && v->yres == p->height) ||
+          (v->xres == p->width / 2 && v->yres == p->height / 2)) ||
         v->xres_virtual != v->xres || v->yres_virtual != v->yres ||
         v->bits_per_pixel != 16 || v->xoffset || v->yoffset || v->rotate || v->nonstd) return -EINVAL;
     v->red = (struct fb_bitfield){ 11, 5, 0 }; v->green = (struct fb_bitfield){ 5, 6, 0 };
@@ -385,6 +421,33 @@ static int prodock_gpu_probe(struct platform_device *pdev)
     if (readl(p->display) != 0x47505531 || readl(p->accel) != 0x424c5432 || readl(p->accel + 48) != 0x1ff) {
         ret = -ENODEV; goto fail;
     }
+    /* Dimensions are explicit in new device trees and checked against the
+     * FPGA. Old G22 images have no geometry registers: accept 800x480 only. */
+    p->width = 800; p->height = 480;
+    of_property_read_u32(pdev->dev.of_node, "width", &p->width);
+    of_property_read_u32(pdev->dev.of_node, "height", &p->height);
+    if (!((p->width == 800 && p->height == 480) || (p->width == 1280 && p->height == 720)) ||
+        (readl(p->display + 0x70) != (p->height << 16 | p->width) &&
+         (p->width != 800 || readl(p->display + 0x70) != 0))) { ret = -ENODEV; goto fail; }
+    p->geometry = (struct prodock_display_geometry){ .width = p->width, .height = p->height,
+        .pixel_hz = 35000000, .memory_hz = 75000000, .htotal = 1193, .vtotal = 533 };
+    of_property_read_u32(pdev->dev.of_node, "pixel-clock-hz", &p->geometry.pixel_hz);
+    of_property_read_u32(pdev->dev.of_node, "memory-clock-hz", &p->geometry.memory_hz);
+    of_property_read_u32(pdev->dev.of_node, "horizontal-total", &p->geometry.htotal);
+    of_property_read_u32(pdev->dev.of_node, "vertical-total", &p->geometry.vtotal);
+    of_property_read_u32(pdev->dev.of_node, "board-id", &p->geometry.board);
+    if (!p->geometry.pixel_hz || !p->geometry.memory_hz || p->geometry.htotal < p->width ||
+        p->geometry.vtotal < p->height || p->geometry.htotal > 2048 || p->geometry.vtotal > 1024) {
+        ret = -EINVAL; goto fail;
+    }
+    if (readl(p->display + 0x74) && readl(p->display + 0x74) !=
+        (p->geometry.vtotal << 16 | p->geometry.htotal)) { ret = -ENODEV; goto fail; }
+    p->geometry.line_budget = div_u64((u64)p->geometry.memory_hz * p->geometry.htotal, p->geometry.pixel_hz);
+    p->pitch = p->width * 2; p->fb_size = p->pitch * p->height;
+    p->columns = p->width / 8; p->rows = p->height / 16; p->debug_rows = DIV_ROUND_UP(p->height / 2, 16);
+    p->map_w_log2 = p->width == 1280 ? 8 : 7; p->map_h_log2 = p->height == 720 ? 7 : 6;
+    p->map_width = 1U << p->map_w_log2; p->map_height = 1U << p->map_h_log2;
+    p->map_bytes = 2 * p->map_width * p->map_height;
     node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
     ret = node ? of_address_to_resource(node, 0, &memory) : -EINVAL;
     of_node_put(node);
@@ -394,19 +457,19 @@ static int prodock_gpu_probe(struct platform_device *pdev)
         ret = -EBUSY; goto fail;
     }
     p->memory = devm_ioremap(&pdev->dev, memory.start, PAGE_SIZE);
-    p->fb_io = devm_ioremap(&pdev->dev, FB_BASE, PAGE_ALIGN(FB_SIZE));
+    p->fb_io = devm_ioremap(&pdev->dev, FB_BASE, PAGE_ALIGN(p->fb_size));
     if (!p->memory || !p->fb_io) { ret = -ENOMEM; goto fail; }
-    info->screen_buffer = vzalloc(PAGE_ALIGN(FB_SIZE));
+    info->screen_buffer = vzalloc(PAGE_ALIGN(p->fb_size));
     if (!info->screen_buffer) { ret = -ENOMEM; goto fail; }
-    info->screen_size = FB_SIZE;
-    memset_io(p->fb_io, 0, FB_SIZE);
+    info->screen_size = p->fb_size;
+    memset_io(p->fb_io, 0, p->fb_size);
     ret = prodock_cache_sync();
     if (ret) goto pixels;
     info->fix = (struct fb_fix_screeninfo){ .id = "ProDock C37", .smem_start = 0,
-        .smem_len = FB_SIZE, .type = FB_TYPE_PACKED_PIXELS, .visual = FB_VISUAL_TRUECOLOR,
-        .line_length = 1600, .accel = FB_ACCEL_NONE };
-    info->var = (struct fb_var_screeninfo){ .xres = 400, .yres = 240, .xres_virtual = 400,
-        .yres_virtual = 240, .bits_per_pixel = 16, .width = -1, .height = -1 };
+        .smem_len = p->fb_size, .type = FB_TYPE_PACKED_PIXELS, .visual = FB_VISUAL_TRUECOLOR,
+        .line_length = p->pitch, .accel = FB_ACCEL_NONE };
+    info->var = (struct fb_var_screeninfo){ .xres = p->width / 2, .yres = p->height / 2, .xres_virtual = p->width / 2,
+        .yres_virtual = p->height / 2, .bits_per_pixel = 16, .width = -1, .height = -1 };
     fb_check(&info->var, info);
     info->fbops = &prodock_fb_ops; info->pseudo_palette = p->pseudo_palette;
     info->flags = FBINFO_VIRTFB | FBINFO_MISC_TILEBLITTING;

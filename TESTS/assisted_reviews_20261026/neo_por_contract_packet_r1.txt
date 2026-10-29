@@ -1,0 +1,800 @@
+Revue ciblée du contrat POR/HW et de LOCK, sans outil, compilation, RTLmodifié, carte ni nouveau routage.
+But : distinguer minimum fabricant, exemple et propriétéRTLréellement prouvée. Aucune causematérielleR21 encore établie. R19etR21 mêmechaînereset, R21nebootepas maisR19oui ; une faiblesse commune ne prouvepascause de différence.
+Question réfutable : UG306-1.0.9E p40 demande LOCK observé continûment2ms. Neo attend50ms enéchantillonnantreadyàclk50; son ae350_rst_sync captureperteLOCKasync. UnLOCKbas brefentrefrontsclk50 peut-il laisserdelay_done=1etpermettrePOR/HW à1quelquescyclesAHBaprèsretourLOCK? Donner une tracefrontsparfronts dérivée duRTL FOURNI, ycompris ordreNBA, etconditions qui réfuteraientcetexemple. Ne pasprésenter cette tracepapiercomme simulationexécutée, niun minimumduréeglitchnonfourni parfabricant.
+Autrespoints : référencelocaleSipeedkey_debounce20ms estbiencâbléDDRready→ae350_rstn ; ce n'estpasminimumPORdocumenté. L31r8console138k_reset qualifieLOCK2.08ms, MAIS ae350_socinit_sync estclk50etignore rst_key_n : attentionànepasattribuerlaqualifauCPUdirectement. ProDockutiliseDDRready2FFAHBaprèsPLLlock2FFsans50ms. RTC10MHz estdirect sansdiviseur visibleentrePLL etmacro, malgréMUG1031tableRTC32.768KHz ; n'inventerpasunprescaler.
+Conclusionattendue<=1500mots,faitsconditionsnonétabliesetUNEobservationdiscriminantefuture. Aucunpatchautorisés.
+
+
+SOURCE /home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo_reset_trial.v SHA256 6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3
+1: // Neo-only experiment. This module never drives a PLL or DDR reset.
+2: // The existing AE350 two-flop reset synchronizer remains downstream.
+3: `default_nettype none
+4: module neo_reset_trial #(
+5:     parameter integer WAIT_CYCLES = 2500000, // user-selected 50 ms at 50 MHz
+6:     parameter integer HOLD_CYCLES = 1000,    // common 20 us warm-reset hold
+7:     parameter integer GAP_CYCLES = 100000,
+8:     parameter integer UART_DIV = 25         // existing BL616 relay: 2 Mbit/s
+9: ) (
+10:     input wire clk_ref, ahb_clk, rtc_clk, serial_rx,
+11:     input wire ddr_ready, pll_ready, cpu_reset_n,
+12:     output wire release_request,
+13:     output reg delay_mode = 1'b1,
+14:     output reg [3:0] command_epoch = 0,
+15:     output reg holding = 0,
+16:     output reg delay_done = 0,
+17:     output wire ahb_tick, rtc_tick
+18: );
+19:     localparam integer WAIT_WIDTH = WAIT_CYCLES > 1 ? $clog2(WAIT_CYCLES) : 1;
+20:     localparam integer HOLD_WIDTH = HOLD_CYCLES > 1 ? $clog2(HOLD_CYCLES) : 1;
+21:     localparam integer GAP_WIDTH = GAP_CYCLES > 1 ? $clog2(GAP_CYCLES) : 1;
+22:     // Independent activity witnesses: never reset by the CPU/bus under test.
+23:     reg [7:0] ahb_div = 0, rtc_div = 0;
+24:     always @(posedge ahb_clk) ahb_div <= ahb_div + 1'b1;
+25:     always @(posedge rtc_clk) rtc_div <= rtc_div + 1'b1;
+26:     assign ahb_tick = ahb_div[7];
+27:     assign rtc_tick = rtc_div[7];
+28: 
+29:     reg [2:0] up = 0;
+30:     always @(posedge clk_ref) up <= {up[1:0], 1'b1};
+31:     wire [7:0] rx_byte;
+32:     wire rx_valid;
+33:     neo_reset_trial_rx #(.DIV_WIDTH(16)) u_rx (
+34:         .clk(clk_ref), .rst(!up[2]), .clk_div(16'(UART_DIV)),
+35:         .rx(serial_rx), .data(rx_byte), .valid(rx_valid));
+36: 
+37:     // A5 5A 52 31 35 mode complement 0D. Only mode 0/1 is accepted.
+38:     // Parser timeout prevents unrelated console bytes completing a stale command.
+39:     reg [2:0] parse_state = 0;
+40:     reg pending_mode = 0;
+41:     reg [GAP_WIDTH-1:0] gap_count = 0;
+42:     reg command_valid = 0, command_mode = 0;
+43:     always @(posedge clk_ref) begin
+44:         command_valid <= 0;
+45:         if (!up[2]) begin parse_state <= 0; gap_count <= 0; end
+46:         else if (parse_state != 0 && gap_count == GAP_WIDTH'(GAP_CYCLES-1)) begin
+47:             parse_state <= 0; gap_count <= 0;
+48:         end else if (rx_valid) begin
+49:             gap_count <= 0;
+50:             case (parse_state)
+51:                 0: parse_state <= rx_byte == 8'ha5 ? 1 : 0;
+52:                 1: parse_state <= rx_byte == 8'h5a ? 2 : 0;
+53:                 2: parse_state <= rx_byte == 8'h52 ? 3 : 0;
+54:                 3: parse_state <= rx_byte == 8'h31 ? 4 : 0;
+55:                 4: parse_state <= rx_byte == 8'h35 ? 5 : 0;
+56:                 5: begin
+57:                     if (rx_byte < 2) begin pending_mode <= rx_byte[0]; parse_state <= 6; end
+58:                     else parse_state <= 0;
+59:                 end
+60:                 6: parse_state <= rx_byte == (pending_mode ? 8'hfe : 8'hff) ? 7 : 0;
+61:                 7: begin
+62:                     parse_state <= 0;
+63:                     if (rx_byte == 8'h0d) begin command_valid <= 1; command_mode <= pending_mode; end
+64:                 end
+65:             endcase
+66:         end else if (parse_state != 0) gap_count <= gap_count + 1'b1;
+67:     end
+68: 
+69:     reg [1:0] ready_meta = 0, reset_meta = 0;
+70:     always @(posedge clk_ref) begin
+71:         ready_meta <= {ready_meta[0], ddr_ready && pll_ready};
+72:         reset_meta <= {reset_meta[0], cpu_reset_n};
+73:     end
+74:     reg [WAIT_WIDTH-1:0] wait_count = 0;
+75:     reg [HOLD_WIDTH-1:0] hold_count = 0;
+76:     always @(posedge clk_ref) begin
+77:         if (command_valid) begin
+78:             delay_mode <= command_mode;
+79:             command_epoch <= command_epoch + 1'b1;
+80:             holding <= 1;
+81:             hold_count <= 0;
+82:             wait_count <= 0;
+83:             delay_done <= 0;
+84:         end else begin
+85:             if (holding) begin
+86:                 // Do not lose a reset request while AHB is stopped: wait until
+87:                 // the existing two-flop synchronizer has actually asserted reset.
+88:                 if (reset_meta[1]) hold_count <= 0;
+89:                 else if (hold_count == HOLD_WIDTH'(HOLD_CYCLES-1)) begin
+90:                     holding <= 0; hold_count <= 0;
+91:                 end else hold_count <= hold_count + 1'b1;
+92:             end
+93:             if (!ready_meta[1] || holding) begin wait_count <= 0; delay_done <= 0; end
+94:             else if (!delay_done) begin
+95:                 if (wait_count == WAIT_WIDTH'(WAIT_CYCLES-1)) delay_done <= 1;
+96:                 else wait_count <= wait_count + 1'b1;
+97:             end
+98:         end
+99:     end
+100:     // In short mode the original DDR-ready level is passed to the unchanged
+101:     // two AHB flops. All modes still honor calibration loss; no force-to-one.
+102:     assign release_request = ddr_ready && !holding && (!delay_mode || delay_done);
+103: endmodule
+104: `default_nettype wire
+
+
+SOURCE /home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/console_neo.v SHA256 ac0f0244c40784e9ce0cd82eed7d754d948a14c404b4a55b13f04caa5fa03364
+130:     wire [63:0] ev_data_unused; wire ev_ready_unused, evin_valid_unused;
+131:     wire [31:0] evin_data_unused;
+132:     wire [63:0] rr_data_unused; wire rr_valid_unused;
+133:     // PLL système du AE350 (socle analyseur : lock + init_clk + PLL_INIT) :
+134:     // clkout0 = 80 MHz (bus AHB/APB), clkout1 = core 800 MHz, clkout4 = RTC 10 MHz
+135:     Gowin_PLL_AE350 u_pll_ae350 (
+136:         .lock    (pll_ae350_lock),
+137:         .clkin   (clk),
+138:         .init_clk (clk),
+139:         .clkout0 (bus80_clk), .clkout1 (core_clk), .clkout2 (), .clkout3 (), .clkout4 (rtc_clk),
+140:         .enclk0  (1'b1), .enclk1 (1'b1), .enclk2 (1'b1), .enclk3 (1'b1), .enclk4 (1'b1)
+141:     );
+142:     // ahb_clk/apb_clk : DÉJÀ déclarés ligne 232 (wire) : NE PAS redéclarer ici !
+143:     // (EX2830 : « Second declaration of 'ahb_clk' is ignored » : le wire local était ignoré,
+144:     //  l'entrée AHB_CLK du SoC restait non câblée → bus APB mort → CPU figé au 1er accès APB.)
+145:     assign ahb_clk = bus80_clk;
+146:     assign apb_clk = ahb_clk;   // APB = net de l'AHB (1:1 exigé par le SoC, en-tête du socle)
+147:     // Reset du CPU : attend le LOCK de la PLL AE350 (schéma de l'analyseur : rst = sync ~lock)
+148:     reg [1:0] ae350_rst_sync = 2'b11;
+149:     always @(posedge bus80_clk or negedge pll_ae350_lock)
+150:         if (!pll_ae350_lock) ae350_rst_sync <= 2'b11;
+151:         else ae350_rst_sync <= {ae350_rst_sync[0], 1'b0};
+152:     wire ae350_por_n = ~ae350_rst_sync[1];
+153: 
+154:     // SoC AE350 + DDR3 standalone + pont Sipeed (socle analyseur, validé V3)
+155:     wire core_wfi_w;                 // CORE0_WFI_MODE du cœur (preuve de vie sans bus)
+156:     // Isolated startup experiment: default 50 ms, UART mode 0/1 for A/B.
+157:     wire trial_request, trial_mode, trial_holding, trial_done;
+158:     wire trial_ahb_tick, trial_rtc_tick;
+159:     wire [3:0] trial_epoch;
+160:     neo_reset_trial u_reset_trial (
+161:         .clk_ref(clk), .ahb_clk(bus80_clk), .rtc_clk(rtc_clk), .serial_rx(uart_rx),
+162:         .ddr_ready(ddr_init), .pll_ready(pll_ae350_lock), .cpu_reset_n(soc_dbg[0]),
+163:         .release_request(trial_request), .delay_mode(trial_mode), .command_epoch(trial_epoch),
+164:         .holding(trial_holding), .delay_done(trial_done),
+165:         .ahb_tick(trial_ahb_tick), .rtc_tick(trial_rtc_tick));
+166:     ae350_soc u_soc (
+167:         .trial_release(trial_request),
+168:         .clk50(clk),
+169:         .rst_key_n(ae350_por_n),
+170:         .core_clk(core_clk), .ahb_clk(ahb_clk), .apb_clk(apb_clk), .rtc_clk(rtc_clk),
+171:         .ddr_bank(ddr_bank), .ddr_cs(ddr_cs), .ddr_ras(ddr_ras), .ddr_cas(ddr_cas), .ddr_we(ddr_we),
+172:         .ddr_ck(ddr_ck), .ddr_ck_n(ddr_ck_n), .ddr_cke(ddr_cke), .ddr_reset_n(ddr_reset_n), .ddr_odt(ddr_odt),
+173:         .ddr_addr(ddr_addr), .ddr_dm(ddr_dm), .ddr_dq(ddr_dq), .ddr_dqs(ddr_dqs), .ddr_dqs_n(ddr_dqs_n),
+174:         .tck(ae350_tck), .tms(ae350_tms), .tdi(ae350_tdi), .tdo(ae350_tdo),
+175:         .uart2_tx(ae350_tx), .uart2_rx(ae350_rx), .ddr_init(ddr_init), .dbg(soc_dbg),
+176:         .sd_clk(sd_clk), .sd_cmd(sd_cmd), .sd_miso(sd_d0), .sd_cs_n(sd_d3), .sd_detect(1'b0),
+177:         .ahb_dbg(soc_ahb_dbg), .ddr_dbg(soc_ddr_dbg), .core_wfi_dbg(core_wfi_w),
+178:         // Legacy acquisition inputs are inactive; video uses its own DDR port.
+179:         .ev_clk(clk), .ev_valid(1'b0), .ev_data(64'd0),
+180:         .evin_valid(), .evin_data(), .evin_ready(1'b0),
+181:         .rr_valid(), .rr_data(), .rr_ready(1'b0),
+182:         .acq_v3(1'b0), .acq_start(1'b0), .acq_run(1'b0), .acq_div(8'd0), .acq_mask(16'hFFFF),
+183:         .acq_now(32'd0),
+184:         .vid_hclk(vid_hclk), .vid_hrstn(vid_hrstn), .vid_hsel(vid_hsel), .vid_hwrite(vid_hwrite),
+185:         .vid_haddr(vid_haddr), .vid_hwdata(vid_hwdata), .vid_htrans(vid_htrans),
+186:         .vid_hrdata(vid_hrdata), .vid_hready(vid_hready),
+187:         .gpu_clk(gpu_clk), .gpu_valid(gpu_valid), .gpu_addr(gpu_addr), .gpu_ready(gpu_ready),
+188:         .gpu_data(gpu_data), .gpu_data_valid(gpu_data_valid),
+189:         .blit_valid(blit_valid), .blit_write(blit_write), .blit_addr(blit_addr),
+190:         .blit_wr_data(blit_wr_data), .blit_wr_mask(blit_wr_mask), .blit_ready(blit_ready),
+
+
+SOURCE /home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/ae350_soc.v SHA256 e811670991b885d4a613322ca5713539d8955a62a06b5fe195048c0ff82a1009
+140:         .clkin   (clk50),
+141:         .init_clk(clk50),
+142:         .reset   (1'b0),
+143:         .enclk0  (1'b1),
+144:         .enclk1  (1'b0),
+145:         .enclk2  (ddr3_stop)
+146:     );
+147: 
+148:     // --- Resets -----------------------------------------------------------------------------
+149:     wire ddr3_init_completed;
+150:     wire ddr3_init_ip;                // état de calibration réel de l'IP (diag : ddr3_init_completed peut être forcé)
+151:     reg  [1:0] init_sync = 2'b00;
+152:     always @(posedge ahb_clk or negedge rst_key_n)
+153:         if (!rst_key_n) init_sync <= 2'b00;
+154:         else init_sync <= {init_sync[0], trial_release};
+155:     wire ae350_rstn = init_sync[1];
+156:     assign ddr_init = ddr3_init_completed;
+157:     assign dbg = {1'b1, ddr3_stop, ddr3_lock, ae350_rstn};
+158:     assign ddr_addr[15] = 1'b0;
+375:         .SPI_HOLDN_OUT(), .SPI_HOLDN_OE(), .SPI_WPN_OUT(), .SPI_WPN_OE(),
+376:         .SPI_CLK_OUT(spi_clk_out), .SPI_CLK_OE(spi_clk_oe), .SPI_CSN_OUT(spi_csn_out), .SPI_CSN_OE(spi_csn_oe),
+377:         .SPI_MISO_OUT(), .SPI_MISO_OE(), .SPI_MOSI_OUT(spi_mosi_out), .SPI_MOSI_OE(spi_mosi_oe),
+378:         .CORE0_WFI_MODE(core0_wfi), .RTC_WAKEUP(),
+379:         .CORE_CLK(core_clk), .DDR_CLK(ddr3_clk_in), .AHB_CLK(ahb_clk), .APB_CLK(apb_clk), .RTC_CLK(rtc_clk),
+380:         .POR_RSTN(ae350_rstn), .HW_RSTN(ae350_rstn)
+381:     );
+382:     assign core_wfi_dbg = core0_wfi;
+
+
+SOURCE /home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/console_top.v SHA256 e581c89d0b8f5c7521de2c374b548ab9685c02ad43de26816a133d407de2160c
+503:     // clkout0 = 80 MHz (bus AHB/APB), clkout1 = core 800 MHz, clkout4 = RTC 10 MHz
+504:     Gowin_PLL_AE350 u_pll_ae350 (
+505:         .lock    (pll_ae350_lock),
+506:         .clkin   (clk),
+507:         .init_clk (clk),
+508:         .clkout0 (bus80_clk), .clkout1 (core_clk), .clkout2 (), .clkout3 (), .clkout4 (rtc_clk),
+509:         .enclk0  (1'b1), .enclk1 (1'b1), .enclk2 (1'b1), .enclk3 (1'b1), .enclk4 (1'b1)
+510:     );
+511:     // ahb_clk/apb_clk : DÉJÀ déclarés ligne 232 (wire) : NE PAS redéclarer ici !
+512:     // (EX2830 : « Second declaration of 'ahb_clk' is ignored » : le wire local était ignoré,
+513:     //  l'entrée AHB_CLK du SoC restait non câblée → bus APB mort → CPU figé au 1er accès APB.)
+514:     assign ahb_clk = bus80_clk;
+515:     assign apb_clk = ahb_clk;   // APB = net de l'AHB (1:1 exigé par le SoC, en-tête du socle)
+516:     // Reset du CPU : attend le LOCK de la PLL AE350 (schéma de l'analyseur : rst = sync ~lock)
+517:     reg [1:0] ae350_rst_sync = 2'b11;
+518:     always @(posedge bus80_clk) ae350_rst_sync <= {ae350_rst_sync[0], ~pll_ae350_lock};
+519:     wire ae350_por_n = ~ae350_rst_sync[1];
+520: 
+521:     // SoC AE350 + DDR3 standalone + pont Sipeed (socle analyseur, validé V3)
+522:     wire core_wfi_w;                 // CORE0_WFI_MODE du cœur (preuve de vie sans bus)
+523:     ae350_soc u_soc (
+524:         .clk50(clk),
+525:         .rst_key_n(ae350_por_n),
+526:         .core_clk(core_clk), .ahb_clk(ahb_clk), .apb_clk(apb_clk), .rtc_clk(rtc_clk),
+527:         .ddr_bank(ddr_bank), .ddr_cs(ddr_cs), .ddr_ras(ddr_ras), .ddr_cas(ddr_cas), .ddr_we(ddr_we),
+528:         .ddr_ck(ddr_ck), .ddr_ck_n(ddr_ck_n), .ddr_cke(ddr_cke), .ddr_reset_n(ddr_reset_n), .ddr_odt(ddr_odt),
+529:         .ddr_addr(ddr_addr), .ddr_dm(ddr_dm), .ddr_dq(ddr_dq), .ddr_dqs(ddr_dqs), .ddr_dqs_n(ddr_dqs_n),
+530:         .tck(ae350_tck), .tms(ae350_tms), .tdi(ae350_tdi), .tdo(ae350_tdo),
+
+
+SOURCE /home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ae350_soc.v SHA256 b7be3454b8e95eec519a8211766aeba13e77b8cbd6f87a7b28e8500514af65b3
+148:     wire ddr3_init_completed;
+149:     wire ddr3_init_ip;                // état de calibration réel de l'IP (diag : ddr3_init_completed peut être forcé)
+150:     reg  [1:0] init_sync = 2'b00;
+151:     always @(posedge ahb_clk or negedge rst_key_n)
+152:         if (!rst_key_n) init_sync <= 2'b00;
+153:         else init_sync <= {init_sync[0], ddr3_init_completed};
+154:     wire ae350_rstn = init_sync[1];
+155:     assign ddr_init = ddr3_init_completed;
+156:     assign dbg = {1'b1, ddr3_stop, ddr3_lock, ae350_rstn};
+157:     assign ddr_addr[15] = 1'b0;
+373:         .SPI_MISO_IN(sd_miso), .SPI_MOSI_IN(sd_cmd),
+374:         .SPI_HOLDN_OUT(), .SPI_HOLDN_OE(), .SPI_WPN_OUT(), .SPI_WPN_OE(),
+375:         .SPI_CLK_OUT(spi_clk_out), .SPI_CLK_OE(spi_clk_oe), .SPI_CSN_OUT(spi_csn_out), .SPI_CSN_OE(spi_csn_oe),
+376:         .SPI_MISO_OUT(), .SPI_MISO_OE(), .SPI_MOSI_OUT(spi_mosi_out), .SPI_MOSI_OE(spi_mosi_oe),
+377:         .CORE0_WFI_MODE(core0_wfi), .RTC_WAKEUP(),
+378:         .CORE_CLK(core_clk), .DDR_CLK(ddr3_clk_in), .AHB_CLK(ahb_clk), .APB_CLK(apb_clk), .RTC_CLK(rtc_clk),
+379:         .POR_RSTN(ae350_rstn), .HW_RSTN(ae350_rstn)
+380:     );
+381:     assign core_wfi_dbg = core0_wfi;
+
+
+SOURCE /home/michael/logic_analyser_wifi/tang/impl/linux_l31r8_local_20261012/workspace/tang/rtl/board/console138k_clk.v SHA256 f22268deabeedbe3ade9a86b2c655d5a8e1de16ca1df6ef921a0ba432db970bd
+1: // console138k_clk.v — horloges et reset synchrone, Tang Console 138K.
+2: //
+3: // Seul fichier du projet qui touche la PLL système (IP générée, voir PROVENANCE.md).
+4: // 50 MHz carte (V22) -> PLL -> clk 100 MHz (acquisition V2, et DDR_CLK du SoC) ;
+5: // V3 : les autres sorties de la même PLL alimentent l'AE350 (MUG1031 §4 : cœur ≤ 800 MHz,
+6: // AHB = APB synchrones 1:1 < 200 MHz, RTC). Le reset est tenu tant que la PLL n'est pas
+7: // verrouillée (PLL_INIT incluse), puis LOCK qualifié sur la référence 50 MHz.
+8: // Sous Verilator la PLL n'existe pas : clk = clk50, le banc fournit déjà 100 MHz.
+9: `default_nettype none
+10: module console138k_clk (
+11:     input  wire clk50,
+12:     output wire clk,        // 100 MHz
+13:     output wire rst,        // assertion asynchrone, libération synchrone à clk
+14:     output wire lock,       // verrouillage PLL (asynchrone)
+15:     output wire core_clk,   // 800 MHz  -> AE350 CORE_CLK
+16:     output wire ahb_clk,    //  80 MHz  -> AE350 AHB_CLK
+17:     output wire apb_clk,    //  80 MHz  -> AE350 APB_CLK = le net de l'AHB (1:1 exigé par le SoC ; un arbre d'horloge global de moins : 8/8 étaient pris avec l'USB, 2026-09-21)
+18:     output wire rtc_clk     //  10 MHz  -> AE350 RTC_CLK
+19: );
+20: `ifdef VERILATOR
+21:     assign clk      = clk50;
+22:     assign lock     = 1'b1;
+23:     assign core_clk = clk50;
+24:     assign ahb_clk  = clk50;
+25:     assign apb_clk  = clk50;
+26:     assign rtc_clk  = clk50;
+27: `else
+28:     Gowin_PLL_AE350 u_pll_sys (
+29:         .lock     (lock),
+30:         .clkin    (clk50),
+31:         .init_clk (clk50),
+32:         .enclk0   (1'b1), .enclk1(1'b1), .enclk2(1'b1), .enclk3(1'b1), .enclk4(1'b1),
+33:         .clkout0  (clk),
+34:         .clkout1  (core_clk), .clkout2(),
+35:         .clkout3  (),         .clkout4(rtc_clk)
+36:     );
+37:     // Bus AE350 sur le NET clk100 (2026-09-25, build V4) : un arbre d'horloge global par net, et le design HDMI en demandait 9 pour 8.
+38:     // MUG1031-1.3.1E § 4.1 : AHB et APB < 200 MHz, synchrones 1:1 entre eux ; cœur, DDR et AHB/APB asynchrones entre eux → 100 MHz
+39:     // autorisé, sans rapport imposé avec le cœur (800 MHz). La sortie 2 de la PLL (80 MHz) reste générée mais non connectée.
+40:     assign ahb_clk = clk;
+41:     assign apb_clk = ahb_clk;   // APB = net de l'AHB (voir en-tête)
+42: `endif
+43:     console138k_reset u_reset (.clk50(clk50), .clk(clk), .lock(lock), .rst(rst));
+44: endmodule
+45: 
+46: // UG306-1.0.9E, table 5-2: qualify LOCK continuously for at least 2 ms.
+47: // PLL_INIT selects analog settings; its final O_LOCK follows raw PLLLOCK and
+48: // does not itself guarantee this continuous interval after the final setting.
+49: // The reference clock keeps the qualification independent of PLL output edges.
+50: module console138k_reset #(
+51:     parameter integer LOCK_STABLE_CYCLES = 104000 // 2.08 ms at 50 MHz
+52: ) (
+53:     input wire clk50, clk, lock,
+54:     output reg rst = 1'b1
+55: );
+56:     (* syn_preserve = 1 *) reg [1:0] lock_sync = 2'b00;
+57:     reg [$clog2(LOCK_STABLE_CYCLES + 1)-1:0] lock_count = 0;
+58:     localparam [$clog2(LOCK_STABLE_CYCLES + 1)-1:0] LAST_LOCK_CYCLE = LOCK_STABLE_CYCLES - 1;
+59:     reg lock_qualified = 1'b0;
+60:     always @(posedge clk50 or negedge lock) begin
+61:         if (!lock) lock_sync <= 2'b00;
+62:         else lock_sync <= {lock_sync[0], 1'b1};
+63:     end
+64:     always @(posedge clk50 or negedge lock) begin
+65:         if (!lock) begin
+66:             lock_count <= 0;
+67:             lock_qualified <= 1'b0;
+68:         end else if (!lock_sync[1]) begin
+69:             lock_count <= 0;
+70:             lock_qualified <= 1'b0;
+71:         end else if (!lock_qualified) begin
+72:             if (lock_count == LAST_LOCK_CYCLE) lock_qualified <= 1'b1;
+73:             else lock_count <= lock_count + 1'b1;
+74:         end
+75:     end
+76:     // Capture loss even while clk is stopped. A short LOCK glitch must not
+77:     // disappear before the first returning clk edge reaches the USB copies.
+78:     reg [1:0] rst_sync = 2'b11;
+79:     always @(posedge clk or negedge lock_qualified) begin
+80:         if (!lock_qualified) begin
+81:             rst_sync <= 2'b11;
+82:             rst <= 1'b1;
+83:         end else begin
+84:             rst_sync <= {rst_sync[0], 1'b0};
+85:             rst <= rst_sync[1];
+86:         end
+87:     end
+88: endmodule
+89: `default_nettype wire
+
+
+SOURCE /home/michael/logic_analyser_wifi/tang/impl/linux_l31r8_local_20261012/workspace/tang/rtl/board/ae350_soc.v SHA256 fdd34677b2a690d30745007643b93f9059254b844f7e4d3a5b0cb7ba159f3a86
+128:         .enclk2  (ddr3_stop)
+129:     );
+130: 
+131:     // --- Resets -----------------------------------------------------------------------------
+132:     wire ddr3_init_completed;
+133:     wire ddr3_init_ip;                // état de calibration réel de l'IP (diag : ddr3_init_completed peut être forcé)
+134:     reg  [1:0] init_sync = 2'b00;
+135:     always @(posedge clk50) init_sync <= {init_sync[0], ddr3_init_completed};
+136:     wire ae350_rstn = init_sync[1];
+137:     assign ddr_init = ddr3_init_completed;
+138:     assign dbg = {1'b1, ddr3_stop, ddr3_lock, ae350_rstn};
+139:     assign ddr_addr[15] = 1'b0;
+140:     /* verilator lint_off UNUSEDSIGNAL */
+141:     wire key_unused_soc = rst_key_n;
+142:     /* verilator lint_on UNUSEDSIGNAL */
+143: 
+144:     // --- Bus mémoire de données du SoC (AHB 64 bits) -> pont Sipeed -> IP DDR3 -----------------
+145:     wire [63:0] ddr_hrdata, ddr_hwdata;
+146:     wire [31:0] ddr_haddr;
+365:         .EXTS_HSIZE(exts_hsize), .EXTS_HTRANS(exts_htrans), .EXTS_HWDATA(exts_hwdata), .EXTS_HWRITE(exts_hwrite),
+366:         .EXTS_HCLK(exts_hclk), .EXTS_HRSTN(exts_hrstn),
+367:         .UART2_TXD(uart2_tx), .UART2_RTSN(), .UART2_RXD(uart2_rx), .UART2_CTSN(1'b0), .UART2_DCDN(1'b0),
+368:         .UART2_DSRN(1'b0), .UART2_RIN(1'b1), .UART2_DTRN(), .UART2_OUT1N(), .UART2_OUT2N(),
+369:         .GPIO(), .CORE0_WFI_MODE(), .RTC_WAKEUP(),
+370:         .CORE_CLK(core_clk), .DDR_CLK(ddr3_clk_in), .AHB_CLK(BUS_DDR_CLK ? wr_clk : ahb_clk), .APB_CLK(BUS_DDR_CLK ? wr_clk : apb_clk), .RTC_CLK(rtc_clk),
+371:         .POR_RSTN(ae350_rstn), .HW_RSTN(ae350_rstn)
+372:     );
+373:     /* verilator lint_on PINCONNECTEMPTY */
+374: `endif
+
+
+SOURCE /home/michael/logic_analyser_wifi/tang/impl/linux_l31r8_local_20261012/workspace/tang/rtl/la_top_sd_boot.v SHA256 a7c3a0e8dd11d766d298203accdd1a2e7678cfbc81d5236a54a90e795265eb9d
+20:     assign gen_out = gen_out8[6:0];
+21:     /* verilator lint_off UNUSEDSIGNAL */ wire unused_usb = &{1'b0, pmod6, gen_out8[7]}; /* verilator lint_on UNUSEDSIGNAL */   // LED de diagnostic et sortie 7 : plus de broche (PMOD0 = boutons)
+22:     assign i2c_scl = scl_o ? 1'bz : 1'b0;
+23:     assign i2c_sda = sda_o ? 1'bz : 1'b0;
+24:     la_top #(.LINUX_IO(LINUX_IO), .SD_BOOT(1), .SOC_BUS_DDR_CLK(1), .USB_OUT(1), .USB_TRACE(USB_TRACE), .USB_GAMEPAD(USB_GAMEPAD), .ACQ_I2C(1), .ACQ_SPI(1), .GEN_OUT(1), .DISPLAY("HDMI"), .FB_SDRAM(1)) u (
+25:         .card_sck(card_sck), .card_mosi(card_mosi), .card_cs_n(card_cs_n), .card_miso(card_miso),
+26:         .clk50(clk50), .ch(ch), .uart_rx(uart_rx), .uart_tx(uart_tx), .led_n(led_n), .tp(tp_unused), .pmod(pmod6), .btn(btn), .key_rst_n(key_rst_n),
+27:         .gamepad_dp(gamepad_dp), .gamepad_dm(gamepad_dm),
+28:         .ddr_bank(ddr_bank), .ddr_cs(ddr_cs), .ddr_ras(ddr_ras), .ddr_cas(ddr_cas), .ddr_we(ddr_we), .ddr_ck(ddr_ck), .ddr_ck_n(ddr_ck_n),
+29:         .ddr_cke(ddr_cke), .ddr_reset_n(ddr_reset_n), .ddr_odt(ddr_odt), .ddr_addr(ddr_addr), .ddr_dm(ddr_dm), .ddr_dq(ddr_dq),
+
+
+SOURCE /home/michael/gowin/ref/TangMega-138KPro-example/ae350_customized_demo/src/key_debounce.v SHA256 46d7c257c515a4388cf3c3574c7cb6192021c0883c406bc692df826e04be3c7c
+1: 
+2: // Debounce by key
+3: module key_debounce(out, in, clk, rstn);
+4: 
+5: input  in;
+6: input clk;      // 50MHz
+7: output out;
+8: input rstn;
+9: 
+10: reg in_reg0;
+11: reg in_reg1;
+12: reg in_reg2;
+13: 
+14: localparam st_const = 20'd1000000;  // 20ms at 50MHz
+15: 
+16: always@(posedge clk or negedge rstn)
+17:     begin
+18:     if (!rstn)
+19:     begin
+20:         in_reg0 <= 1'b0;
+21:         in_reg1 <= 1'b0;
+22:         in_reg2 <= 1'b0;
+23:     end
+24:     else
+25:     begin
+26:         in_reg0 <= in;
+27:         in_reg1 <= in_reg0;
+28:         in_reg2 <= in_reg1;
+29:     end
+30: end
+31: 
+32: reg [19:0] cnt;
+33: 
+34: always@(posedge clk or negedge rstn)
+35:     begin
+36:     if (!rstn)
+37:     begin
+38:         cnt <= 20'd0;
+39:     end
+40:     else
+41:     begin
+42:         if (in_reg1 == in_reg2)
+43:         begin
+44:             cnt <= cnt + 1'b1;
+45:         end
+46:         else
+47:         begin
+48:             cnt <= 20'd0;
+49:         end
+50:     end
+51: end
+52: 
+53: reg out;
+54: 
+55: always@(posedge clk or negedge rstn)
+56:     begin
+57:     if (!rstn)
+58:     begin
+59:         out <= 1'b0;
+60:     end
+61:     else
+62:     begin
+63:         if (cnt == st_const)
+64:         begin
+65:             out <= in_reg2;
+66:         end
+67:     end
+68: end
+69: 
+70: endmodule
+
+
+SOURCE /home/michael/gowin/ref/TangMega-138KPro-example/ae350_customized_demo/src/ae350_customized_demo.v SHA256 5cca8d1a0511f6bf94ab191aab41f9b484b7631ece2bb27be451cde9ad3d3fd5
+58: 
+59: // Gowin_PLL_AE350 instantiation
+60: Gowin_PLL_AE350 u_Gowin_PLL_AE350
+61: (
+62:     .clkout0(DDR_CLK),          // 50MHz
+63:     .clkout1(CORE_CLK),         // 800MHz
+64:     .clkout2(AHB_CLK),          // 100MHz
+65:     .clkout3(APB_CLK),          // 100MHz
+66:     .clkout4(RTC_CLK),          // 10MHz
+67:     .clkin(CLK),
+68:     .enclk0(1'b1),
+69:     .enclk1(1'b1),
+70:     .enclk2(1'b1),
+71:     .enclk3(1'b1),
+72:     .enclk4(1'b1)
+73: );
+74: 
+75: 
+76: // Gowin_PLL_DDR3 instantiation
+77: Gowin_PLL_DDR3 u_Gowin_PLL_DDR3
+78: (
+79:     .lock(DDR3_LOCK),
+80:     .clkout0(DDR3_CLK_IN),          // 50MHz
+81:     .clkout2(DDR3_MEMORY_CLK),      // 200MHz
+82:     .clkin(CLK),
+83:     .reset(1'b0),                   // Enforce
+84:     .enclk0(1'b1),
+85:     .enclk2(DDR3_STOP)
+86: );
+87: 
+88: 
+89: wire ae350_rstn;                    // AE350 power on and hardware reset in
+90: wire ddr3_rstn;                     // DDR3 memory reset in
+91: wire ddr3_init_completed;           // DDR3 memory initialized completed
+92: 
+93: assign DDR3_INIT = ~ddr3_init_completed;
+94: 
+95: 
+96: // key_debounce instantiation
+97: // DDR3 memory reset in key debounce
+98: key_debounce u_key_debounce_ddr3
+99: (
+100:     .out(ddr3_rstn),
+101:     .in(RSTN),
+102:     .clk(CLK),      // 50MHz
+103:     .rstn(1'b1)
+104: );
+105: 
+106: 
+107: // key_debounce instantiation
+108: // AE350 power on and hardware reset in key debounce
+109: key_debounce u_key_debounce_ae350
+110: (
+111:     .out(ae350_rstn),
+112:     .in(ddr3_init_completed),
+113:     .clk(CLK),      // 50MHz
+114:     .rstn(1'b1)
+115: );
+116: 
+117: 
+210:     .GPIO({KEY, LED}),
+211:     .CORE_CLK(CORE_CLK),
+212:     .DDR_CLK(DDR_CLK),
+213:     .AHB_CLK(AHB_CLK),
+214:     .APB_CLK(APB_CLK),
+215:     .RTC_CLK(RTC_CLK),
+216:     .POR_RSTN(ae350_rstn),              // AE350 CPU core power on reset, 0 is reset state
+217:     .HW_RSTN(ae350_rstn)                // AE350 hardware reset, 0 is reset state
+218: );
+219: 
+220: endmodule
+
+
+SOURCE /home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/UG306_109E.txt SHA256 69718b265a080023437835a0821d6d9f2e71d42eb021cef9d956f2f2216623de
+2028:                           Dynamically control of phase shift channel selection:
+2029:   PSSEL[2:0]      Input
+2030:                           Values 0–6: Selects channel 0–6 respectively.
+2031:   PSPULSE         Input   Dynamic control of clock pulse of phase shift
+2032: 
+2033: UG306-1.0.9E                                                                              38(124)
+2034: 
+2035: 5 System Clock                                                                                    5.1 PLL PLL
+2036: 
+2037: 
+2038: 
+2039:   Port                I/O          Description
+2040:                                    Dynamic control of channel 0 clock output enable; if you want to use
+2041:   ENCLK0              Input        dynamic enable, you need to set static parameter
+2042:                                    CLKOUT0_EN="TRUE".
+2043:                                    Dynamic control of channel 1 clock output enable; if you want to use
+2044:   ENCLK1              Input        dynamic enable, you need to set static parameter
+2045:                                    CLKOUT1_EN="TRUE".
+2046:                                    Dynamic control of channel 2 clock output enable; if you want to use
+2047:   ENCLK2              Input        dynamic enable, you need to set static parameter
+2048:                                    CLKOUT2_EN="TRUE".
+2049:                                    Dynamic control of channel 3 clock output enable; if you want to use
+2050:   ENCLK3              Input        dynamic enable, you need to set static parameter
+2051:                                    CLKOUT3_EN="TRUE".
+
+
+SOURCE /home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/vendor_docs/MUG1031-1.3.1E.txt SHA256 5a712fc53c94e41a56675968075eb2d021ab809c89b0fe9a84b4cbf037aefe07
+615:                                    Two 8-bit timers and one 8-bit PWM
+616:                     WDT            The WDT controller prevents the system from hanging if software is
+617:                                    trapped in a deadlock condition.
+618:                                    Internal/external clock source selection
+619:                                    Separate timers for the watchdog interrupt and the system reset
+620:                                    Eight choices of watchdog timer intervals
+621:                                    Four choices of reset timer intervals
+622:                                    Register write protection for watchdog timer control register and
+623:                                    restart register
+624:                                    Configurable magic number for register write protection
+625: 
+626: 
+627: 
+628: MUG1031-1.3.1E                                                                                         8(55)
+629: 
+630: 3 System Feature                                                            3.3 Bus Peripheral System
+709:                    Extended     For user to extend AHB interface peripherals in FPGA fabric
+710:                    AHB Slave    32-bit data bit width
+711:                                 Size: 128MB
+712:                                 AE350_SOC is as a master
+713:                    Extended     For slave port supported, assesses local memory by a master in
+714:                    AHB Master   FPGA fabric
+715:                                 64-bit data bit width
+716:                                 AE350_SOC is as a slave
+717: 
+718: 
+719: 
+720: 
+721: MUG1031-1.3.1E                                                                                    10(55)
+722: 
+723: 4 System Performance                                                                      4.1 System Clock
+724: 
+725: 
+766:  4.3 Performance Indicators
+767:                       The performance indicators for Gowin RiscV_AE350_SOC are
+768:                    measured based on benchmark programs Dhrystone, CoreMark, and
+769:                    Whetstone, as shown in Table 4-3.
+770:                    Table 4-3 Performance Indicators
+771:                        Benchmark Program     Performance Indicator
+772:                        Dhrystone             1.72 DMIPS/MHz
+773:                        CoreMark              3.224845 CoreMark/MHz
+774:                        Whetstone             0.783 MWIPS/MHz
+775: 
+776: 
+777: 
+778: 
+779: MUG1031-1.3.1E                                                                          12(55)
+780: 
+781: 5 System Ports
+782: 
+1829: 
+1830:                         Use the physical constraints tool FloorPlanner in Gowin Software to
+1831:                     add physical constraints with the reference to the development board.
+1832:                          For example, the JTAG interface connection for the
+1833:                     DK_START_GW5AST-LV138FPG676A V1.0 development Board
+1834:                     reference design and Andes AICE-MINI+ debugger is as shown in Table
+1835:                     8-1.
+1836:                     Table 8-1 Physical Constraints for JTAG in Reference Design (Andes AICE-MINI+
+1837:                     Debugger)
+1838:                      JTAG Interface           DVK Board           Andes AICE-MINI+ Debugger
+
+
+SOURCE /home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/pll_init.v SHA256 3ef05a1ba92157d73e3c54ed9d589645508a4ae332d8bcf133a0457cc3e866c8
+19: localparam WAIT_TIME = 'd2000_000;      
+20: localparam WAIT_CNT = (WAIT_TIME + CLK_PERIOD - 1) / CLK_PERIOD; 
+21: localparam WAIT_WIDTH = $clog2(WAIT_CNT + 1);
+22: 
+23: reg [WAIT_WIDTH-1:0] waitcnt = 'd0;
+24: reg [3:0] RomAddr = 'd0;
+25: reg [15:0] Rom [15:0];
+26: reg [15:0] RomDreg ='d0;
+27: wire [5:0] Regicp = RomDreg[5:0];
+28: wire [2:0] Regres = RomDreg[10:8];
+29: reg Waitlock = 'd0;
+30: reg [7:0] locksig = 8'b0000_0000;
+31: reg laststep = 1'b0;
+32: 
+33: wire validsig = RomDreg[12];
+34: reg [1:0]enable_r = 2'b00;
+35: 
+36: wire Enable = enable_r[1];
+37: always @(posedge CLKIN or posedge I_RST)
+38: begin
+39:     if (I_RST)
+40:         enable_r <= 2'b00;
+41:     else
+42:         begin
+43:             enable_r <= {enable_r[0], 1'b1};
+44:         end
+45: end 
+46: 
+126: reg [3:0]state='d0;
+127: localparam IDLE  = 4'd0;
+128: localparam STATE1 = 4'd1;
+129: localparam STATE2 = 4'd2;
+130: localparam STATE3 = 4'd3;
+131: localparam STATE4 = 4'd4;
+132: localparam STATE5 = 4'd5;
+133: localparam STATE6 = 4'd6;
+134: localparam STATE7 = 4'd7;
+135: 
+136: 
+137: 
+138: always @(posedge CLKIN or negedge Enable)
+139: begin
+140:     if (Enable == 1'b0)
+141:         begin
+142:         state <= IDLE;
+143:         RomAddr<=4'b0000;
+144:         laststep <= 1'b0;
+145:         end
+146:     else
+147:         begin
+148:             case (state)
+149:                 IDLE: 
+150:                     begin
+151:                     state<=STATE1;
+152:                     end
+153:                 STATE1:
+154:                     begin
+155:                     state<=STATE2;
+156:                     end
+157:                 STATE2:
+158:                     begin
+159:                     if (laststep==1'b1)
+160:                         state<=STATE7;
+161:                     else
+162:                         state<=STATE3;
+163:                     end
+164:                 STATE3:
+165:                     begin
+166:                     if (Waitlock==1'b1)
+167:                         state<=STATE4;
+168:                     else
+169:                         state<= STATE3;
+170:                     end
+171:                 STATE4:
+172:                     begin
+173:                     state<=STATE5;               
+174:                     end
+175:                 STATE5:
+176:                     begin
+177:                     if (validsig==1'b1)
+178:                         begin
+179:                             RomAddr <= RomAddr + 1;
+180:                             state <= STATE1;
+181:                         end
+182:                     else if (validsig==1'b0 && laststep==1'b0)
+183:                             state <= STATE6;
+184:                     end
+185:                 STATE6:
+186:                     begin
+187:                     RomAddr <= RomAddrVld;
+188:                     laststep <= 1'b1;
+189:                     state <= STATE1;
+190:                     end
+191:                 STATE7:
+192:                     begin
+193:                     state<=STATE7;
+194:                     end
+195: 
+196:                 default: state<=IDLE;
+197:             endcase
+198:         end
+199: end
+200: 
+201: always @(posedge CLKIN)
+202: begin
+203: 
+204: 
+205:     Waitlock <= (&waitcnt == 1'b1) ? 1'b1 : 1'b0; 
+206:     
+207:     waitcnt <= (state==STATE3) ? (waitcnt+1) : 'd0;
+208:     
+209:     if (~Enable)    locksig <= 8'b0000_0000;
+210:     else    if (state==STATE4)   locksig[RomAddr[3:0]] <= PLLLOCK;
+211: 
+212: 
+213: end
+214: 
+215: assign ICPSEL = Regicp;
+216: assign LPFRES = Regres;
+217: assign O_RST = (~Enable) || (state==STATE2) ? 1'b1 : 1'b0;
+218: assign O_LOCK = (state==STATE7) ? PLLLOCK : 1'b0;
+219: 
+220: endmodule
+221: 
+
+
+SOURCE /home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/ae350/pll_ae350/gowin_pll_ae350.v SHA256 f87925e087e4e794cca37a800ff6a8355c61a2d365fc90d2acc92b87b5b569f4
+34: wire pll_rst;
+35: 
+36: 
+37:     Gowin_PLL_AE350_MOD u_pll(
+38:         .enclk0(enclk0),
+39:         .enclk1(enclk1),
+40:         .enclk2(enclk2),
+41:         .enclk3(enclk3),
+42:         .enclk4(enclk4),
+43:         .clkout1(clkout1),
+44:         .clkout2(clkout2),
+45:         .clkout3(clkout3),
+46:         .clkout4(clkout4),
+47:         .clkout0(clkout0),
+48:         .lock(pll_lock),
+49:         .clkin(clkin),
+50:         .reset(pll_rst),
+51:         .icpsel(icpsel),
+52:         .lpfres(lpfres),
+53:         .lpfcap(2'b00)
+54:     );
+55: 
+56: 
+57:     PLL_INIT u_pll_init(
+58:         .CLKIN(init_clk),
+59:         .I_RST(1'b0),
+60:         .O_RST(pll_rst),
+61:         .PLLLOCK(pll_lock),
+62:         .O_LOCK(lock),
+63:         .ICPSEL(icpsel),
+64:         .LPFRES(lpfres)
+65:     );
+66:     defparam u_pll_init.CLK_PERIOD = 20;
+67:     defparam u_pll_init.MULTI_FAC = 16;
+68: 
+69: 
+70: endmodule

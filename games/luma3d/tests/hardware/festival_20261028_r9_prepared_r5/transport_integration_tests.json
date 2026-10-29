@@ -1,0 +1,154 @@
+{
+  "passed": true,
+  "hardware": false,
+  "tests": 1,
+  "records": [
+    {
+      "mode": "F_early",
+      "result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "error": "ReceiverUncertain('Unexpected data reply code=70 value=0 seq=0')",
+        "preserved_gm1": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          },
+          "save": {
+            "bytes": 5292,
+            "sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+          }
+        },
+        "signals": [],
+        "receiver_resync_attempted": true,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "state": "idle",
+      "commands": [
+        "printf \"\\nLMA_CONFIRMED_RX_SHELL\\n\"",
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "od -b -v /tmp/op2-live.save"
+      ],
+      "baseline_active": true
+    },
+    {
+      "mode": "F",
+      "result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "error": "ReceiverUncertain('Unexpected data reply code=70 value=0 seq=0')",
+        "receiver_abort_error": "ReceiverUncertain('Receiver state unresolved; no abort bytes or shell commands sent')",
+        "cleanup_blocked": "Receiver return or confirmed-return resynchronization unresolved; subsequent preservation/recovery queries skipped",
+        "manual_recovery_required": true,
+        "signals": [],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "state": "unknown",
+      "commands": [],
+      "baseline_active": true
+    },
+    {
+      "mode": "success",
+      "result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "error": "RuntimeError('Test ends after transfer, before any baseline stop')",
+        "preserved_gm1": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          },
+          "save": {
+            "bytes": 5292,
+            "sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+          }
+        },
+        "signals": [],
+        "receiver_resync_attempted": false,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "state": "complete",
+      "commands": [
+        "if test -f /tmp/luma3d-live.pid; then p=`cat /tmp/luma3d-live.pid`; if test -d /proc/$p; then cat /proc/$p/comm; cat /proc/$p/status; else echo STOPPED; fi; else echo UNPUBLISHED; fi",
+        "p=`cat /tmp/luma3d-live.pid`; cat /proc/$p/stat; od -b -v /proc/$p/cmdline",
+        "od -b -v /tmp/op2-live.save"
+      ],
+      "baseline_active": true
+    },
+    {
+      "mode": "resync_failure",
+      "result": {
+        "passed": false,
+        "hardware": true,
+        "windows": [],
+        "fpga_writes": 0,
+        "kernel_writes": 0,
+        "sd_writes": 0,
+        "flash_writes": 0,
+        "save_writes": 0,
+        "candidate_promoted": false,
+        "initial": {
+          "identity": {
+            "pid": 3158,
+            "start_ticks": 27508908
+          }
+        },
+        "error": "ReceiverUncertain('Unexpected data reply code=70 value=0 seq=0')",
+        "receiver_abort_error": "RuntimeError('Shell resynchronization failed after confirmed receiver return')",
+        "cleanup_blocked": "Receiver return or confirmed-return resynchronization unresolved; subsequent preservation/recovery queries skipped",
+        "manual_recovery_required": true,
+        "signals": [],
+        "receiver_resync_attempted": true,
+        "outcome": "FAILED_OR_INTERRUPTED"
+      },
+      "state": "returned_error",
+      "commands": [
+        "printf \"\\nLMA_CONFIRMED_RX_SHELL\\n\""
+      ],
+      "baseline_active": true
+    }
+  ],
+  "manifest_sha256": "2f2837b1e88dcbcb245dee9e1441e5f1ac557d29ada7597b2e763d087eb1869d",
+  "test_sha256": "fe49d0618c2a540f8c25073113a161bc71ae5afad98b493e7f1688915e91339a"
+}

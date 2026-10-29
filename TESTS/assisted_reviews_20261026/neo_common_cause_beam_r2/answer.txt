@@ -1,0 +1,41 @@
+Avis indépendant — deuxième passe (800 mots max)
+
+Faits vérifiés, citations fournies (aucune exécution revendiquée ici)
+- `usb_idle_trace.v:74–78` expose trois registres AHB side AHB traceur USB : ID `0x55544e41`, busy/rejected, compteur de captures terminées. Le procès readonly cité n’a pas lu la banque USB à `+40..bc` ; ces trois mots ne mesurent donc pas l’activité du domaine USB (`evidence/packet.txt`; `contradiction_r1/README.md`, ligne "Les deux avis : UTNA `[ID,0,0]` = snapshot stale").
+- Les commandes 1/6/2 pilotent l’observateur et modifient son état; ce n’est ni observation pure ni preuve d’arrêt de l’USB (`contradiction_r1/README.md`, "Beam ligne 214").
+- R21r2 : 4 lectures sur 1,633 s donnent `frames=0`, checksum 0, mode 0, framebuffer/couches/sprites désactivés. R19 paired : 377 588 → 377 686 frames et checksum `0x1ff8f800`. R21r2 a ensuite restauré R19 ; garde finale PASS. L’essai ne distingue pas horloge pixel/reset du CDC de compteur (`evidence/packet.txt`, chronologie point 8).
+- Essai R1 (autre build) : ~12,87 M ticks/200 ms et ~2,57 M cycles RXERROR, sans SOF/reset/token. Ne pas l’élever au statut de mesure courante (`evidence/packet.txt`).
+- Défauts logiques exact-source reproductibles : perte de LOCK capturée par reset asynchrone AHB avec qualifier stale → libération POR 49,5 ns après retour de LOCK ; autre phase → impulsion POR 12,5 ns avec `delay_done=0`. Occurrence physique non établie; stimuli 1 ns prouvent la logique, pas le silicium (`evidence/packet.txt`, chronologie point 6).
+- PLL/vidéo : config Neo dynamique (ICP/LPF zéro, X) vs Pro statique; `pixel_up` se libère après 3 fronts pixel avec LOCK haut, sans qualification continue 2 ms; reset scanout séparé via `vid_hrstn`; L31r8 a le fichier vidéo strictement identique et a affiché (SHA `0f70154…`) (`video_pll_audit_01/README.md`, `video_pll_audit_01/result.json`).
+- Aucun conflit INIT avec DFFCE/DFFPE sur quatre netlists; cela ne prouve pas la présence physique des horloges ni la distribution du reset (`init_audit_01/README.md`).
+
+Graphe causal minimal (hypothèses, pas résultats)
+- H1 cause commune d’intégration (qualification LOCK 2 ms, libération de resets AE350, reset scanout): peut expliquer plusieurs symptômes simultanés, mais n’expliquerait pas à elle seule une activité USB stable si mesurée, ni la séparabilité HDMI/DDR déjà établie.
+- H2 fautes multiples (reset vidéo/candidate d’un côté, USB/IP cible/configuration de l’autre): compatible avec la séparabilité et avec un R19 fonctionnel pour certains témoins, mais ne prouve pas l’absence de lien physique commun.
+- H3 observateur/protocole insuffisant : peut expliquer des snapshots ininterprétables sans bank read complète ni commande reproductible.
+
+Test discriminant suivant (limité, bitstreams existants, sans PnR)
+1. Restaurer R19 ou R21r2, puis cycle d’alimentation; vérifier garde JTAG 100 kHz et mire.
+2. Clear trace, `arm=1`; attendre un intervalle fixe borné (ex. 200 ms) sans autre échange; `snapshot+disarm=6`; puis snapshot2 après un second intervalle fixe (ex. 100 ms).
+3. Lire avec horodatage root : trois mots AHB ID ACK/seq/busy rejected, et si disponible la banque USB `+40..bc`, simultanément DMI frames/checksum/mode et vue non obstruée.
+4. Répéter au moins 3 fois par version, ordre randomisé, en restaurant R19 et en refaisant la garde entre versions; ne pas promouvoir les résultats R1.
+Ce que le test permettrait :
+- Un tick/compteur stable visible + deux snapshots concordants prouveraient une activité partielle du traceur USB pendant la fenêtre, donc la vivacité du domaine USB et de la voie de commande AHB au moment observé.
+- Un accord R19/R21r2 affaiblirait l’hypothèse d’une horloge USB entièrement arrêtée dans cette même fenêtre.
+Ce que le test ne permet pas de conclure :
+- ni cause commune, ni absence de cause commune;
+- ni le moment exact de libération des resets, ni l’occurrence physique des défauts simulés, ni l’validité de l’horloge pixel;
+- ni si `frames=0` vient du reset scanout (`vid_hrstn`), du CDC du compteur (`gpu_scanout.v:245–274` incrémente sans commit DDR) ou de la qualification de LOCK;
+- des zéros ou une divergence n’établissent pas un arrêt d’horloge sans bank read complète et commande reproductible;
+- des résultats stables n’excluent pas un défaut physique répétable; des variations n’impliquent pas nécessairement un défaut logique.
+
+Rejet explicite de la prédiction simplificatrice
+Refuser l’équivalence "déterministe = logique" et "physique = aléatoire" (`contradiction_r1/README.md`, disposition "Beam lignes 257/278/283"). Une violation STA peut donner une mauvaise capture, un état stable erroné ou aucun effet; un défaut analogique/PLL peut être répétable dans les mêmes conditions. Une simulation RTL sans délais ne manifeste pas une violation STA. Le déterminisme n’est donc pas une classe de preuve.
+
+Intérêt limité d’une écriture/relecture shadow vidéo non commitée
+Elle peut être utile comme expérience active bornée pour tester la portée de `hresetn`/`hclk` et la buserie AHB, mais ce n’est pas une observation pure : elle altère l’état, impose son timing, et dépend d’un registre réellement disponible. Elle ne prouve ni l’horloge pixel, ni la désassertion de `vid_hrstn`, ni le LOCK, ni la synchronisation de `ae350_rst_sync`; un échec non plus. Elle doit être précédée de simulation source/mapped et d’audit statique, limitée aux registres existants; pas de nouveau PnR. Si aucun registre shadow n’existe, commencer par la simulation plutôt que d’ajouter une primitive.
+
+Protocole borné et rollback R19
+- Bitstream figé, firmware identique, commandes root documentées; pas de nouveaux routages.
+- Rollback R19 : après chaque essai, restaurer R19, cycle d’alimentation complet, puis revalider mire et JTAG 100 kHz; ne libérer R21r2 qu’après conservation des snapshots.
+- Artefacts manquants avant toute causalité : source exacte des commandes/bank, arbres de clocks/SDC routés, chronologies root, photos non obstruées, captures brutes. Tant qu’ils manquent, toute cause reste hypothèse.

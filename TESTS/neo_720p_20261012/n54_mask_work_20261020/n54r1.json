@@ -1,0 +1,26 @@
+{
+  "source": "/home/michael/console/tang/impl/console_neo_n54_timing",
+  "netlist_sha256": "b85a575f994236d222fd2c070e2fb817a4690de62ee78a4b0fcf45be24529982",
+  "base_cst_sha256": "14677bef7a55855a4223af1838a91cc5a1c670adacae6e762522cad1851494f8",
+  "candidate_cst_sha256": "085def1bdd6c2c06be9669e092960af7d2be9e8fba416aa4a466616a298f1415",
+  "cells": {
+    "u_soc/vid_hrstn_r_s0": {
+      "kind": "DFFCE",
+      "ports": "\n    .Q(vid_hrstn),\n    .D(exts_hrstn),\n    .CLK(vid_hclk),\n    .CLEAR(GND),\n    .CE(VCC) \n",
+      "region": "R[50:65]C[100:120]"
+    },
+    "u_accel/engine_resetn_1_s0": {
+      "kind": "DFFCE",
+      "ports": "\n    .Q(gpu_debug_state_45),\n    .D(gpu_debug_state_42),\n    .CLK(gpu_clk),\n    .CLEAR(n3390_6),\n    .CE(VCC) \n",
+      "region": "R[30:50]C[70:95]"
+    },
+    "u_accel/engine_resetn_3_s0": {
+      "kind": "DFFCE",
+      "ports": "\n    .Q(gpu_debug_state_47),\n    .D(gpu_debug_state_42),\n    .CLK(gpu_clk),\n    .CLEAR(n3390_6),\n    .CE(VCC) \n",
+      "region": "R[60:80]C[70:95]"
+    }
+  },
+  "evidence": "timing_analysis.json",
+  "rationale": "N54r0 reset routes to engine_resetn[1,3] are 7.968/8.380 ns. Bring their receivers toward the bus reset source. Leave DDR cells and logic unchanged.",
+  "limitation": "Placement hypothesis only; reroute and all timing checks required."
+}

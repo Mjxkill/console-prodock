@@ -1,0 +1,1396 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Nouvelle question précise après activité réelle: version0 persiste sur quatre remplissages mais ticks et armed sont exacts. Vérifier les conclusions sur case1 versus classe1 et critiquer la proposition minimale de témoin HCLK capturant reply avant banque avec mots0/2 et compteur. Quelles observations distingueraient réellement amont et banque? Pas de patch ni nouveau protocole matériel; réponses courtes avec conditions et fausses conclusions à éviter.
+
+EVIDENCE PACKET:
+NOUVELLE QUESTION, PAS UNE REVUE GENERALE: la version0 persiste sur quatre remplissages, alors que ticks/armed et mots0/2/3/16/31 sont corrects. La validité de classe1 reste non couverte par un deuxième mot non nul. Quels défauts simples sont réfutés, que peut réellement départager un témoin de reply avant la banque en HCLK, et quels garde-fous minimaux rendent ce témoin interprétable? Aucun accès carte, patch, routage ou outil. Ne pas conclure cause globale Neo ni défaut silicium. Ne pas proposer encore des relectures identiques ou un reset improvisé. Critique seulement des trois assertions: persistance réfute le seul stale-initial après écriture correcte; autresclasses correctes ne valident pasclasse1; témoin explicite horsRAM distingue l'amont de la banque sous conditions. La simulation .vo exacte passe mais sansSDF.
+
+
+FILE TESTS/neo_common_cause_20261028/utna_activity_analysis_01/README.md
+# R19 : activité correcte, version UTNA toujours nulle
+
+Analyse hors carte de la capture root `activity_20261028_000942`.
+`analyse_capture.py` vérifie les SHA de tous ses fichiers et la restauration R19.
+Aucun accès matériel, nouveau routage ou changement du RTL commun.
+
+| Capture | Commande / séquence | Version | Ticks (mot3) | Armed (mot31) |
+|---|---|---:|---:|---|
+| ARM | 1 / 1 | 0 | 0 | Non |
+| DISARM | 6 / 2 | 0 | 26 061 045 | Oui |
+| STOPPED | 2 / 3 | 0 | 26 061 046 | Non |
+| STABLE | 2 / 4 | 0 | 26 061 046 | Non |
+
+Chaque banque a été lue deux fois, identique. ID, commande et acquittements
+sont corrects. Le contrat pré-clear/pré-disarm, le dernier tick +1 et son arrêt
+sont respectés. Le mot16 vaut1 aux trois dernières captures. La version reste
+nulle à toutes les lectures : l'essai demeure **FAIL**, R19 a été restaurée.
+
+## Ce qui est établi, et ce qui ne l'est pas
+
+L'observateur exécute les commandes et transfère des données qui changent.
+Un blocage permanent de tout l'observateur sous reset n'explique pas ces données.
+Cela ne valide ni tous les resets de la Neo, ni ses autres blocs, ni la
+fréquence physique de l'horloge, ni une liaison USB HS fonctionnelle.
+
+Le défaut version0 persiste après quatre remplissages, sans reconfiguration
+entre eux. Le scénario simple « première lecture prématurée de la case1,
+puis écriture correcte laissant1 dans la mémoire » prédit une amélioration
+au remplissage suivant, qui n'est pas observée. Il est donc insuffisant sous
+ses propres hypothèses. Cela n'innocente pas toute la FIFO : une erreur
+persistante de case/adresse/enable peut toujours produire le motif.
+
+## La classe1 n'a toujours pas de deuxième témoin non nul
+
+| Mot | Adresse | Valeur non nulle observée | Classe modulo4 | Ligne de validité | Demi-banque |
+|---:|---|---|---:|---:|---:|
+| 0 | 0xe9002040 | ID=0x55544e41 | 0 | 0 | 0 |
+| 2 | 0xe9002048 | Commandes1/6/2 | 2 | 0 | 0 |
+| 3 | 0xe900204c | Ticks variables | 3 | 0 | 0 |
+| 16 | 0xe9002080 | 1 | 0 | 4 | 1 |
+| 31 | 0xe90020bc | 0x400 pendant armed | 3 | 7 | 1 |
+
+Les classes0,2,3 et les lignes0,4,7 donnent des données non nulles. Le masque
+global de banque et ses deux demi-banques ne sont donc pas continuellement
+nuls. Le bit0 est aussi lu à1 au mot16 : ce n'est pas une sortie bit0 toujours
+nulle. Le mot3 prouve qu'une adresse avec address[2]=1 peut être lue ; cela
+ne prouve pas toute la sélection particulière de la classe1.
+
+Les mots de classe1 sont 1,5,9,13,17,21,25,29. Ils sont tous nuls ; seul le
+mot1 a une valeur non nulle certaine imposée par le RTL. Aucun stimulus ne
+garantit ici un compteur IN3, une erreur RX, un stall ou un historique non nul
+dans les autres mots. On ne peut donc pas dire que toute la classe1 est cassée,
+ni qu'elle fonctionne. Une seule case1 erronée et un masque de classe1 erroné
+restent compatibles avec la capture.
+
+## Vérification supplémentaire de la netlist réellement routée
+
+Les précédentes simulations complètes utilisaient la netlist de synthèse `.vg`.
+`check_routed_v2.py` extrait les **3 729 primitives exactes** du bloc dans `.vo`,
+y compris la SDPB32 scindée au routage en deux SDPB16 et les quatre RAM de
+validité. Trois couples de périodes/phases passent la séquence complète avec
+version1. Aucun Gowin n'a été lancé.
+
+Le premier essai du banc échouait dès l'ID parce que son raccordement traitait
+`bus_htrans[1:1]` comme un bus à deux bits ; le warning Icarus le signalait.
+Il reste conservé. La version2 raccorde ce port d'un seul bit et compile sans
+warning. Ce défaut de banc n'est pas assimilé au défaut matériel version0.
+
+La simulation routée reste **fonctionnelle sans SDF**. Elle ferme une lacune
+de couverture du mapping, pas une preuve de timing, de métastabilité ou de
+la forme réelle des resets au démarrage.
+
+## Prochaine séparation utile
+
+Répéter les mêmes lectures ne séparera pas la sortie de la FIFO de la banque.
+Deux possibilités existent, avec des portées différentes :
+
+1. Produire un mot de classe1 non nul indépendamment de version, par exemple
+   IN3 au mot5. Il faut alors un stimulus USB hôte contrôlé, actuellement hors
+   du protocole sans transfert USB. Ce test sépare davantage une classe entière
+   d'une case unique, mais ne localise pas encore FIFO versus banque.
+2. Ajouter un **témoin au domaine HCLK**, juste avant la banque : lorsque
+   `reply_valid && receive_index==1`, conserver `reply` dans des bascules
+   explicites, avec un compteur de capture. Conserver aussi les mots0 et2 et
+   leurs identités comme témoins. Après busy=0, lire ces témoins par un chemin
+   qui n'utilise pas la RAM/validité de banque existante.
+
+Cette seconde piste est la plus directement discriminante :
+
+| Témoin mot1 avant banque | Banque mot1 | Direction du diagnostic |
+|---:|---:|---|
+| 1, témoins0/2 et compteur corrects | 0 | Écriture/stockage/validité/lecture de banque |
+| 0, témoins0/2 et compteur corrects | 0 | En amont de la banque, dont FIFO ou émission |
+| Témoins/compteur incohérents | Indifférent | Instrumentation ou contrat non validé : aucune localisation |
+
+Il s'agit d'une **proposition**, pas d'un correctif ni d'un candidat construit.
+Les témoins sont dans HCLK ; aucun nouveau CDC de données n'est nécessaire à
+cette première séparation. Il faudra prouver que les bascules ne sont pas
+ré-inférées en RAM, vérifier leurs contraintes et préserver R19 comme contrôle.
+Un nouveau placement peut modifier le symptôme ; sa disparition seule ne
+désignerait pas la cause et ne justifierait pas une promotion.
+
+Cette anomalie d'un observateur ne suffit pas à expliquer les autres défauts
+Neo ni l'écart global avec la Pro Dock.
+
+
+FILE TESTS/neo_common_cause_20261028/utna_activity_analysis_01/capture_analysis.json
+{
+  "hardware_access": false,
+  "capture_sha256": "1c39884c0dab5fca3a1217eef887cbd1ac7e8fca21f250174070ce85bfdf342d",
+  "capture_files_verified": true,
+  "restored_R19": true,
+  "phases": [
+    {
+      "phase": "ARM",
+      "sequence": 1,
+      "command": 1,
+      "ticks": 0,
+      "armed": false,
+      "nonzero": [
+        {
+          "word": 0,
+          "address": "0xe9002040",
+          "value": 1431588417,
+          "value_hex": "0x55544e41",
+          "lane": 0,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 2,
+          "address": "0xe9002048",
+          "value": 1,
+          "value_hex": "0x1",
+          "lane": 2,
+          "validity_row": 0,
+          "data_half": 0
+        }
+      ]
+    },
+    {
+      "phase": "DISARM",
+      "sequence": 2,
+      "command": 6,
+      "ticks": 26061045,
+      "armed": true,
+      "nonzero": [
+        {
+          "word": 0,
+          "address": "0xe9002040",
+          "value": 1431588417,
+          "value_hex": "0x55544e41",
+          "lane": 0,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 2,
+          "address": "0xe9002048",
+          "value": 6,
+          "value_hex": "0x6",
+          "lane": 2,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 3,
+          "address": "0xe900204c",
+          "value": 26061045,
+          "value_hex": "0x18da8f5",
+          "lane": 3,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 16,
+          "address": "0xe9002080",
+          "value": 1,
+          "value_hex": "0x1",
+          "lane": 0,
+          "validity_row": 4,
+          "data_half": 1
+        },
+        {
+          "word": 31,
+          "address": "0xe90020bc",
+          "value": 1024,
+          "value_hex": "0x400",
+          "lane": 3,
+          "validity_row": 7,
+          "data_half": 1
+        }
+      ]
+    },
+    {
+      "phase": "STOPPED",
+      "sequence": 3,
+      "command": 2,
+      "ticks": 26061046,
+      "armed": false,
+      "nonzero": [
+        {
+          "word": 0,
+          "address": "0xe9002040",
+          "value": 1431588417,
+          "value_hex": "0x55544e41",
+          "lane": 0,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 2,
+          "address": "0xe9002048",
+          "value": 2,
+          "value_hex": "0x2",
+          "lane": 2,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 3,
+          "address": "0xe900204c",
+          "value": 26061046,
+          "value_hex": "0x18da8f6",
+          "lane": 3,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 16,
+          "address": "0xe9002080",
+          "value": 1,
+          "value_hex": "0x1",
+          "lane": 0,
+          "validity_row": 4,
+          "data_half": 1
+        }
+      ]
+    },
+    {
+      "phase": "STABLE",
+      "sequence": 4,
+      "command": 2,
+      "ticks": 26061046,
+      "armed": false,
+      "nonzero": [
+        {
+          "word": 0,
+          "address": "0xe9002040",
+          "value": 1431588417,
+          "value_hex": "0x55544e41",
+          "lane": 0,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 2,
+          "address": "0xe9002048",
+          "value": 2,
+          "value_hex": "0x2",
+          "lane": 2,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 3,
+          "address": "0xe900204c",
+          "value": 26061046,
+          "value_hex": "0x18da8f6",
+          "lane": 3,
+          "validity_row": 0,
+          "data_half": 0
+        },
+        {
+          "word": 16,
+          "address": "0xe9002080",
+          "value": 1,
+          "value_hex": "0x1",
+          "lane": 0,
+          "validity_row": 4,
+          "data_half": 1
+        }
+      ]
+    }
+  ],
+  "observed_nonzero_words": [
+    0,
+    2,
+    3,
+    16,
+    31
+  ],
+  "observed_nonzero_lanes": [
+    0,
+    2,
+    3
+  ],
+  "observed_nonzero_validity_rows": [
+    0,
+    4,
+    7
+  ],
+  "lane1_words": [
+    {
+      "word": 1,
+      "address": "0xe9002044",
+      "all_captures_zero": true
+    },
+    {
+      "word": 5,
+      "address": "0xe9002054",
+      "all_captures_zero": true
+    },
+    {
+      "word": 9,
+      "address": "0xe9002064",
+      "all_captures_zero": true
+    },
+    {
+      "word": 13,
+      "address": "0xe9002074",
+      "all_captures_zero": true
+    },
+    {
+      "word": 17,
+      "address": "0xe9002084",
+      "all_captures_zero": true
+    },
+    {
+      "word": 21,
+      "address": "0xe9002094",
+      "all_captures_zero": true
+    },
+    {
+      "word": 25,
+      "address": "0xe90020a4",
+      "all_captures_zero": true
+    },
+    {
+      "word": 29,
+      "address": "0xe90020b4",
+      "all_captures_zero": true
+    }
+  ],
+  "unknowns": [
+    "No independent nonzero stimulus in lane1 words5/9/13/17/21/25/29.",
+    "Values are data observations, not direct internal-node measurements or frequency/USB-speed qualification."
+  ]
+}
+
+
+FILE TESTS/neo_common_cause_20261028/utna_activity_analysis_01/routed_v2/routed_result.json
+{
+  "hardware_access": false,
+  "Gowin_executed": false,
+  "SDF_annotation": false,
+  "passed": true,
+  "routed_cells": 3729,
+  "cases": [
+    {
+      "args": [
+        "+hp=6.25",
+        "+up=8.333333",
+        "+phase=.317"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "output": "NETLIST_HEADER command=00000001 ID=55544e41 version=00000001 command_word=00000001 seq=00000001\nNETLIST_HEADER command=00000006 ID=55544e41 version=00000001 command_word=00000006 seq=00000002\nNETLIST_HEADER command=00000002 ID=55544e41 version=00000001 command_word=00000002 seq=00000003\nNETLIST_HEADER command=00000002 ID=55544e41 version=00000001 command_word=00000002 seq=00000004\nPASS EXACT SNAPSHOT seq=4 ticks=2340 disarm_ticks=2339 hp=6.250000 up=8.333333 phase=0.317000\n/home/michael/console/TESTS/neo_common_cause_20261028/utna_activity_analysis_01/routed_v2/tb_routed.sv:129: $finish called at 90012500 (1ps)\n"
+    },
+    {
+      "args": [
+        "+hp=6.241",
+        "+up=8.342",
+        "+phase=3.713"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "output": "NETLIST_HEADER command=00000001 ID=55544e41 version=00000001 command_word=00000001 seq=00000001\nNETLIST_HEADER command=00000006 ID=55544e41 version=00000001 command_word=00000006 seq=00000002\nNETLIST_HEADER command=00000002 ID=55544e41 version=00000001 command_word=00000002 seq=00000003\nNETLIST_HEADER command=00000002 ID=55544e41 version=00000001 command_word=00000002 seq=00000004\nPASS EXACT SNAPSHOT seq=4 ticks=2340 disarm_ticks=2339 hp=6.241000 up=8.342000 phase=3.713000\n/home/michael/console/TESTS/neo_common_cause_20261028/utna_activity_analysis_01/routed_v2/tb_routed.sv:129: $finish called at 90082594 (1ps)\n"
+    },
+    {
+      "args": [
+        "+hp=8.342",
+        "+up=6.241",
+        "+phase=1.117"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "output": "NETLIST_HEADER command=00000001 ID=55544e41 version=00000001 command_word=00000001 seq=00000001\nNETLIST_HEADER command=00000006 ID=55544e41 version=00000001 command_word=00000006 seq=00000002\nNETLIST_HEADER command=00000002 ID=55544e41 version=00000001 command_word=00000002 seq=00000003\nNETLIST_HEADER command=00000002 ID=55544e41 version=00000001 command_word=00000002 seq=00000004\nPASS EXACT SNAPSHOT seq=4 ticks=2514 disarm_ticks=2513 hp=8.342000 up=6.241000 phase=1.117000\n/home/michael/console/TESTS/neo_common_cause_20261028/utna_activity_analysis_01/routed_v2/tb_routed.sv:129: $finish called at 76396036 (1ps)\n"
+    }
+  ],
+  "input_sha256": {
+    "/home/michael/console/TESTS/neo_common_cause_20261028/utna_activity_analysis_01/check_routed_v2.py": "a09c47b860484debb322e209a53b9349ed938ed0f4e5560b26dd302b80d69840",
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.vo": "c519aedf27fdd29151ee10a668dcc9577bee8546dac2bdd6d263a2040ec1b6a2",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/utna_activity_analysis_01/routed_v2/routed_cut.v": "1dfd9fd28fa74aaa7971ad3a692df48adee2b02bf61c5b18ea14fac64b850a36",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/utna_activity_analysis_01/routed_v2/tb_routed.sv": "f307afb90b4da94817d4b237f4cfc3fe6bb265461a77b7348943a81e4cd36253",
+    "/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v": "2ec53fec48601d2d491299bc3a28b4b199d3a79708f1dd38f72555a5c688ebd5"
+  },
+  "limits": [
+    "Exact routed primitive graph including two 16-bit SDPB memories; external clocks/reset/AHB are bench models.",
+    "No SDF, metastability or measured board startup waveform. Passing does not establish hardware correctness."
+  ]
+}
+
+
+FILE TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_000942/r19_activity.log
+Open On-Chip Debugger 0.11.0+dev-04036-ga0220ad30 (2025-10-24-00:27)
+Licensed under GNU GPL v2
+For bug reports, read
+	http://openocd.org/doc/doxygen/bugs.html
+nds.cpu
+Info : clock speed 100 kHz
+Info : JTAG tap: nds.cpu tap/device found: 0x1000563d (mfg: 0x31e (Andes Technology Corporation), part: 0x0005, ver: 0x1)
+Info : [nds.cpu] datacount=4 progbufsize=8
+Info : [nds.cpu] Examined RISC-V core; found 1 harts
+Info : [nds.cpu]  XLEN=32, misa=0x4094312d
+[nds.cpu] Target successfully examined.
+Info : gdb port disabled
+PARKED_CPU 0x80000004
+NCP_RAW_BEFORE_ASSERT 0x4e435031 0x4 0x0 0x0 0x0 0x0 0x2e211842
+NCP_COUNTERS 0x0 0x0
+WARM_CHECK_0
+ACTIVITY_CONTROL INITIAL 0x55544e41 0x0 0x0
+ACTIVITY_CONTROL ARM_BEFORE 0x55544e41 0x0 0x0
+ACTIVITY_WRITE ARM 1 1
+ACTIVITY_CONTROL ARM_ACK 0x55544e41 0x0 0x1
+ACTIVITY_BANK ARM 1 1 first 0x55544e41 0x0 0x1 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0
+ACTIVITY_CONTRACT_FAIL ARM first version0
+ACTIVITY_BANK ARM 1 1 repeat 0x55544e41 0x0 0x1 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0
+ACTIVITY_CONTRACT_FAIL ARM repeat version0
+ACTIVITY_CONTROL ARM_AFTER 0x55544e41 0x0 0x1
+ACTIVITY_CONTROL DISARM_BEFORE 0x55544e41 0x0 0x1
+ACTIVITY_WRITE DISARM 6 2
+ACTIVITY_CONTROL DISARM_ACK 0x55544e41 0x0 0x2
+ACTIVITY_BANK DISARM 6 2 first 0x55544e41 0x0 0x6 0x18da8f5 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x1 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x400
+ACTIVITY_CONTRACT_FAIL DISARM first version0
+ACTIVITY_BANK DISARM 6 2 repeat 0x55544e41 0x0 0x6 0x18da8f5 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x1 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x400
+ACTIVITY_CONTRACT_FAIL DISARM repeat version0
+ACTIVITY_CONTROL DISARM_AFTER 0x55544e41 0x0 0x2
+ACTIVITY_CONTROL STOPPED_BEFORE 0x55544e41 0x0 0x2
+ACTIVITY_WRITE STOPPED 2 3
+ACTIVITY_CONTROL STOPPED_ACK 0x55544e41 0x0 0x3
+ACTIVITY_BANK STOPPED 2 3 first 0x55544e41 0x0 0x2 0x18da8f6 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x1 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0
+ACTIVITY_CONTRACT_FAIL STOPPED first version0
+ACTIVITY_BANK STOPPED 2 3 repeat 0x55544e41 0x0 0x2 0x18da8f6 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x1 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0
+ACTIVITY_CONTRACT_FAIL STOPPED repeat version0
+ACTIVITY_CONTROL STOPPED_AFTER 0x55544e41 0x0 0x3
+ACTIVITY_CONTROL STABLE_BEFORE 0x55544e41 0x0 0x3
+ACTIVITY_WRITE STABLE 2 4
+ACTIVITY_CONTROL STABLE_ACK 0x55544e41 0x0 0x4
+ACTIVITY_BANK STABLE 2 4 first 0x55544e41 0x0 0x2 0x18da8f6 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x1 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0
+ACTIVITY_CONTRACT_FAIL STABLE first version0
+ACTIVITY_BANK STABLE 2 4 repeat 0x55544e41 0x0 0x2 0x18da8f6 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x1 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0
+ACTIVITY_CONTRACT_FAIL STABLE repeat version0
+ACTIVITY_CONTROL STABLE_AFTER 0x55544e41 0x0 0x4
+ACTIVITY_READS_DONE
+shutdown command invoked
+
+
+FILE TESTS/neo_common_cause_20261027/utna_version_path_01/bank_validity_supplement.txt
+// .vo line 170642
+LUT3 \u_usb_idle_trace/bank_ER_RS_s117  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_86 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_87 ),
+	.I2(\u_usb_idle_trace/address [2]),
+	.F(\u_usb_idle_trace/bank_ER_RS_126 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s117 .INIT=8'hCA;
+
+// .vo line 170649
+LUT3 \u_usb_idle_trace/bank_ER_RS_s118  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_88 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_89 ),
+	.I2(\u_usb_idle_trace/address [2]),
+	.F(\u_usb_idle_trace/bank_ER_RS_127 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s118 .INIT=8'hCA;
+
+// .vo line 170656
+LUT3 \u_usb_idle_trace/bank_ER_RS_s163  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_36 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_38 ),
+	.I2(\u_usb_idle_trace/receive_index [2]),
+	.F(\u_usb_idle_trace/bank_ER_RS_128 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s163 .INIT=8'hCA;
+
+// .vo line 170663
+LUT3 \u_usb_idle_trace/bank_ER_RS_s164  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_40 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_42 ),
+	.I2(\u_usb_idle_trace/receive_index [2]),
+	.F(\u_usb_idle_trace/bank_ER_RS_129 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s164 .INIT=8'hCA;
+
+// .vo line 170670
+LUT3 \u_usb_idle_trace/bank_ER_RS_s165  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_44 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_46 ),
+	.I2(\u_usb_idle_trace/receive_index [2]),
+	.F(\u_usb_idle_trace/bank_ER_RS_130 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s165 .INIT=8'hCA;
+
+// .vo line 170677
+LUT3 \u_usb_idle_trace/bank_ER_RS_s166  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_48 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_50 ),
+	.I2(\u_usb_idle_trace/receive_index [2]),
+	.F(\u_usb_idle_trace/bank_ER_RS_131 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s166 .INIT=8'hCA;
+
+// .vo line 170684
+LUT3 \u_usb_idle_trace/bank_ER_RS_s167  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_36 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_38 ),
+	.I2(\u_usb_idle_trace/address [4]),
+	.F(\u_usb_idle_trace/bank_ER_RS_132 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s167 .INIT=8'hCA;
+
+// .vo line 170691
+LUT3 \u_usb_idle_trace/bank_ER_RS_s168  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_40 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_42 ),
+	.I2(\u_usb_idle_trace/address [4]),
+	.F(\u_usb_idle_trace/bank_ER_RS_133 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s168 .INIT=8'hCA;
+
+// .vo line 170698
+LUT3 \u_usb_idle_trace/bank_ER_RS_s169  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_44 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_46 ),
+	.I2(\u_usb_idle_trace/address [4]),
+	.F(\u_usb_idle_trace/bank_ER_RS_134 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s169 .INIT=8'hCA;
+
+// .vo line 170705
+LUT3 \u_usb_idle_trace/bank_ER_RS_s170  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_48 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_50 ),
+	.I2(\u_usb_idle_trace/address [4]),
+	.F(\u_usb_idle_trace/bank_ER_RS_135 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s170 .INIT=8'hCA;
+
+// .vo line 171684
+LUT2 \u_usb_idle_trace/bank_ER_RS_s134  (
+	.I0(\u_usb_idle_trace/receive_index [0]),
+	.I1(\u_usb_idle_trace/receive_index [1]),
+	.F(\u_usb_idle_trace/bank_ER_RS_151 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s134 .INIT=4'h1;
+
+// .vo line 171690
+LUT2 \u_usb_idle_trace/bank_ER_RS_s135  (
+	.I0(\u_usb_idle_trace/receive_index [1]),
+	.I1(\u_usb_idle_trace/receive_index [0]),
+	.F(\u_usb_idle_trace/bank_ER_RS_153 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s135 .INIT=4'h4;
+
+// .vo line 171696
+LUT2 \u_usb_idle_trace/bank_ER_RS_s136  (
+	.I0(\u_usb_idle_trace/receive_index [0]),
+	.I1(\u_usb_idle_trace/receive_index [1]),
+	.F(\u_usb_idle_trace/bank_ER_RS_155 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s136 .INIT=4'h4;
+
+// .vo line 171702
+LUT2 \u_usb_idle_trace/bank_ER_RS_s137  (
+	.I0(\u_usb_idle_trace/receive_index [0]),
+	.I1(\u_usb_idle_trace/receive_index [1]),
+	.F(\u_usb_idle_trace/bank_ER_RS_157 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s137 .INIT=4'h8;
+
+// .vo line 171756
+LUT2 \u_usb_idle_trace/bank_ER_init_s9  (
+	.I0(\u_usb_idle_trace/bank_ER_init_76 ),
+	.I1(\u_usb_idle_trace/bank_ER_init_77 ),
+	.F(\u_usb_idle_trace/bank_ER_init )
+);
+defparam \u_usb_idle_trace/bank_ER_init_s9 .INIT=4'hE;
+
+// .vo line 171762
+LUT3 \u_usb_idle_trace/bank_ER_init_s10  (
+	.I0(\u_usb_idle_trace/bank_ER_init_75 ),
+	.I1(VCC),
+	.I2(\u_usb_idle_trace/bank_ER_init ),
+	.F(\u_usb_idle_trace/bank_ER_init_71 )
+);
+defparam \u_usb_idle_trace/bank_ER_init_s10 .INIT=8'hAC;
+
+// .vo line 176915
+LUT4 \u_usb_idle_trace/bank_ER_RS_s151  (
+	.I0(\u_usb_idle_trace/receive_index [0]),
+	.I1(\u_usb_idle_trace/receive_index [1]),
+	.I2(\u_usb_idle_trace/bank_ER_RS_147 ),
+	.I3(\u_usb_idle_trace/head_valid_9 ),
+	.F(\u_usb_idle_trace/bank_ER_RS_mem )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s151 .INIT=16'h1F00;
+
+// .vo line 176923
+LUT4 \u_usb_idle_trace/bank_ER_RS_s152  (
+	.I0(\u_usb_idle_trace/receive_index [1]),
+	.I1(\u_usb_idle_trace/receive_index [0]),
+	.I2(\u_usb_idle_trace/bank_ER_RS_147 ),
+	.I3(\u_usb_idle_trace/head_valid_9 ),
+	.F(\u_usb_idle_trace/bank_ER_RS_mem_72 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s152 .INIT=16'h4F00;
+
+// .vo line 176931
+LUT4 \u_usb_idle_trace/bank_ER_RS_s153  (
+	.I0(\u_usb_idle_trace/receive_index [0]),
+	.I1(\u_usb_idle_trace/receive_index [1]),
+	.I2(\u_usb_idle_trace/bank_ER_RS_147 ),
+	.I3(\u_usb_idle_trace/head_valid_9 ),
+	.F(\u_usb_idle_trace/bank_ER_RS_mem_73 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s153 .INIT=16'h4F00;
+
+// .vo line 176986
+LUT4 \u_usb_idle_trace/bank_ER_RS_s154  (
+	.I0(\u_usb_idle_trace/receive_index [0]),
+	.I1(\u_usb_idle_trace/receive_index [1]),
+	.I2(\u_usb_idle_trace/bank_ER_RS_147 ),
+	.I3(\u_usb_idle_trace/head_valid_9 ),
+	.F(\u_usb_idle_trace/bank_ER_RS_mem_74 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s154 .INIT=16'h8F00;
+
+// .vo line 177807
+LUT4 \u_usb_idle_trace/bank_ER_RS_s158  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_126 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_127 ),
+	.I2(\u_usb_idle_trace/address [3]),
+	.I3(\u_usb_idle_trace/bank_ER_RS_149 ),
+	.F(\u_usb_idle_trace/bank_ER_init_75 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s158 .INIT=16'hCA00;
+
+// .vo line 178098
+LUT4 \u_usb_idle_trace/bank_s146  (
+	.I0(\u_usb_idle_trace/receive_index [4]),
+	.I1(\u_usb_idle_trace/hr [2]),
+	.I2(\u_usb_idle_trace/uh [1]),
+	.I3(\u_usb_idle_trace/reply_valid ),
+	.F(\u_usb_idle_trace/bank_245 )
+);
+defparam \u_usb_idle_trace/bank_s146 .INIT=16'h4000;
+
+// .vo line 178238
+DFFCE \u_usb_idle_trace/uh_1_s0  (
+	.D(\u_usb_idle_trace/uh [0]),
+	.CLK(vid_hclk),
+	.CE(VCC),
+	.CLEAR(n6_5),
+	.Q(\u_usb_idle_trace/uh [1])
+);
+defparam \u_usb_idle_trace/uh_1_s0 .INIT=1'b0;
+
+// .vo line 178574
+DFFRE \u_usb_idle_trace/address_6_s0  (
+	.D(bus_haddr[6]),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/address_7_7 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/address [6])
+);
+defparam \u_usb_idle_trace/address_6_s0 .INIT=1'b0;
+
+// .vo line 178582
+DFFRE \u_usb_idle_trace/address_5_s0  (
+	.D(bus_haddr[5]),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/address_7_7 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/address [5])
+);
+defparam \u_usb_idle_trace/address_5_s0 .INIT=1'b0;
+
+// .vo line 178590
+DFFRE \u_usb_idle_trace/address_4_s0  (
+	.D(bus_haddr[4]),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/address_7_7 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/address [4])
+);
+defparam \u_usb_idle_trace/address_4_s0 .INIT=1'b0;
+
+// .vo line 178598
+DFFRE \u_usb_idle_trace/address_3_s0  (
+	.D(bus_haddr[3]),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/address_7_7 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/address [3])
+);
+defparam \u_usb_idle_trace/address_3_s0 .INIT=1'b0;
+
+// .vo line 178606
+DFFRE \u_usb_idle_trace/address_2_s0  (
+	.D(bus_haddr[2]),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/address_7_7 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/address [2])
+);
+defparam \u_usb_idle_trace/address_2_s0 .INIT=1'b0;
+
+// .vo line 178902
+DFFRE \u_usb_idle_trace/receive_index_4_s0  (
+	.D(\u_usb_idle_trace/n320_1 ),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/reply_valid ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/receive_index [4])
+);
+defparam \u_usb_idle_trace/receive_index_4_s0 .INIT=1'b0;
+
+// .vo line 178910
+DFFRE \u_usb_idle_trace/receive_index_3_s0  (
+	.D(\u_usb_idle_trace/n321_1 ),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/reply_valid ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/receive_index [3])
+);
+defparam \u_usb_idle_trace/receive_index_3_s0 .INIT=1'b0;
+
+// .vo line 178918
+DFFRE \u_usb_idle_trace/receive_index_2_s0  (
+	.D(\u_usb_idle_trace/n322_1 ),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/reply_valid ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/receive_index [2])
+);
+defparam \u_usb_idle_trace/receive_index_2_s0 .INIT=1'b0;
+
+// .vo line 178926
+DFFRE \u_usb_idle_trace/receive_index_1_s0  (
+	.D(\u_usb_idle_trace/n323_1 ),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/reply_valid ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/receive_index [1])
+);
+defparam \u_usb_idle_trace/receive_index_1_s0 .INIT=1'b0;
+
+// .vo line 178934
+DFFRE \u_usb_idle_trace/receive_index_0_s0  (
+	.D(\u_usb_idle_trace/n324_6 ),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/reply_valid ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/receive_index [0])
+);
+defparam \u_usb_idle_trace/receive_index_0_s0 .INIT=1'b0;
+
+// .vo line 193638
+DFFCE \u_usb_idle_trace/hr_2_s0  (
+	.D(\u_usb_idle_trace/hr [1]),
+	.CLK(vid_hclk),
+	.CE(VCC),
+	.CLEAR(n6_5),
+	.Q(\u_usb_idle_trace/hr [2])
+);
+defparam \u_usb_idle_trace/hr_2_s0 .INIT=1'b0;
+
+// .vo line 193862
+DFFRE \u_usb_idle_trace/bank_ER_RS_s35  (
+	.D(VCC),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/bank_ER_RS_159 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/bank_ER_RS_36 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s35 .INIT=1'b0;
+
+// .vo line 193870
+DFFRE \u_usb_idle_trace/bank_ER_RS_s37  (
+	.D(VCC),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/bank_ER_RS_161 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/bank_ER_RS_38 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s37 .INIT=1'b0;
+
+// .vo line 193878
+DFFRE \u_usb_idle_trace/bank_ER_RS_s39  (
+	.D(VCC),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/bank_ER_RS_163 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/bank_ER_RS_40 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s39 .INIT=1'b0;
+
+// .vo line 193886
+DFFRE \u_usb_idle_trace/bank_ER_RS_s41  (
+	.D(VCC),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/bank_ER_RS_195 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/bank_ER_RS_42 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s41 .INIT=1'b0;
+
+// .vo line 193894
+DFFRE \u_usb_idle_trace/bank_ER_RS_s43  (
+	.D(VCC),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/bank_ER_RS_167 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/bank_ER_RS_44 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s43 .INIT=1'b0;
+
+// .vo line 193902
+DFFRE \u_usb_idle_trace/bank_ER_RS_s45  (
+	.D(VCC),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/bank_ER_RS_169 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/bank_ER_RS_46 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s45 .INIT=1'b0;
+
+// .vo line 193910
+DFFRE \u_usb_idle_trace/bank_ER_RS_s47  (
+	.D(VCC),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/bank_ER_RS_171 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/bank_ER_RS_48 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s47 .INIT=1'b0;
+
+// .vo line 193918
+DFFRE \u_usb_idle_trace/bank_ER_RS_s49  (
+	.D(VCC),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/bank_ER_RS_193 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/bank_ER_RS_50 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_s49 .INIT=1'b0;
+
+// .vo line 193926
+DFFCE \u_usb_idle_trace/bank_ER_init_s  (
+	.D(\u_usb_idle_trace/bank_ER_init ),
+	.CLK(vid_hclk),
+	.CE(VCC),
+	.CLEAR(GND),
+	.Q(\u_usb_idle_trace/bank_ER_init_76 )
+);
+defparam \u_usb_idle_trace/bank_ER_init_s .INIT=1'b0;
+
+// .vo line 193934
+DFFCE \u_usb_idle_trace/bank_ER_init_s1  (
+	.D(\u_usb_idle_trace/hreset ),
+	.CLK(vid_hclk),
+	.CE(VCC),
+	.CLEAR(GND),
+	.Q(\u_usb_idle_trace/bank_ER_init_77 )
+);
+defparam \u_usb_idle_trace/bank_ER_init_s1 .INIT=1'b0;
+
+// .vo line 194262
+RAM16SDP1 \u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s  (
+	.CLK(vid_hclk),
+	.WRE(\u_usb_idle_trace/bank_ER_RS_mem ),
+	.DI(\u_usb_idle_trace/bank_ER_RS_151 ),
+	.WAD({GND, \u_usb_idle_trace/receive_index [4:2]}),
+	.RAD({GND, \u_usb_idle_trace/add_25 , \u_usb_idle_trace/address [5:4]}),
+	.DO(\u_usb_idle_trace/bank_ER_RS_86 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s .INIT_0=16'h00FF;
+
+// .vo line 194271
+RAM16SDP1 \u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s0  (
+	.CLK(vid_hclk),
+	.WRE(\u_usb_idle_trace/bank_ER_RS_mem_72 ),
+	.DI(\u_usb_idle_trace/bank_ER_RS_153 ),
+	.WAD({GND, \u_usb_idle_trace/receive_index [4:2]}),
+	.RAD({GND, \u_usb_idle_trace/add_25 , \u_usb_idle_trace/address [5:4]}),
+	.DO(\u_usb_idle_trace/bank_ER_RS_87 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s0 .INIT_0=16'h00FF;
+
+// .vo line 194280
+RAM16SDP1 \u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s1  (
+	.CLK(vid_hclk),
+	.WRE(\u_usb_idle_trace/bank_ER_RS_mem_73 ),
+	.DI(\u_usb_idle_trace/bank_ER_RS_155 ),
+	.WAD({GND, \u_usb_idle_trace/receive_index [4:2]}),
+	.RAD({GND, \u_usb_idle_trace/add_25 , \u_usb_idle_trace/address [5:4]}),
+	.DO(\u_usb_idle_trace/bank_ER_RS_88 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s1 .INIT_0=16'h00FF;
+
+// .vo line 194289
+RAM16SDP1 \u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s2  (
+	.CLK(vid_hclk),
+	.WRE(\u_usb_idle_trace/bank_ER_RS_mem_74 ),
+	.DI(\u_usb_idle_trace/bank_ER_RS_157 ),
+	.WAD({GND, \u_usb_idle_trace/receive_index [4:2]}),
+	.RAD({GND, \u_usb_idle_trace/add_25 , \u_usb_idle_trace/address [5:4]}),
+	.DO(\u_usb_idle_trace/bank_ER_RS_89 )
+);
+defparam \u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s2 .INIT_0=16'h00FF;
+
+// .vo line 199077
+MUX2_LUT5 \u_usb_idle_trace/bank_ER_RS_s159  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_128 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_129 ),
+	.S0(\u_usb_idle_trace/receive_index [3]),
+	.O(\u_usb_idle_trace/bank_ER_RS_139 )
+);
+
+
+// .vo line 199083
+MUX2_LUT5 \u_usb_idle_trace/bank_ER_RS_s160  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_130 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_131 ),
+	.S0(\u_usb_idle_trace/receive_index [3]),
+	.O(\u_usb_idle_trace/bank_ER_RS_141 )
+);
+
+
+// .vo line 199089
+MUX2_LUT5 \u_usb_idle_trace/bank_ER_RS_s162  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_132 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_133 ),
+	.S0(\u_usb_idle_trace/address [5]),
+	.O(\u_usb_idle_trace/bank_ER_RS_143 )
+);
+
+
+// .vo line 199095
+MUX2_LUT5 \u_usb_idle_trace/bank_ER_RS_s161  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_134 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_135 ),
+	.S0(\u_usb_idle_trace/address [5]),
+	.O(\u_usb_idle_trace/bank_ER_RS_145 )
+);
+
+
+// .vo line 199101
+MUX2_LUT6 \u_usb_idle_trace/bank_ER_RS_s132  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_139 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_141 ),
+	.S0(\u_usb_idle_trace/receive_index [4]),
+	.O(\u_usb_idle_trace/bank_ER_RS_147 )
+);
+
+
+// .vo line 199107
+MUX2_LUT6 \u_usb_idle_trace/bank_ER_RS_s133  (
+	.I0(\u_usb_idle_trace/bank_ER_RS_145 ),
+	.I1(\u_usb_idle_trace/bank_ER_RS_143 ),
+	.S0(\u_usb_idle_trace/address [6]),
+	.O(\u_usb_idle_trace/bank_ER_RS_149 )
+);
+
+
+// .vo line 200096
+LUT3 \u_usb_idle_trace/u_replies/head_valid_s5  (
+	.I0(\u_usb_idle_trace/hr [2]),
+	.I1(\u_usb_idle_trace/uh [1]),
+	.I2(\u_usb_idle_trace/reply_valid ),
+	.F(\u_usb_idle_trace/head_valid_9 )
+);
+defparam \u_usb_idle_trace/u_replies/head_valid_s5 .INIT=8'h80;
+
+// .vo line 200598
+DFFRE \u_usb_idle_trace/u_replies/head_valid_s1  (
+	.D(\u_usb_idle_trace/u_replies/pop ),
+	.CLK(vid_hclk),
+	.CE(\u_usb_idle_trace/u_replies/head_valid_11 ),
+	.RESET(\u_usb_idle_trace/hreset ),
+	.Q(\u_usb_idle_trace/reply_valid )
+);
+defparam \u_usb_idle_trace/u_replies/head_valid_s1 .INIT=1'b0;
+
+
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/usb/usb_idle_trace.v
+// Passive IN/NAK observer. No output feeds the USB datapath.
+// Commands and coherent snapshots use two dual-clock FIFOs, independent of EP0.
+// AHB window: +00 ID, +04 status (bit0 busy, bit1 rejected command),
+// +08 completed snapshot count, +0c command, +40..bc snapshot (32 words).
+// Command: bit0 clear+arm, bit1 snapshot, bit2 disarm, bits14:8 USB address.
+// Use one command at a time; clear+snapshot returns the PRE-clear state.
+// USB bus reset is observed, not used to erase this diagnostic.
+`default_nettype none
+module usb_idle_trace (
+ input wire clk, reset_n, bus_reset, sof,
+ input wire rx_active, rx_valid, rx_error,
+ input wire [7:0] rx_data,
+ input wire tx_valid, tx_ready,
+ input wire [7:0] tx_data,
+ input wire [3:0] endpoint,
+ input wire cork,
+ input wire hclk, hsel, hwrite,
+ input wire [1:0] htrans,
+ input wire [31:0] haddr, hwdata,
+ output reg [31:0] hrdata,
+ output wire hready
+);
+ // Hold both FIFO ends in reset until each clock has actually restarted.
+ (* ASYNC_REG="TRUE" *) reg [2:0] hr=0, ur=0;
+ (* ASYNC_REG="TRUE" *) reg [1:0] hu=0, uh=0;
+ always @(posedge hclk or negedge reset_n)
+  if(!reset_n)begin hr<=0;uh<=0;end
+  else begin hr<={hr[1:0],1'b1};uh<={uh[0],ur[2]};end
+ always @(posedge clk or negedge reset_n)
+  if(!reset_n)begin ur<=0;hu<=0;end
+  else begin ur<={ur[1:0],1'b1};hu<={hu[0],hr[2]};end
+ wire hreset=!hr[2] || !uh[1], ureset=!ur[2] || !hu[1];
+ wire cmd_ready, cmd_valid, cmd_pop, reply_ready, reply_valid;
+ wire [31:0] command, reply;
+ reg write_pending, read_pending;
+ reg [7:0] address;
+ reg busy, rejected;
+ reg [31:0] snapshot_count;
+ reg [4:0] receive_index;
+ reg [31:0] bank[0:31];
+ wire [4:0] bank_index=address[6:2]-5'd16;
+ wire push_command=write_pending && address==8'h0c && !busy && cmd_ready && !hreset;
+ assign hready=!read_pending; // one local wait; never wait on the USB clock
+ ddr_dcfifo #(.WIDTH(32),.DEPTH_LOG2(2)) u_commands (
+  .wr_clk(hclk),.wr_rst(hreset),.wr_valid(push_command),.wr_data(hwdata),
+  .wr_ready(cmd_ready),.wr_full(),.wr_lost(),.wr_count(),
+  .rd_clk(clk),.rd_rst(ureset),.rd_valid(cmd_valid),.rd_data(command),
+  .rd_ready(cmd_pop),.rd_count());
+ ddr_dcfifo #(.WIDTH(32),.DEPTH_LOG2(5)) u_replies (
+  .wr_clk(clk),.wr_rst(ureset),.wr_valid(sending && reply_ready && !ureset),
+  .wr_data(snapshot[send_index*32+:32]),.wr_ready(reply_ready),
+  .wr_full(),.wr_lost(),.wr_count(),
+  .rd_clk(hclk),.rd_rst(hreset),.rd_valid(reply_valid),.rd_data(reply),
+  .rd_ready(!hreset),.rd_count());
+ integer b;
+ always @(posedge hclk)begin
+  if(hreset)begin
+   hrdata<=0;write_pending<=0;read_pending<=0;address<=0;
+   busy<=0;rejected<=0;snapshot_count<=0;receive_index<=0;
+   for(b=0;b<32;b=b+1)bank[b]<=0;
+  end else begin
+   write_pending<=hsel && htrans[1] && hwrite && hready;
+   read_pending<=hsel && htrans[1] && !hwrite && hready;
+   if(hready)address<=haddr[7:0];
+   if(write_pending && address==8'h0c)begin
+    if(push_command)begin busy<=1;rejected<=0;end
+    else rejected<=1;
+   end
+   if(reply_valid)begin
+    bank[receive_index]<=reply;receive_index<=receive_index+1'b1;
+    if(receive_index==31)begin snapshot_count<=snapshot_count+1'b1;busy<=0;end
+   end
+   if(read_pending)begin
+    case(address)
+     8'h00:hrdata<=32'h55544e41; // UTNA
+     8'h04:hrdata<={30'd0,rejected,busy};
+     8'h08:hrdata<=snapshot_count;
+     default:hrdata<=address>=8'h40 && address<8'hc0 ? bank[bank_index] : 32'd0;
+    endcase
+   end
+  end
+ end
+
+ // Sample the entire UTMI tuple together before decoding it. In particular,
+ // TXREADY already contains the controller->PHY combinational return path;
+ // adding counter/enable logic directly there exceeded the 60 MHz budget.
+ // This one-cycle delay is passive and identical for RX/TX/context, so
+ // response time differences are preserved.
+ (* syn_preserve=1 *) reg [27:0] tap;
+ always @(posedge clk)tap<={bus_reset,sof,rx_active,rx_valid,rx_error,rx_data,
+                           tx_valid,tx_ready,tx_data,endpoint,cork};
+ wire bus_reset_sample,sof_sample,rx_active_sample,rx_valid_sample,rx_error_sample;
+ wire [7:0] rx_data_sample,tx_data_sample;
+ wire tx_valid_sample,tx_ready_sample,cork_sample;
+ wire [3:0] endpoint_sample;
+ assign {bus_reset_sample,sof_sample,rx_active_sample,rx_valid_sample,rx_error_sample,rx_data_sample,
+         tx_valid_sample,tx_ready_sample,tx_data_sample,endpoint_sample,cork_sample}=tap;
+
+ function [4:0] crc5;
+  input [10:0] token;
+  integer i;reg [4:0] c;
+  begin
+   c=5'h1f;
+   for(i=0;i<11;i=i+1)
+    c=(c[0]^token[i]) ? ((c>>1)^5'h14) : (c>>1);
+   crc5=~c;
+  end
+ endfunction
+ reg armed;
+ reg [6:0] target;
+ reg [31:0] ticks,in2,in3,nak2,nak3,data2,data3,miss2,miss3;
+ reg [31:0] bad_response,rx_errors,bad_token,resets,sofs,stalls,last_token,last_response;
+ reg [7:0] max_offer,max_accept;
+ reg bus_reset_q;
+ reg [2:0] rx_count;
+ reg [7:0] rx_pid,token0,token1;
+ reg rx_bad;
+ wire token_end=!rx_active_sample && rx_count!=0;
+ wire token_in=token_end && rx_pid==8'h69;
+ wire token_good=rx_count==3 && !rx_bad && !rx_error_sample &&
+                 token1[7:3]==crc5({token1[2:0],token0});
+ wire [3:0] token_ep={token1[2:0],token0[7]};
+ wire selected_in=token_in && token_good && token0[6:0]==target &&
+                  (token_ep==2 || token_ep==3);
+ // Any subsequent valid token ends the old transaction context, including
+ // SOF, OUT/SETUP/IN for EP0 or another address. Never attribute its reply
+ // to an unanswered EP2/EP3 IN.
+ wire next_token=token_end && token_good &&
+                  (rx_pid==8'h69 || rx_pid==8'he1 || rx_pid==8'h2d ||
+                   rx_pid==8'ha5 || rx_pid==8'hb4);
+ reg pending;
+ reg [3:0] pending_ep;
+ reg [31:0] pending_time;
+ reg [9:0] age;
+ wire [7:0] short_age=|age[9:8] ? 8'hff : age[7:0];
+ reg tx_busy,tx_cork;
+ reg [3:0] tx_endpoint;
+ reg [7:0] tx_pid,tx_count,offer_age,accept_age;
+ wire finish=tx_busy && !tx_valid_sample && pending && tx_endpoint==pending_ep;
+ wire expired=pending && ((age==127 && (!tx_busy || tx_count==0)) || age==1023);
+ wire displaced=next_token && pending && !finish;
+ wire missing=expired || displaced;
+ wire event_valid=armed && (finish || missing);
+ wire malformed=finish && !((tx_pid==8'h5a && tx_count==1) ||
+                   (pending_ep==2 && (tx_pid==8'hc3 || tx_pid==8'h4b) && tx_count>=3));
+ wire [63:0] event_record={pending_time,1'b1,missing,malformed,tx_cork,
+                           pending_ep,tx_pid,accept_age,tx_count};
+ reg [255:0] history;
+ reg [63:0] first_fault;
+ reg [1023:0] snapshot;
+ reg sending;
+ reg [4:0] send_index;
+ assign cmd_pop=cmd_valid && !sending && !ureset;
+ wire clear=cmd_pop && command[0];
+ wire [1023:0] live={
+  {21'd0,armed,pending,2'd0,target},first_fault,history,
+  {16'd0,max_accept,max_offer},last_response,last_token,stalls,sofs,resets,
+  bad_token,rx_errors,bad_response,miss3,miss2,data3,data2,nak3,nak2,in3,in2,ticks,
+  command,32'd1,32'h55544e41};
+ always @(posedge clk)begin
+  if(ureset)begin sending<=0;send_index<=0;snapshot<=0;end
+  else begin
+   // Every command returns a complete bank, including clear/disarm, so the
+   // CPU can acknowledge execution without sampling an asynchronous flag.
+   if(cmd_pop)begin snapshot<=live;sending<=1;send_index<=0;end
+   else if(sending && reply_ready)begin
+    send_index<=send_index+1'b1;
+    if(send_index==31)sending<=0;
+   end
+  end
+ end
+ always @(posedge clk)begin
+  if(ureset || clear)begin
+   armed<=!ureset;target<=ureset ? 7'd0 : command[14:8];
+   ticks<=0;in2<=0;in3<=0;nak2<=0;nak3<=0;data2<=0;data3<=0;miss2<=0;miss3<=0;
+   bad_response<=0;rx_errors<=0;bad_token<=0;resets<=0;sofs<=0;stalls<=0;
+   last_token<=0;last_response<=0;max_offer<=0;max_accept<=0;
+   history<=0;first_fault<=0;bus_reset_q<=bus_reset_sample;
+   rx_count<=0;rx_pid<=0;token0<=0;token1<=0;rx_bad<=0;
+   pending<=0;pending_ep<=0;pending_time<=0;age<=0;
+   tx_busy<=0;tx_cork<=0;tx_endpoint<=0;tx_pid<=0;tx_count<=0;offer_age<=0;accept_age<=0;
+  end else begin
+   if(cmd_pop && command[2])armed<=0;
+   bus_reset_q<=bus_reset_sample;
+   if(armed)begin
+    ticks<=ticks+1'b1;
+    if(bus_reset_sample && !bus_reset_q)resets<=resets+1'b1;
+    if(sof_sample)sofs<=sofs+1'b1;
+    if(rx_error_sample)rx_errors<=rx_errors+1'b1;
+    if(tx_valid_sample && !tx_ready_sample)stalls<=stalls+1'b1;
+    if(token_in && !token_good)bad_token<=bad_token+1'b1;
+   end
+   if(rx_active_sample)begin
+    if(rx_error_sample)rx_bad<=1;
+    if(rx_valid_sample)begin
+     case(rx_count)
+      0:rx_pid<=rx_data_sample;
+      1:token0<=rx_data_sample;
+      2:token1<=rx_data_sample;
+      default:;
+     endcase
+     if(rx_count!=4)rx_count<=rx_count+1'b1;
+    end
+   end else begin rx_count<=0;rx_bad<=0;end
+   if(pending && age!=1023)age<=age+1'b1;
+   if(event_valid)begin
+    history<={history[191:0],event_record};
+    if((missing || malformed) && !first_fault[31])first_fault<=event_record;
+    pending<=0;
+    last_response<={4'd0,endpoint_sample,pending_ep,tx_cork,3'd0,tx_count,tx_pid};
+    if(missing)begin
+     if(pending_ep==2)miss2<=miss2+1'b1;else miss3<=miss3+1'b1;
+    end else begin
+     if(tx_pid==8'h5a && tx_count==1)begin
+      if(pending_ep==2)nak2<=nak2+1'b1;else nak3<=nak3+1'b1;
+      if(offer_age>max_offer)max_offer<=offer_age;
+      if(accept_age>max_accept)max_accept<=accept_age;
+     end
+     if(tx_pid==8'hc3 || tx_pid==8'h4b)begin
+      if(pending_ep==2)data2<=data2+1'b1;else data3<=data3+1'b1;
+     end
+     if(malformed)bad_response<=bad_response+1'b1;
+    end
+   end
+   if(armed && selected_in)begin
+    pending<=1;pending_ep<=token_ep;pending_time<=ticks;age<=1;
+    tx_count<=0;tx_pid<=0;offer_age<=0;accept_age<=0;
+    last_token<={8'd0,token1,token0,rx_pid};
+    if(token_ep==2)in2<=in2+1'b1;else in3<=in3+1'b1;
+   end
+   // TX sampling follows token initialization so acceptance on the very
+   // token_end edge is retained (delay zero), rather than overwritten.
+   if(tx_valid_sample && !tx_busy)begin
+    tx_busy<=1;tx_pid<=tx_data_sample;tx_count<=0;tx_cork<=cork_sample;
+    tx_endpoint<=endpoint_sample;offer_age<=selected_in ? 8'd0 : short_age;
+   end
+   if(tx_valid_sample && tx_ready_sample)begin
+    if(!tx_busy || tx_count==0)begin
+     tx_pid<=tx_data_sample;accept_age<=selected_in ? 8'd0 : short_age;
+    end
+    if(!tx_busy)tx_count<=1;
+    else if(tx_count!=255)tx_count<=tx_count+1'b1;
+   end
+   if(!tx_valid_sample)tx_busy<=0;
+   if(bus_reset_sample)pending<=0;
+  end
+ end
+endmodule
+`default_nettype wire
+
+
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_dcfifo.v
+// ddr_dcfifo.v — FIFO double horloge (pointeurs Gray) entre le domaine d'acquisition (clk 100 MHz, sortie de
+// raw_fifo / event_enc) et le domaine de l'IP DDR3 (clk_out 75 MHz, ddr_writer) — ARCHI_V3 § 9.2.
+//
+// Écrite à la main plutôt que générée par l'IP FIFO Gowin : une netlist chiffrée ne se simule pas, celle-ci
+// passe au banc cocotb (rapports 100/75 et 100/50, vide/plein, 10 000 mots aléatoires, pertes comptées).
+// Aucune perte silencieuse : un mot présenté quand la FIFO est pleine est refusé (wr_ready = 0) ET compté
+// dans `wr_lost` (domaine écriture) — l'appelant décide quoi en faire (ddr_writer publie le compteur).
+// Neo-only isolation experiment: exactly the AHB/DDR command (100-bit) and
+// response (64-bit) four-slot specializations use explicit flip-flops. All
+// pointers, flags, resets and the registered head latency are unchanged.
+// Larger FIFOs and the USB debug command FIFO retain inferred memory.
+// The shared Pro Dock source is NOT modified by this variant.
+`default_nettype none
+module ddr_dcfifo #(
+    parameter WIDTH      = 64,
+    parameter DEPTH_LOG2 = 9          // 512 mots
+) (
+    // écriture
+    input  wire             wr_clk,
+    input  wire             wr_rst,       // synchrone au domaine écriture
+    input  wire             wr_valid,
+    input  wire [WIDTH-1:0] wr_data,
+    output wire             wr_ready,     // = pas pleine
+    output wire             wr_full,      // registered fullness, independent of reset
+    output reg  [31:0]      wr_lost,      // mots refusés (pleine), jamais remis à zéro sauf reset
+    output wire [DEPTH_LOG2:0] wr_count,  // remplissage vu du côté écriture (pessimiste)
+    // lecture
+    input  wire             rd_clk,
+    input  wire             rd_rst,       // synchrone au domaine lecture
+    output wire             rd_valid,     // = pas vide ; rd_data valide
+    output wire [WIDTH-1:0] rd_data,
+    input  wire             rd_ready,     // consomme le mot présenté
+    output wire [DEPTH_LOG2:0] rd_count   // remplissage vu du côté lecture (pessimiste)
+);
+    localparam AW = DEPTH_LOG2;
+
+    wire [WIDTH-1:0] storage_read;
+
+    // --- pointeurs binaires et Gray (AW+1 bits : le bit de poids fort distingue plein de vide) ---
+    reg  [AW:0] wr_bin, wr_gray, rd_bin, rd_gray;
+    reg  [AW:0] wr_gray_s1, wr_gray_s2;      // wr_gray synchronisé dans rd_clk
+    reg  [AW:0] rd_gray_s1, rd_gray_s2;      // rd_gray synchronisé dans wr_clk
+
+    function [AW:0] bin2gray; input [AW:0] b; begin bin2gray = b ^ (b >> 1); end endfunction
+    function [AW:0] gray2bin; input [AW:0] g; integer i; reg [AW:0] b;
+        begin b = 0; for (i = AW; i >= 0; i = i - 1) b[i] = (i == AW) ? g[i] : b[i+1] ^ g[i]; gray2bin = b; end
+    endfunction
+
+    // --- côté écriture ----------------------------------------------------------------------
+    // `full` et `wr_count` sont REGISTRÉS (E2-e, 2026-09-20) : calculés à partir du pointeur d'écriture du
+    // cycle suivant et du pointeur de lecture synchronisé courant. Sans cela, la chaîne Gray → gray2bin →
+    // comparaison → wr_ready → rd_ready de raw_fifo (clk100) et → m1_urgent → arbitre → IP (75 MHz) ne fermait
+    // plus le timing (−0,32 ns sur clk100, −0,27 ns sur ddr3_sys_clk, build e2e_con2). Pessimisme d'un cycle
+    // sur la libération d'une place : sans effet sur les comptes (le lecteur libère bien avant le plein).
+    wire [AW:0] rd_bin_w = gray2bin(rd_gray_s2);
+    reg         full;
+    reg  [AW:0] wr_count_r;
+    wire        accept   = wr_valid && !full;
+    wire [AW:0] wr_bin_n = wr_bin + {{AW{1'b0}}, accept};
+    // Refus pendant le vidage (E2-h, 2026-09-20) : avec wr_ready = !full seul, une écriture arrivant pendant wr_rst était
+    // acceptée puis effacée par la remise à zéro du pointeur — la première entrée de chaque capture V3 (état initial,
+    // t = 0) disparaissait ; l'amont (out_slice / raw_fifo) retient tant que wr_ready = 0, rien n'est perdu.
+    assign wr_ready = !full && !wr_rst;
+    assign wr_full = full;
+    assign wr_count = wr_count_r;
+
+    always @(posedge wr_clk) begin
+        if (wr_rst) begin
+            wr_bin <= 0; wr_gray <= 0; wr_lost <= 0; rd_gray_s1 <= 0; rd_gray_s2 <= 0; full <= 1'b0; wr_count_r <= 0;
+        end else begin
+            rd_gray_s1 <= rd_gray; rd_gray_s2 <= rd_gray_s1;
+            full       <= (wr_bin_n[AW] != rd_bin_w[AW]) && (wr_bin_n[AW-1:0] == rd_bin_w[AW-1:0]);
+            wr_count_r <= wr_bin_n - rd_bin_w;
+            if (accept) begin
+                wr_bin  <= wr_bin + 1'b1;
+                wr_gray <= bin2gray(wr_bin + 1'b1);
+            end else if (wr_valid && full) begin
+                wr_lost <= wr_lost + 1'b1;
+            end
+        end
+    end
+
+    // Data is published only by the synchronized write pointer. Reading
+    // into head retires the RAM slot; the synchronized read pointer delays
+    // its reuse. No additional register or pointer stage is introduced.
+    generate if (AW == 2 && (WIDTH == 100 || WIDTH == 64)) begin : g_register_storage
+        wire [(1<<AW)*WIDTH-1:0] words;
+        for (genvar slot = 0; slot < (1<<AW); slot = slot + 1) begin : g_slot
+            (* syn_preserve = 1 *) reg [WIDTH-1:0] value;
+            always @(posedge wr_clk)
+                if (!wr_rst && accept && wr_bin[AW-1:0] == AW'(slot))
+                    value <= wr_data;
+            assign words[slot*WIDTH +: WIDTH] = value;
+        end
+        assign storage_read = words[rd_bin[AW-1:0]*WIDTH +: WIDTH];
+    end else begin : g_inferred_storage
+        reg [WIDTH-1:0] mem [0:(1<<AW)-1];
+        always @(posedge wr_clk)
+            if (!wr_rst && accept) mem[wr_bin[AW-1:0]] <= wr_data;
+        assign storage_read = mem[rd_bin[AW-1:0]];
+    end endgenerate
+
+    // --- côté lecture : mot de tête présenté en sortie (registre de tête rechargé à chaque pop) ----
+    // Pointeur d'écriture REGISTRÉ après le décodage Gray (build USB 24, 2026-09-21) : la chaîne gray2bin (XOR en série)
+    // + comparaison + validation du pop tenait en un cycle par chance de placement (design fusionné : −0,09 ns / 17 chemins
+    // clk100 sur le port m2). Une image en retard d'un cycle est prudente (empty un cycle de plus, jamais un faux non-vide).
+    wire [AW:0] wr_bin_w = gray2bin(wr_gray_s2);
+    reg  [AW:0] wr_bin_r;
+    wire        empty    = (rd_bin == wr_bin_r);
+    reg  [WIDTH-1:0] head;
+    reg              head_valid;
+    reg  [AW:0]      rd_count_r;               // registré (même raison que wr_count) : alimente m1_urgent
+    assign rd_valid = head_valid;
+    assign rd_data  = head;
+    assign rd_count = rd_count_r;
+
+    // La mémoire est lue de façon synchrone : quand la tête est libre (ou consommée ce cycle) et que la
+    // FIFO n'est pas vide, on charge mem[rd_bin] dans head au front suivant et on avance rd_bin.
+    wire pop = !empty && (!head_valid || rd_ready);
+    always @(posedge rd_clk) begin
+        if (rd_rst) begin
+            rd_bin <= 0; rd_gray <= 0; wr_gray_s1 <= 0; wr_gray_s2 <= 0; wr_bin_r <= 0; head_valid <= 1'b0; head <= 0; rd_count_r <= 0;
+        end else begin
+            wr_gray_s1 <= wr_gray; wr_gray_s2 <= wr_gray_s1; wr_bin_r <= wr_bin_w;
+            rd_count_r <= wr_bin_r - rd_bin;
+            if (pop) begin
+                head       <= storage_read;
+                head_valid <= 1'b1;
+                rd_bin     <= rd_bin + 1'b1;
+                rd_gray    <= bin2gray(rd_bin + 1'b1);
+            end else if (rd_ready && head_valid) begin
+                head_valid <= 1'b0;
+            end
+        end
+    end
+endmodule
+`default_nettype wire

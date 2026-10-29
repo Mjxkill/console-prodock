@@ -1,0 +1,22 @@
+I'll start by reading the contract and protected files.Now I understand the harness and checker. Let me implement the bounded 8-case driver.All 8 cases pass. Now I'll write the measured report, then run the fixed tests one final time.Final fixed tests pass with all 8 cases.
+
+## Files changed
+- `scenario.svh` — implemented the bounded 8-case driver (TARGET then per-case CLEAR/fault sequence, protected CPU oracle, exactly one `blocked` and one `final` report per case). Drives only top-level inputs at negedge; fault flags are real bench inputs; no internals forced.
+- `ANALYSIS.md` — measured table for all cases plus interpretation, observation-equivalence discussion, and limits.
+
+## Tests observed
+- Before edits: infrastructure-only baseline passed TARGET/CLEAR but emitted only `baseline`; fixed checker failed all cases for missing `blocked`/`final`.
+- After implementation: all 8 cases passed.
+- Final fixed `taskbox_run_tests` after writing the report: **passed, 0 failures, return code 0**.
+
+Measured highlights (full table in `ANALYSIS.md`):
+- Case 0: CLEAR done, CPU 32/32, 1 write, cleared memory.
+- Cases 1/2: CPU stalled with `cpu_pending=1`, `take_blitter=1`; case 2 confirms `command_ready=1` with `write_ready=0` still blocks CPU because blitter grant needs write readiness.
+- Case 3: repeated native writes (125 by final) with GPU `busy=1,done=1`; CPU still 32/32.
+- Case 4: synthetic 16 scan reads fill arbiter (`full=1,tags=16`); after release, 16 scan replies + 32 CPU replies + 1 CLEAR write.
+- Case 5: suppressed request, 0 writes, CPU 32/32 on seed memory.
+- Case 6: one accepted CPU read with missing return (`tags=1`, `adapter_tags=1`, `full=0`) while writes repeat; release returns allows 32/32.
+- Case 7: CPU 32/32 with 0 GPU writes; contrasts with case 2.
+
+## Limitations
+Simulation only: no AE350/AHB/CDC/DDR PHY/physical timing claims; no R19 root-cause claim; scan history in case 4 is synthetic. The report documents these and the ambiguity of `busy/done` and CPU-timeout signatures.

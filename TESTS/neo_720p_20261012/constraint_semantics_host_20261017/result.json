@@ -1,0 +1,91 @@
+{
+  "ide": "/home/michael/gowin/IDE",
+  "cases": [
+    {
+      "name": "clocks9",
+      "returncode": 0,
+      "requested_bound": "set_max_delay 8 -from [get_clocks {source}] -to [get_clocks {sink}]",
+      "artificial_latency_ns": 9,
+      "inputs": {
+        "probe.v": "c7bbb7e3a0eb000d5abea92b9be2b5780b7e180e7b73d231bf788db1bab88e88",
+        "probe.cst": "13dacb26e3d8d181eb51a6093d37a5eb61c1279fa0733d495fba189ee363e1b3",
+        "probe.sdc": "68e3aed614809edcb44302cf7b82eefd759bb3e7fe4a4bcb30dd288c076dd413",
+        "build.tcl": "eeeef595d5b5c88879d65f53292f38ce54d4e24185fbeccb22210823596d1be3"
+      },
+      "complete": true,
+      "constraints": [
+        [
+          "Actived",
+          "create_clock -name source -period 20 [get_ports {other}]"
+        ],
+        [
+          "Actived",
+          "create_clock -name sink -period 20 [get_ports {clk}]"
+        ],
+        [
+          "Actived",
+          "set_clock_latency -source 9 [get_clocks {source}]"
+        ],
+        [
+          "Actived",
+          "set_max_delay 8 -from [get_clocks {source}] -to [get_clocks {sink}]"
+        ],
+        [
+          "Actived",
+          "set_false_path -hold -from [get_clocks {source}] -to [get_clocks {sink}]"
+        ],
+        [
+          "Actived",
+          "report_timing -setup -max_paths 30 -max_common_paths 1"
+        ],
+        [
+          "Actived",
+          "report_timing -hold -max_paths 30 -max_common_paths 1"
+        ]
+      ],
+      "paths": [
+        {
+          "Slack": "-3.103",
+          "Data Arrival Time": "15.238",
+          "Data Required Time": "12.135",
+          "From": "toggle_s1",
+          "To": "stage1_s1",
+          "Launch Clk": "source:[R]",
+          "Latch Clk": "sink:[R]"
+        },
+        {
+          "Slack": "19.183",
+          "Data Arrival Time": "4.987",
+          "Data Required Time": "24.170",
+          "From": "stage1_s1",
+          "To": "stage2_s1",
+          "Launch Clk": "sink:[R]",
+          "Latch Clk": "sink:[R]"
+        },
+        {
+          "Slack": "19.334",
+          "Data Arrival Time": "14.898",
+          "Data Required Time": "34.232",
+          "From": "toggle_s1",
+          "To": "toggle_s1",
+          "Launch Clk": "source:[R]",
+          "Latch Clk": "source:[R]"
+        }
+      ]
+    },
+    {
+      "name": "pins9",
+      "returncode": 1,
+      "requested_bound": "set_max_delay 8 -from [get_pins {toggle_s0/Q}] -to [get_pins {stage1_s0/D}]",
+      "artificial_latency_ns": 9,
+      "inputs": {
+        "probe.v": "c7bbb7e3a0eb000d5abea92b9be2b5780b7e180e7b73d231bf788db1bab88e88",
+        "probe.cst": "13dacb26e3d8d181eb51a6093d37a5eb61c1279fa0733d495fba189ee363e1b3",
+        "probe.sdc": "a977c1d1daf7b84101936689fe067ab8e73058ffcb9776d77dc7ea091a831051",
+        "build.tcl": "7167cbe5bd13122eb80243dfcf33dea5a669c9dbbab3bb72bb36318e229a15c3"
+      },
+      "complete": false
+    }
+  ],
+  "scope": "Constraint semantics only; not board/console qualification"
+}

@@ -1,0 +1,2698 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Audit contradictoire spécifique de la netlist post-PnR R19 et du SDF : localise les cônes D/CE/RESET/CLK du native_valid_s1, v1_pending_s2, v1_accepted_s0, v1_tx_write_s0, take_blitter_s0, les pointeurs/valids et toutes dépendances du CLEAR. Évalue les preuves combinatoires actuelles, les éventuelles hypothèses implicites de clock/reset/fairness et les angles morts. La logique fonctionnelle R18r1/R19 est identique mais le routage change ; R19 répare capture opcode, CLEAR mémoire reste bloqué. v1_pending est sur LW, ne présume pas un erratum. Fournis un audit Python exécutable et conservateur (fichiers read-only, sorties limitées au dossier TESTS/assisted_reviews_20261026/neo_fable_netlist_01) lisant les sources, .vo et .sdf exacts. Préfère un parcours rigoureux d’arcs SDF clock/data/reset/CE et rapport de couverture/limites à une approximation silencieuse. Si un calcul STA n’est pas fidèle, refuse explicitement de conclure timing PASS. Cite hashes, expressions, chemins, références et propose un seul prochain test discriminant sans nouveau PnR ni matériel. Aucune exécution de ta part ; rends code complet en blocs et hypothèses vérifiables. Distingue ce que le packet contient de ce qui nécessite lecture locale par notre orchestrateur.
+
+EVIDENCE PACKET:
+NEO / R19 — INDEPENDENT ADVERSARIAL FPGA REVIEW PACKET — 2026-10-26
+
+Purpose: diagnose a reproducible native GPU CLEAR stall. Review the evidence and
+the actual request protocol, and propose the smallest discriminating next test.
+Answer in French. Cite source IDs and line numbers where supplied. Separate facts,
+logical deductions, physical hypotheses, and unmeasured signals. Do not announce
+a root cause unless the evidence distinguishes it from the competing explanations.
+You have no board access in this review. Do not suggest blind new PnR iterations.
+
+Platform and preservation constraints:
+- Neo GW5AST-138C, PG484; AE350 core 800 MHz, AHB 80 MHz, DDR3 memory
+  clock 300 MHz and GPU/UI 75 MHz. DDR IP 5.9 and Hynix H5TQ4G63EFR parts.
+- Working Pro Dock reference uses GW5AST-138B/PG676. Preserve its G22r0
+  FPGA and software archives. Shared sources must not receive speculative Neo
+  changes. A working Pro Dock is evidence of a working configuration, not proof
+  that all Neo RTL snapshots or physical implementations are identical.
+- Current exact R19 SRAM bitstream:
+  1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c
+- Authoritative mapped netlist SHA:
+  dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6
+  R19 is R18r1 with one CST LOCAL_CLOCK constraint on the measured pixel
+  command-capture enable. The routed cell/pin/INIT comparison has no delta;
+  physical locations and interconnect can nevertheless change globally.
+- Global timing is FAIL: setup -2.888 ns, hold +0.124 ns, recovery -0.239 ns,
+  removal +0.274 ns. This is a deliberate diagnostic image, not a release.
+  Do not infer that the global worst path is the CLEAR request path.
+- IMPORTANT LIVE-STATE DISTINCTION: the user power-cycled the board AFTER the
+  stalled tests. The parent reloaded exact R19 and checked internal HDMI bars,
+  halted CPU PC=0x80000004, GPU idle done=0, errors=0. The stall below is
+  reproducible historical evidence, not the currently preserved live state.
+
+Key hardware facts, with detailed sources below:
+1. R18r1 local capture observed start=1, idle=1 but command-register CE=0,
+   followed by opcode Q=0/rejection. After R19 rerouting, nine commands show
+   CE=1 and the expected opcode Q on the following edge, without V1 rejection.
+   The trace samples opcode bits31:24 only; it is not a complete packet test.
+   This does not establish a general LW erratum.
+2. CPU DDR preparation/readback succeeds. A legacy FILL writes 32 bytes of
+   0xa6 at 0x00800020 correctly, preserving neighbors. TARGET points native
+   color at EXACTLY this byte address and Z at 0x00810000.
+3. Native CLEAR with flags=0 finishes; an empty rectangle also finishes.
+   CLEAR color-only, 16x1 RGB565, 0x5aa5, stays busy with done=4. The same
+   32 bytes remain all 0xa6. Error/lost/rejected counters do not increase.
+   Four native command captures show the expected opcode. Thus a large
+   surface, texture reads, high address range and scanout contention are not
+   necessary conditions for this observed stall.
+4. Earlier high-address CLEAR stalled similarly. Stable coherent snapshots
+   showed queue empty, blitter wp=rp=88, ext_active=1, CLEAR opcode=0x1c,
+   blitter waiting in M_SETUP, engine resets released. CPU could still read
+   the guarded color/Z/source regions unchanged. That does not prove that
+   the GPU issued no write elsewhere, or that native VALID/READY worked.
+5. Existing R19 probes DO NOT expose the pixel FSM or native VALID/pending/
+   arbiter READY/registered acceptance. Stable asynchronous header reads
+   corroborate the stopped command but are not an atomic snapshot.
+6. R20/R20r1 attempted observation-only rewiring of 128 existing snapshot
+   DATA inputs (no new application logic). Functional mapped tests pass.
+   R20r1 PnR failed after 100 minutes with 120 unrouted nets; NO BITSTREAM,
+   NO HARDWARE OBSERVATION. Do not treat its planned trace as measured data.
+7. Four mapped handshake functions were exhaustively compared to RTL without
+   a one-hot assumption: native_issue (2^22 combinations), native_valid next
+   (2^11), pending next (2^9), accepted next (2^2). They match assuming reset
+   inactive and documented flip-flop D/CE semantics. This excludes those four
+   Boolean-expression mismatches, not distribution/timing or payload capture.
+8. Prior routed R1 scanout+queue+arbiter first-line functional test passed
+   80 ordered DDR reads with backpressure, official primitives, no SDF and
+   inactive CPU/drawing. This is NOT a test of R19 native CLEAR or real DDR.
+9. HDMI routing was separately isolated: a minimal DCE route at SG0 gave no
+   signal while PG0/SG4 worked. R19 internal bars currently work. Neither
+   bars nor this separate route experiment qualifies framebuffer reads.
+
+Actual native write chain (single 75 MHz domain after command FIFO crossing):
+  pixel RECT_COLOR -> native_issue/native_valid + address/data/mask
+  -> geometry shader mux (fetch_valid normally false for passthrough CLEAR)
+  -> gpu_accel extended_request -> registered one-entry v1_pending slot
+  -> legacy/V1 output mux -> ddr_gpu_arb take_blitter/b_grant
+  -> DDR cmd/write enables; accepted -> v1_accepted register -> pixel ready.
+The AHB command FIFO has two clocks (80/75 MHz); the native request/acceptance
+slot and DDR arbiter do not form an asynchronous FIFO. Do not assume a CDC
+fault on a path without identifying its actual clock endpoints.
+
+Questions requested of this independent review:
+A. Give a cycle-by-cycle account of one 16-pixel CLEAR write from RECT_COLOR
+   through slot capture, arbitration and return acceptance. Find any protocol,
+   reset, payload/ownership, enable-polarity or synthesis corner case still
+   consistent with the provided evidence. Challenge the testbench assumptions.
+B. Rank at most 4 plausible remaining explanations; for each state what would
+   falsify it. Distinguish why legacy success does or does not constrain it.
+C. Propose the smallest discriminating observation feasible with the existing
+   image or a tightly scoped, reviewable instrumented variant. Specify signals,
+   triggering, clock domain, known-active witness, expected traces for each
+   branch, and how measurement itself could change routing. Prefer data over
+   blanket LOCAL_CLOCK changes, random seeds or reducing DDR frequency.
+D. Can a targeted post-PnR test include the exact pixel/geometry/slot/arbiter
+   cones, real reset semantics and backpressure with official primitives? State
+   which boundary assumptions could still conceal this hardware failure.
+E. Identify missing evidence; do not fabricate values of unobserved registers.
+   A proposed patch must preserve the proven legacy path and Pro Dock reference.
+
+Only project code, selected hardware measurements and technical identifiers are
+included. No credentials, external hostnames, user serial numbers or private keys.
+
+SOURCE INDEX — SHA256 OF THE FULL ORIGINAL FILE
+[S01] TESTS/neo_720p_20261012/local_capture_20261026/handoff.json
+  SHA256 6f0de6af8282a3b77f5bcefc9eed745c9443d06c7bef6018d22fac40709f7f0a
+  Current handoff / historical-state distinction
+[S02] TESTS/neo_720p_20261012/local_capture_20261026/r19_same_address_01/result.json
+  SHA256 7e9f15c05ac8fd9fb211b0aaf38796b0b896d794dd561ff9a14b1dc660737dad
+  Hardware comparison at identical byte address
+[S03] TESTS/neo_720p_20261012/local_capture_20261026/r19_clear_observe_01/result.json
+  SHA256 a2fa43ebe262fa6acd5ba3cd1cfc0840c752cd954e95b7558dd97f0e1797fa49
+  Earlier stable stalled-state snapshots
+[S04] TESTS/neo_720p_20261012/local_capture_20261026/r19_postroute_01/result.json
+  SHA256 70af2660019d2198c307d8639a67d8b4e92f4d4dfee1a76cc4eee87dad3e5126
+  Physical comparison R18r1 to R19 and timing
+[S05] TESTS/neo_720p_20261012/local_capture_20261026/r19_capture_paths_01.json
+  SHA256 61c8bd19e7a5d3b80c19820a80d06b0546adb457d58095938ed1be08214ad5d9
+  Independent capture-path bounds
+[S06] TESTS/neo_720p_20261012/local_capture_20261026/handshake_truth_proof.json
+  SHA256 c10bf3a911e2c15bc846237c0d0d05e934b1052ffe929078ce8d564d1b7f3810
+  Exhaustive mapped handshake equivalence
+[S07] TESTS/neo_720p_20261012/local_capture_20261026/check_handshake_truth.py
+  SHA256 fdfb464cded30c221ad3ce11ec16d3e40e4d054c16b0642ecd3873cf628ec83d
+  Proof method and compared equations
+[S08] TESTS/neo_720p_20261012/local_capture_20261026/r20r1_memory_sim_01/result.json
+  SHA256 51edabcea3cfe12472b94083f78cd5ede856d873791fb825f25cae6a773389ee
+  Mapped CLEAR simulation scope
+[S09] TESTS/neo_720p_20261012/local_capture_20261026/r20r1_memory_sim_01/simulation.log
+  SHA256 239797a9025b50455a3a5d060e3932ea7cce3e8fcb49e8097837f3007525a599
+  Full mapped CLEAR simulation log (not copied)
+[S10] tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_accel.v
+  SHA256 0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e
+  Command FIFO/reset and actual extended request slot
+[S11] tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geometry.v
+  SHA256 9f0b3183fdb6a856ccf15ff17dc87c7f008e3906edc7ece0c64f615beb4b5ca8
+  Geometry passthrough and pixel ready gating
+[S12] tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v
+  SHA256 2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71
+  Pixel states, native valid contract, CLEAR validation and execution
+[S13] tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v
+  SHA256 b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5
+  Actual complete DDR arbitration RTL
+[S14] tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_subsys.v
+  SHA256 c7042cce82b356180cbb83dc7d1b469dfbe885aae712d68ab47585f88e88e537
+  Arbiter connection to vendor DDR IP
+[S15] tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.rpt.txt
+  SHA256 b1539d51568dc8a4eaeb1af1fb6fd260845ca349a7e14b17881ac544866558cb
+  R19 global routing report
+[S16] tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo.sdc
+  SHA256 c8da535e839157a361e78b06b2f65b2912891f8e9dc48b02d5b315ae9f953113
+  Clock/CDC timing constraints
+[S17] tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.vo
+  SHA256 c519aedf27fdd29151ee10a668dcc9577bee8546dac2bdd6d263a2040ec1b6a2
+  Actual R19 post-PnR netlist (selected sequential primitives / LUT cones below)
+[S18] tang/impl/console_neo_n56r19_capture_ce_local/console_neo.vg
+  SHA256 dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6
+  Authoritative R19 mapped netlist used by Boolean proof
+[S19] tang/impl/console_neo_n56r19_capture_ce_local/sources.json
+  SHA256 5f82e84e009839d99471a18cf096851c7b17403e7ebaf755852206fec601dbd8
+  Frozen source inventory
+[S20] tang/impl/console_neo_n56r19_capture_ce_local/experiment.json
+  SHA256 d63b5824c26445131b8ad50b5f22f702e22a86f1b2725c58d6efa08c66087e3a
+  R19 route experiment provenance
+[S21] tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.fs
+  SHA256 1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c
+  Exact current/previously-tested R19 SRAM bitstream
+[S22] tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.tr
+  SHA256 58005fba0ac890af1b66c12094a5aea7aa6f64a7de580b0e2e7cea336f3d25a7
+  Full timing report (FAIL, not copied)
+[S23] tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.sdf
+  SHA256 f071a282b2dca30735a2f7c0daff2699a2881e4a627cdfdb3d94460068c1f707
+  Full routed delays (not copied)
+
+=== Current handoff / historical-state distinction (JSON projection) [S01] ===
+{
+  "status": "R19_RELOADED_AFTER_USER_POWERCYCLE_INTERNAL_BARS_GPU_IDLE",
+  "hardware_state": "Exact Neo R19 reloaded in SRAM after user power cycle; CPU halted at 0x80000004; internal bars checksum 0x1ff8f800, framebuffer disabled; GPU idle done=0/errors=0; NCP arm/sequence=0; frame and GPU heartbeat progress. Previous CLEAR stall is historical, not current live state.",
+  "timing": {
+    "setup": -2.888,
+    "hold": 0.124,
+    "recovery": -0.239,
+    "removal": 0.274
+  },
+  "bitstream_sha256": "1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c",
+  "qualification": "FAIL",
+  "pending": [
+    "R20r1 routing failed with 120 unrouted nets, no bitstream or board load. Existing R19 reproduces native CLEAR stall at the identical address successfully written by legacy FILL. Native request/acceptance observation remains pending; no replacement route started.",
+    "Nine captures succeed after rerouting; no general LW erratum, endurance qualification or complete GPU repair demonstrated.",
+    "DDR regions and guards unchanged during CLEAR; CPU reads work but GPU memory path is not qualified.",
+    "Global setup/recovery fail; framebuffer, full GPU, USB/SD/Linux/game validation on Neo remains pending.",
+    "FPGA FPS enhancements deferred until Neo works; Pro Dock reference preserved."
+  ],
+  "previous_runtime_state_before_user_powercycle": "Neo exact R19 reloaded; CPU halted, internal bars, framebuffer disabled; native CLEAR at 0x00800020 busy=1 done=4 rejected=0; NCP arm/seq=4; GPU snapshot seq=5. Legacy wrote the same 32 bytes successfully; CLEAR did not change them. Color target=0x00800020, depth=0x00810000. Pro Dock unaffected by Neo diagnosis."
+}
+
+=== Hardware comparison at identical byte address (JSON projection) [S02] ===
+{
+  "bitstream_sha256": "1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c",
+  "qualification": "FAIL",
+  "scope": "Reload exact R19 into Neo SRAM; legacy and native writes at identical byte address",
+  "common_byte_address": 8388640,
+  "byte_count": 32,
+  "measurements_complete": true,
+  "stopped_on": "CLEAR_COLOR_16PX",
+  "cases": [
+    {
+      "name": "TARGET",
+      "words_hex": [
+        "16000000",
+        "00800020",
+        "00810000",
+        "00800010",
+        "01000100",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "completed": true,
+      "gpu_before": [
+        1112298546,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "gpu_after": [
+        1112298546,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ],
+      "error_deltas": {
+        "3": 0,
+        "7": 0,
+        "9": 0,
+        "13": 0,
+        "19": 0
+      },
+      "color": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": [],
+        "unchanged_since_previous": true,
+        "first_32_payload_bytes": "b3d8fd22476c91b6db00254a6f94b9de03284d7297bce1062b50759abfe4092e"
+      },
+      "depth": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": []
+      },
+      "capture": {
+        "at": {
+          "d": 22,
+          "q": 0,
+          "ce": 1,
+          "reset": 0,
+          "start": 1,
+          "idle": 1,
+          "decode_wait": 0,
+          "decode": 0,
+          "bad": 0,
+          "done": 0
+        },
+        "after": {
+          "d": 22,
+          "q": 22,
+          "ce": 0,
+          "reset": 0,
+          "start": 0,
+          "idle": 0,
+          "decode_wait": 1,
+          "decode": 0,
+          "bad": 0,
+          "done": 0
+        },
+        "flags": 103,
+        "complete": true,
+        "limitation": "Opcode bits31:24 only; no subcycle timing or whole-packet qualification",
+        "expected_q": 22,
+        "register_rule_matches": true,
+        "finding": "OPCODE_CAPTURE_CONSISTENT"
+      }
+    },
+    {
+      "name": "LEGACY_32B",
+      "words_hex": [
+        "0100a600",
+        "00200000",
+        "00200001",
+        "00000000",
+        "00000000",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "completed": true,
+      "gpu_before": [
+        1112298546,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ],
+      "gpu_after": [
+        1112298546,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ],
+      "error_deltas": {
+        "3": 0,
+        "7": 0,
+        "9": 0,
+        "13": 0,
+        "19": 0
+      },
+      "color": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": [],
+        "unchanged_since_previous": false,
+        "first_32_payload_bytes": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6"
+      },
+      "depth": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": []
+      }
+    },
+    {
+      "name": "CLEAR_FLAGS_ZERO",
+      "words_hex": [
+        "1c000000",
+        "00000000",
+        "00005aa5",
+        "00007bde",
+        "00000000",
+        "00100001",
+        "00000000",
+        "00000000"
+      ],
+      "completed": true,
+      "gpu_before": [
+        1112298546,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ],
+      "gpu_after": [
+        1112298546,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4
+      ],
+      "error_deltas": {
+        "3": 0,
+        "7": 0,
+        "9": 0,
+        "13": 0,
+        "19": 0
+      },
+      "color": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": [],
+        "unchanged_since_previous": true,
+        "first_32_payload_bytes": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6"
+      },
+      "depth": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": []
+      },
+      "capture": {
+        "at": {
+          "d": 28,
+          "q": 22,
+          "ce": 1,
+          "reset": 0,
+          "start": 1,
+          "idle": 1,
+          "decode_wait": 0,
+          "decode": 0,
+          "bad": 0,
+          "done": 0
+        },
+        "after": {
+          "d": 28,
+          "q": 28,
+          "ce": 0,
+          "reset": 0,
+          "start": 0,
+          "idle": 0,
+          "decode_wait": 1,
+          "decode": 0,
+          "bad": 0,
+          "done": 0
+        },
+        "flags": 39,
+        "complete": true,
+        "limitation": "Opcode bits31:24 only; no subcycle timing or whole-packet qualification",
+        "expected_q": 28,
+        "register_rule_matches": true,
+        "finding": "OPCODE_CAPTURE_CONSISTENT"
+      }
+    },
+    {
+      "name": "CLEAR_EMPTY",
+      "words_hex": [
+        "1c000000",
+        "00000003",
+        "00005aa5",
+        "00007bde",
+        "00000000",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "completed": true,
+      "gpu_before": [
+        1112298546,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4
+      ],
+      "gpu_after": [
+        1112298546,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        6
+      ],
+      "error_deltas": {
+        "3": 0,
+        "7": 0,
+        "9": 0,
+        "13": 0,
+        "19": 0
+      },
+      "color": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": [],
+        "unchanged_since_previous": true,
+        "first_32_payload_bytes": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6"
+      },
+      "depth": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": []
+      },
+      "capture": {
+        "at": {
+          "d": 28,
+          "q": 28,
+          "ce": 1,
+          "reset": 0,
+          "start": 1,
+          "idle": 1,
+          "decode_wait": 0,
+          "decode": 0,
+          "bad": 0,
+          "done": 0
+        },
+        "after": {
+          "d": 28,
+          "q": 28,
+          "ce": 0,
+          "reset": 0,
+          "start": 0,
+          "idle": 0,
+          "decode_wait": 1,
+          "decode": 0,
+          "bad": 0,
+          "done": 0
+        },
+        "flags": 103,
+        "complete": true,
+        "limitation": "Opcode bits31:24 only; no subcycle timing or whole-packet qualification",
+        "expected_q": 28,
+        "register_rule_matches": true,
+        "finding": "OPCODE_CAPTURE_CONSISTENT"
+      }
+    },
+    {
+      "name": "CLEAR_COLOR_16PX",
+      "words_hex": [
+        "1c000000",
+        "00000001",
+        "00005aa5",
+        "00007bde",
+        "00000000",
+        "00100001",
+        "00000000",
+        "00000000"
+      ],
+      "completed": false,
+      "gpu_before": [
+        1112298546,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        6
+      ],
+      "gpu_after": [
+        1112298546,
+        1,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        0,
+        0,
+        0,
+        511,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1194542129,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7
+      ],
+      "error_deltas": {
+        "3": 0,
+        "7": 0,
+        "9": 0,
+        "13": 0,
+        "19": 0
+      },
+      "color": {
+        "bytes": 4160,
+        "expected_matches": false,
+        "guards_unchanged": true,
+        "different_offsets": [
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63
+        ],
+        "unchanged_since_previous": true,
+        "first_32_payload_bytes": "a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6"
+      },
+      "depth": {
+        "bytes": 4160,
+        "expected_matches": true,
+        "guards_unchanged": true,
+        "different_offsets": []
+      },
+      "capture": {
+        "at": {
+          "d": 28,
+          "q": 28,
+          "ce": 1,
+          "reset": 0,
+          "start": 1,
+          "idle": 1,
+          "decode_wait": 0,
+          "decode": 0,
+          "bad": 0,
+          "done": 0
+        },
+        "after": {
+          "d": 28,
+          "q": 28,
+          "ce": 0,
+          "reset": 0,
+          "start": 0,
+          "idle": 0,
+          "decode_wait": 1,
+          "decode": 0,
+          "bad": 0,
+          "done": 0
+        },
+        "flags": 39,
+        "complete": true,
+        "limitation": "Opcode bits31:24 only; no subcycle timing or whole-packet qualification",
+        "expected_q": 28,
+        "register_rule_matches": true,
+        "finding": "OPCODE_CAPTURE_CONSISTENT"
+      }
+    }
+  ]
+}
+
+=== Earlier stable stalled-state snapshots (JSON projection) [S03] ===
+{
+  "bitstream_sha256": "1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c",
+  "scope": "Read stalled GPU and DDR; only writes are snapshot request registers",
+  "gpu_reset": false,
+  "gpu_command_sent": false,
+  "ddr_written": false,
+  "cpu_resumed": false,
+  "gpu_snapshots": [
+    {
+      "label": "first",
+      "raw": [
+        1313293378,
+        6,
+        88,
+        1,
+        88,
+        0,
+        469762048,
+        469762048,
+        10,
+        16776229,
+        0,
+        1482169353,
+        32,
+        0,
+        0,
+        469762048
+      ],
+      "decoded": {
+        "sequence": 1,
+        "host_words": 88,
+        "received_words": 88,
+        "last_received_word": 0,
+        "done": 10,
+        "engine_resetn": 15,
+        "child_resetn": 255,
+        "mrst": 3,
+        "command_word": 0,
+        "queue_valid": false,
+        "queue_pop": true,
+        "command_we": false,
+        "command_full": false,
+        "blitter_busy": true,
+        "ext_start": false,
+        "ext_active": true,
+        "command_bad": 0,
+        "command_lost": 0,
+        "blitter_wp": 88,
+        "blitter_rp": 88,
+        "opcode": 28,
+        "blitter_reset": false,
+        "blitter_cmd_we": false,
+        "blitter_full": false,
+        "blitter_available": false,
+        "state": 32,
+        "state_bits": [
+          5
+        ],
+        "queue_data": 0,
+        "extended_word0": 469762048
+      }
+    },
+    {
+      "label": "second",
+      "raw": [
+        1313293378,
+        6,
+        88,
+        2,
+        88,
+        0,
+        469762048,
+        469762048,
+        10,
+        16776229,
+        0,
+        1482169353,
+        32,
+        0,
+        0,
+        469762048
+      ],
+      "decoded": {
+        "sequence": 2,
+        "host_words": 88,
+        "received_words": 88,
+        "last_received_word": 0,
+        "done": 10,
+        "engine_resetn": 15,
+        "child_resetn": 255,
+        "mrst": 3,
+        "command_word": 0,
+        "queue_valid": false,
+        "queue_pop": true,
+        "command_we": false,
+        "command_full": false,
+        "blitter_busy": true,
+        "ext_start": false,
+        "ext_active": true,
+        "command_bad": 0,
+        "command_lost": 0,
+        "blitter_wp": 88,
+        "blitter_rp": 88,
+        "opcode": 28,
+        "blitter_reset": false,
+        "blitter_cmd_we": false,
+        "blitter_full": false,
+        "blitter_available": false,
+        "state": 32,
+        "state_bits": [
+          5
+        ],
+        "queue_data": 0,
+        "extended_word0": 469762048
+      }
+    },
+    {
+      "label": "third",
+      "raw": [
+        1313293378,
+        6,
+        88,
+        3,
+        88,
+        0,
+        469762048,
+        469762048,
+        10,
+        16776229,
+        0,
+        1482169353,
+        32,
+        0,
+        0,
+        469762048
+      ],
+      "decoded": {
+        "sequence": 3,
+        "host_words": 88,
+        "received_words": 88,
+        "last_received_word": 0,
+        "done": 10,
+        "engine_resetn": 15,
+        "child_resetn": 255,
+        "mrst": 3,
+        "command_word": 0,
+        "queue_valid": false,
+        "queue_pop": true,
+        "command_we": false,
+        "command_full": false,
+        "blitter_busy": true,
+        "ext_start": false,
+        "ext_active": true,
+        "command_bad": 0,
+        "command_lost": 0,
+        "blitter_wp": 88,
+        "blitter_rp": 88,
+        "opcode": 28,
+        "blitter_reset": false,
+        "blitter_cmd_we": false,
+        "blitter_full": false,
+        "blitter_available": false,
+        "state": 32,
+        "state_bits": [
+          5
+        ],
+        "queue_data": 0,
+        "extended_word0": 469762048
+      }
+    }
+  ],
+  "scanout_snapshots": [
+    {
+      "label": "DISABLED",
+      "raw": [
+        3,
+        0,
+        79,
+        0,
+        0,
+        0,
+        0,
+        1396919829
+      ],
+      "decoded": {
+        "raw_words": [
+          3,
+          0,
+          79,
+          0,
+          0,
+          0,
+          0,
+          1396919829
+        ],
+        "line": 0,
+        "flags": {
+          "mrst0": true,
+          "mrst1": true,
+          "request_sync0": false,
+          "request_sync1": false,
+          "reserved": false,
+          "acknowledge": false,
+          "line_pending": false,
+          "dispatch_line": false,
+          "rgb_phase": false,
+          "rgb_start": false,
+          "rgb_done": false,
+          "reader_start": false,
+          "reader_done": false,
+          "done_pending": false,
+          "cache_busy": false,
+          "prefetch_active": false,
+          "rgb565": false,
+          "halfres": false,
+          "layers": false,
+          "sprites": false,
+          "returned_valid": false,
+          "fetch_valid": false
+        },
+        "line_base": 0,
+        "rgb_state": 0,
+        "rgb_state_name": "IDLE",
+        "issued": 0,
+        "position": 0,
+        "last": 79,
+        "accepted_by_queue": 0,
+        "accepted_by_arbiter": 0,
+        "returned": 0,
+        "last_arbiter_word_address": 0,
+        "signature": 5456718,
+        "handshakes": 21,
+        "handshake_flags": {
+          "reset_up": true,
+          "data_valid": false,
+          "arb_ready": true,
+          "arb_valid": false,
+          "scan_ready": true,
+          "scan_valid": false
+        },
+        "queued_not_accepted_by_arbiter": 0,
+        "arbiter_accepted_not_returned": 0
+      }
+    }
+  ],
+  "ddr_regions": [
+    {
+      "name": "color",
+      "base": 301989888,
+      "size": 4096,
+      "unchanged": true,
+      "guards_unchanged": true,
+      "changed_halfwords": 0,
+      "first_changed": [],
+      "last_changed": [],
+      "full_expected_clear": false,
+      "halfwords_equal_clear": 0,
+      "first_halfwords": [
+        13534,
+        13331,
+        30978,
+        39232,
+        32619,
+        43876,
+        30041,
+        28892,
+        43959,
+        44862,
+        15958,
+        59789,
+        5468,
+        22589,
+        47932,
+        11628,
+        46560,
+        13593,
+        30986,
+        29603,
+        11398,
+        15628,
+        1091,
+        43575,
+        42804,
+        44003,
+        25161,
+        43945,
+        14906,
+        27141,
+        11904,
+        18616
+      ]
+    },
+    {
+      "name": "depth",
+      "base": 302055424,
+      "size": 4096,
+      "unchanged": true,
+      "guards_unchanged": true,
+      "changed_halfwords": 0,
+      "first_changed": [],
+      "last_changed": [],
+      "full_expected_clear": false,
+      "halfwords_equal_clear": 0,
+      "first_halfwords": [
+        6956,
+        47727,
+        40060,
+        19449,
+        23667,
+        7919,
+        30835,
+        51983,
+        11403,
+        6425,
+        16363,
+        32521,
+        49241,
+        28770,
+        26261,
+        60940,
+        3826,
+        55306,
+        41162,
+        6553,
+        53616,
+        23428,
+        19898,
+        19012,
+        5487,
+        40661,
+        41971,
+        22563,
+        6491,
+        30591,
+        40210,
+        15197
+      ]
+    },
+    {
+      "name": "source",
+      "base": 302120960,
+      "size": 16384,
+      "unchanged": true,
+      "guards_unchanged": true,
+      "changed_halfwords": 0,
+      "first_changed": [],
+      "last_changed": [],
+      "full_expected_clear": false,
+      "halfwords_equal_clear": null,
+      "first_halfwords": [
+        61857,
+        21006,
+        60807,
+        48272,
+        45711,
+        18056,
+        38515,
+        11894,
+        65426,
+        5268,
+        13385,
+        14433,
+        32107,
+        7028,
+        62241,
+        51031,
+        59742,
+        62026,
+        62999,
+        37614,
+        32586,
+        662,
+        14481,
+        7990,
+        20561,
+        2178,
+        4740,
+        31710,
+        64676,
+        58332,
+        62622,
+        12228
+      ]
+    }
+  ],
+  "gpu_final": [
+    1112298546,
+    1,
+    10,
+    0,
+    0,
+    0,
+    0,
+    0,
+    31,
+    0,
+    0,
+    0,
+    511,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1194542129,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    21
+  ]
+}
+
+=== Physical comparison R18r1 to R19 and timing (JSON projection) [S04] ===
+{
+  "bitstream_sha256": "1056917bf942ea2eaf9541b9abbb3997a8ad45eb78fc09e9432f73f3e209917c",
+  "qualification_status": "FAIL",
+  "timing": {
+    "setup": -2.888,
+    "hold": 0.124,
+    "recovery": -0.239,
+    "removal": 0.274
+  },
+  "missing_parent_cells": [],
+  "changed_parent_cells": {},
+  "changed_parent_parameters": {},
+  "added_cells": [],
+  "observer_ff_count": 344,
+  "sample_ff_count": 48,
+  "shadow_ff_count": 64,
+  "held_shadow_max_ns": 2.415,
+  "held_shadow_bound_passed": true,
+  "required_primary": [
+    "clk_d",
+    "pixel_clk",
+    "clk48",
+    "fclk_960m",
+    "phy_clk",
+    "vid_hclk",
+    "gpu_clk",
+    "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk"
+  ],
+  "missing_primary": [],
+  "global_routes": [
+    [
+      "clk_d",
+      "PRIMARY",
+      "PTR0 PTR3 PBR0 PBR1 PBR3"
+    ],
+    [
+      "pixel_clk",
+      "PRIMARY",
+      "PBR2 PBR3"
+    ],
+    [
+      "clk48",
+      "PRIMARY",
+      "PTR3"
+    ],
+    [
+      "fclk_960m",
+      "PRIMARY",
+      "PBR3"
+    ],
+    [
+      "phy_clk",
+      "PRIMARY",
+      "PTR3 PBR0 PBR2 PBR3"
+    ],
+    [
+      "vid_hclk",
+      "PRIMARY",
+      "PTR0 PTR1 PTR2 PTR3 PBR0 PBR1 PBR2 PBR3"
+    ],
+    [
+      "gpu_clk",
+      "PRIMARY",
+      "PTR0 PTR1 PTR2 PTR3 PBR0 PBR1 PBR2 PBR3"
+    ],
+    [
+      "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk",
+      "PRIMARY",
+      "PBR3"
+    ],
+    [
+      "usb_app_reset",
+      "LW",
+      "-"
+    ],
+    [
+      "v1_pending",
+      "LW",
+      "-"
+    ],
+    [
+      "rtc_clk",
+      "LW",
+      "-"
+    ],
+    [
+      "u_accel/u_v1/n59467_5",
+      "LW",
+      "-"
+    ],
+    [
+      "u_accel/u_v1/u_pixels/u_copy/n7630_6",
+      "LW",
+      "-"
+    ],
+    [
+      "u_accel/u_raster/u_triangle/state_0[4]",
+      "LW",
+      "-"
+    ],
+    [
+      "u_soc/g_ddr.u_ddr/u_ip/gw3_top/ddr_rst",
+      "LW",
+      "-"
+    ],
+    [
+      "clk5x",
+      "HCLK",
+      "BANK3_HCLK1"
+    ],
+    [
+      "fclk_960m",
+      "HCLK",
+      "BANK3_HCLK0"
+    ],
+    [
+      "u_soc/ddr3_memory_clk",
+      "HCLK",
+      "BANK6_HCLK0 BANK7_HCLK0"
+    ]
+  ],
+  "limits": [
+    "SDF data-delay bounds alone are not setup/hold qualification.",
+    "Global timing FAIL retained; first-stage async crossings and recovery need separate interpretation.",
+    "Observer reset is followed by two local guarded cycles; snapshot protocol must wait for ready.",
+    "No hardware capture or GPU correctness result is implied."
+  ],
+  "worst_reported_families": [
+    {
+      "slack_ns": -2.888,
+      "source": "u_accel/u_blitter/rp_3_s0",
+      "destination": "u_accel/busy_sync_0_s0",
+      "clock": "bus80_clk:[R]"
+    },
+    {
+      "slack_ns": -1.791,
+      "source": "u_pll_ae350/u_pll_init/state_0_s0",
+      "destination": "diag_board_meta_3_s0",
+      "clock": "PHY_CLKOUT:[R]"
+    },
+    {
+      "slack_ns": -0.425,
+      "source": "u_accel/u_blitter/err_cmd_lost_8_s0",
+      "destination": "u_accel/u_blitter/err_cmd_lost_11_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.404,
+      "source": "u_accel/u_blitter/rp_0_s4",
+      "destination": "u_accel/u_blitter/rp_6_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.362,
+      "source": "u_accel/u_blitter/rp_3_s0",
+      "destination": "u_accel/u_blitter/st_52_s1",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.279,
+      "source": "u_accel/engine_resetn_3_s0",
+      "destination": "u_accel/u_blitter/st_37_s1",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.254,
+      "source": "u_video_bus/state_2_s1",
+      "destination": "u_gamepads/snap_id_snap_id_RAMREG_1_G[55]_s1",
+      "clock": "bus80_clk:[R]"
+    },
+    {
+      "slack_ns": -0.239,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/up_0_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.182,
+      "source": "u_video_bus/state_2_s1",
+      "destination": "u_gamepads/snap_id_snap_id_RAMREG_1_G[5]_s1",
+      "clock": "bus80_clk:[R]"
+    },
+    {
+      "slack_ns": -0.131,
+      "source": "u_gpu/u_reader/tile_code_1_s0",
+      "destination": "u_gpu/u_reader/u_tiles/row_offset_14_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.126,
+      "source": "u_video_bus/state_2_s1",
+      "destination": "u_gamepads/snap_id_snap_id_RAMREG_1_G[70]_s1",
+      "clock": "bus80_clk:[R]"
+    },
+    {
+      "slack_ns": -0.086,
+      "source": "u_video_bus/state_2_s1",
+      "destination": "u_gamepads/snap_id_snap_id_RAMREG_1_G[127]_s1",
+      "clock": "bus80_clk:[R]"
+    },
+    {
+      "slack_ns": -0.04,
+      "source": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC",
+      "destination": "u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_ahb_to_ilm/buf_addr_12_s0",
+      "clock": "bus80_clk:[R]"
+    },
+    {
+      "slack_ns": -0.038,
+      "source": "u_video_bus/state_2_s1",
+      "destination": "u_gamepads/snap_id_snap_id_RAMREG_1_G[74]_s1",
+      "clock": "bus80_clk:[R]"
+    },
+    {
+      "slack_ns": -0.038,
+      "source": "u_video_bus/state_2_s1",
+      "destination": "u_gamepads/snap_id_snap_id_RAMREG_1_G[68]_s1",
+      "clock": "bus80_clk:[R]"
+    },
+    {
+      "slack_ns": -0.038,
+      "source": "u_accel/engine_resetn_3_s0",
+      "destination": "u_accel/u_blitter/b1_d_0_s0",
+      "clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "slack_ns": -0.003,
+      "source": "u_video_bus/state_2_s1",
+      "destination": "u_gamepads/snap_id_snap_id_RAMREG_1_G[109]_s1",
+      "clock": "bus80_clk:[R]"
+    }
+  ]
+}
+
+=== Independent capture-path bounds (JSON projection) [S05] ===
+{
+  "passed": true,
+  "qualification": "FAIL",
+  "only_existing_output_change": "None; R18r1 cells and parameters all preserved",
+  "all_other_application_cells_and_parameters_preserved": true,
+  "held_shadow_max_ns": 2.415,
+  "sample_setup_lower_bound_ns": 5.1850000000000005,
+  "limits": [
+    "Conservative local SDF calculation, not independent full-design STA.",
+    "Global setup/recovery failures remain; data interpretation requires explicit arm/readiness handshake long after boot.",
+    "No hardware or complete GPU qualification."
+  ]
+}
+
+=== Exhaustive mapped handshake equivalence (JSON projection) [S06] ===
+{
+  "passed": true,
+  "proofs": [
+    {
+      "name": "native_issue",
+      "variables": 22,
+      "combinations": 4194304,
+      "equivalent": true,
+      "leaves": [
+        "alpha[0]",
+        "alpha[1]",
+        "alpha[2]",
+        "alpha[3]",
+        "alpha[4]",
+        "alpha[5]",
+        "alpha[6]",
+        "alpha[7]",
+        "alpha[8]",
+        "chunk_dirty",
+        "clear_flags[0]",
+        "clear_flags[1]",
+        "flags[0]",
+        "flags[1]",
+        "flags[5]",
+        "state[14]",
+        "state[16]",
+        "state[28]",
+        "state[30]",
+        "state[36]",
+        "state[38]",
+        "tex_argb"
+      ],
+      "cut_signals": []
+    },
+    {
+      "name": "native_valid_next_without_reset",
+      "variables": 11,
+      "combinations": 2048,
+      "equivalent": true,
+      "leaves": [
+        "fetch_valid",
+        "native_issue",
+        "native_valid",
+        "state[15]",
+        "state[17]",
+        "state[29]",
+        "state[31]",
+        "state[37]",
+        "state[39]",
+        "v1_accepted",
+        "v1_select"
+      ],
+      "cut_signals": [
+        "native_issue"
+      ]
+    },
+    {
+      "name": "pending_next_without_reset",
+      "variables": 9,
+      "combinations": 512,
+      "equivalent": true,
+      "leaves": [
+        "b_grant",
+        "cache_valid",
+        "copy_valid",
+        "fetch_valid",
+        "native_valid",
+        "raster_valid",
+        "v1_accepted",
+        "v1_pending",
+        "v1_select"
+      ],
+      "cut_signals": []
+    },
+    {
+      "name": "accepted_next_without_reset",
+      "variables": 2,
+      "combinations": 4,
+      "equivalent": true,
+      "leaves": [
+        "b_grant",
+        "v1_pending"
+      ],
+      "cut_signals": []
+    }
+  ],
+  "method": "Exhaustive bit-parallel truth-table equality; native_issue cut used only after separate exhaustive equivalence",
+  "inputs": {
+    "<REPO>/tang/impl/console_neo_n56r19_capture_ce_local/console_neo.vg": "dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6",
+    "<REPO>/TESTS/neo_720p_20261012/local_capture_20261026/check_handshake_truth.py": "fdfb464cded30c221ad3ce11ec16d3e40e4d054c16b0642ecd3873cf628ec83d"
+  },
+  "assumptions": [
+    "Reset inactive; documented D/CE flip-flop behavior.",
+    "Arbitrary Boolean leaves, no one-hot assumption."
+  ],
+  "limits": [
+    "No clock, propagation delay, physical connectivity or metastability model.",
+    "No complete GPU or memory-address/payload qualification."
+  ]
+}
+
+=== Proof method and compared equations [S07] ===
+    1 #!/usr/bin/env python3
+    2 """Exhaustive bit-parallel truth tables; no SAT search or timing inference."""
+    3 from functools import lru_cache
+    4 import json
+    5 import re
+    6 import signal
+    7 from pathlib import Path
+    8 from prepare_memory_observer import HERE, PARENT, sha, block, pins
+    9 
+   10 def main():
+   11     signal.alarm(60)
+   12     net=PARENT/'console_neo.vg';text=net.read_text();results=[]
+   13     def test(mod,name,roots,reference_leaves,actual,expected,cut=()):
+   14         b=block(text,mod);drivers={}
+   15         for m in re.finditer(r'^\s*(\w+)\s+(\\?\S+)\s+\((.*?)\);',b,re.M|re.S):
+   16             ps=dict(re.findall(r'\.(\w+)\(([^()]*)\)',m[3]));q=ps.get('F',ps.get('Q',''))
+   17             if q:drivers[q]=(m[1],m[2],ps)
+   18         leaves=set(reference_leaves)
+   19         @lru_cache(None)
+   20         def collect(n):
+   21             if n in ('VCC','GND'):return
+   22             if n in cut or n not in drivers or drivers[n][0].startswith('DFF'):
+   23                 leaves.add(n);return
+   24             typ,inst,ps=drivers[n];assert re.fullmatch(r'LUT[1-4]',typ),(n,typ)
+   25             for i in range(int(typ[-1])):collect(ps['I'+str(i)])
+   26         for n in roots:collect(n)
+   27         names=sorted(leaves);assert len(names)<=24
+   28         combinations=1<<len(names);mask=(1<<combinations)-1;bytes_count=(combinations+7)//8
+   29         values={}
+   30         for i,n in enumerate(names):
+   31             if i<3:data=bytes([((0xaa,0xcc,0xf0)[i])])*bytes_count
+   32             else:
+   33                 run=1<<(i-3);data=(bytes(run)+b'\xff'*run)*(bytes_count//(2*run))
+   34             values[n]=int.from_bytes(data,'little')&mask
+   35         @lru_cache(None)
+   36         def E(n):
+   37             if n=='VCC':return mask
+   38             if n=='GND':return 0
+   39             if n in values:return values[n]
+   40             typ,inst,ps=drivers[n];count=int(typ[-1])
+   41             p=re.search(r'defparam '+re.escape(inst)+r"\.INIT\s*=\s*(\d+)'h([0-9a-fA-F]+);",b);assert p
+   42             assert int(p[1])==1<<count
+   43             init=int(p[2],16);args=[E(ps['I'+str(i)]) for i in range(count)];answer=0
+   44             for index in range(1<<count):
+   45                 if not init>>index&1:continue
+   46                 term=mask
+   47                 for i,x in enumerate(args):term &= x if index>>i&1 else ~x
+   48                 answer |= term
+   49             return answer
+   50         got=actual(E)&mask;wanted=expected(E)&mask;difference=got^wanted
+   51         r=dict(name=name,variables=len(names),combinations=combinations,equivalent=difference==0,
+   52             leaves=names,cut_signals=list(cut))
+   53         if difference:
+   54             first=(difference&-difference).bit_length()-1
+   55             r['counterexample']={n:bool(first>>i&1) for i,n in enumerate(names)}
+   56         results.append(r);print(json.dumps({k:v for k,v in r.items() if k!='leaves'}),flush=True)
+   57     def OR(E,names):
+   58         result=0
+   59         for n in names:result |= E(n)
+   60         return result
+   61     def issue(E):
+   62         alpha256=E('alpha[8]')&~OR(E,[f'alpha[{i}]' for i in range(8)])
+   63         background=~alpha256|E('flags[5]')|(E('flags[0]')&E('tex_argb'))
+   64         return (E('state[14]')&background)|(E('state[16]')&E('flags[1]'))|(
+   65             E('state[28]')&E('chunk_dirty'))|E('state[30]')|(
+   66             E('state[36]')&E('clear_flags[0]'))|(E('state[38]')&E('clear_flags[1]'))
+   67     refs=[f'alpha[{i}]' for i in range(9)]+[f'state[{i}]' for i in (14,16,28,30,36,38)]+[
+   68         'flags[0]','flags[1]','flags[5]','tex_argb','chunk_dirty','clear_flags[0]','clear_flags[1]']
+   69     test('gpu_v1','native_issue',['native_issue'],refs,lambda E:E('native_issue'),issue)
+   70     assert results[-1]['equivalent'],'Do not use an unproved cut signal'
+   71     b=block(text,'gpu_v1');ff=pins(b,'native_valid_s1')
+   72     refs=['native_issue','native_valid','fetch_valid','v1_accepted','v1_select']+[f'state[{i}]' for i in (15,17,29,31,37,39)]
+   73     test('gpu_v1','native_valid_next_without_reset',[ff['CE'],ff['D']],refs,
+   74         lambda E:(E(ff['CE'])&E(ff['D']))|(~E(ff['CE'])&E('native_valid')),
+   75         lambda E:E('native_issue')|(E('native_valid')&OR(E,[f'state[{i}]' for i in (15,17,29,31,37,39)])&
+   76             ~(E('v1_accepted')&E('v1_select')&~E('fetch_valid'))),cut=('native_issue',))
+   77     b=block(text,'gpu_accel');pending=pins(b,'v1_pending_s2');accepted=pins(b,'v1_accepted_s0')
+   78     assert pending['CE']==accepted['CE']=='VCC'
+   79     refs=['v1_select','native_valid','copy_valid','cache_valid','fetch_valid','raster_valid','v1_pending','v1_accepted','b_grant']
+   80     def pending_next(E):
+   81         request=(E('v1_select')&OR(E,['native_valid','copy_valid','cache_valid','fetch_valid']))|(~E('v1_select')&E('raster_valid'))
+   82         return (E('v1_pending')&~E('b_grant'))|(~E('v1_pending')&request&~E('v1_accepted'))
+   83     test('gpu_accel','pending_next_without_reset',[pending['D']],refs,lambda E:E(pending['D']),pending_next)
+   84     test('gpu_accel','accepted_next_without_reset',[accepted['D']],['v1_pending','b_grant'],lambda E:E(accepted['D']),lambda E:E('v1_pending')&E('b_grant'))
+   85     result=dict(passed=all(r['equivalent'] for r in results),proofs=results,
+   86         method='Exhaustive bit-parallel truth-table equality; native_issue cut used only after separate exhaustive equivalence',
+   87         inputs={str(net):sha(net),str(Path(__file__)):sha(Path(__file__))},
+   88         assumptions=['Reset inactive; documented D/CE flip-flop behavior.', 'Arbitrary Boolean leaves, no one-hot assumption.'],
+   89         limits=['No clock, propagation delay, physical connectivity or metastability model.',
+   90                 'No complete GPU or memory-address/payload qualification.'])
+   91     out=HERE/'handshake_truth_proof.json';assert not out.exists();out.write_text(json.dumps(result,indent=2)+'\n')
+   92     if not result['passed']:raise SystemExit(1)
+   93 
+   94 if __name__=='__main__':main()
+
+=== Mapped CLEAR simulation scope (JSON projection) [S08] ===
+{
+  "passed": true,
+  "netlist_sha256": "d6fb3809022c68fc3b171026d83f4325fb0df27b9ef491f46e985a11dc0e4965",
+  "scope": "Exact mapped geometry/pixels, official primitive functional models; RTL model of registered memory slot, no routed-delay or DDR PHY qualification",
+  "observation_rewired_inputs": 128,
+  "application_primitives_added": 0,
+  "logs": {
+    "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "simulation.log": "239797a9025b50455a3a5d060e3932ea7cce3e8fcb49e8097837f3007525a599"
+  }
+}
+
+=== Command FIFO/reset and actual extended request slot [S10] ===
+    1 // G2 AHB command queue + rasterizer + native DDR3 DMA, at 0xE9001000.
+    2 // A command contains eight words. Completion counter is the software fence;
+    3 // BUSY is a synchronized status indication, not a substitute for that fence.
+    4 `default_nettype none
+    5 module gpu_accel #(
+    6     parameter FONT_FILE = "rtl/video/font8x16.hex"
+    7 ) (
+    8     input wire hclk, hresetn, hsel, hwrite,
+    9     input wire [31:0] haddr, hwdata,
+   10     input wire [1:0] htrans,
+   11     output reg [31:0] hrdata,
+   12     output wire hready,
+   13     input wire mem_clk,
+   14     output wire valid, write,
+   15     output wire [28:0] addr,
+   16     output wire [255:0] wr_data,
+   17     output wire [31:0] wr_mask,
+   18     input wire ready,
+   19     input wire [255:0] rd_data,
+   20     input wire rd_valid,
+   21     output wire [255:0] debug_state,
+   22     output wire debug_accept,
+   23     output wire [63:0] observe_packet_words
+   24 );
+   25     reg [1:0] mrst /* synthesis syn_preserve=1 */ = 0;   // voir gpu_scanout.v
+   26     always @(posedge mem_clk or negedge hresetn)
+   27         if (!hresetn) mrst <= 0; else mrst <= {mrst[0], 1'b1};
+   28     // Copies du dernier étage, avec exactement les mêmes cycles que mrst[1].
+   29     // Le registre unique alimentait 11 871 charges dans c2, dont les resets
+   30     // DSP du raster à l'autre bout du circuit. Garder une sortie par moteur.
+   31     // Le DMA possède aussi sa copie : partager celle du blitter créait
+   32     // un aller-retour reset -> DMA -> adresses BSRAM du blitter (C19).
+   33     reg [11:0] engine_resetn /* synthesis syn_preserve=1 */ = 0;
+   34     always @(posedge mem_clk or negedge hresetn)
+   35         if (!hresetn) engine_resetn <= 0;
+   36         else engine_resetn <= {12{mrst[0]}};
+   37     reg [7:0] bus_addr;
+   38     reg bus_write,bus_command,read_wait;
+   39     wire queue_full;
+   40     // Register command-port decode during the AHB address phase, keeping
+   41     // the address comparator off the CPU's HREADY feedback path.
+   42     // AHB master and this FIFO share reset. Use registered fullness here:
+   43     // the generic FIFO's reset-gated READY must not enter CPU feedback.
+   44     assign hready = !(bus_command && queue_full) && !read_wait;
+   45     // Capture CSR data locally before crossing the chip to the peripheral
+   46     // bridge. Each read inserts one AHB wait state; writes are unchanged.
+   47     always @(posedge hclk)begin
+   48         if(!hresetn)read_wait<=0;
+   49         else if(read_wait)read_wait<=0;
+   50         else if(hready)read_wait<=hsel && htrans[1] && !hwrite;
+   51     end
+   52     // Used only at font addresses 14/18, which cannot be a FIFO command.
+   53     // Queue fullness therefore cannot stall these writes. Keeping FULL out
+   54     // of this enable avoids a long path across the AHB/font regions.
+   55     wire write_fire = bus_write && !read_wait && hresetn;
+   56     reg [11:0] font_write_addr;
+   57     always @(posedge hclk) begin
+   58         if (!hresetn) begin bus_addr <= 0; bus_write <= 0; bus_command<=0; font_write_addr <= 0; end
+   59         else begin
+   60             if (hready) begin
+   61                 bus_addr <= haddr[7:0]; bus_write <= hsel && htrans[1] && hwrite;
+   62                 bus_command<=hsel && htrans[1] && hwrite && haddr[7:0]==8'h10;
+   63             end
+   64             if (write_fire && bus_addr == 8'h14) font_write_addr <= hwdata[11:0];
+   65             if (write_fire && bus_addr == 8'h18) font_write_addr <= font_write_addr + 1'b1;
+   66         end
+   67     end
+   68     wire queue_valid, queue_pop;
+   69     wire [31:0] queue_data, queue_lost;
+   70     wire [7:0] queue_count, queue_rd_count;
+   71     ddr_dcfifo #(.WIDTH(32), .DEPTH_LOG2(7)) u_commands (
+   72         .wr_clk(hclk), .wr_rst(!hresetn), .wr_valid(bus_command && !queue_full),
+   73         .wr_data(hwdata), .wr_ready(), .wr_full(queue_full), .wr_lost(queue_lost), .wr_count(queue_count),
+   74         .rd_clk(mem_clk), .rd_rst(!mrst[1]), .rd_valid(queue_valid), .rd_data(queue_data),
+   75         .rd_ready(queue_pop), .rd_count(queue_rd_count));
+   76     wire command_full, blitter_busy;
+   77     reg [2:0] command_word;
+   78     // Reserve a whole command in the rasterizer FIFO, then send all eight words.
+   79     assign queue_pop = mrst[1] && (command_word != 0 || !command_full);
+   80     wire command_we = queue_valid && queue_pop;
+   81     always @(posedge mem_clk) begin
+   82         if (!mrst[1]) command_word <= 0;
+   83         else if (command_we) command_word <= command_word + 1'b1;
+[... omitted lines ...]
+  179     wire [255:0] ext_command;
+  180     wire legacy_valid,legacy_write,raster_valid,raster_write;
+  181     wire [28:0] legacy_addr,raster_addr;
+  182     wire [255:0] legacy_data,raster_data;
+  183     wire [31:0] legacy_mask,raster_mask;
+  184     // The opcode is stable before ext_start; latch ownership outside a command.
+  185     // This keeps opcode decode off the arbiter READY feedback path.
+  186     reg v1_select;
+  187     // Keep raster control separate from the wide payload mux. N29 routed
+  188     // v1_select to 487 loads and across the device before raster CE decode.
+  189     // This is the complementary value at the same cycle, not another stage.
+  190     reg raster_selected /* synthesis syn_preserve=1 */;
+  191     always @(posedge mem_clk)begin
+  192         if(!mrst[1])begin v1_select<=0;raster_selected<=1;end
+  193         else if(!ext_active)begin
+  194             v1_select<=ext_command[31:24]>=22;
+  195             raster_selected<=ext_command[31:24]<22;
+  196         end
+  197     end
+  198     wire old_done,v1_done,v1_valid,v1_write,v1_request;
+  199     reg v1_accepted,v1_pending,v1_tx_write,v1_rx_valid;
+  200     reg [28:0] v1_tx_addr;
+  201     reg [255:0] v1_tx_data;
+  202     // (syn_preserve : voir gpu_raster.v, copie locale du bus de lecture DDR)
+  203     reg [255:0] v1_rx_data /* synthesis syn_preserve=1 */;
+  204     reg [31:0] v1_tx_mask;
+  205     wire [28:0] v1_addr;
+  206     wire [255:0] v1_data;
+  207     wire [31:0] v1_mask;
+  208     // Both extended raster engines share one registered DDR transaction stage.
+  209     // This also cuts scanout arbitration -> legacy raster next-state paths.
+  210     wire extended_request=v1_select ? v1_request:raster_valid;
+  211     // Isolate the extended shaders' request multiplexers and wide reply loads
+  212     // from the shared DDR arbiter. Hold one complete transaction until accepted.
+  213     // The acknowledgement guard prevents recapturing the engine's old VALID
+  214     // on the cycle in which it observes the registered acceptance pulse.
+  215     always @(posedge mem_clk)begin
+  216         v1_rx_data<=rd_data;
+  217         if(!mrst[1])begin
+  218             v1_accepted<=0;v1_pending<=0;v1_rx_valid<=0;
+  219         end else begin
+  220             v1_accepted<=v1_pending && ready;
+  221             v1_rx_valid<=rd_valid && ext_active;
+  222             if(v1_pending)begin
+  223                 if(ready)v1_pending<=0;
+  224             end else if(extended_request && !v1_accepted)begin
+  225                 v1_pending<=1;
+  226             end
+  227         end
+  228     end
+  229     // Prefetch only while the transaction slot is empty. REQUEST drives
+  230     // PENDING alone; held payload and accepted DDR cycles remain unchanged.
+  231     always @(posedge mem_clk)begin
+  232         if(!v1_pending)begin
+  233             v1_tx_addr<=v1_select ? v1_addr:raster_addr;
+  234             v1_tx_data<=v1_select ? v1_data:raster_data;
+  235             v1_tx_mask<=v1_select ? v1_mask:raster_mask;
+  236             v1_tx_write<=v1_select ? v1_write:raster_write;
+  237         end
+  238     end
+  239     assign v1_valid=v1_pending;
+  240     assign ext_done=v1_select ? v1_done:old_done;
+  241     gpu_geometry u_v1(.child_resetn(engine_resetn[9:4]),.clk(mem_clk),.rst(!engine_resetn[2]),.start(ext_start && v1_select),.command(ext_command),
+  242         .observe_packet_words(observe_packet_words),.busy(),.done(v1_done),
+  243         .geom_errors(geometry_stat[0]),.vertices(geometry_stat[1]),.triangles(geometry_stat[2]),
+  244         .culled(geometry_stat[3]),.clipped(geometry_stat[4]),.slivers(geometry_stat[5]),.geom_cycles(geometry_stat[6]),.rejected(v1_rejected),.fragments(v1_fragments),.passed(v1_passed),
+  245         .texture_hits(v1_hits),.texture_misses(v1_misses),.valid(v1_request),.write(v1_write),
+  246         .addr(v1_addr),.wr_data(v1_data),.wr_mask(v1_mask),
+  247         .ready(v1_accepted && v1_select),.rd_valid(v1_rx_valid && v1_select),.rd_data(v1_rx_data));
+  248     // The ordered command queue starts only one engine at a time; each engine
+  249     // drops VALID before completion. Use those registered request flags for
+  250     // transaction control. The wide payload's owner mux must not feed WRITE
+  251     // and then loop through arbiter READY into the engine state machines.
+  252     assign valid=legacy_valid || v1_valid;
+  253     assign write=(legacy_valid && legacy_write) || (v1_valid && v1_tx_write);
+  254     assign addr=ext_active ? v1_tx_addr:legacy_addr;
+  255     assign wr_data=ext_active ? v1_tx_data:legacy_data;
+  256     assign wr_mask=ext_active ? v1_tx_mask:legacy_mask;
+  257     gpu_raster u_raster (.child_resetn(engine_resetn[11:10]),
+  258         .clk(mem_clk),.rst(!engine_resetn[1]),.start(ext_start && raster_selected),.command(ext_command),.busy(),.done(old_done),
+  259         .rejected(raster_rejected),.fragments(raster_fragments),.passed(raster_passed),
+  260         .valid(raster_valid),.write(raster_write),.addr(raster_addr),.wr_data(raster_data),.wr_mask(raster_mask),
+  261         .ready(v1_accepted && raster_selected),.rd_data(v1_rx_data),.rd_valid(v1_rx_valid && raster_selected));
+  262     blitter u_blitter (
+  263         .clk(mem_clk), .rst(!engine_resetn[0]), .cmd_we(command_we), .cmd_data(queue_data), .cmd_full(command_full),
+  264         .err_cmd_lost(command_lost), .err_cmd_bad(command_bad), .cmd_done(done_count), .busy(blitter_busy),
+
+=== Geometry passthrough and pixel ready gating [S11] ===
+   40  reg shader_start;reg [255:0] shader_command;
+   41  wire shader_done,shader_valid,shader_write,shader_target_valid,shader_material_valid;wire [28:0] shader_addr;
+   42  wire [255:0] shader_data;wire [31:0] shader_mask,shader_rejected;
+   43  reg fetch_valid;reg [28:0] fetch_addr;
+   44  reg shader_read_phase;
+   45  always @(posedge clk)
+   46   if(rst)shader_read_phase<=0;
+   47   else if(shader_start)shader_read_phase<=1;
+   48   else if(shader_done)shader_read_phase<=0;
+   49  // START already marks the first wait-state cycle, before the retained bit.
+   50  wire shader_read_enable=shader_start || shader_read_phase;
+   51  assign busy=!state[IDLE];
+   52  assign valid=fetch_valid||shader_valid;assign write=shader_valid&&shader_write;
+   53  assign addr=fetch_valid ? fetch_addr:shader_addr;
+   54  assign wr_data=shader_data;assign wr_mask=shader_mask;
+   55  assign rejected=geom_errors+shader_rejected;
+   56  gpu_v1 u_pixels(.child_resetn(child_resetn[5:2]),.clk(clk),.rst(!child_resetn[0]),.start(shader_start),.command(shader_command),.done(shader_done),.busy(),
+   57   .observe_packet_word0(observe_pixel_word0),.target_config_valid(shader_target_valid),.material_config_valid(shader_material_valid),
+   58   .rejected(shader_rejected),.fragments(fragments),.passed(passed),.texture_hits(texture_hits),.texture_misses(texture_misses),
+   59   .valid(shader_valid),.write(shader_write),.addr(shader_addr),.wr_data(shader_data),.wr_mask(shader_mask),
+   60   .ready(ready&&!fetch_valid),.rd_valid(rd_valid&&shader_read_enable),.rd_data(rd_data));
+   61  reg signed [31:0] matrix[0:11],coefficient[0:3];reg [2:0] matrix_valid;
+[... omitted lines ...]
+  240  integer j;
+  241  always @(posedge clk)begin
+  242   shader_start<=0;div_start<=0;done<=0;
+  243   if(rst)begin
+  244    state<=81'b1<<(IDLE);fetch_valid<=0;shader_start<=0;div_start<=0;done<=0;
+  245    matrix_valid<=0;camera_valid<=0;material_valid<=0;draw_active<=0;target_w<=0;target_h<=0;
+  246    projecting<=0;
+  247    geom_errors<=0;vertices<=0;triangles<=0;culled<=0;clipped<=0;slivers<=0;geom_cycles<=0;
+  248    ambient<=256;diffuse<=0;light_x<=0;light_y<=0;light_z<=0;
+  249    // material_valid is the reset boundary. Material payload is private and
+  250    // is overwritten by a validated material before drawing; resetting it
+  251    // also reset distant DSP input FFs through the whole engine reset tree.
+  252    shader_command<=0;fetch_addr<=0;
+  253   end else begin
+  254    if(!state[IDLE]&&!state[PASS])geom_cycles<=geom_cycles+1'b1;
+  255    case(1'b1) // synthesis parallel_case
+  256     state[IDLE]:if(start)begin
+  257      // Separate the distant command FIFO and address sums from validation.
+  258      captured_command<=command;
+  259      mesh_vertex_end<={1'b0,command[63:32]}+{12'b0,command[127:112],5'b0};
+  260      mesh_face_end<={1'b0,command[95:64]}+{12'b0,command[111:96],5'b0};
+  261      state<=81'b1<<(DECODE);
+  262     end
+  263     state[DECODE]:begin
+  264      if(w0[31:24]<31)begin
+  265       shader_command<=captured_command;shader_start<=1;state<=81'b1<<(PASS);
+  266       if(w0[31:24]==22)begin target_w<=w3[31:16];target_h<=w3[15:0];camera_valid<=0;end
+  267       if(w0[31:24]==25)begin material<=captured_command;material_valid<=0;end
+  268      end else case(w0[31:24])
+  269       31:begin
+  270        matrix_bad<=w0[23:0]!=0||w1>2||w6!=0||w7!=0;
+[... omitted lines ...]
+  324     state[PASS]:if(shader_done)begin
+  325      // Use the pixel engine's complete descriptor validation, including
+  326      // headers/reserved bits. Lighting must never sanitize an invalid tint.
+  327      if(w0[31:24]==25)material_valid<=shader_material_valid&&!w1[6];
+  328      if(w0[31:24]==22&&!shader_target_valid)begin target_w<=0;target_h<=0;camera_valid<=0;end
+  329      state<=81'b1<<(FINISH);
+  330     end
+  331     state[FAIL]:begin
+  332      geom_errors<=geom_errors+1'b1;fetch_valid<=0;
+  333      // A preceding face may have changed the pixel engine's tint. Keep the
+
+=== Pixel states, native valid contract, CLEAR validation and execution [S12] ===
+   21     localparam IDLE=0,BAD=1,FINISH=2,TARGET_CHECK=3,TEX_CHECK=4,
+   22       TRI_START=5,TRI_BOOT=6,TRI_WAIT=7,SPAN_CLIP=8,ROW_ADDR=9,
+   23       PLANE_MUL=10,PLANE_SUM=11,PLANE_LOAD=12,CHUNK=13,COLOR_REQ=14,
+   24       COLOR_WAIT=15,Z_REQ=16,Z_WAIT=17,PIX_BEGIN=18,PIX_ADDR=19,
+   25       PIX_TEX=20,PIX_UNPACK=21,PIX_MOD=22,PIX_FOG=23,PIX_FOG_MIX=24,
+   26       PIX_BLEND=25,PIX_STORE=26,PIX_NEXT=27,COLOR_WRITE=28,
+   27       COLOR_SENT=29,Z_WRITE=30,Z_SENT=31,ADVANCE=32,RECT_SETUP=33,
+   28       RECT_ROW=34,RECT_CHUNK=35,RECT_COLOR=36,RECT_CSENT=37,
+   29       RECT_Z=38,RECT_ZSENT=39,RECT_NEXT=40,COPY_START=41,COPY_WAIT=42,RECT_BOUNDS=43,RECT_CLIP=44,DECODE=45,TARGET_WAIT=46,TEX_WAIT=47,
+   30       DECODE_WAIT=48,TARGET_VALIDATE=49,TEX_VALIDATE=50,SPAN_BOUNDS=51,
+   31       PIX_LOD=52,PIX_OFFSET=53,PIX_FETCH=54,PIX_OPAQUE=55,DECODE_PIPE=56,TARGET_PIPE=57;
+   32     reg [57:0] state;
+   33     assign busy=!state[IDLE];
+   34     // Gowin 1.9.12 can absorb consecutive, independently enabled command
+   35     // registers into a DSP C pipeline with the enables reversed. This affects
+   36     // COPY's source base and TARGET's depth range, so preserve the packet
+   37     // boundary in fabric (SUG550 section 4.3/5.12).
+   38     // See TESTS/test_gpu_copy_dsp.py for the primitive-level reproduction.
+   39     reg [255:0] packet /* synthesis syn_preserve=1 */;
+   40     assign observe_packet_word0=packet[31:0];
+   41     wire [31:0] w0=packet[31:0],w1=packet[63:32],w2=packet[95:64],w3=packet[127:96],
+   42         w4=packet[159:128],w5=packet[191:160],w6=packet[223:192],w7=packet[255:224];
+   43     reg target_valid,material_valid,texture_valid,fast_shade,opaque_shade;
+[... omitted lines ...]
+   82     // 32-bit byte mask in the wide native-request enable path.
+   83     reg chunk_dirty;
+   84     reg native_valid,native_write;
+   85     reg [28:0] native_addr;
+   86     reg [255:0] native_data;
+   87     reg [31:0] native_mask;
+   88     reg cache_start,cache_invalidate;
+   89     reg [29:0] cache_address;
+   90     wire cache_busy,cache_done,cache_valid;
+   91     wire [28:0] cache_addr;
+   92     wire [15:0] cached_texel;
+   93     // Only the pixel texture state owns this client, after color/Z replies drain.
+   94     wire copy_done,copy_bad,copy_valid,copy_write;
+   95     wire [28:0] copy_addr;
+   96     wire [255:0] copy_data;
+   97     wire [31:0] copy_mask;
+   98     gpu_copy565 u_copy(.clk(clk),.rst(!child_resetn[0]),.start(state[COPY_START]),.command(packet),
+   99         .dst_base(color_base),.dst_stride(color_stride),.dst_height(height),
+  100         .clip_l(left),.clip_t(top),.clip_r(right),.clip_b(bottom),
+  101         .done(copy_done),.bad(copy_bad),.valid(copy_valid),.write(copy_write),
+  102         .addr(copy_addr),.wr_data(copy_data),.wr_mask(copy_mask),
+  103         .ready(ready && state[COPY_WAIT]),.rd_valid(rd_valid && state[COPY_WAIT]),.rd_data(rd_data));
+  104     assign valid=native_valid || cache_valid || copy_valid;
+  105     // Les multiplexeurs de sortie (adresse, 256 bits de données, masque : plus de 300 entrées) sont
+  106     // commandés par copy_sel, quatre copies d'un bit de phase (COPY_START/COPY_WAIT) qui couvre tous
+  107     // les cycles où copy_valid peut valoir 1, plutôt que par copy_valid lui-même : ce registre du
+  108     // moteur de copie, à 305 destinations, faisait un fil de 5,7 ns (r621). Hors de ces cycles, valid
+  109     // vaut 0 et la valeur des bus est sans effet ; les transactions DDR sont identiques.
+  110     reg [3:0] copy_sel /* synthesis syn_preserve=1 */;
+  111     always @(posedge clk) copy_sel<={4{state[COPY_START] || state[COPY_WAIT]}};
+  112     assign write=copy_sel[0] ? copy_write:native_valid && native_write;
+  113     assign addr=copy_sel[0] ? copy_addr:cache_valid ? cache_addr:native_addr;
+  114     assign wr_data={copy_sel[2] ? copy_data[255:128]:native_data[255:128],copy_sel[1] ? copy_data[127:0]:native_data[127:0]};
+  115     assign wr_mask=copy_sel[3] ? copy_mask:native_mask;
+  116     gpu_texture_cache u_cache(.clk(clk),.rst(!child_resetn[1]),.invalidate(cache_invalidate),.start(cache_start),
+  117         .byte_address(cache_address),.busy(cache_busy),.done(cache_done),.texel(cached_texel),
+  118         .hits(texture_hits),.misses(texture_misses),.valid(cache_valid),.addr(cache_addr),
+  119         .ready(ready && !native_valid),.rd_data(rd_data),.rd_valid(rd_valid && state[PIX_TEX]));
+  120     reg [32:0] color_end,z_end,texture_end;
+  121     always @(posedge clk)begin
+  122         color_end<={3'b0,color_base}+color_stride*height;
+  123         z_end<={3'b0,z_base}+z_stride*height;
+  124         texture_end<={3'b0,texture_base}+tex_stride*tex_height;
+  125     end
+  126     wire texture_alias=(texture_base<color_end && color_base<texture_end) ||
+  127                        ((flags[1] || flags[2]) && texture_base<z_end && z_base<texture_end);
+  128     wire need_background=alpha!=256 || flags[5] || (flags[0] && tex_argb);
+  129     // Explicit set/hold removes the wide FSM clock-enable priority cone.
+  130     // All native requests hold VALID until their registered DDR acceptance.
+  131     // These issue/wait states are mutually exclusive in the one-hot machine.
+  132     wire native_issue=(state[COLOR_REQ] && need_background) ||
+  133         (state[Z_REQ] && flags[1]) ||
+  134         (state[COLOR_WRITE] && chunk_dirty) || state[Z_WRITE] ||
+  135         (state[RECT_COLOR] && clear_flags[0]) || (state[RECT_Z] && clear_flags[1]);
+  136     wire native_wait=state[COLOR_WAIT] || state[Z_WAIT] || state[COLOR_SENT] ||
+  137         state[Z_SENT] || state[RECT_CSENT] || state[RECT_ZSENT];
+  138     always @(posedge clk)begin
+  139         if(rst)native_valid<=0;
+  140         else native_valid<=native_issue || (native_valid && native_wait && !ready);
+  141     end
+  142     wire [4:0] room=5'd16-{1'b0,px[3:0]};
+  143     reg triangle_start;
+[... omitted lines ...]
+  244     reg [1:0] clear_flags;
+  245     reg [15:0] clear_color,clear_depth,rect_bottom,rect_left,rect_right;
+  246     wire signed [16:0] rect_x=$signed(w4[31:16]),rect_y=$signed(w4[15:0]);
+  247     wire signed [17:0] rect_end_x=rect_x+$signed({1'b0,w5[31:16]});
+  248     wire signed [17:0] rect_end_y=rect_y+$signed({1'b0,w5[15:0]});
+  249     reg signed [17:0] rect_request_l,rect_request_t,rect_request_r,rect_request_b;
+  250     reg signed [17:0] rect_l,rect_t,rect_r,rect_b;
+  251     reg [31:0] rect_mask;
+  252     // Validate in parallel, then apply through registered predicates. Packet
+  253     // comparators must not drive hundreds of descriptor FF clock enables.
+  254     reg bad_header,bad_scissor,bad_material,bad_plane,bad_triangle,bad_clear,
+  255         bad_invalidate,bad_target,bad_texture;
+  256     reg [2:0] scissor_bad,material_bad;
+  257     reg [5:0] target_bad;
+  258     reg [7:1] word_nonzero;
+  259     always @(posedge clk)begin
+  260         // DECODE_WAIT/DECODE_PIPE cover both reduction stages. These reserved
+  261         // words otherwise feed several wide zero tests directly from packet.
+  262         for(integer w=1;w<8;w=w+1)word_nonzero[w]<=|packet[w*32+:32];
+  263         bad_header<=w0[23:0]!=0 && !(w0[31:24]==26 && w0[23:3]==0 && w0[2:0]<7);
+  264         scissor_bad[0]<=w1[31:16]>w2[31:16] || w2[31:16]>width;
+  265         scissor_bad[1]<=w1[15:0]>w2[15:0] || w2[15:0]>height;
+  266         scissor_bad[2]<=!target_valid || w3!=0 || w4!=0 || w5!=0 || w6!=0 || w7!=0;
+  267         bad_scissor<=|scissor_bad;
+  268         material_bad[0]<=w1>255 || (w1[4] && !w1[0]) || w2>256 || w3>65535;
+  269         material_bad[1]<=w4[31:27]!=0 || w4[8:0]>256 || w4[17:9]>256 || w4[26:18]>256;
+  270         material_bad[2]<=w6>32'h01000000 || w7!=0;
+  271         bad_material<=|material_bad;
+  272         bad_plane<=w0[2:0]>=7 || w4[31:16]!=0 || (|word_nonzero[7:5]);
+  273         bad_triangle<=!target_valid || !material_valid || (|word_nonzero[7:4]) ||
+  274             (flags[0] && (!texture_valid || plane_valid[1:0]!=3 || texture_alias)) ||
+  275             (flags[4] && !plane_valid[2]) || ((flags[1] || flags[2] || flags[7]) && !plane_valid[3]) ||
+  276             (flags[6] && plane_valid[6:4]!=7);
+  277         bad_clear<=!target_valid || w1>3 || w2>65535 || w3>65535 || (|word_nonzero[7:6]);
+  278         bad_invalidate<=|word_nonzero;
+  279         target_bad[0]<=w1[31:30]!=0 || w2[31:30]!=0 || color_base[4:0]!=0 || z_base[4:0]!=0;
+  280         target_bad[1]<=width==0 || width>1024 || height==0 || height>512;
+  281         target_bad[2]<=color_stride[4:0]!=0 || z_stride[4:0]!=0 || color_stride<width*2 || z_stride<width*2;
+  282         target_bad[3]<=color_end>33'h040000000 || z_end>33'h040000000;
+  283         target_bad[4]<=color_base<z_end && z_base<color_end;
+  284         target_bad[5]<=w5!=0 || w6!=0 || w7!=0;
+  285         bad_target<=|target_bad;
+  286         bad_texture<=w1[31:30]!=0 || texture_base[4:0]!=0 || tex_width==0 || tex_width>512 || tex_height==0 || tex_height>512 ||
+  287             tex_stride[4:0]!=0 || tex_stride<tex_width*2 || texture_end>33'h040000000 ||
+  288             w3[31:17]!=0 || w4[31:8]!=0 || mip_level>9 || mode_u==3 || mode_v==3 ||
+  289             (mode_u==1 && (tex_width&(tex_width-1))!=0) || (mode_v==1 && (tex_height&(tex_height-1))!=0) ||
+  290             w5!=0 || w6!=0 || w7!=0;
+  291     end
+[... omitted lines ...]
+  343     end
+  344     always @(posedge clk)begin
+  345         if(rst)begin
+  346             packet<=0;plane_write<=0;state<=58'b1<<IDLE;done<=0;native_write<=0;native_addr<=0;native_data<=0;native_mask<=-1;
+  347             target_valid<=0;texture_valid<=0;material_valid<=0;plane_valid<=0;fast_shade<=1;opaque_shade<=0;
+  348             rejected<=0;fragments<=0;passed<=0;cache_start<=0;cache_invalidate<=0;cache_address<=0;
+  349             color_base<=0;z_base<=0;texture_base<=0;width<=0;height<=0;color_stride<=0;z_stride<=0;
+  350             left<=0;top<=0;right<=0;bottom<=0;tex_width<=0;tex_height<=0;tex_stride<=0;
+  351             flags<=0;alpha<=256;solid<=0;tint_r<=256;tint_g<=256;tint_b<=256;
+  352             fog_color<=0;fog_near<=0;fog_scale<=0;tex_argb<=0;mode_u<=0;mode_v<=0;mip_level<=0;
+  353             px<=0;py<=0;span_left<=0;chunk_count<=0;chunk_left<=0;lane<=0;plane_index<=0;
+  354             color_row<=0;z_row<=0;color_addr<=0;z_addr<=0;triangle_start<=0;unclipped_end<=0;
+  355             raw_u<=0;raw_v<=0;coord_u<=0;coord_v<=0;rational_valid<=0;tex_u<=0;tex_v<=0;
+  356             texture_offset<=0;texture_column<=0;
+  357             pixel<=0;background<=0;depth<=0;effective_alpha<=0;pixel_visible<=0;sample_allowed<=0;
+  358             gain_r<=0;gain_g<=0;gain_b<=0;fog_factor<=0;
+  359             mod_r<=0;mod_g<=0;mod_b<=0;alpha_product<=0;fog_product<=0;fog_delta<=0;
+  360             fog_r<=0;fog_g<=0;fog_b<=0;mix_r<=0;mix_g<=0;mix_b<=0;
+  361             rect_request_l<=0;rect_request_t<=0;rect_request_r<=0;rect_request_b<=0;rect_l<=0;rect_t<=0;rect_r<=0;rect_b<=0;
+  362             clear_flags<=0;clear_color<=0;clear_depth<=0;rect_bottom<=0;rect_left<=0;rect_right<=0;
+  363         end else begin
+  364             done<=0;plane_write<=0;cache_start<=0;cache_invalidate<=0;triangle_start<=0;
+  365             case(1'b1) // synthesis parallel_case
+  366             state[IDLE]:if(start)begin packet<=command;state<=58'b1<<DECODE_WAIT;end
+  367             state[DECODE_WAIT]:state<=58'b1<<DECODE_PIPE;
+  368             state[DECODE_PIPE]:state<=58'b1<<DECODE;
+[... omitted lines ...]
+  422                     else state<=58'b1<<(alpha==0 || left==right || top==bottom ? FINISH:TRI_START);
+  423                 end
+  424                 28:begin
+  425                     if(bad_clear)state<=58'b1<<BAD;
+  426                     else begin clear_flags<=w1[1:0];clear_color<=w2[15:0];clear_depth<=w3[15:0];state<=58'b1<<RECT_BOUNDS;end
+  427                 end
+  428                 29:state<=58'b1<<(target_valid ? COPY_START:BAD);
+  429                 30:begin
+  430                     if(bad_invalidate)state<=58'b1<<BAD;
+  431                     else begin cache_invalidate<=1;state<=58'b1<<FINISH;end
+  432                 end
+  433                 default:state<=58'b1<<BAD;
+[... omitted lines ...]
+  576             state[Z_SENT]:if(ready)begin state<=58'b1<<ADVANCE;end
+  577             state[ADVANCE]:begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=58'b1<<(span_left==chunk_count ? TRI_WAIT:CHUNK);end
+  578             state[RECT_BOUNDS]:begin
+  579                 rect_request_l<=rect_x;rect_request_t<=rect_y;rect_request_r<=rect_end_x;rect_request_b<=rect_end_y;
+  580                 state<=58'b1<<RECT_CLIP;
+  581             end
+  582             state[RECT_CLIP]:begin
+  583                 rect_l<=rect_request_l<$signed({1'b0,left}) ? $signed({1'b0,left}):rect_request_l;
+  584                 rect_t<=rect_request_t<$signed({1'b0,top}) ? $signed({1'b0,top}):rect_request_t;
+  585                 rect_r<=rect_request_r>$signed({1'b0,right}) ? $signed({1'b0,right}):rect_request_r;
+  586                 rect_b<=rect_request_b>$signed({1'b0,bottom}) ? $signed({1'b0,bottom}):rect_request_b;
+  587                 state<=58'b1<<RECT_SETUP;
+  588             end
+  589             state[RECT_SETUP]:begin
+  590                 // Empty rectangles may update these private temporaries, but
+  591                 // never issue DDR traffic. Keep the wide emptiness comparison
+  592                 // out of py's data/enable path (also absorbed into DSP inputs).
+  593                 rect_left<=rect_l[15:0];rect_right<=rect_r[15:0];rect_bottom<=rect_b[15:0];py<=rect_t[9:0];
+  594                 if(clear_flags==0 || rect_l>=rect_r || rect_t>=rect_b)state<=58'b1<<FINISH;
+  595                 else state<=58'b1<<RECT_ROW;
+  596             end
+  597             state[RECT_ROW]:begin
+  598                 px<=rect_left[10:0];span_left<=rect_right-rect_left;
+  599                 color_row<=color_base+py*color_stride;z_row<=z_base+py*z_stride;state<=58'b1<<RECT_CHUNK;
+  600             end
+  601             state[RECT_CHUNK]:begin
+  602                 color_addr<=(color_row+({21'd0,px}<<1))>>2;z_addr<=(z_row+({21'd0,px}<<1))>>2;
+  603                 chunk_count<=span_left>room ? room:span_left[4:0];state<=58'b1<<RECT_COLOR;
+  604             end
+  605             state[RECT_COLOR]:begin
+  606                 if(clear_flags[0])begin native_addr<={color_addr[28:3],3'b0};native_data<={16{clear_color}};native_mask<=rect_mask;
+  607                     native_write<=1;state<=58'b1<<RECT_CSENT;end
+  608                 else state<=58'b1<<RECT_Z;
+  609             end
+  610             state[RECT_CSENT]:if(ready)begin state<=58'b1<<RECT_Z;end
+  611             state[RECT_Z]:begin
+  612                 if(clear_flags[1])begin native_addr<={z_addr[28:3],3'b0};native_data<={16{clear_depth}};native_mask<=rect_mask;
+  613                     native_write<=1;state<=58'b1<<RECT_ZSENT;end
+  614                 else state<=58'b1<<RECT_NEXT;
+  615             end
+  616             state[RECT_ZSENT]:if(ready)begin state<=58'b1<<RECT_NEXT;end
+  617             state[RECT_NEXT]:begin
+  618                 if(span_left>chunk_count)begin px<=px+chunk_count;span_left<=span_left-chunk_count;state<=58'b1<<RECT_CHUNK;end
+  619                 else begin
+  620                     py<=py+1'b1;
+  621                     state<=58'b1<<(py+1>=rect_bottom ? FINISH:RECT_ROW);
+  622                 end
+  623             end
+  624             default:begin state<=58'b1<<BAD;end
+  625             endcase
+  626         end
+
+=== Actual complete DDR arbitration RTL [S13] ===
+    1 // Shared native DDR3 UI: CPU adapter, scanout reads and blitter reads/writes.
+    2 // Addresses are 32-bit words, aligned to eight words (32 bytes).
+    3 // CPU upstream issues command+data pulses only when ready; capture them in a
+    4 // one-entry buffer to break the ready chain through the legacy CPU adapter.
+    5 // Scanout has priority for bounded line fetches; CPU/blitter alternate otherwise.
+    6 // Their grant is registered, so changing clients may insert an idle cycle.
+    7 `default_nettype none
+    8 module ddr_gpu_arb (
+    9     input wire clk, rst_n,
+   10     input wire c_en,
+   11     input wire [2:0] c_cmd,
+   12     input wire [28:0] c_addr,
+   13     output wire c_ready,
+   14     input wire c_wr_en, c_wr_end,
+   15     input wire [255:0] c_wr_data,
+   16     input wire [31:0] c_wr_mask,
+   17     output wire c_wr_ready,
+   18     output wire [255:0] c_rd_data,
+   19     output wire c_rd_valid, c_rd_end,
+   20     input wire g_valid,
+   21     input wire [28:0] g_addr,
+   22     output wire g_ready,
+   23     output wire [255:0] g_data,
+   24     output wire g_data_valid,
+   25     input wire b_valid, b_write,
+   26     input wire [28:0] b_addr,
+   27     input wire [255:0] b_wr_data,
+   28     input wire [31:0] b_wr_mask,
+   29     output wire b_ready,
+   30     output wire [255:0] b_rd_data,
+   31     output wire b_rd_valid,
+   32     output wire m_en,
+   33     output wire [2:0] m_cmd,
+   34     output wire [28:0] m_addr,
+   35     input wire m_ready,
+   36     output wire m_wr_en, m_wr_end,
+   37     output wire [255:0] m_wr_data,
+   38     output wire [31:0] m_wr_mask,
+   39     input wire m_wr_ready,
+   40     input wire [255:0] m_rd_data,
+   41     input wire m_rd_valid, m_rd_end
+   42 );
+   43     reg [1:0] tags [0:15]; // 0 CPU, 1 scanout, 2 blitter
+   44     reg [4:0] wp = 0, rp = 0;
+   45     reg full = 0;
+   46     wire empty = wp == rp;
+   47     wire issue = rst_n && !full;
+   48     reg cpu_pending = 0;
+   49     reg [2:0] cpu_cmd;
+   50     reg [28:0] cpu_addr;
+   51     reg [255:0] cpu_data;
+   52     reg [31:0] cpu_mask;
+   53     reg prefer_blitter = 1;
+   54     reg take_blitter = 0;
+   55     // Two scanout request slots isolate its distant owner/request decode
+   56     // from DDR arbitration. READY acknowledges enqueueing; responses still
+   57     // follow DDR issue order. The FIFO sustains one request per cycle when
+   58     // DDR accepts continuously, and never depends on DDR READY at its input.
+   59     reg [28:0] scan_addresses [0:1];
+   60     reg scan_wp=0,scan_rp=0;
+   61     reg [1:0] scan_count=0;
+   62     wire scan_valid=scan_count!=0;
+   63     wire [28:0] scan_addr=scan_addresses[scan_rp];
+   64     assign g_ready = rst_n && scan_count!=2;
+   65     wire scan_enqueue=g_valid && g_ready;
+   66     wire scan_issue=scan_valid && issue && m_ready;
+   67     always @(posedge clk)begin
+   68         if(!rst_n)begin scan_wp<=0;scan_rp<=0;scan_count<=0;end
+   69         else begin
+   70             if(scan_enqueue)begin scan_addresses[scan_wp]<=g_addr;scan_wp<=!scan_wp;end
+   71             if(scan_issue)scan_rp<=!scan_rp;
+   72             case({scan_enqueue,scan_issue})
+   73                 2'b10:scan_count<=scan_count+1'b1;
+   74                 2'b01:scan_count<=scan_count-1'b1;
+   75                 default:;
+   76             endcase
+   77         end
+   78     end
+   79     // b_grant est gardé tel quel par la synthèse (syn_keep) : sans cela, la LUT de b_ready était partagée
+   80     // avec m_wr_en, qui dépend de b_valid, et l'analyse de timing comptait une boucle combinatoire
+   81     // b_valid -> arbitre -> b_ready -> blitter/V1 qui n'existe pas logiquement (r600, -0,47 ns).
+   82     wire b_grant /* synthesis syn_keep=1 */ = issue && !scan_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
+   83     assign b_ready = b_grant;
+   84     assign c_ready = rst_n && !cpu_pending;
+   85     assign c_wr_ready = c_ready;
+   86     wire cpu_fire = issue && !scan_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);
+   87     assign m_en = scan_issue || (b_valid && b_ready) || cpu_fire;
+   88     assign m_cmd = scan_valid ? 3'b001 : take_blitter ? {2'b0,!b_write} : cpu_cmd;
+   89     assign m_addr = scan_valid ? scan_addr : take_blitter ? b_addr : cpu_addr;
+   90     assign m_wr_en = (b_valid && b_ready && b_write) || (cpu_fire && cpu_cmd == 0);
+   91     assign m_wr_end = m_wr_en;
+   92     assign m_wr_data = take_blitter ? b_wr_data : cpu_data;
+   93     assign m_wr_mask = take_blitter ? b_wr_mask : cpu_mask;
+   94     wire push = scan_issue || (b_valid && b_ready && !b_write) || (cpu_fire && cpu_cmd == 1);
+   95     wire pop = m_rd_valid && !empty;
+   96     wire [4:0] next_wp = wp + {4'b0, push};
+   97     wire [4:0] next_rp = rp + {4'b0, pop};
+   98     wire [4:0] incremented_wp = wp + 5'd1;
+   99     wire one_slot_left = incremented_wp == {~rp[4],rp[3:0]};
+  100     always @(posedge clk) begin
+  101         if (!rst_n) begin
+  102             wp <= 0; rp <= 0; full <= 0; prefer_blitter <= 1;
+  103             take_blitter<=0;
+  104             cpu_pending <= 0; cpu_cmd <= 0; cpu_addr <= 0; cpu_data <= 0; cpu_mask <= 32'hffffffff;
+  105         end
+  106         else begin
+  107             // Cut the valid -> arbitration -> ready round trip. A stale grant
+  108             // can only insert a bubble: native commands still require valid.
+  109             // Acknowledgement remains the actual DDR command/data acceptance.
+  110             if(b_valid && b_ready) take_blitter<=0;
+  111             else take_blitter<=b_valid && (prefer_blitter || !cpu_pending);
+  112             // While empty, sample the payload independently of the late
+  113             // upstream request. The acceptance cycle captures the same words;
+  114             // once pending, every word remains held until DDR accepts it.
+  115             // This leaves c_en driving only the valid bit, not 320 payload CEs.
+  116             if (!cpu_pending) begin
+  117                 cpu_cmd <= c_cmd; cpu_addr <= c_addr;
+  118                 cpu_data <= c_wr_data; cpu_mask <= c_wr_mask;
+  119             end
+  120             if (c_en && c_ready) cpu_pending <= 1;
+  121             else if (cpu_fire) cpu_pending <= 0;
+  122             if (!scan_valid) begin
+  123                 if (b_valid && b_ready) prefer_blitter <= 0;
+  124                 else if (cpu_fire) prefer_blitter <= 1;
+  125             end
+  126             if (push) tags[wp[3:0]] <= scan_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;
+  127             wp <= next_wp; rp <= next_rp;
+  128             // Compare stable pointers before the late command acceptance.
+  129             // Simultaneous push/pop leaves occupancy unchanged.
+  130             if(push && !pop)full<=one_slot_left;
+  131             else if(pop && !push)full<=0;
+  132         end
+  133     end
+  134     assign c_rd_data = m_rd_data;
+  135     assign g_data = m_rd_data;
+  136     assign c_rd_valid = pop && tags[rp[3:0]] == 0;
+  137     assign c_rd_end = c_rd_valid && m_rd_end;
+  138     assign g_data_valid = pop && tags[rp[3:0]] == 1;
+  139     assign b_rd_data = m_rd_data;
+  140     assign b_rd_valid = pop && tags[rp[3:0]] == 2;
+  141 endmodule
+  142 `default_nettype wire
+
+=== Arbiter connection to vendor DDR IP [S14] ===
+  110         .clk(ui_clk), .rst_n(DDR3_INIT),
+  111         .u_cmd_en(ip_cmd_en), .u_cmd(ip_cmd), .u_addr(ip_addr), .u_cmd_ready(ip_cmd_ready),
+  112         .u_wr_data_en(ip_wr_data_en), .u_wr_data_end(ip_wr_data_end), .u_wr_data(ip_wr_data), .u_wr_data_mask(ip_wr_data_mask),
+  113         .u_wr_data_rdy(ip_wr_data_rdy), .u_rd_data(ui_rd_data), .u_rd_data_valid(ui_rd_data_valid), .u_rd_data_end(ui_rd_data_end),
+  114         .ip_cmd_en(w_cmd_en), .ip_cmd(w_cmd), .ip_addr(w_addr), .ip_cmd_ready(w_cmd_ready),
+  115         .ip_wr_data_en(w_wr_data_en), .ip_wr_data_end(w_wr_data_end), .ip_wr_data(w_wr_data), .ip_wr_data_mask(w_wr_data_mask),
+  116         .ip_wr_data_rdy(w_wr_data_rdy), .ip_rd_data(w_rd_data), .ip_rd_data_valid(w_rd_data_valid), .ip_rd_data_end(w_rd_data_end));
+  117 
+  118     wire m_cmd_ready, m_cmd_en, m_wr_data_rdy, m_wr_data_en, m_wr_data_end;
+  119     wire m_rd_data_valid, m_rd_data_end;
+  120     wire [2:0] m_cmd;
+  121     wire [28:0] m_addr;
+  122     wire [255:0] m_wr_data, m_rd_data;
+  123     wire [31:0] m_wr_data_mask;
+  124     ddr_gpu_arb u_gpu_arb (
+  125         .clk(ui_clk), .rst_n(DDR3_INIT),
+  126         .c_en(w_cmd_en), .c_cmd(w_cmd), .c_addr(w_addr), .c_ready(w_cmd_ready),
+  127         .c_wr_en(w_wr_data_en), .c_wr_end(w_wr_data_end), .c_wr_data(w_wr_data), .c_wr_mask(w_wr_data_mask),
+  128         .c_wr_ready(w_wr_data_rdy), .c_rd_data(w_rd_data), .c_rd_valid(w_rd_data_valid), .c_rd_end(w_rd_data_end),
+  129         .g_valid(gpu_valid), .g_addr(gpu_addr), .g_ready(gpu_ready), .g_data(gpu_data), .g_data_valid(gpu_data_valid),
+  130         .b_valid(blit_valid), .b_write(blit_write), .b_addr(blit_addr), .b_wr_data(blit_wr_data),
+  131         .b_wr_mask(blit_wr_mask), .b_ready(blit_ready), .b_rd_data(blit_rd_data), .b_rd_valid(blit_rd_valid),
+  132         .m_en(m_cmd_en), .m_cmd(m_cmd), .m_addr(m_addr), .m_ready(m_cmd_ready),
+  133         .m_wr_en(m_wr_data_en), .m_wr_end(m_wr_data_end), .m_wr_data(m_wr_data), .m_wr_mask(m_wr_data_mask),
+  134         .m_wr_ready(m_wr_data_rdy), .m_rd_data(m_rd_data), .m_rd_valid(m_rd_data_valid), .m_rd_end(m_rd_data_end));
+  135 
+  136     DDR3_Memory_Interface_Top u_ip (
+  137         .clk(DDR3_CLK_IN), .pll_stop(DDR3_STOP), .memory_clk(DDR3_MEMORY_CLK), .pll_lock(DDR3_LOCK), .rst_n(DDR3_RSTN),
+  138         .cmd_ready(m_cmd_ready), .cmd(m_cmd), .cmd_en(m_cmd_en), .addr(m_addr),
+  139         .wr_data_rdy(m_wr_data_rdy), .wr_data(m_wr_data), .wr_data_en(m_wr_data_en), .wr_data_end(m_wr_data_end),
+  140         .wr_data_mask(m_wr_data_mask),
+  141         .rd_data(m_rd_data), .rd_data_valid(m_rd_data_valid), .rd_data_end(m_rd_data_end),
+  142         .sr_req(1'b0), .ref_req(1'b0), .sr_ack(), .ref_ack(),
+  143         .init_calib_complete(DDR3_INIT), .clk_out(ui_clk), .ddr_rst(), .burst(1'b1),
+
+=== R19 global routing report [S15] ===
+  114 6. Global Clock Signals
+  115 
+  116   -------------------------------------------
+  117   Signal         | Global Clock   | Location
+  118   -------------------------------------------
+  119   clk_d          | PRIMARY        |  PTR0 PTR3 PBR0 PBR1 PBR3
+  120   pixel_clk      | PRIMARY        |  PBR2 PBR3
+  121   clk48          | PRIMARY        |  PTR3
+  122   fclk_960m      | PRIMARY        |  PBR3
+  123   phy_clk        | PRIMARY        |  PTR3 PBR0 PBR2 PBR3
+  124   vid_hclk       | PRIMARY        |  PTR0 PTR1 PTR2 PTR3 PBR0 PBR1 PBR2 PBR3
+  125   gpu_clk        | PRIMARY        |  PTR0 PTR1 PTR2 PTR3 PBR0 PBR1 PBR2 PBR3
+  126   u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk| PRIMARY        |  PBR3
+  127   usb_app_reset  | LW             |  -
+  128   v1_pending     | LW             |  -
+  129   rtc_clk        | LW             |  -
+  130   u_accel/u_v1/n59467_5| LW             |  -
+  131   u_accel/u_v1/u_pixels/u_copy/n7630_6| LW             |  -
+  132   u_accel/u_raster/u_triangle/state_0[4]| LW             |  -
+  133   u_soc/g_ddr.u_ddr/u_ip/gw3_top/ddr_rst| LW             |  -
+  134   clk5x          | HCLK           | BANK3_HCLK1
+  135   fclk_960m      | HCLK           | BANK3_HCLK0
+  136   u_soc/ddr3_memory_clk| HCLK           | BANK6_HCLK0 BANK7_HCLK0
+  137   ===========================================
+  138 
+  139 
+  140 7. Pinout by Port Name
+
+=== Clock/CDC timing constraints [S16] ===
+    1 // Tang Console PG484C: constrain every fabric clock, including HDMI x5.
+    2 create_clock -name clk50 -period 20 -waveform {0 10} [get_ports {clk}]
+    3 create_clock -name bus80_clk -period 12.5 -waveform {0 6.25} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT0}]
+    4 create_clock -name core_clk -period 1.25 -waveform {0 0.625} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT1}]
+    5 create_clock -name rtc_clk -period 100 -waveform {0 50} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT4}]
+    6 create_clock -name ddr3_mem_clk -period 3.333 -waveform {0 1.667} [get_pins {u_soc/u_pll_ddr3/u_pll/PLL_inst/CLKOUT2}]
+    7 create_clock -name ddr3_sys_clk -period 13.333 -waveform {0 6.667} [get_pins {u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT}]
+    8 create_generated_clock -name vid_clk5x -source [get_ports {clk}] -multiply_by 119 -divide_by 16 [get_pins {u_video_pll/PLL_inst/CLKOUT0}]
+    9 create_generated_clock -name vid_pclk -source [get_ports {clk}] -multiply_by 119 -divide_by 80 [get_pins {u_video_pll/PLL_inst/CLKOUT2}]
+   10 // Only macro-owned core/RTC crossings are excluded. Fabric mailboxes, dual
+   11 // clock RAMs and FIFO Gray pointers stay visible with explicit delay bounds.
+   12 set_clock_groups -asynchronous -group [get_clocks {core_clk}] -group [get_clocks {rtc_clk}] -group [get_clocks {clk50 bus80_clk ddr3_mem_clk ddr3_sys_clk vid_pclk vid_clk5x}]
+   13 set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]
+   14 set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]
+   15 set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]
+   16 set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]
+   17 set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]
+   18 set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]
+   19 set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]
+   20 set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]
+   21 set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]
+   22 set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]
+   23 set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]
+   24 set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]
+   25 set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]
+   26 set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]
+   27 set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]
+   28 set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]
+   29 // clk50 and bus80 also exchange asynchronous FIFO pointers/reset releases.
+   30 set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+   31 set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]
+   32 set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+   33 set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]
+   34 // No phase-based hold requirement exists between independent clocks. Maximum
+   35 // delay bounds remain active; all intra-domain setup/hold paths stay checked.
+   36 // Asynchronous assertion only: deassertion is synchronized in these flops.
+   37 set_false_path -to [get_pins {ae350_rst_sync_*/PRESET}]
+   38 set_false_path -to [get_pins {u_hdmi/g_reset*.reset_sync*/PRESET}]
+   39 // Asynchronous serial input: only the first synchronizer D is exempt.
+   40 set_false_path -from [get_ports {uart_rx}] -to [get_pins {u_console_input/u_debug_rx/rx_sync_0_s1/D}]
+   41 set_false_path -to [get_pins {u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/UART2_RXD}]
+   42 // USB HS: qualified Pro Dock reference, adapted to Neo's top-level pins.
+   43 create_generated_clock -name CLK_48M -source [get_ports {clk}] -master_clock clk50 -divide_by 50 -multiply_by 48 [get_pins {u_pll_f/PLL_inst/CLKOUT0}]
+   44 create_generated_clock -name PHY_CLKOUT -source [get_pins {u_pll_f/PLL_inst/CLKOUT0}] -master_clock CLK_48M -divide_by 4 -multiply_by 5 [get_pins {u_pll_b/PLL_inst/CLKOUT1}]
+   45 create_generated_clock -name fclk_960M -source [get_pins {u_pll_f/PLL_inst/CLKOUT0}] -master_clock CLK_48M -divide_by 2 -multiply_by 40 [get_pins {u_pll_b/PLL_inst/CLKOUT0}]
+   46 create_clock -name sclk -period 8.333 -waveform {0 4.166} [get_nets {u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk}] -add
+   47 // Inside the encrypted SoftPHY these domains follow the vendor constraints.
+   48 set_clock_groups -asynchronous -group [get_clocks {PHY_CLKOUT}] -group [get_clocks {sclk}] -group [get_clocks {fclk_960M}]
+   49 // Fabric mailboxes/FIFO pointers remain bounded, including USB status/MSC.
+   50 set_max_delay 8 -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {bus80_clk}]
+   51 set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {PHY_CLKOUT}]
+   52 set_false_path -hold -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {bus80_clk}]
+   53 set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {PHY_CLKOUT}]
+   54 set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {PHY_CLKOUT}]
+   55 set_max_delay 8 -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {clk50}]
+   56 set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {PHY_CLKOUT}]
+   57 set_false_path -hold -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {clk50}]
+   58 set_false_path -to [get_pins {u_console_input/u_bridge/rx_sync_0_s0/D}]
+   59 set_false_path -to [get_pins {u_console_output/u_rx/rx_sync_0_s1/D}]
+   60 // Only the first serial input synchronizers are asynchronous; their second
+   61 // stage and all host logic remain timed at 80 MHz (no broad host exception).
+   62 set_false_path -to [get_pins {u_gamepads/g_port*.u_pad/u_host/dp_sync_0*/D}]
+   63 set_false_path -to [get_pins {u_gamepads/g_port*.u_pad/u_host/dm_sync_0*/D}]
+   64 // N14 registers the host ROM output on every 80 MHz edge before decode.
+   65 // Its value is unchanged at each 3/20 CE. ROM and interpreter paths are
+   66 // therefore timed at one bus cycle; the earlier 6/5 exception is removed.
+   67 // Local timing origins; common HDMI phase and distribution arcs remain checked.
+   68 set_clock_latency -source 0 [get_clocks {vid_pclk vid_clk5x PHY_CLKOUT fclk_960M}]
+   69 report_timing -setup -max_paths 1000 -max_common_paths 1
+   70 report_timing -hold -max_paths 200 -max_common_paths 1
+   71 report_timing -recovery -max_paths 10000 -max_common_paths 3
+   72 report_timing -removal -max_paths 10000 -max_common_paths 3
+   73 report_timing -recovery -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3
+   74 report_timing -removal -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3
+
+=== Exact routed DFF/LUT primitives; upstream FF outputs are leaves [S17] ===
+LUT2 \u_accel/n4432_s0  (
+	.I0(v1_pending),
+	.I1(b_grant),
+	.F(\u_accel/n4432_3 )
+);
+defparam \u_accel/n4432_s0 .INIT=4'h8;
+LUT4 \u_accel/n4434_s1  (
+	.I0(\u_accel/fetch_valid ),
+	.I1(\u_accel/n5020_4 ),
+	.I2(\u_accel/raster_valid ),
+	.I3(\u_accel/v1_select ),
+	.F(\u_accel/n4434_4 )
+);
+defparam \u_accel/n4434_s1 .INIT=16'hBBF0;
+LUT4 \u_accel/n4434_s2  (
+	.I0(\u_accel/v1_accepted ),
+	.I1(v1_pending),
+	.I2(\u_accel/n4434_4 ),
+	.I3(\u_accel/n4432_3 ),
+	.F(\u_accel/n4434_6 )
+);
+defparam \u_accel/n4434_s2 .INIT=16'hFF10;
+LUT4 \u_accel/n5020_s0  (
+	.I0(\u_accel/n5020_4 ),
+	.I1(\u_accel/n5020_5 ),
+	.I2(\u_accel/raster_write ),
+	.I3(\u_accel/v1_select ),
+	.F(\u_accel/n5020_3 )
+);
+defparam \u_accel/n5020_s0 .INIT=16'h11F0;
+LUT3 \u_accel/n5020_s1  (
+	.I0(\u_accel/native_valid ),
+	.I1(\u_accel/cache_valid ),
+	.I2(\u_accel/copy_valid ),
+	.F(\u_accel/n5020_4 )
+);
+defparam \u_accel/n5020_s1 .INIT=8'h01;
+LUT4 \u_accel/n5020_s2  (
+	.I0(\u_accel/native_write ),
+	.I1(\u_accel/native_valid ),
+	.I2(\u_accel/copy_write ),
+	.I3(\u_accel/copy_sel [0]),
+	.F(\u_accel/n5020_5 )
+);
+defparam \u_accel/n5020_s2 .INIT=16'h0F77;
+LUT3 \u_accel/u_dma/n66_s3  (
+	.I0(\u_accel/u_dma/state [1]),
+	.I1(\u_accel/u_dma/state [0]),
+	.I2(\u_accel/u_dma/state [2]),
+	.F(n66_8)
+);
+defparam \u_accel/u_dma/n66_s3 .INIT=8'h02;
+LUT2 \u_accel/u_v1/u_pixels/n22708_s29  (
+	.I0(\u_accel/u_v1/u_pixels/flags [1]),
+	.I1(\u_accel/u_v1/u_pixels/state [16]),
+	.F(\u_accel/u_v1/u_pixels/n22708_33 )
+);
+defparam \u_accel/u_v1/u_pixels/n22708_s29 .INIT=4'h8;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s0  (
+	.I0(\u_accel/u_v1/u_pixels/native_issue_4 ),
+	.I1(\u_accel/u_v1/u_pixels/state [14]),
+	.I2(\u_accel/u_v1/u_pixels/state [30]),
+	.I3(\u_accel/u_v1/u_pixels/native_issue_5 ),
+	.F(\u_accel/u_v1/u_pixels/native_issue )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s0 .INIT=16'hF4FF;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s1  (
+	.I0(\u_accel/u_v1/u_pixels/flags [5]),
+	.I1(\u_accel/u_v1/u_pixels/unpack_r_4_4 ),
+	.I2(\u_accel/u_v1/u_pixels/alpha [8]),
+	.I3(\u_accel/u_v1/u_pixels/native_issue_6 ),
+	.F(\u_accel/u_v1/u_pixels/native_issue_4 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s1 .INIT=16'h1000;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s2  (
+	.I0(\u_accel/u_v1/u_pixels/chunk_dirty ),
+	.I1(\u_accel/u_v1/u_pixels/state [28]),
+	.I2(\u_accel/u_v1/u_pixels/n22708_33 ),
+	.I3(\u_accel/u_v1/u_pixels/native_issue_7 ),
+	.F(\u_accel/u_v1/u_pixels/native_issue_5 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s2 .INIT=16'h0700;
+LUT2 \u_accel/u_v1/u_pixels/native_issue_s3  (
+	.I0(\u_accel/u_v1/u_pixels/native_issue_8 ),
+	.I1(\u_accel/u_v1/u_pixels/native_issue_9 ),
+	.F(\u_accel/u_v1/u_pixels/native_issue_6 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s3 .INIT=4'h8;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s4  (
+	.I0(\u_accel/u_v1/u_pixels/state [38]),
+	.I1(\u_accel/u_v1/u_pixels/clear_flags [1]),
+	.I2(\u_accel/u_v1/u_pixels/state [36]),
+	.I3(\u_accel/u_v1/u_pixels/clear_flags [0]),
+	.F(\u_accel/u_v1/u_pixels/native_issue_7 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s4 .INIT=16'h0777;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s5  (
+	.I0(\u_accel/u_v1/u_pixels/alpha [0]),
+	.I1(\u_accel/u_v1/u_pixels/alpha [1]),
+	.I2(\u_accel/u_v1/u_pixels/alpha [2]),
+	.I3(\u_accel/u_v1/u_pixels/alpha [3]),
+	.F(\u_accel/u_v1/u_pixels/native_issue_8 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s5 .INIT=16'h0001;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s6  (
+	.I0(\u_accel/u_v1/u_pixels/alpha [4]),
+	.I1(\u_accel/u_v1/u_pixels/alpha [5]),
+	.I2(\u_accel/u_v1/u_pixels/alpha [6]),
+	.I3(\u_accel/u_v1/u_pixels/alpha [7]),
+	.F(\u_accel/u_v1/u_pixels/native_issue_9 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s6 .INIT=16'h0001;
+DFFRE \u_accel/u_v1/u_pixels/native_valid_s1  (
+	.D(\u_accel/u_v1/u_pixels/native_issue ),
+	.CLK(gpu_clk),
+	.CE(\u_accel/u_v1/u_pixels/native_valid_8 ),
+	.RESET(\u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2_onet ),
+	.Q(\u_accel/native_valid )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s1 .INIT=1'b0;
+LUT3 \u_accel/u_v1/u_pixels/native_valid_s3  (
+	.I0(\u_accel/u_v1/u_pixels/native_issue ),
+	.I1(\u_accel/u_v1/u_pixels/native_valid_13 ),
+	.I2(\u_accel/u_v1/u_pixels/native_valid_10 ),
+	.F(\u_accel/u_v1/u_pixels/native_valid_8 )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s3 .INIT=8'hFE;
+LUT4 \u_accel/u_v1/u_pixels/native_valid_s5  (
+	.I0(\u_accel/u_v1/u_pixels/state [15]),
+	.I1(\u_accel/u_v1/u_pixels/state [17]),
+	.I2(\u_accel/u_v1/u_pixels/state [39]),
+	.I3(\u_accel/u_v1/u_pixels/native_valid_11 ),
+	.F(\u_accel/u_v1/u_pixels/native_valid_10 )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s5 .INIT=16'h0100;
+LUT3 \u_accel/u_v1/u_pixels/native_valid_s6  (
+	.I0(\u_accel/u_v1/u_pixels/state [29]),
+	.I1(\u_accel/u_v1/u_pixels/state [31]),
+	.I2(\u_accel/u_v1/u_pixels/state [37]),
+	.F(\u_accel/u_v1/u_pixels/native_valid_11 )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s6 .INIT=8'h01;
+LUT3 \u_accel/u_v1/u_pixels/native_valid_s7  (
+	.I0(\u_accel/fetch_valid ),
+	.I1(\u_accel/v1_select ),
+	.I2(\u_accel/v1_accepted ),
+	.F(\u_accel/u_v1/u_pixels/native_valid_13 )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s7 .INIT=8'h40;
+LUT2 \u_accel/u_v1/u_pixels/unpack_r_4_s1  (
+	.I0(\u_accel/u_v1/u_pixels/flags [0]),
+	.I1(\u_accel/u_v1/u_pixels/tex_argb ),
+	.F(\u_accel/u_v1/u_pixels/unpack_r_4_4 )
+);
+defparam \u_accel/u_v1/u_pixels/unpack_r_4_s1 .INIT=4'h8;
+DFFRE \u_accel/v1_accepted_s0  (
+	.D(\u_accel/n4432_3 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_accel/n249_5 ),
+	.Q(\u_accel/v1_accepted )
+);
+defparam \u_accel/v1_accepted_s0 .INIT=1'b0;
+DFFRE \u_accel/v1_pending_s2  (
+	.D(\u_accel/v1_tx_addr_27_9 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_accel/n249_5 ),
+	.Q(v1_pending)
+);
+defparam \u_accel/v1_pending_s2 .INIT=1'b0;
+LUT2 \u_accel/v1_tx_addr_27_s4  (
+	.I0(\u_accel/n4434_6 ),
+	.I1(v1_pending),
+	.F(\u_accel/v1_tx_addr_27_9 )
+);
+defparam \u_accel/v1_tx_addr_27_s4 .INIT=4'h6;
+DFFRE \u_accel/v1_tx_write_s0  (
+	.D(\u_accel/n5020_3 ),
+	.CLK(gpu_clk),
+	.CE(\u_accel/v1_tx_addr_27_12 ),
+	.RESET(GND),
+	.Q(v1_tx_write)
+);
+defparam \u_accel/v1_tx_write_s0 .INIT=1'b0;
+LUT3 \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s1  (
+	.I0(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_5 ),
+	.I1(\u_soc/g_ddr.u_ddr/m_wr_data_rdy ),
+	.I2(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_6 ),
+	.F(b_grant)
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s1 .INIT=8'hE0;
+LUT4 \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s2  (
+	.I0(legacy_valid),
+	.I1(n66_8),
+	.I2(v1_pending),
+	.I3(v1_tx_write),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_5 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s2 .INIT=16'h0777;
+LUT3 \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s3  (
+	.I0(\u_soc/g_ddr.u_ddr/full ),
+	.I1(\u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter ),
+	.I2(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_9 ),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_6 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s3 .INIT=8'h40;
+LUT4 \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s5  (
+	.I0(\u_soc/g_ddr.u_ddr/u_gpu_arb/full_149 ),
+	.I1(scan_count[0]),
+	.I2(scan_count[1]),
+	.I3(ddr_init),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_9 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s5 .INIT=16'h0100;
+LUT4 \u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_s2  (
+	.I0(ddr_init),
+	.I1(v1_pending),
+	.I2(legacy_valid),
+	.I3(b_grant),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_6 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_s2 .INIT=16'hFD55;
+LUT4 \u_soc/g_ddr.u_ddr/u_gpu_arb/n500_s0  (
+	.I0(\u_soc/g_ddr.u_ddr/u_gpu_arb/prefer_blitter ),
+	.I1(\u_soc/g_ddr.u_ddr/cpu_pending ),
+	.I2(v1_pending),
+	.I3(legacy_valid),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/n500_3 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/n500_s0 .INIT=16'hBBB0;
+DFFRE \u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0  (
+	.D(\u_soc/g_ddr.u_ddr/u_gpu_arb/n500_3 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_6 ),
+	.Q(\u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0 .INIT=1'b0;

@@ -27,13 +27,19 @@ module gpu_texture_cache(
     reg [LINE_BITS-1:0] set_index;
     reg [24:0] block_tag;
     reg [3:0] requested_lane;
-    reg [255:0] refill;
+    reg [255:0] refill /* synthesis syn_preserve=1 */;
     wire [LINE_BITS-1:0] input_set=byte_address[14:5]^byte_address[24:15];
     reg [255:0] pixel_q;
     reg [24:0] tag_q;
     reg present_q;
     assign busy=state!=IDLE;
     always @(posedge clk)begin
+        // Capture the response bus every cycle. Only an accepted response
+        // enters FILL, whose RAM write and texel selection consume the value
+        // captured on that response edge. This removes the remote owner's
+        // state/rd_valid/reset cone from 256 register enables, without adding
+        // a cycle or publishing idle bus data. Control/present still reset.
+        refill<=rd_data;
         pixel_q<=pixels[input_set];
         tag_q<=tags[input_set];present_q<=present[input_set];
         if(state==FILL)pixels[set_index]<=refill;
@@ -43,7 +49,7 @@ module gpu_texture_cache(
         if(rst)begin
             state<=IDLE;present<=0;done<=0;valid<=0;addr<=0;
             hits<=0;misses<=0;texel<=0;set_index<=0;block_tag<=0;
-            requested_lane<=0;refill<=0;
+            requested_lane<=0;
         end else begin
             done<=0;
             if(invalidate)present<=0;
@@ -64,10 +70,10 @@ module gpu_texture_cache(
                 valid<=0;
                 // The registered arbiter acknowledgement may coincide with
                 // the earliest legal response. Do not lose that first beat.
-                if(rd_valid)begin refill<=rd_data;state<=FILL;end
+                if(rd_valid)state<=FILL;
                 else state<=WAIT_DATA;
             end
-            WAIT_DATA:if(rd_valid)begin refill<=rd_data;state<=FILL;end
+            WAIT_DATA:if(rd_valid)state<=FILL;
             FILL:begin
                 texel<=refill[requested_lane*16+:16];state<=FINISH;
             end

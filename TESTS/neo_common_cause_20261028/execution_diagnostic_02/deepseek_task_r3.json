@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "neo_r19_cross_client_ddr_composition_r3",
+  "inputs": [
+    "ANALYSIS.md",
+    "CONTRACT.md",
+    "INPUTS.json",
+    "bench.sv",
+    "ddr_gpu_arb.v",
+    "ddr_ui_adapt.v",
+    "native_memory.sv",
+    "test_bench.py"
+  ],
+  "owned": [
+    "bench.sv",
+    "ANALYSIS.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "test_bench.py"
+    ]
+  ],
+  "timeout_seconds": 55,
+  "require_initial_failure": false,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "min_model_steps": 2,
+    "min_tool_calls": 4,
+    "failed_test_before_edit": false,
+    "passed_test_after_edit": true
+  },
+  "domain": "fpga",
+  "task_type": "test_design",
+  "difficulty": "high",
+  "task_family": "neo_ddr_composition",
+  "acceptance_criteria": "Exact R19 RTL untouched; cross-client CPU128/GPU256/scanout bench with byte oracle,2 healthy seeds pass and3 faulty endpoint cases detected; independent final run; honest limits.",
+  "prompt": "The full existing bench and all five protected tests now run in the actual sandbox: healthy seeds pass and three mutations are detected (see CONTRACT). Infrastructure fixed with VM_PARALLEL_BUILDS=0, no sandbox changes. Read files and run protected tests. Make a narrow bench-quality correction: remove shared j loop variable from concurrent fork producers; replace fixed write-drain delays with bounded external native write-acceptance accounting so producer acceptance is not called DDR completion; add bounded global completion watchdog. Do not change stimulus or RTL, do not weaken oracle/tests. Complete ANALYSIS.md with exact measured outcomes and limits. Run tests after changes. No hardware/network. Do not install tools or spend calls exploring environment; the full harness compile has already been proven."
+}

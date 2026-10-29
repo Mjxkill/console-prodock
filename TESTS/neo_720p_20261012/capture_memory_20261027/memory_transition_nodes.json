@@ -1,0 +1,147 @@
+{
+  "source": "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.vo",
+  "sha256": "14bb6ed3c5b803697b8c2591e00b70395936ff723b1f74bafe1a35f6502368e4",
+  "hardware_access": false,
+  "cells": {
+    "u_accel/u_v1/u_pixels/native_valid_s1": {
+      "kind": "DFFRE",
+      "ports": {
+        "D": "u_accel/u_v1/u_pixels/native_issue",
+        "CLK": "gpu_clk",
+        "CE": "u_accel/u_v1/u_pixels/native_valid_8",
+        "RESET": "u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2_onet",
+        "Q": "u_accel/native_valid"
+      },
+      "parameters": {
+        "u_accel/u_v1/u_pixels/native_valid_s1.INIT": "1'b0"
+      },
+      "fanin": {
+        "u_accel/u_v1/u_pixels/native_issue_s0": {
+          "kind": "LUT4",
+          "ports": {
+            "I0": "u_accel/u_v1/u_pixels/native_issue_4",
+            "I1": "u_accel/u_v1/u_pixels/state[14]",
+            "I2": "u_accel/u_v1/u_pixels/state[30]",
+            "I3": "u_accel/u_v1/u_pixels/native_issue_5",
+            "F": "u_accel/u_v1/u_pixels/native_issue"
+          },
+          "parameters": {
+            "u_accel/u_v1/u_pixels/native_issue_s0.INIT": "16'hF4FF"
+          }
+        },
+        "u_accel/u_v1/u_pixels/native_valid_s3": {
+          "kind": "LUT3",
+          "ports": {
+            "I0": "u_accel/u_v1/u_pixels/native_issue",
+            "I1": "u_accel/u_v1/u_pixels/native_valid_13",
+            "I2": "u_accel/u_v1/u_pixels/native_valid_10",
+            "F": "u_accel/u_v1/u_pixels/native_valid_8"
+          },
+          "parameters": {
+            "u_accel/u_v1/u_pixels/native_valid_s3.INIT": "8'hFE"
+          }
+        },
+        "u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2": {
+          "kind": "INV",
+          "ports": {
+            "I": "gpu_debug_state[48]",
+            "O": "u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2_onet"
+          },
+          "parameters": {}
+        }
+      }
+    },
+    "u_accel/v1_pending_s2": {
+      "kind": "DFFRE",
+      "ports": {
+        "D": "u_accel/v1_tx_addr_27_9",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "RESET": "u_accel/n249_5",
+        "Q": "v1_pending"
+      },
+      "parameters": {
+        "u_accel/v1_pending_s2.INIT": "1'b0"
+      },
+      "fanin": {
+        "u_accel/v1_tx_addr_27_s4": {
+          "kind": "LUT2",
+          "ports": {
+            "I0": "u_accel/n4434_6",
+            "I1": "v1_pending",
+            "F": "u_accel/v1_tx_addr_27_9"
+          },
+          "parameters": {
+            "u_accel/v1_tx_addr_27_s4.INIT": "4'h6"
+          }
+        },
+        "u_accel/n249_s2": {
+          "kind": "INV",
+          "ports": {
+            "I": "gpu_debug_state[43]",
+            "O": "u_accel/n249_5"
+          },
+          "parameters": {}
+        }
+      }
+    },
+    "u_accel/v1_accepted_s0": {
+      "kind": "DFFRE",
+      "ports": {
+        "D": "u_accel/n4432_3",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "RESET": "u_accel/n249_5",
+        "Q": "u_accel/v1_accepted"
+      },
+      "parameters": {
+        "u_accel/v1_accepted_s0.INIT": "1'b0"
+      },
+      "fanin": {
+        "u_accel/n4432_s0": {
+          "kind": "LUT2",
+          "ports": {
+            "I0": "v1_pending",
+            "I1": "b_grant",
+            "F": "u_accel/n4432_3"
+          },
+          "parameters": {
+            "u_accel/n4432_s0.INIT": "4'h8"
+          }
+        },
+        "u_accel/n249_s2": {
+          "kind": "INV",
+          "ports": {
+            "I": "gpu_debug_state[43]",
+            "O": "u_accel/n249_5"
+          },
+          "parameters": {}
+        }
+      }
+    },
+    "u_accel/n5020_s1": {
+      "kind": "LUT3",
+      "ports": {
+        "I0": "u_accel/native_valid",
+        "I1": "u_accel/cache_valid",
+        "I2": "u_accel/copy_valid",
+        "F": "u_accel/n5020_4"
+      },
+      "parameters": {
+        "u_accel/n5020_s1.INIT": "8'h01"
+      },
+      "fanin": {}
+    },
+    "u_accel/trace_observe_pixel_valid": {
+      "kind": "LUT1",
+      "ports": {
+        "I0": "u_accel/n5020_4",
+        "F": "u_accel/trace_pixel_valid"
+      },
+      "parameters": {
+        "u_accel/trace_observe_pixel_valid.INIT": "2'h1"
+      },
+      "fanin": {}
+    }
+  }
+}

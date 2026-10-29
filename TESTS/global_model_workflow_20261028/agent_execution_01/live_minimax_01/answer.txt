@@ -1,0 +1,24 @@
+I'll start by reading the contract and understanding the task.Initial run confirms all 9 tests error with `NotImplementedError`. Now let me implement the module.All 9 protected tests pass. Now let me run additional adversarial self-checks (in /tmp, leaving protected files untouched) against contract edge cases:My permutation check had a scripting bug (dicts unhashable). Fixing and rerunning the remaining checks:The single "FAIL" is my scratch script's wrong expectation (a lone valid `tool_finish` should be *incomplete*, not an error). Let me correct that expectation and confirm:The patch didn't apply due to text mismatch; let me verify that behavior directly instead:All self-checks pass. Final confirmation run of the protected acceptance tests:Implementation complete and verified.
+
+## Files changed
+- **`/work/agent_audit.py`** (only file touched; 259 physical lines, well under the 1000-line limit, zero imports — no files/network/processes/clocks/runtime imports).
+- `CONTRACT.md` and `test_agent_audit.py` were read-only and are unmodified (timestamps unchanged, mode still `r--------`).
+
+## What was implemented
+`summarize(records)` per `CONTRACT.md`:
+- **Relevance filtering** — only `tool_start`, `tool_finish`, `test_finish` are examined; all other events (e.g. `sandbox_start`, `launcher_exit`) are ignored payload-and-all, so they neither count nor raise.
+- **Validation (all → `ValueError`)** — record must be a dict with a string `event`; relevant records need a nonempty string `launch_id` and a `request_id` that is a nonempty string or a non-`bool` integer; tool events need a string `name`; `test_finish` needs `index` in 0..1023, `returncode` in −255..255 (non-`bool` int), and genuine booleans `timeout`/`output_limited`; `records` itself must be a list/tuple.
+- **Outcome identity** — `(launch_id, request_id, index)`; identical repeats collapse to one outcome, a repeat with a different payload (`returncode`/`timeout`/`output_limited`) raises `ValueError`.
+- **Completeness** — every outcome must be bracketed by a `run_tests` start *and* finish of the same `(launch, request)`; a start without a finish, a finish without a start, or a fully finished call with no outcomes ⇒ `complete=False`; observed commands are never dropped; empty input ⇒ `complete=True` with zero counts.
+- **Returned fields** — exactly `test_runs`, `test_failures` (nonzero rc **or** timeout **or** output_limited), `complete`, `test_calls` (distinct `run_tests` request identities in starts **or** finishes). Order-independent (set/dict based) and non-mutating.
+
+## Observed results
+- **Before any edit**: `taskbox_run_tests` → 9/9 ERROR, all `NotImplementedError: Implement the audited test-command counters` (expected unfinished state).
+- **After implementation**: `taskbox_run_tests` → **Ran 9 tests, OK** (all 9 pass, `passed: true`, exit 0).
+- **Extra self-checks** (scratch script in `/tmp`, protected files untouched): boundary values (index 0/1023 valid, 1024 invalid; rc ±255 valid, ±256 invalid), `bool` rejected for int/flag fields, `request_id` as `0`/`'abc'`/int-vs-str distinctness, launch separation, duplicate collapsing, conflict detection on rc/timeout/output_limited, all six incomplete-completeness shapes, other-tool isolation, no-mutation check, invalid top-level inputs, plus a **720-permutation fuzz** (0 mismatches) and a duplicate-injection fuzz (no result change) — all passing.
+
+## Limitations / interpretation notes
+- The contract defines outcome identity as `(launch_id, request_id, index)`; I applied "conflicting repeats" detection to **command outcomes only**. Tool-call records are tracked as set membership per `(launch, request)`, so a same-identity `tool_start` with a different `name` is not treated as a conflict (not specified by the contract).
+- `launch_id`/`request_id`/`name` are validated for **all** relevant events, including non-`run_tests` tools (contract: "Relevant events have nonempty string `launch_id`…"); ignored event types bypass all field validation.
+- `request_id` integers are not range-restricted (contract only says "an integer, not bool").
+- `records` accepts list or tuple; generators/iterators are rejected with `ValueError` (contract specifies a list).

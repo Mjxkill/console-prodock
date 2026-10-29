@@ -1,0 +1,141 @@
+{
+  "backend": "nextpnr",
+  "status": "FAILED",
+  "project": {
+    "top": "neo_reset_jtag",
+    "device": "GW5AST-LV138PG484AC1/I0",
+    "family": "GW5AST-138C",
+    "synth_family": "gw5a",
+    "frequency_mhz": 50,
+    "sources": [
+      "neo_reset_probe.v",
+      "neo_reset_jtag.v"
+    ],
+    "cst": "pins.cst",
+    "sdc": "timing.sdc",
+    "description": "Compile-only independent PnR of the actual Neo reset/JTAG reproducer. No CPU/DDR/USB/GPU. Mapped reset drivers must be audited. No hardware qualification from Fmax alone."
+  },
+  "inputs": {
+    "rtl_000.v": {
+      "origin": "/home/michael/console/TESTS/neo_720p_20261012/nextpnr_reset_jtag_kept/neo_reset_probe.v",
+      "sha256": "f1c0434bdafeebafe988ae7d4c73f2548a5bd808a9e7c4c362cc074a58364624"
+    },
+    "rtl_001.v": {
+      "origin": "/home/michael/console/TESTS/neo_720p_20261012/nextpnr_reset_jtag_kept/neo_reset_jtag.v",
+      "sha256": "c27ab0e6c0ada95cb7f20a23851b0ed83ac80631fbdd815b0df2c43afda007a9"
+    },
+    "pins.cst": {
+      "origin": "pins.cst",
+      "sha256": "273c8943540663e4722bdbc33b6f78d6f982af584ecfb1921f53d56a25d7584e"
+    },
+    "timing.sdc": {
+      "origin": "timing.sdc",
+      "sha256": "07e3912e78bbfbe9af8dcd039b7fa283e39182b8396af8d57407c9c0d9a590af"
+    }
+  },
+  "seeds": [
+    1
+  ],
+  "strategies": {
+    "placer": "heap",
+    "router": "router1"
+  },
+  "toolchain": {
+    "release": "2026-10-13",
+    "platform": "linux-x64",
+    "url": "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-10-13/oss-cad-suite-linux-x64-20261013.tgz",
+    "bytes": 747823634,
+    "sha256": "8f6dbbc0050e7f6ad13fc0f220ef683ae4705f7ee16f5c7c9940c3b55cba2ddd",
+    "source": "https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/tags/2026-10-13"
+  },
+  "candidates": [
+    {
+      "seed": 1,
+      "status": "PNR_FAILED",
+      "clock_mhz": 50,
+      "pnr": {
+        "tool": "nextpnr-himbaechel",
+        "argv": [
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+          "--inhibit-cache",
+          "--inhibit-rpath",
+          "",
+          "--library-path",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/nextpnr-himbaechel",
+          "--device",
+          "GW5AST-LV138PG484AC1/I0",
+          "--vopt",
+          "family=GW5AST-138C",
+          "--vopt",
+          "cst=../source/pins.cst",
+          "--json",
+          "../netlist.json",
+          "--write",
+          "routed.json",
+          "--report",
+          "timing.json",
+          "--detailed-timing-report",
+          "--freq",
+          "50",
+          "--seed",
+          "1",
+          "--placer",
+          "heap",
+          "--router",
+          "router1",
+          "--sdc",
+          "../source/timing.sdc"
+        ],
+        "log": "/home/michael/console/TESTS/neo_720p_20261012/nextpnr_reset_jtag_kept/build/seed_1/pnr.log",
+        "timeout_s": 180,
+        "returncode": 125,
+        "elapsed_s": 0.615
+      },
+      "output_sha256": {}
+    }
+  ],
+  "synthesis": {
+    "tool": "yosys",
+    "argv": [
+      "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+      "--inhibit-cache",
+      "--inhibit-rpath",
+      "",
+      "--library-path",
+      "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+      "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/yosys",
+      "-Q",
+      "-T",
+      "-s",
+      "synth.ys"
+    ],
+    "log": "/home/michael/console/TESTS/neo_720p_20261012/nextpnr_reset_jtag_kept/build/synth.log",
+    "timeout_s": 180,
+    "returncode": 0,
+    "elapsed_s": 3.52
+  },
+  "netlist_sha256": "4a3b5a761d9a75b683a7d9ee2726204d89ae40c35ca42c517c2db735aa6bce0f",
+  "mapped_cells": {
+    "DFFRE": 7982,
+    "LUT4": 120,
+    "MUX2_LUT5": 44,
+    "LUT3": 58,
+    "MUX2_LUT6": 4,
+    "LUT2": 7,
+    "LUT1": 16,
+    "ALU": 56,
+    "DFFSE": 6,
+    "OBUF": 2,
+    "VCC": 1,
+    "DFF": 30,
+    "GND": 1,
+    "IBUF": 4,
+    "DFFN": 1,
+    "$scopeinfo": 1,
+    "DFFCE": 2,
+    "MUX2_LUT7": 1
+  },
+  "compatibility_key": "273c8943540663e4722bdbc33b6f78d6f982af584ecfb1921f53d56a25d7584e:4a3b5a761d9a75b683a7d9ee2726204d89ae40c35ca42c517c2db735aa6bce0f",
+  "validation_scope": "Compile-only; no hardware test, no Gowin STA equivalence or console IP qualification"
+}

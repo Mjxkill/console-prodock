@@ -1,0 +1,309 @@
+## Analyse
+
+### Faits observés dans le paquet
+
+- Le jardin 3D est rendu dans `festival.c::garden()` avec une caméra, une lumière directionnelle `gpu_geom_light light={0,32767,0,256,0}` et une `gpu_material` partagée, puis dessin des mailles statiques, du sky et du héros (`festival.c:366-418`).
+- La bascule jour/nuit est déjà portée par `f->map` avec couleurs fond/sky et tags textuels (`festival.c:369,379,439` ; l’appui `M` remet `geometry_ready=0` à `festival.c:87`).
+- Le pool de mailles statiques est borné par `mesh_count>=24` et par `m->at+(m->nv+m->nf)*32>(18u<<20)` (`festival.c:273`). Les flush statiques actuels sont largement sous la capacité 24 et les 5760 triangles max d’un pool 24 mailles de 240.
+- L’ABI géométrie indique `GPU_GEOM_EMISSIVE=1` (`gpu_geometry.h:14`), l’ABI V1 indique `GPU_V1_ADDITIVE=32` et `GPU_V1_GOURAUD=64` (`gpu_v1.h:8`) ; le commentaire de `gpu_geometry.h` précise que le Gouraud de geometry n’est pas supporté, donc tout halo doit rester un matériau plat/additif, pas un Gouraud geometry.
+- Aucune adresse GPU supplémentaire n’est introduite dans la proposition : le quad partagé est publié dans la réserve GEOMETRY existante (`festival.c:10,12,273`) entre 17,75 et 18 MiB.
+
+### Hypothèses
+
+- Les lanternes sont représentées par 4 émetteurs aux positions `sites[4]` (`festival.c:15`), altitude fixe `3.0` m. C’est un choix de scène, pas une preuve du paquet ; si un placement plus fin est souhaité, on remplace uniquement le tableau `sites`/altitude.
+- `f->map == 1` est traité comme la nuit (cohérent avec le titre “terrasses de lune” et la couleur fond `rgb(25,39,73)`).
+- Un matériau flags `GPU_V1_ADDITIVE` seul est suffisant pour obtenir un halo non texturé ; le paquet ne documente pas tous les bits obligatoires au-delà de `1` (texture), `2`, `4`, `16`. Ce point doit être validé sur le candidat isolé.
+- Le nombre de mailles statiques déjà créées est estimé à environ 9 à 12, donc l’ajout d’un quad unitaire reste sous la borne 24. Sans exécution, c’est une borne analytique basée sur les boucles de `garden_geometry`.
+
+### Preuves/manquants
+
+- Manque la valeur exacte de `mesh_count` à la fin de `garden_geometry` sur le candidat R9 ; la proposition inclut un filet de sécurité `halo_mesh_index < f->mesh_count`.
+- Manque la preuve runtime que `GPU_V1_ADDITIVE=32` seul dessine sans texture active ; la proposition documente ce risque et une alternative (voir plus bas).
+- Manque une précision sur l’unité/sens des trigonométriques pour `gpu_geom_billboard_transform` ; la proposition évite cette dépendance en construisant le même type de transform que pour le héros.
+
+## Alternative si l’API additive plate est refusée par le FPGA
+
+Si le GPU exige le bit texture (`1`) ou si la soumission retourne `0` avec flags `32` seul, deux options bornées et honnêtes :
+
+1. Conserver flags `GPU_V1_ADDITIVE|GPU_V1...` et pointer la texture level vers un atlas déjà publié (`r->textures[0]` ou le sky), avec des gains RGB à zéro sauf le canal désiré ; coût nul en VRAM car aucune nouvelle texture n’est chargée, mais cela rend le halo dépendant de texels existants. Ce n’est pas cosmétique propre.
+2. Remplacer le halo par 4 cubes statiques très petits et émissifs dans `garden_geometry`, positionnés aux lanternes. Coût statique improbable mais multiplie les triangles si chaque halo a besoin d’un dégradé ; au-delà de la borne 16 triangles on arrête le halo analytique et on expose seulement la variation d’émission de la lampe.
+
+La proposition ci-dessous suppose que l’option additif plat est acceptée ; elle n’introduit pas de texture ni d’adresse.
+
+## Header `festival_lighting.h`
+
+```c
+#ifndef FESTIVAL_LIGHTING_H
+#define FESTIVAL_LIGHTING_H
+
+#include <math.h>
+
+/* Coefficients purs: aucun état GPU, aucune allocation. */
+float festival_lighting_clamp_dt(float dt);
+
+/* Cible discrète: 0 = jour, 1 = nuit. */
+float festival_lighting_mood_target(unsigned night);
+
+/* Easing temporel stable et borné. dt déjà clampé par l'appelant si possible. */
+float festival_lighting_mood_step(float current, unsigned night, float dt);
+
+/* Base d'émission d'une lanterne selon la phase jour/nuit, puis variation lente. */
+float festival_lighting_lantern_coefficient(unsigned index, float slow_time, float mood);
+
+/* Conversion coefficient -> valeur matérielle 0..256. */
+float festival_lighting_emission(float coefficient);
+
+/* Gain ambient utilisé par la lumière directionnelle du jardin. */
+float festival_lighting_ambient_gain(float mood);
+
+#endif
+```
+
+## Implémentation `festival_lighting.c`
+
+```c
+#include "festival_lighting.h"
+
+static float fl_clamp01(float v)
+{
+    if (!isfinite(v)) return 0.0f;
+    if (v < 0.0f) return 0.0f;
+    if (v > 1.0f) return 1.0f;
+    return v;
+}
+
+float festival_lighting_clamp_dt(float dt)
+{
+    if (!isfinite(dt) || dt <= 0.0f) return 0.0f;
+    return fminf(dt, 0.1f);
+}
+
+float festival_lighting_mood_target(unsigned night)
+{
+    return night ? 1.0f : 0.0f;
+}
+
+float festival_lighting_mood_step(float current, unsigned night, float dt)
+{
+    const float target = night ? 1.0f : 0.0f;
+    float safe_current = fl_clamp01(current);
+    float safe_dt = festival_lighting_clamp_dt(dt);
+    float rate = night ? 1.5f : 0.9f;
+
+    safe_current += (target - safe_current) * fminf(1.0f, rate * safe_dt);
+    return fl_clamp01(safe_current);
+}
+
+float festival_lighting_lantern_coefficient(unsigned index, float slow_time, float mood)
+{
+    float safe_mood = fl_clamp01(mood);
+    float safe_time = isfinite(slow_time) ? slow_time : 0.0f;
+
+    /* Jour: présence faible mais non nulle. Nuit: présence forte. */
+    float base = 0.10f + 0.90f * safe_mood;
+
+    /* Variation lente, amplitude faible: +/-6 % globalement. */
+    float phase_a = (float)index * 1.17f;
+    float phase_b = (float)index * 2.31f;
+    float pulse = 0.94f
+                + 0.04f * sinf(safe_time * 0.50f + phase_a)
+                + 0.02f * sinf(safe_time * 0.21f + phase_b);
+
+    return fl_clamp01(base * pulse);
+}
+
+float festival_lighting_emission(float coefficient)
+{
+    return 256.0f * fl_clamp01(coefficient);
+}
+
+float festival_lighting_ambient_gain(float mood)
+{
+    float safe_mood = fl_clamp01(mood);
+    return 0.35f + 0.65f * (1.0f - safe_mood);
+}
+```
+
+## Patch ciblé `l3_festival.h`
+
+```diff
+--- a/games/luma3d/build/festival_20261027_r9/source/games/luma3d/include/l3_festival.h
++++ b/games/luma3d/build/festival_20261027_r9/source/games/luma3d/include/l3_festival.h
+@@ -8,6 +8,7 @@
+      unsigned active,automatic,kind,stage,map,revision,turns,initialized;
+      unsigned selection,row,source,source_row,color,escape,assets,base_ready[2],ui_page[2];
+      unsigned won,visited,poses_n,old_n,baked_kind,page_n[2],page_valid[2];
++     unsigned halo_mesh_index;
+      float time,action_time,transition,scene_time,x,z,vx,vz,yaw,held_until,move_x,move_z;
+-     float camera_x,camera_z;
++     float camera_x,camera_z,light_mood;
+      L3TableState games[L3_TABLE_COUNT];L3TableView view;L3TableTrace trace;
+      L3FestivalPose poses[256],old[256],page_poses[2][256];
+      uint8_t *ui;
+      uint16_t *background;
+-     gpu_geom_mesh meshes[24];unsigned mesh_texture[24],mesh_count,geometry_ready;
++     gpu_geom_mesh meshes[24];unsigned mesh_texture[24],mesh_count,geometry_ready;
+```
+
+## Patch ciblé `festival.c`
+
+### 1. Include
+
+`festival.c:1-8`
+
+```c
+#include "festival_lighting.h"
+```
+
+### 2. Constructeur
+
+`l3_festival_create`, ajout après `f->revision=1;` :
+
+```c
+f->halo_mesh_index=24;
+f->light_mood=0.0f;
+```
+
+### 3. Chargement sauvegarde
+
+Dans `l3_festival_load`, après `f->map=p.map;` :
+
+```c
+f->light_mood=festival_lighting_mood_target(p.map ? 1u : 0u);
+```
+
+### 4. Mise à jour temporelle
+
+Dans `l3_festival_step`, juste après :
+
+```c
+f->time+=dt;f->scene_time+=dt;f->transition=fminf(1,f->transition+dt/.32f);
+```
+
+ajouter :
+
+```c
+if (!isfinite(f->light_mood)) f->light_mood=festival_lighting_mood_target(f->map ? 1u : 0u);
+f->light_mood=festival_lighting_mood_step(f->light_mood, f->map ? 1u : 0u, dt);
+```
+
+### 5. Réserve d’un quad statique pour les halos
+
+Dans `garden_geometry`, remplacer la fin :
+
+```c
+    if(!mesh_flush(&m))return 0;f->geometry_ready=1;return 1;
+```
+
+par :
+
+```c
+    /* Un seul quad unitaire partagé par toutes les instances de halo.
+       Coût statique: 2 triangles. La borne 24 mailles reste vérifiée par mesh_flush. */
+    if (!mesh_texture(&m, 0)) return 0;
+    {
+        L3Vec3 a={-0.5f,-0.5f,0.0f}, b={0.5f,-0.5f,0.0f};
+        L3Vec3 c={0.5f,0.5f,0.0f}, d={-0.5f,0.5f,0.0f};
+        if (!quad3(&m, a, b, c, d, 255, 235, 180)) return 0;
+    }
+    if (!mesh_flush(&m)) return 0;
+    f->halo_mesh_index = f->mesh_count ? (f->mesh_count - 1u) : 24u;
+    f->geometry_ready = 1;
+    return 1;
+```
+
+Ce quad ne compte pas comme nouvelle texture ni nouvelle VRAM : il ne fait que compléter la réserve GEOMETRY existante.
+
+### 6. Rendu des halos et adaptation de la lumière
+
+Dans `garden`, remplacer :
+
+```c
+    gpu_geom_light light={0,32767,0,256,0};gpu_material mat={.flags=2|4,.alpha=256,.color=65535,.r=256,.g=256,.b=256};
+```
+
+par :
+
+```c
+    gpu_geom_light light={0,32767,0,(uint16_t)(festival_lighting_ambient_gain(f->light_mood)*256.0f),0};
+    gpu_material mat={.flags=2|4,.alpha=256,.color=65535,.r=256,.g=256,.b=256};
+```
+
+Puis, après la boucle des 6 parties du héros et avant :
+
+```c
+    scene->base=t.color;scene->stride=t.stride;scene->format=7;return 1;
+```
+
+insérer :
+
+```c
+    if (f->geometry_ready && f->halo_mesh_index < f->mesh_count) {
+        gpu_geom_mesh *halo_mesh = &f->meshes[f->halo_mesh_index];
+        for (unsigned k = 0; k < 4; k++) {
+            float coefficient = festival_lighting_lantern_coefficient(k, f->scene_time, f->light_mood);
+            float emission = festival_lighting_emission(coefficient);
+            float world_scale = 0.55f + 0.45f * (emission / 256.0f);
+            unsigned alpha = (unsigned)lroundf(emission);
+            if (alpha < 8u) alpha = 8u;
+            if (alpha > 220u) alpha = 220u;
+
+            float hx = sites[k][0], hy = 3.0f, hz = sites[k][1];
+            int32_t fx, fy, fz;
+            if (!gpu_geom_fixed(hx, &fx) || !gpu_geom_fixed(hy, &fy) || !gpu_geom_fixed(hz, &fz)) return 0;
+
+            L3Vec3 pivot = {hx, hy, hz};
+            L3Vec3 cx = {right.x * world_scale, right.y * world_scale, right.z * world_scale};
+            L3Vec3 cy = {down.x * world_scale, down.y * world_scale, down.z * world_scale};
+            L3Vec3 cz = {forward.x, forward.y, forward.z};
+
+            gpu_geom_transform ht = {0};
+            for (unsigned a = 0; a < 3; a++) {
+                float v0 = dot3(rows[a], cx);
+                float v1 = dot3(rows[a], cy);
+                float v2 = dot3(rows[a], cz);
+                float v3 = dot3(rows[a], (L3Vec3){pivot.x - eye.x, pivot.y - eye.y, pivot.z - eye.z});
+                if (!gpu_geom_fixed(v0, &ht.values[a * 4]) ||
+                    !gpu_geom_fixed(v1, &ht.values[a * 4 + 1]) ||
+                    !gpu_geom_fixed(v2, &ht.values[a * 4 + 2]) ||
+                    !gpu_geom_fixed(v3, &ht.values[a * 4 + 3])) return 0;
+            }
+
+            gpu_material halo_mat = {.flags = GPU_V1_ADDITIVE,
+                                    .alpha = (uint16_t)alpha,
+                                    .color = 65535,
+                                    .r = 256,
+                                    .g = 175,
+                                    .b = 90,
+                                    .fog_near = 0,
+                                    .fog_color = 0,
+                                    .fog_scale = 0};
+
+            if (!gpu_geom_set_transform(&r->gpu, &ht) ||
+                !gpu_v1_material(&r->gpu, &halo_mat) ||
+                !gpu_geom_draw(&r->gpu, halo_mesh, 0)) return 0;
+            r->draws++;
+            r->triangles += halo_mesh->face_count;
+        }
+    }
+```
+
+## Métrique de coût
+
+| Élément | Avant | Ajout fonction lanternes/halo |
+|---|---:|---:|
+| Triangles statiques GEOMETRY | pool actuel | +2 triangles (`halo_mesh` partagé) |
+| Commandes GPU ajoutées/image | baseline | 4 transform + 4 material + 4 draw = 12 commandes maximum |
+| Propriétés chargées additionnelles | 0 | 0 texture, 0 atlas, 0 adresse GPU |
+| Maillles statiques | estimation 9-12 | +1 maille, reste sous 24 avec filet `halo_mesh_index < mesh_count` |
+| Variation visuelle | aucune pour lanternes | amplitude totale env. +-6 %, deux sinus lents, aucun clignotement rapide |
+
+Le budget demandé (<=16 commandes GPU ajoutées/image, <=16 triangles statiques) est donc respecté avec marge : 12 commandes et 2 triangles statiques. Les triangles runtime ajoutés sont 8 par image (4 quads x 2), mais ils ne relèvent pas de la réserve statique et réutilisent le même maillage.
+
+## Critères de validation conseillés
+
+1. Compiler le candidat isolé avec `festival_lighting.c` et le patch ; vérifier qu’aucun warning empêche la compilation.
+2. Imprimer `f->mesh_count` et `f->halo_mesh_index` juste après `garden_geometry` ; le succès est `halo_mesh_index == mesh_count - 1` et `mesh_count <= 24`.
+3. Comparer `gpu_v1_rejected()` avant/après activation des halos ; si une soumission halo est rejetée, appliquer la variante documentée sans texture en réutilisant un atlas déjà publié.
+4. Vérifier jour -> nuit puis nuit -> jour : `light_mood` doit rester dans `[0,1]`, l’alpha halo doit varier sans saut et la scène doit rester finie même si `dt` est NaN/inf/0 (déjà neutralisé par `festival_lighting_clamp_dt` et les guards).
+5. Vérifier que la HUD reste unique et native (`scene->layers_enabled` inchangé) et qu’aucun `gpu_rgb565_surface_submit` supplémentaire n’est appelé par le module d’éclairage.

@@ -1,0 +1,14 @@
+R9a — précontrôle refusé avant transfert et avant arrêt de NEBULA
+
+Le contrôleur demandait prodockctl info alors que NEBULA possédait encore
+le périphérique GPU exclusif. La commande a répondu Resource busy ; la
+validation stricte de l'ABI a donc arrêté le protocole.
+
+Les preuves before.log confirment Linux 6.12.112-prodock, le processus
+NEBULA PID1172 actif, rootfs et /tmp en mémoire, cinq compteurs DISPLAY nuls.
+transfers reste vide. Aucun jeu ni probe lancé, aucune restauration nécessaire
+puisque NEBULA n'a pas été arrêté. Ce refus ne démontre aucune panne GPU.
+
+R9b conserve exactement le jeu, le probe et les ressources. Le contrôle ABI
+est déplacé après l'arrêt contrôlé de NEBULA, comme dans R5, toujours avant
+le premier lancement du jeu. Le banc simulé couvre cette exclusivité.

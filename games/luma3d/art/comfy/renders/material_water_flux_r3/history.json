@@ -1,0 +1,196 @@
+{
+  "cf8e5fd4-3385-46a7-b05a-30605a53804d": {
+    "prompt": [
+      72,
+      "cf8e5fd4-3385-46a7-b05a-30605a53804d",
+      {
+        "unet": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "flux-2-klein-4b-fp8.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "clip": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_3_4b.safetensors",
+            "type": "flux2"
+          }
+        },
+        "vae": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "flux2-vae.safetensors"
+          }
+        },
+        "positive": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "clip",
+              0
+            ],
+            "text": "Seamless repeatable hand-painted videogame material. EXACTLY perpendicular flat full-frame macro albedo material scan, no perspective, no object silhouette. The entire square is one continuous surface, every edge and corner has the same density, scale and brightness. Painterly gouache brushwork with beautiful broad and medium shapes and sparse fine details. Unlit intrinsic colors, soft restrained contrast. No scenery, no landscape, no background, no border, no frame, no vignette, no cast shadows, no central highlight, no text. Flat luminous turquoise lake surface with sparse thin broken pale aqua horizontal strokes. Large calm jade blue-green empty areas between delicate short reflection dashes. A few very broad faint caustic curves. No underwater rocks, no plants, no shore, no horizon, no large highlight, no concentric circles or rings."
+          }
+        },
+        "latent": {
+          "class_type": "EmptyFlux2LatentImage",
+          "inputs": {
+            "width": 1024,
+            "height": 1024,
+            "batch_size": 1
+          }
+        },
+        "noise": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 20261024305
+          }
+        },
+        "guider": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": [
+              "unet",
+              0
+            ],
+            "conditioning": [
+              "positive",
+              0
+            ]
+          }
+        },
+        "sampler": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "sigmas": {
+          "class_type": "Flux2Scheduler",
+          "inputs": {
+            "steps": 4,
+            "width": 1024,
+            "height": 1024
+          }
+        },
+        "sample": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": [
+              "noise",
+              0
+            ],
+            "guider": [
+              "guider",
+              0
+            ],
+            "sampler": [
+              "sampler",
+              0
+            ],
+            "sigmas": [
+              "sigmas",
+              0
+            ],
+            "latent_image": [
+              "latent",
+              0
+            ]
+          }
+        },
+        "decode": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "sample",
+              0
+            ],
+            "vae": [
+              "vae",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "decode",
+              0
+            ],
+            "filename_prefix": "luma3d/material_water_flux_r3"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792841234867
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "material_water_flux_r3_00001_.png",
+            "subfolder": "luma3d",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 1024,
+              "height": 1024
+            },
+            "id": "9c48aeb2-42d4-4731-8cb8-a0ff41fd2b6b"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "cf8e5fd4-3385-46a7-b05a-30605a53804d",
+            "timestamp": 1792841234868
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "unet",
+              "clip",
+              "vae",
+              "latent",
+              "sampler",
+              "sigmas"
+            ],
+            "prompt_id": "cf8e5fd4-3385-46a7-b05a-30605a53804d",
+            "timestamp": 1792841234868
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "cf8e5fd4-3385-46a7-b05a-30605a53804d",
+            "timestamp": 1792841237592
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

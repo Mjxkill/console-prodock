@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/include/ "prodock-linux.dts"
+/ {
+    compatible = "mjx,neo-console-linux", "mjx,prodock-linux";
+    model = "Tang Mega Neo Console 138K - Console HDMI 720p";
+};
+&{/soc/video@e9000000} {
+    width = <1280>;
+    height = <720>;
+    pixel-clock-hz = <74375000>;
+    memory-clock-hz = <75000000>;
+    horizontal-total = <1650>;
+    vertical-total = <750>;
+    board-id = <1>;
+};
+
+&{/soc} {
+    gamepads@e9004000 {
+        compatible = "mjx,neo-gamepads";
+        reg = <0xe9004000 0x100>;
+        status = "okay";
+    };
+};

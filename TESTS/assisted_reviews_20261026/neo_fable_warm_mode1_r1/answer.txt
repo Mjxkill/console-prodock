@@ -1,0 +1,90 @@
+**Verdict en une ligne.** L'essai est borné et sûr côté matériel, mais tel quel il ne peut pas prouver ce qu'il prétend prouver : un passage NCP 2/2 vers 0/0 démontre qu'un reset du domaine AHB a eu lieu dans la fenêtre, pas que la trame UART en est la cause. Autoriser l'essai exige un correctif concret et court, décrit plus bas, sinon la clé `r19_uart_reset_proved` sera un faux positif par construction.
+
+## Faits établis sur le paquet
+
+- **Le témoin NCP ne distingue pas la cause du reset.** Dans `neo_capture_bus.v:25-34`, `arm_count` et `sequence_id` repartent à zéro sur `!resetn` ou `!up[1]`, et `up` ne dépend que de `resetn`. Tout reset du domaine AHB donne 0/0. Rien dans ce RTL n'expose `command_epoch`, `delay_mode`, `holding` ni `parse_state` de `neo_reset_trial.v:14-16`. Le paquet le confirme : EP0 absent, époque interne.
+- **La fenêtre d'attribution contient l'ouverture du port.** Entre la session témoin `r19_witness_before_uart` et la session `r19_after_mode1`, le contrôleur ouvre le port à `warm_mode1_trial.py:113`, écrit la trame, ferme le port. PySerial lève DTR et RTS à l'ouverture, et le pilote noyau les retombe à la fermeture. Un reset déclenché par cette bascule est indiscernable d'un reset déclenché par la trame. L'argument historique des outils UART directs n'a jamais été accompagné d'un témoin NCP, il ne prouve donc rien.
+- **La clé `r19_uart_reset_proved` surclame.** `warm_mode1_trial.py:145` l'écrit à `True` sur la seule base 2/2 vers 0/0. Le chemin R21 est plus honnête avec `recovery_after_frame_no_independent_epoch` à la ligne 163. Les deux cas souffrent de la même absence d'époque.
+- **Un échec de `r19_after_mode1` est traité comme une erreur sans classification.** Si les compteurs restent 2/2, la garde Tcl de `check_code` échoue à la ligne 31, l'exception remonte, et `restored()` reprogramme R19 à la ligne 173. Le résultat négatif le plus informatif de l'essai, à savoir « la trame n'a pas resetté », est perdu : le rapport contiendra une erreur générique et une reprogrammation inutile.
+- **Double appel possible de `restored()`.** Dans la branche R21 sans récupération, `restored()` est appelé à la ligne 160 à l'intérieur du `try`. S'il lève, le `except` externe le rappelle à la ligne 173. Le second appel échoue sur `assert not log.exists()` à la ligne 80 et produit `fallback_error` au lieu d'une vraie seconde tentative. L'état final reste honnête, mais le rapport devient confus et le test `test_restoration_guard_failure_never_marks_verified` ne couvre pas ce chemin.
+- **Les signaux ne sont ignorés que dans le chemin d'exception.** La ligne 172 protège le `restored()` de secours, mais pas celui de la ligne 160. Un SIGINT pendant cette reprogrammation laisse `last_programmed_sha256` à `None`, ce qui est correct mais évitable.
+- **`CPU_ROM_execution_after_reset=True` est écrit a priori** à la ligne 189, avant toute observation. `qualification_status` reste `FAIL` dans tous les chemins, y compris le succès de la ligne 164. Si c'est voulu, le documenter.
+- **La chaîne `left_state` diverge** entre l'ancre attendue à la ligne 54 et celle écrite à la ligne 134. Un futur contrôleur qui ancre sur ce résultat avec la même assertion échouera.
+- **Les 14 tests mock sont cohérents** avec les SHA du paquet et couvrent l'ordre des appels. Ils ne testent ni le Tcl de `check_code`, ni `send()`, ni le double `restored()`.
+
+## Hypothèses et risques à discriminer
+
+- **Hypothèse : le relais BL616 relie DTR ou RTS à une broche de reset.** Les ponts Sipeed utilisent souvent ce schéma pour l'auto-reset. Probabilité inconnue, conséquence majeure : faux positif total. Test discriminant : ouvrir et fermer le port sans écrire un seul octet, puis relire 2/2. Cela respecte la contrainte « une seule trame ».
+- **Hypothèse : perte transitoire de `ddr_ready` ou `pll_ready`.** `neo_reset_trial.v:93` efface `delay_done` et `neo_reset_trial.v:102` retombe `release_request` sur `ddr_ready` brut. Toute perte de calibration dans la fenêtre vaut un reset et un 0/0. Même contrôle que ci-dessus, plus lecture de `heartbeat_count` à 0x98 avant et après pour dater le reset.
+- **Hypothèse : le parseur peut silencieusement perdre la trame.** `neo_reset_trial.v:46` réinitialise `parse_state` après `GAP_CYCLES`, soit 2 ms si `clk_ref` vaut 50 MHz. Un décrochage du relais entre deux octets efface la trame sans aucune trace lisible. Si par ailleurs un octet arrive exactement au cycle du timeout, il est ignoré car la branche `else if (rx_valid)` n'est pas prise. Faible probabilité, mais aucune preuve possible après coup faute de compteur de rejets.
+- **Hypothèse : R19 ne contient pas `neo_reset_trial`.** Le paquet ne relie pas `R19_SHA` à ce fichier source. Si le parseur est absent de R19, l'essai se termine par une erreur de garde puis une reprogrammation, sans que le rapport dise « trame sans effet ». Le correctif de classification ci-dessous rend ce cas lisible.
+- **Hypothèse : `holding` peut rester bloqué** si `release_request` n'atteint pas le synchroniseur ou si l'horloge AHB est arrêtée. `neo_reset_trial.v:88` ne décompte que lorsque `cpu_reset_n` est bas. Pour R21, une trame mode1 ne corrige donc ni un `ddr_ready` absent ni une horloge AHB arrêtée. Issue probable : `R21_no_recovery_UART_receipt_unknown` puis restauration R19. C'est borné et acceptable.
+- **Hypothèse : budget de 30 s trop court à 100 kHz** pour `r19_seed_ncp`. Deux ARM et deux CAPTURE avec jusqu'à 100 itérations de trois lectures DMI chacune peuvent approcher la limite de `warm_mode1_trial.py:75`. Un timeout ici déclenche une reprogrammation R19 pour rien. Le script d'isolement comparable utilisait 40 s à 1 MHz, `isolate_r19_clear.py:75`.
+- **Hypothèse : un enfant OpenOCD survivant.** `hw.run_child` n'est pas fourni. Si un timeout DMI laisse un processus en vie, la session suivante entre en conflit d'adaptateur. Le contrôle `ps` de la ligne 195 n'est fait qu'une fois au départ.
+- **`out_waiting` sur un port USB** retourne souvent zéro immédiatement. La boucle de drainage de la ligne 118 ne prouve pas l'émission par le relais. La seule preuve de réception reste NCP, d'où l'importance du contrôle.
+
+## Correctif minimal avant autorisation
+
+Trois modifications, sans nouveau routage ni nouveau bitstream.
+
+1. **Contrôle ouverture seule, avant la trame.** Ajouter un paramètre `write` à `send()` et insérer un appel sans écriture suivi d'une relecture 2/2.
+
+```python
+# IO.send : signature et écriture
+def send(self,name,write=True):
+    ...
+    entry=dict(frame_hex=FRAME.hex() if write else '',bytes_written=0,...)
+    with serial.Serial(...) as link:
+        if write:
+            entry['bytes_written']=link.write(FRAME);self.save()
+            assert entry['bytes_written']==len(FRAME),'Partial reset frame'
+            deadline=time.monotonic()+2
+            while link.out_waiting:
+                if time.monotonic()>deadline:raise TimeoutError(...)
+                time.sleep(.005)
+        time.sleep(.25)
+        data=link.read(4096)
+    ...
+
+# execute, entre les lignes 141 et 142
+observe('r19_witness_before_uart',2)
+io.send('r19_port_open_control',write=False)
+observe('r19_witness_after_port_open',2)
+io.send('r19_mode1')
+```
+
+2. **Classifier un échec de `r19_after_mode1` avant de restaurer.**
+
+```python
+try:observe('r19_after_mode1',0)
+except Exception as e:
+    report['r19_after_mode1_error']=repr(e);save()
+    observe('r19_no_reset_witness',2)   # si OK : trame reçue sans reset, état R19 intact
+    report['outcome']='R19_frame_did_not_reset';save()
+    raise
+```
+
+3. **Renommer la preuve et élargir la lecture.** Remplacer `r19_uart_reset_proved` par `r19_reset_observed_after_frame`, et ajouter `r19_reset_attributed_to_frame=True` uniquement si le contrôle du point 1 a passé. Dans `check_code`, remplacer la ligne 33 par `read_memory 0xe9005080 32 7` pour consigner statut et `heartbeat_count`.
+
+Compléments de qualité, non bloquants : porter le timeout de `r19_seed_ncp` à 60 s, ignorer les signaux dans `restored()` lui‑même, garder un drapeau `restore_attempted` pour éviter le double appel, aligner la chaîne `left_state`, et n'écrire `CPU_ROM_execution_after_reset` qu'après un reset observé.
+
+Tests mock à ajouter pour verrouiller ces chemins :
+
+- `test_port_open_control_precedes_frame` : l'ordre doit être témoin 2, contrôle sans écriture, témoin 2, trame, puis vérification 0.
+- `test_control_reset_blocks_frame` : échec de `r19_witness_after_port_open` doit empêcher tout `send` avec écriture et restaurer R19.
+- `test_after_mode1_failure_is_classified` : échec de `r19_after_mode1` doit produire `R19_frame_did_not_reset` quand le témoin 2 passe ensuite.
+- `test_inner_restore_failure_calls_restore_once` : échec de `restore_r19` dans la branche R21 ne doit produire qu'un seul appel `program`.
+
+Une discrimination plus forte existe, une trame avec complément erroné qui ne doit pas resetter, mais elle viole la règle « exactement une trame ». C'est une décision de l'utilisateur, pas un prérequis.
+
+## Preuves manquantes dans le paquet
+
+- `board_trial_r21.py` avec `BASE_GUARD`, `ARM`, `CAPTURE`, `R19_SHA` et `route_review`. L'assertion de `seed_code()` ligne 45 suppose que l'ARM de r21 est identique à celui de `isolate_r19_clear.py:16-42`.
+- Le module `hw` : sémantique de kill de `run_child`, dérivation de `programmer_busdev`, `check_program_status`. L'assertion de la ligne 84 ne lie pas `programmer_busdev` au chemin `3-4.4.1`.
+- `ae350_espprog.cfg` et sa `reset_config`. Le témoin `r19_witness_before_uart` couvre empiriquement une session complète, ce point est donc atténué.
+- `neo_reset_trial_rx.v`, la fréquence réelle de `clk_ref`, et le câblage de `release_request` vers le synchroniseur AE350 et de `resetn` de `neo_capture_bus`.
+- Le lien entre `R19_SHA` et le RTL fourni, et la correspondance entre `candidate_sha256` et le FS des deux essais R21r1 précédents, que `local_plan()` n'assert pas.
+- Le mappage DTR et RTS du firmware BL616.
+- Les durées des sessions à 100 kHz de l'ancre `startup_100k_20261027_090320`, pour valider le budget de 30 s.
+
+Aucun des résultats proposés ci‑dessus n'a été observé, et aucun test n'a été exécuté dans cette revue.

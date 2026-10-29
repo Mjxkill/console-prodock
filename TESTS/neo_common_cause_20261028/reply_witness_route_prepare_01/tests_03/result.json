@@ -1,0 +1,246 @@
+{
+  "passed": true,
+  "hardware_access": false,
+  "Gowin_executed": false,
+  "synthetic_routed_fixture": true,
+  "actual_candidate_routed": false,
+  "cases": [
+    {
+      "name": "real prepared candidate and library guards",
+      "passed": true
+    },
+    {
+      "name": "reject review passed",
+      "passed": true,
+      "error": "root review not passed"
+    },
+    {
+      "name": "reject review purpose",
+      "passed": true,
+      "error": "wrong root review purpose"
+    },
+    {
+      "name": "reject review netlist_sha256",
+      "passed": true,
+      "error": "wrong reviewed netlist"
+    },
+    {
+      "name": "reject review preparation_sha256",
+      "passed": true,
+      "error": "wrong reviewed preparation"
+    },
+    {
+      "name": "reject review launcher_sha256",
+      "passed": true,
+      "error": "launcher changed since root review"
+    },
+    {
+      "name": "launcher check-only never spawns and creates no route output",
+      "passed": true
+    },
+    {
+      "name": "synthetic physical aliases preserve full driver graph",
+      "passed": true
+    },
+    {
+      "name": "wrong witness CLK",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_observer/r_raw1.bit_reg[0].value",
+        "pin": "CLK",
+        "reason": "driver identity",
+        "expected": [
+          [
+            "u_pll_ae350/u_pll/PLL_inst",
+            "CLKOUT0"
+          ]
+        ],
+        "actual": [
+          [
+            "CONST",
+            0
+          ]
+        ],
+        "net": "__utw_bit_148"
+      }
+    },
+    {
+      "name": "wrong witness RESET",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_observer/r_raw1.bit_reg[0].value",
+        "pin": "RESET",
+        "reason": "driver identity",
+        "expected": [
+          [
+            "u_usb_idle_trace/hreset_s0",
+            "F"
+          ]
+        ],
+        "actual": [
+          [
+            "CONST",
+            0
+          ]
+        ],
+        "net": "__utw_bit_148"
+      }
+    },
+    {
+      "name": "wrong witness CE",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_observer/r_raw1.bit_reg[0].value",
+        "pin": "CE",
+        "reason": "driver identity",
+        "expected": [
+          [
+            "u_usb_idle_trace/utw_observer/r_overflow.q_LUT4_I0_F_MUX2_LUT5_I1_O_LUT4_F_2",
+            "F"
+          ]
+        ],
+        "actual": [
+          [
+            "CONST",
+            0
+          ]
+        ],
+        "net": "__utw_bit_148"
+      }
+    },
+    {
+      "name": "wrong witness D",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_observer/r_raw1.bit_reg[0].value",
+        "pin": "D",
+        "reason": "driver identity",
+        "expected": [
+          [
+            "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s",
+            "DO[0]"
+          ]
+        ],
+        "actual": [
+          [
+            "CONST",
+            0
+          ]
+        ],
+        "net": "__utw_bit_148"
+      }
+    },
+    {
+      "name": "missing witness FF",
+      "passed": true,
+      "rejection_count": 3,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_observer/r_raw1.bit_reg[0].value",
+        "reason": "missing helper cell"
+      }
+    },
+    {
+      "name": "wrong witness INIT",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_observer/r_raw1.bit_reg[0].value",
+        "reason": "FF INIT changed"
+      }
+    },
+    {
+      "name": "old read input replaced",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_mux_0",
+        "pin": "I0",
+        "reason": "read mux input",
+        "expected": [
+          [
+            "u_usb_idle_trace/n558_s5",
+            "F"
+          ]
+        ],
+        "actual": [
+          [
+            "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O",
+            "O"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "wrong mux truth table",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_mux_0",
+        "reason": "wrong mux INIT"
+      }
+    },
+    {
+      "name": "old read CE changed",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/hrdata_0_s0",
+        "pin": "CE",
+        "reason": "read control changed",
+        "expected": [
+          [
+            "u_usb_idle_trace/read_pending_s0",
+            "Q"
+          ]
+        ],
+        "actual": [
+          [
+            "CONST",
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "name": "RAM or unexpected cell added",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "cell": "u_usb_idle_trace/utw_observer/unexpected_memory",
+        "reason": "unexpected helper cell"
+      }
+    },
+    {
+      "name": "witness feeds application state",
+      "passed": true,
+      "rejection_count": 1,
+      "first_error": {
+        "reason": "witness feedback outside read mux",
+        "cell": "u_usb_idle_trace/receive_index_0_s0",
+        "pin": "D",
+        "sources": [
+          [
+            "u_usb_idle_trace/utw_observer/r_raw1.bit_reg[0].value",
+            "Q"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "empty STA/SDF stays incomplete for all 434 registers",
+      "passed": true
+    }
+  ],
+  "inputs": {
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_route_prepare_01/test_preparation.py": "a2fb03118114de9b9af1b885b99fa8507ed15b03a088d992ff4fe5270de63210",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_route_prepare_01/prepare_route.py": "74118ec2c2fe6344af3c0f5dca7c178e775e3bbdf704c668d77f59c6083117ee",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_route_prepare_01/launch_route.py": "d2dd717b8ef6d09257e867d8bc46f0ca2bf52294ff5a1125a98a3ae0cf82ce48",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_route_prepare_01/audit_postroute.py": "b457d1d7e93219047207904ee8c2688a77976721224f3c69fe9dde1733388ad3",
+    "/home/michael/console/tang/impl/console_neo_n56r22_utw1/preparation.json": "62b1a2cbd261cc564d37b1895ea716587ac1627e0d5d68a55db72bbf01c36d1f",
+    "/home/michael/console/tang/impl/console_neo_n56r22_utw1/postroute_expected.json": "c8f3772e1e3111a10d59b9c8aff592c3d404fe673ccba4011aa45baa8375adff"
+  }
+}

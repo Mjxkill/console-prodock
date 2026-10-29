@@ -1,0 +1,177 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-analyse UART : reproductions discriminantes, défauts receiver/ACK/retries, correction minimale qui cesse les binaires après état incertain, limites irréductibles du paquet en vol. Distinguer preuve source et cause réelle encore inconnue.
+
+EVIDENCE PACKET:
+Incident réel : transfert de delta Festival R9 échoué au paquet376, avant arrêt GM1. Le shell a ensuite reçu des retransmissions binaires. Source receiver SHA b3cfcba99e97b74035403054e7f3ee0cec886ce1c1b66a8d928233c7acfc0afd liée par manifeste historique à ELF1464octets SHA5964389b8244dc73b58bf916a7856da3cc3aba2c2efa58779d1f755bb8410ae4. Aucun premier ACK d'échec journalisé, donc cause initiale inconnue. Le delta ne contient aucune séquence LMA1. Source garde r2 ack : data=super().ack(); if data[0]==ord('D'):tx.receiver_active=False; signals.checkpoint();return data. Cleanup envoie aveuglément1036octets0 puis headerLMA1len0 quand receiver_active resteTrue. Si flagsFalse, interroge immédiatement shell/pidGM1. Ce nettoyage a échoué.
+
+Hypothèse discriminante en cours de test : longueur512 (0x200) corrompue en0, le RX répondF puis sort AVANT consommationpayload. Host ignoreF et réémet12fois. ISIG bienoff, VMIN1/VTIME0 ; pasdetimerread côtéRX. Ne pas inventer causeUART initiale.
+
+Correction candidate proposée minimale : host arrêter immédiatement sur timeout/ACKtronqué/texte/F/Dhorscontexte/seqinattendue ; retriesseulementN explicite correspondantauseqattendu ; D neconfirme sortiequ'enphasefinaleetavecbonne taille ; étatRXunknown distintoFalse lorsambiguïté ; aucunabandonbinaire ensuite. Celaempêche retriesaprèsdétectionmaisnegarantitpasqu'aucunoctetdupaquetencoursatteigneunshell aprèscrashasynchrone. CôtéRX futur, headerlen0incorrectnedoitpassortir(F)maisNcontinuer, ou protocoleheaderCRC/endmagicdistinct etsuperviseurdrain ; comparerportéeminimale. Ne pas proposer de retouràla carte avantpreuves.
+
+FILE games/luma_adventure/tools/uart_receiver.c
+1: /* SPDX-License-Identifier: MIT
+2:  * Temporary Linux userspace transport, no GPU, MMIO, JTAG or persistent disk.
+3:  * Freestanding RV32 ELF keeps the serial bootstrap small. Blocks are CRC32
+4:  * verified before writing; retransmission uses sequence numbers. */
+5: typedef unsigned int u32;
+6: typedef unsigned char u8;
+7: static long call(long nr,long p0,long p1,long p2,long p3){register long a0 __asm__("a0")=p0;register long a1 __asm__("a1")=p1;register long a2 __asm__("a2")=p2;register long a3 __asm__("a3")=p3;register long a7 __asm__("a7")=nr;__asm__ volatile("ecall":"+r"(a0):"r"(a1),"r"(a2),"r"(a3),"r"(a7):"memory");return a0;}
+8: static int io(int writing,int fd,void *ptr,u32 n){u8 *p=ptr;while(n){long k=call(writing?64:63,fd,(long)p,n,0);if(k==-4)continue;if(k<=0)return -1;p+=k;n-=(u32)k;}return 0;}
+9: static u32 crc(u32 c,const u8 *p,u32 n){while(n--){c^=*p++;for(int k=0;k<8;k++)c=(c>>1)^(0xedb88320U&-(c&1));}return c;}
+10: static void answer(u8 c,u32 seq){u8 b[5]={c,(u8)seq,(u8)(seq>>8),(u8)(seq>>16),(u8)(seq>>24)};io(1,1,b,5);}
+11: static u8 block[1024],saved[36],raw[36];
+12: __attribute__((used,noreturn)) void boot(long *stack){
+13:  char *path=stack[0]>1?(char *)stack[2]:0;int result=1,fd=-1,changed=0;
+14:  if(!path||path[0]!='/'||path[1]!='t'||path[2]!='m'||path[3]!='p'||path[4]!='/')goto done;
+15:  if(call(29,0,0x5401,(long)saved,0))goto done;for(unsigned i=0;i<36;i++)raw[i]=saved[i];
+16:  ((u32 *)raw)[0]&=~(2U|16U|32U|256U|1024U);((u32 *)raw)[1]&=~1U;((u32 *)raw)[2]|=48;((u32 *)raw)[3]&=~(1U|2U|8U|32768U);raw[17+5]=0;raw[17+6]=1;
+17:  if(call(29,0,0x5402,(long)raw,0))goto done;changed=1;
+18:  fd=(int)call(56,-100,(long)path,577,0700);if(fd<0)goto done;
+19:  answer('R',0);u32 expect=0,total=0,checksum=~0U;
+20:  for(;;){u32 magic=0;u8 byte;while(magic!=0x31414d4c){if(io(0,0,&byte,1))goto done;magic=(magic>>8)|((u32)byte<<24);}
+21:   u32 h[3];if(io(0,0,h,sizeof(h)))goto done;u32 seq=h[0],len=h[1],hash=h[2];if(len>sizeof(block)){answer('N',expect);continue;}
+22:   if(!len){if(seq==expect&&hash==~checksum){answer('D',total);result=0;}else answer('F',total);break;}
+23:   if(io(0,0,block,len))goto done;if(~crc(~0U,block,len)!=hash){answer('N',expect);continue;}
+24:   if(seq<expect){answer('A',seq);continue;}if(seq!=expect){answer('N',expect);continue;}
+25:   if(io(1,fd,block,len))goto done;checksum=crc(checksum,block,len);total+=len;answer('A',expect++);
+26:  }
+27: done:
+28:  if(fd>=0)call(57,fd,0,0,0);if(changed)call(29,0,0x5402,(long)saved,0);call(93,result,0,0,0);for(;;){}
+29: }
+30: __attribute__((naked,noreturn)) void _start(void){__asm__ volatile(".option push\n.option norelax\nla gp,__global_pointer$\n.option pop\nmv a0,sp\ncall boot\n1: j 1b");}
+
+FILE games/luma3d/tests/hardware/festival_20261027_r9_prepared_r2/prodock_transport.py
+1: """CRC transport reused from the completed LUMA R9b trial; RAM files only.
+2: 
+3: Caller owns /tmp/prodock-diagnostic.lock and exclusive serial port. A 1464-byte
+4: receiver is read back byte-for-byte before execution. This module never opens
+5: JTAG, resets a board, or decides which process to stop.
+6: """
+7: import hashlib
+8: import re
+9: import struct
+10: import time
+11: import zlib
+12: 
+13: RECEIVER_SHA = '5964389b8244dc73b58bf916a7856da3cc3aba2c2efa58779d1f755bb8410ae4'
+14: 
+15: 
+16: class Transport:
+17:     def __init__(self, uart, command, out):
+18:         self.uart, self.command, self.out = uart, command, out
+19:         self.receiver_active = False
+20: 
+21:     def run(self, name, text, seconds=45):
+22:         rc, data = self.command(self.uart, text, seconds)
+23:         (self.out / (name+'.log')).write_bytes(data)
+24:         if rc:
+25:             raise RuntimeError((name,rc,data[-1500:]))
+26:         return data
+27: 
+28:     def sendline(self, text):
+29:         for byte in (text+'\n').encode():
+30:             self.uart.write(bytes([byte])); time.sleep(.002)
+31: 
+32:     def marker(self, marker, seconds=10):
+33:         data=bytearray(); until=time.monotonic()+seconds
+34:         while time.monotonic()<until:
+35:             data.extend(self.uart.read(4096))
+36:             if marker in data:
+37:                 return bytes(data)
+38:         raise TimeoutError(repr(data[-1500:]))
+39: 
+40:     def ack(self, seconds=.5):
+41:         data=bytearray(); until=time.monotonic()+seconds
+42:         while time.monotonic()<until:
+43:             data.extend(self.uart.read(5-len(data)))
+44:             if len(data)==5:
+45:                 return data[0],struct.unpack('<I',data[1:])[0]
+46:         raise TimeoutError('Transport ack '+repr(data))
+47: 
+48:     def bootstrap(self, receiver):
+49:         data=receiver.read_bytes()
+50:         assert len(data)==1464 and hashlib.sha256(data).hexdigest()==RECEIVER_SHA
+51:         self.uart.reset_input_buffer()
+52:         for offset in range(0,len(data),96):
+53:             escaped=''.join('\\%03o'%byte for byte in data[offset:offset+96])
+54:             self.sendline("printf '"+escaped+"' "+('>' if offset==0 else '>>')+' /tmp/luma-rx; echo __RX_CHUNK__')
+55:             self.marker(b'\r\n__RX_CHUNK__\r\n')
+56:         readback=self.run('bootstrap_readback','od -b -v /tmp/luma-rx')
+57:         octets=[]
+58:         for line in readback.replace(b'\r',b'').splitlines():
+59:             if re.fullmatch(rb'[0-7]{7,} (?:[0-7]{3} ?){1,16}',line.strip()):
+60:                 octets.extend(int(x,8) for x in line.split()[1:])
+61:         assert bytes(octets)==data, 'Receiver mismatch: never execute it'
+62:         self.run('bootstrap_mode','chmod 700 /tmp/luma-rx')
+63: 
+64:     def transfer(self, path, name):
+65:         assert re.fullmatch(r'[a-zA-Z0-9_.-]+',name)
+66:         blob=path.read_bytes(); retries=0; seq=0; start=time.monotonic()
+67:         self.uart.reset_input_buffer(); self.sendline('/tmp/luma-rx /tmp/'+name)
+68:         self.receiver_active=True; self.marker(b'R\0\0\0\0')
+69:         for offset in range(0,len(blob),512):
+70:             block=blob[offset:offset+512]
+71:             packet=struct.pack('<4sIII',b'LMA1',seq,len(block),zlib.crc32(block))+block
+72:             for attempt in range(12):
+73:                 for i in range(0,len(packet),16):
+74:                     self.uart.write(packet[i:i+16]); self.uart.flush(); time.sleep(.002)
+75:                 try:
+76:                     code,n=self.ack()
+77:                 except TimeoutError:
+78:                     code,n=0,0
+79:                 if code==ord('A') and n==seq:
+80:                     break
+81:                 retries+=1
+82:             else:
+83:                 raise RuntimeError(('Serial transfer rejected',name,seq,code,n))
+84:             seq+=1
+85:             if seq%256==0:
+86:                 print(f'{name}: {offset+len(block)}/{len(blob)} bytes, retries={retries}',flush=True)
+87:         self.uart.write(struct.pack('<4sIII',b'LMA1',seq,0,zlib.crc32(blob))); self.uart.flush()
+88:         code,n=self.ack()
+89:         assert code==ord('D') and n==len(blob),(name,code,n)
+90:         self.receiver_active=False; time.sleep(.3); self.uart.read(4096)
+91:         return dict(name=name,bytes=len(blob),sha256=hashlib.sha256(blob).hexdigest(),
+92:                     crc32='%08x'%zlib.crc32(blob),retries=retries,seconds=time.monotonic()-start)
+
+FILE games/luma3d/tests/hardware/festival_20261027_r9_board_r1/result.json
+1: {
+2:   "passed": false,
+3:   "hardware": true,
+4:   "windows": [],
+5:   "fpga_writes": 0,
+6:   "kernel_writes": 0,
+7:   "sd_writes": 0,
+8:   "flash_writes": 0,
+9:   "save_writes": 0,
+10:   "candidate_promoted": false,
+11:   "initial": {
+12:     "identity": {
+13:       "pid": 3158,
+14:       "start_ticks": 27508908
+15:     },
+16:     "save": {
+17:       "bytes": 5292,
+18:       "sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+19:     },
+20:     "display": {
+21:       "errors": 0,
+22:       "uf": 0,
+23:       "invalid": 0,
+24:       "sprites": 0,
+25:       "fault": 0,
+26:       "presents": 3022190
+27:     },
+28:     "kernel": "6.12.112-prodock-luma3d-g3d1-r1",
+29:     "fpga": "G22r0 continuity confirmed by external root review"
+30:   },
+31:   "error": "RuntimeError(('Serial transfer rejected', 'festival-r9.delta.lz4', 376, 34, 1588900840))",
+32:   "cleanup_error": "CommandTimeout('b\\'L\"k\\\\xc4\\\\xcc\\\\xae\"j\\\\xc4^P^@^@L^Bb\\\\xa7\\\\xab^A^@^E\\\\x93\\\\x84^@\\\\x80(4^F\\\\xe0T^E B^G\\\\x9c^N\\\\\\'A^Xl\\\\r\\\\nprodock# ^C\\\\xd4\\\\r\\\\n\\\\xd4^A^E|l@d`^R\\\\r\\\\n\\\\xd4^A^E|l@d`r\\\\xd4\\\\xc9\"^F\\\\x9bDm\"\\\\x87\\\\xa3\\\\x80L\"\\\\xc8\\\\xb3\"\\\\xe8\\\\xb3\\\\xb4^L\"k\\\\xc4\\\\xcc\\\\xae\"j\\\\xc4^P^@^@L^Bb\\\\xa7\\\\xab^A^@^E\\\\x93\\\\x84^@^C\\\\xd4\\\\r\\\\n\\\\xd4^A^E|l@d`^R\\\\r\\\\n\\\\xd4^A^E|l@d`r\\\\xd4\\\\xc9\"^F\\\\x9bDm\"\\\\x87\\\\xa3\\\\x80L\"\\\\xc8\\\\xb3\"\\\\xe8\\\\xb3\\\\xb4^L\"k\\\\xc4\\\\xcc\\\\xae\"j\\\\xc4^P^@^@L^Bb\\\\xa7\\\\xab^A^@^E\\\\x93\\\\x84^@^C\\\\xd4\\\\r\\\\n\\\\xd4^A^E|l@d`^R\\\\r\\\\n\\\\xd4^A^E|l@d`r\\\\xd4\\\\xc9\"^F\\\\x9bDm\"\\\\x87\\\\xa3\\\\x80L\"\\\\xc8\\\\xb3\"\\\\xe8\\\\xb3\\\\xb4^L\"k\\\\xc4\\\\xcc\\\\xae\"j\\\\xc4^P^@^@L^Bb\\\\xa7\\\\xab^A^@^E\\\\x93\\\\x84^@\\\\x80(4^F\\\\xe0T^E B^G\\\\x9c\\\\r\\\\nprodock# ^C#\\\\r\\\\nprodock# ^C\\\\xd4\\\\r\\\\n\\\\xd4^A^E|l@d`^R\\\\r\\\\n\\\\xd4^A^E|l@d`r\\\\xd4\\\\xc9\"^F\\\\x9bDm\"\\\\x87\\\\xa3\\\\x80L\"\\\\xc8\\\\xb3\"\\\\xe8\\\\xb3\\\\xb4^L\"k\\\\xc4\\\\xcc\\\\xae\"j\\\\xc4^P^@^@L^Bb\\\\xa7\\\\xab^A^@^E\\\\x93\\\\x84^@\\\\x80(4^F\\\\xe0T^E B^G\\\\x9c\\\\r\\\\nprodock# ^C\\\\xd4\\\\r\\\\n\\\\xd4^A^E|l@d`^R\\\\r\\\\n\\\\xd4^A^E|l@d`r\\\\xd4\\\\xc9\"^F\\\\x9bDm\"\\\\x87\\\\xa3\\\\x80L\"\\\\xc8\\\\xb3\"\\\\xe8\\\\xb3\\\\xb4^L\"k\\\\xc4\\\\xcc\\\\xae\"j\\\\xc4^P^@^@L^Bb\\\\xa7\\\\xab^A^@^E\\\\x93\\\\x84^@\\'')",
+33:   "signals": [],
+34:   "outcome": "FAILED_OR_INTERRUPTED",
+35:   "manifest_sha256": "b72932159cf1f27f199be1bacc0a225aff0414ca9f8e09b2ca5f9910baa816d1",
+36:   "review_sha256": "6c387f762b5c8fe2e1a5d5349b2d79cabbb92514b8373204d81fe4299b4b5e2e",
+37:   "reference_kernel": "6.12.112-prodock-luma3d-g3d1-r1"
+38: }

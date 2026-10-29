@@ -1,0 +1,64 @@
+Les Terrasses d’ambre R9 — essai Pro Dock am1
+
+PASS fonctionnel. Nouveau jeu laissé en visite automatique :
+/tmp/luma3d-am1, PID 1604, startticks 12329285.
+Ancre /tmp/luma3d-live.pid ; sauvegarde visible /tmp/am1-live.save, V3, volatile.
+Le lancement --advance 10730 effectue réellement ces pas de simulation pour
+commencer aux Terrasses. La visite rejoint Nora/Nils puis revient à la vallée ;
+ce n’est pas une boucle qui reste indéfiniment dans la nouvelle région.
+Son entrée est fermée : les commandes clavier nécessitent une relance interactive.
+Ws1 /tmp/luma3d-ws1 et /tmp/ws1-live.save V2 sont conservés pour retour.
+Aucun NEBULA. Aucun changement FPGA, noyau, SD ou flash.
+Contrôleur terminé ; aucun propriétaire CDC retourné et verrou diagnostic libre.
+FPGA G22r0 conservé par continuité d’état ; noyau 6.12.112-prodock-luma3d-g3d1-r1.
+Aucun nouveau chargement ou lecture JTAG ; identité processus/noyau/ABI vérifiée,
+signature G3D contrôlée à chaque ouverture du moteur.
+
+ELF : 62a9178dab260dc5e60be8b9bcea90b35f370357691fb157e5d7fd45a90616ee
+5450304 octets ; CRC32 0c52ffaa.
+Manifeste essai : b2e335ce9e575ec2207de9b7c82f346821f0b01541b050dc4086dbca9d6e983b
+Résultat JSON : 0fad85dbf6f4f06e89470a66885c1a4c313a6d9b0ef40eb23761d30eee9cc7c1
+Transport RAM : 585762 octets, 8 retransmissions de blocs, CRC finaux validés.
+
+Sept scènes : 30 images mesurées après 3 de chauffe, aucune écriture UART
+entre lancement et marqueur EXIT. Pixels 96 000 et banques HUD exacts pour
+chaque référence. Le CRC des indices HUD n’est pas une photographie du LCD ;
+palettes et descripteurs sont couverts par les contrats locaux.
+Les poses --advance sont des fixtures distinctes du parcours réel ci-dessous.
+
+Version | Pose | FPS | Commandes/image | Batches/image | DRAW/image | Faces soumises/image
+ws1 | 0 | 7.18 | 460 | 8 | 104 | 3341
+new | 0 | 7.03 | 469 | 8 | 106 | 3389
+new | 10730 | 10.72 | 191 | 3 | 63 | 2145
+new | 11990 | 13.43 | 120 | 2 | 37 | 1264
+new | 12500 | 15.73 | 113 | 2 | 33 | 1110
+new | 14720 | 10.95 | 146 | 3 | 31 | 1284
+ws1 | 0 | 7.18 | 460 | 8 | 104 | 3341
+
+Temps/image arrivée R9 : +2.13 % par rapport au témoin initial.
+Dérive témoin finale : -0.02 % selon la formule figée.
+Les gardes prédéfinies +10 % / dérive absolue 5 % passent. Aucun gain ni
+percentile stable revendiqué. R9 ajoute un passage, les images diffèrent de ws1.
+
+Parcours depuis une nouvelle partie, sans --advance : courrier, atelier,
+retour à Maëlle, entrée des Terrasses, Nora, prise/vanne, passerelle, Nils,
+retour à Nora puis retour réel dans la vallée. État final ambre5/région0,
+prise1/vanne2, courrier4/relais3/4lettres et atelier4/mode5 vérifiés.
+Fenêtre de 300 s sans écriture UART après démarrage ; processus encore vivant
+à la fin, arrêté proprement pour lire les compteurs et le fichier.
+Total processus : 3194 images / 345.261 s = 9.25 FPS ; simulation 326.88 s.
+Ce total inclut les contrôles autour de la fenêtre, pas une mesure isolée des
+300 s ni une durée humaine de découverte. Aucun objectif 30 FPS atteint.
+Erreurs GPU/géométrie/underflows/fault : zéro ; 6 sliver(s) écarté(s).
+
+Sauvegarde /tmp/am1-progress.save : V3, 136 octets. Reprise manuelle d’une
+image avec octets strictement identiques : 6fc1b728f486c6acecbe74118d70880ae8a9757080ebccde0e4898c7d86a7fb7.
+Sauvegarde V2 ws1 identique avant/après : 232043ec7a30e6661018d478e7ea0c9d3f09b45ba699be5b282da8c9fb70dd6f.
+Les quatre fichiers relus sont archivés à côté. Le stockage /tmp reste volatil.
+
+Limites : deux petites régions, trois missions courtes, modèles simples et
+personnages en partie dérivés. Pas de campagne de plusieurs heures, combat,
+véhicules ou son 3D intégré. Les ressources restent résidentes ; les objets
+et animations d’eau de la région inactive sont exclus du rendu, sans prétendre
+disposer déjà du streaming d’un grand monde. Aucun essai Neo qualifié ici.
+Les échecs/archives antérieurs et les sauvegardes ws1/sf2 restent préservés.

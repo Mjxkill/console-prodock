@@ -1,0 +1,462 @@
+{
+  "load": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "luma_travel_sheet_00001_.png [output]"
+    }
+  },
+  "model": {
+    "class_type": "LoadBackgroundRemovalModel",
+    "inputs": {
+      "bg_removal_name": "birefnet.safetensors"
+    }
+  },
+  "crop_00": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 0,
+      "y": 0
+    }
+  },
+  "crop_01": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 256,
+      "y": 0
+    }
+  },
+  "batch_01": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "crop_00",
+        0
+      ],
+      "image2": [
+        "crop_01",
+        0
+      ]
+    }
+  },
+  "crop_02": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 512,
+      "y": 0
+    }
+  },
+  "batch_02": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_01",
+        0
+      ],
+      "image2": [
+        "crop_02",
+        0
+      ]
+    }
+  },
+  "crop_03": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 768,
+      "y": 0
+    }
+  },
+  "batch_03": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_02",
+        0
+      ],
+      "image2": [
+        "crop_03",
+        0
+      ]
+    }
+  },
+  "crop_04": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 0,
+      "y": 256
+    }
+  },
+  "batch_04": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_03",
+        0
+      ],
+      "image2": [
+        "crop_04",
+        0
+      ]
+    }
+  },
+  "crop_05": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 256,
+      "y": 256
+    }
+  },
+  "batch_05": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_04",
+        0
+      ],
+      "image2": [
+        "crop_05",
+        0
+      ]
+    }
+  },
+  "crop_06": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 512,
+      "y": 256
+    }
+  },
+  "batch_06": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_05",
+        0
+      ],
+      "image2": [
+        "crop_06",
+        0
+      ]
+    }
+  },
+  "crop_07": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 768,
+      "y": 256
+    }
+  },
+  "batch_07": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_06",
+        0
+      ],
+      "image2": [
+        "crop_07",
+        0
+      ]
+    }
+  },
+  "crop_08": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 0,
+      "y": 512
+    }
+  },
+  "batch_08": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_07",
+        0
+      ],
+      "image2": [
+        "crop_08",
+        0
+      ]
+    }
+  },
+  "crop_09": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 256,
+      "y": 512
+    }
+  },
+  "batch_09": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_08",
+        0
+      ],
+      "image2": [
+        "crop_09",
+        0
+      ]
+    }
+  },
+  "crop_10": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 512,
+      "y": 512
+    }
+  },
+  "batch_10": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_09",
+        0
+      ],
+      "image2": [
+        "crop_10",
+        0
+      ]
+    }
+  },
+  "crop_11": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 768,
+      "y": 512
+    }
+  },
+  "batch_11": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_10",
+        0
+      ],
+      "image2": [
+        "crop_11",
+        0
+      ]
+    }
+  },
+  "crop_12": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 0,
+      "y": 768
+    }
+  },
+  "batch_12": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_11",
+        0
+      ],
+      "image2": [
+        "crop_12",
+        0
+      ]
+    }
+  },
+  "crop_13": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 256,
+      "y": 768
+    }
+  },
+  "batch_13": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_12",
+        0
+      ],
+      "image2": [
+        "crop_13",
+        0
+      ]
+    }
+  },
+  "crop_14": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 512,
+      "y": 768
+    }
+  },
+  "batch_14": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_13",
+        0
+      ],
+      "image2": [
+        "crop_14",
+        0
+      ]
+    }
+  },
+  "crop_15": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "width": 256,
+      "height": 256,
+      "x": 768,
+      "y": 768
+    }
+  },
+  "batch_15": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "batch_14",
+        0
+      ],
+      "image2": [
+        "crop_15",
+        0
+      ]
+    }
+  },
+  "mask": {
+    "class_type": "RemoveBackground",
+    "inputs": {
+      "bg_removal_model": [
+        "model",
+        0
+      ],
+      "image": [
+        "batch_15",
+        0
+      ]
+    }
+  },
+  "invert": {
+    "class_type": "InvertMask",
+    "inputs": {
+      "mask": [
+        "mask",
+        0
+      ]
+    }
+  },
+  "rgba": {
+    "class_type": "JoinImageWithAlpha",
+    "inputs": {
+      "image": [
+        "batch_15",
+        0
+      ],
+      "alpha": [
+        "invert",
+        0
+      ]
+    }
+  },
+  "save": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "rgba",
+        0
+      ],
+      "filename_prefix": "luma_travel_sheet_cutout"
+    }
+  }
+}

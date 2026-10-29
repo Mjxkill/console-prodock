@@ -1,0 +1,189 @@
+## Faits établis à partir du packet
+
+- `l3_puzzle_gpu_draw` valide déjà plusieurs préconditions : `pitch == native_width*2`, formats, dimensions corps/fond, layout recalculé, dimensions logiques, poses individuelles (`idx<16`, alpha/scale/x/y, UV).
+- La plage d’adresses Pages/color-depth n’est bornée qu’à `0x40000000`, alors que la cible projet VRAM est `0x00800000..0x02800000`, avec assets à `0x01C00000..0x02000000` selon l’énoncé.
+- Les adresses `page` et `depth` sont validées séparément, mais leur chevauchement n’est testé qu’au moment de `gpu_v1_target`, pas en préflight Draw.
+- Le fond `gpu_target background` n’est pas borné explicitement à la tranche assets.
+- L’ordre d’émission Draw est : `TARGET`, `SCISSOR`, `COPY`, puis pour chaque passe `TEXTURE`, `MATERIAL` conditionnel, et `quad` par pose; `quad` appelle deux triangles, chaque triangle émet au plus 2 plans + 1 triangle. Pour 16 tuiles, on obtient 3 + 2 textures + 2 matériaux + 32×6 = **199 commandes**. À 20 poses dont 4 ghosts, **224 commandes**. Le budget à 64 ne doit pas être inventé : le vrai nombre est au minimum 199 pour le cas 16 tuiles.
+- Alpha : l’ombre utilise `alpha = alpha_q8 * 112 / 256` et un material `flags=1`; le corps utilise `flags=9` avec color key RGB565. L’alpha corps est transmis en Q8. Les poses alpha 0 sont ignorées.
+- Un `scale_q8=0` produit une taille corps entière `0` et un `gpu_v1_quad` sans triangle réellement émis, alors que `stats.body_quads` s’incrémente quand même.
+- La preuve pixel est explicitement non terminée; on ne peut pas affirmer que la sortie est correcte.
+
+## Hypothèses
+
+- La mémoire physique courante est VRAM `0x00800000 + [0,32MiB]`, assets `[14MiB,18MiB]` relatifs à ce début, donc `0x01C00000..0x02000000`.
+- Les deux pages Color/Depth sont disjointes ; les tests utilisent un décalage de 1 MiB pour le profil 800 et 2 MiB pour 1280.
+- `gpu_command` est une structure de 8 mots 32 bits; le banc la copie par bloc de 32 octets.
+- Le fichier source ci-dessous est destiné à être compilé dans l’environnement du paquet, avec les headers fournis (`l3_puzzle_gpu.h`, `gpu_v1.h`, et leurs dépendances). Il n’a pas été compilé ici.
+
+## Patch borné proposé (<=100 lignes dans `puzzle_gpu.c`)
+
+```c
+#define L3P_VRAM_BASE 0x00800000u
+#define L3P_VRAM_END  0x02800000u
+#define L3P_ASSET_BASE 0x01C00000u
+#define L3P_ASSET_END  0x02000000u
+
+static int in_range32(uint32_t base,unsigned pitch,unsigned height,uint32_t lo,uint32_t hi)
+{
+    return base>=lo && (uint64_t)base+(uint64_t)pitch*height<=hi;
+}
+static int disjoint(uint32_t a,uint32_t b,unsigned pitch,unsigned height)
+{
+    uint32_t a0=a,a1=a+pitch*height,b0=b,b1=b+pitch*height;
+    return a1<=b0 || b1<=a0;
+}
+```
+
+Dans `l3_puzzle_gpu_draw`, juste après la validation logique et avant la construction du target :
+
+```c
+    if(!in_range32(page,pitch,l->native_height,L3P_VRAM_BASE,L3P_VRAM_END)||
+       !in_range32(depth,pitch,l->native_height,L3P_VRAM_BASE,L3P_VRAM_END)||
+       !disjoint(page,depth,pitch,l->native_height))return 0;
+    if(!in_range32(a->background.color,a->background.stride,a->background.height,
+                      L3P_ASSET_BASE,L3P_ASSET_END)||
+       !in_range32(a->bodies.base,a->bodies.stride,a->bodies.height,L3P_ASSET_BASE,L3P_ASSET_END)||
+       !in_range32(a->shadow.base,a->shadow.stride,a->shadow.height,L3P_ASSET_BASE,L3P_ASSET_END))return 0;
+```
+
+Et dans la boucle de pose, dans la condition de rejet :
+
+```c
+       ... || !p->scale_q8 ...
+```
+
+Cela force des adresses VRAM/assets exactes, empêche les alias page/depth, et transforme `scale_q8=0` en entrée invalide au lieu de produire une géométrie vide dont le compteur est quand même incrémenté.
+
+## Banc C de capture de commandes (≤200 lignes)
+
+```c
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include "l3_puzzle_gpu.h"
+#include "gpu_v1.h"
+
+#define VRAM0 0x00800000u
+#define VRAME 0x02800000u
+#define ASSET0 0x01C00000u
+#define PAGEA 0x00800000u
+#define PAGEB 0x00C00000u
+#define MAXCMD 8192
+
+static uint32_t CAP[MAXCMD][8];
+static unsigned NCAP;
+static void emit(const gpu_command *c){ if(NCAP<MAXCMD) memcpy(CAP[NCAP++],c,32); }
+static void rst(void){ NCAP=0; }
+#define CW(i,j) CAP[i][j]
+
+static unsigned opc(unsigned op){ unsigned n=0; for(unsigned i=0;i<NCAP;i++) if((CW(i,0)>>24)==op)n++; return n; }
+
+static void make_frame(L3MotionFrame *f,unsigned kind,int ghosts)
+{
+    memset(f,0,sizeof*f);
+    f->logical.kind=kind;
+    f->logical.width=kind==L3_MINI_BLOCKS?8:4;
+    f->logical.height=kind==L3_MINI_BLOCKS?14:4;
+    f->count=16;
+    for(unsigned i=0;i<16;i++){
+        L3MotionPose *p=&f->poses[i];
+        p->x_q16=(int32_t)(i%4)*65536; p->y_q16=(int32_t)(i/4)*65536;
+        p->value=1u<<(i?i:0); p->alpha_q8=256; p->scale_q8=256;
+        p->color=i%8; p->active=1; p->kind=L3_MOTION_KEEP;
+    }
+    if(ghosts){
+        f->count=20;
+        for(unsigned i=16;i<20;i++){
+            L3MotionPose *p=&f->poses[i];
+            p->x_q16=(int32_t)(i%4)*65536; p->y_q16=(int32_t)(i/4)*65536;
+            p->value=1; p->alpha_q8=80; p->scale_q8=256;
+            p->color=i%8; p->active=0; p->kind=L3_MOTION_GHOST;
+        }
+    }
+}
+
+static void make_assets(const L3PuzzleLayout *l,L3PuzzleGpuAssets *a)
+{
+    memset(a,0,sizeof*a);
+    a->background=(gpu_target){ASSET0,ASSET0+4096,l->window_width,l->window_height,l->window_width*2,l->window_width*2};
+    a->bodies=(gpu_texture_level){ASSET0+0x100000,512,512,1024,GPU_RGB565,0,0,0};
+    a->shadow=(gpu_texture_level){ASSET0+0x200000,512,512,1024,GPU_ARGB4444,0,0,0};
+    a->body_width=a->body_height=l->cell;
+    for(unsigned i=0;i<16;i++){ a->uv_x[i]=(i%4)*l->cell; a->uv_y[i]=(i/4)*l->cell; }
+}
+
+int main(void)
+{
+    gpu_v1_context gpu; gpu_v1_init(&gpu,emit);
+    const unsigned kinds[2]={L3_MINI_MERGE1024,L3_MINI_BLOCKS};
+    for(unsigned prof=0;prof<2;prof++){
+        unsigned w=prof?1280:800,h=prof?720:480;
+        for(unsigned ki=0;ki<2;ki++){
+            unsigned kind=kinds[ki],ghosts=(kind==L3_MINI_BLOCKS);
+            L3PuzzleLayout lo; L3PuzzleGpuAssets as; L3MotionFrame fr;
+            assert(l3_puzzle_gpu_layout(w,h,kind,&lo));
+            make_assets(&lo,&as); make_frame(&fr,kind,ghosts);
+            for(unsigned pid=0;pid<2;pid++){
+                uint32_t page=pid?PAGEB:PAGEA;
+                uint32_t depth=page+(prof?0x00200000u:0x00100000u);
+                unsigned pitch=w*2;
+                rst(); L3PuzzleGpuStats st={0};
+                assert(l3_puzzle_gpu_draw(&gpu,&lo,&as,&fr,page,depth,pitch,&st));
+                uint32_t off=lo.window_y*pitch+lo.window_x*2;
+                assert(CW(0,0)==(22u<<24) && CW(0,1)==page+off && CW(0,2)==depth+off);
+                assert(CW(0,3)==((uint32_t)lo.window_width<<16)|lo.window_height);
+                assert(CW(1,0)==(23u<<24) && CW(1,1)==0);
+                assert(CW(1,2)==((uint32_t)lo.window_width<<16)|lo.window_height);
+                assert(opc(24)>=2 && opc(25)>=2);
+                unsigned body=ghosts?20:16;
+                assert(st.copy_pixels==lo.window_width*lo.window_height);
+                assert(st.shadow_quads==16 && st.body_quads==body);
+                assert(st.quads==16+body);
+                assert(st.cpu_uploaded_bytes==0);
+                printf("profile=%ux%u kind=%u page=0x%08X cmd=%u quads=%u\n",
+                    w,h,kind,page,NCAP,st.quads);
+            }
+        }
+    }
+
+    /* bornes VRAM / chevauchement page-depth */
+    for(int bad=0;bad<3;bad++){
+        rst();
+        L3PuzzleLayout lo; L3PuzzleGpuAssets as; L3MotionFrame fr;
+        assert(l3_puzzle_gpu_layout(800,480,L3_MINI_MERGE1024,&lo));
+        make_assets(&lo,&as); make_frame(&fr,L3_MINI_MERGE1024,0);
+        uint32_t page=bad==0?VRAME:PAGEA;
+        uint32_t depth=bad==1?PAGEA:page+0x00100000u;
+        assert(!l3_puzzle_gpu_draw(&gpu,&lo,&as,&fr,page,depth,1600,&(L3PuzzleGpuStats){0}));
+        assert(NCAP==0);
+    }
+
+    /* fond hors tranche assets */
+    {
+        rst();
+        L3PuzzleLayout lo; L3PuzzleGpuAssets as; L3MotionFrame fr;
+        assert(l3_puzzle_gpu_layout(800,480,L3_MINI_MERGE1024,&lo));
+        make_assets(&lo,&as); as.background.color=0x01000000u; make_frame(&fr,L3_MINI_MERGE1024,0);
+        assert(!l3_puzzle_gpu_draw(&gpu,&lo,&as,&fr,PAGEA,PAGEA+0x00100000u,1600,&(L3PuzzleGpuStats){0}));
+    }
+    printf("capture test: OK structurel, preuve pixel toujours hors perimetre\n");
+    return 0;
+}
+```
+
+## Résultats attendus par le banc
+
+- Scène normale 16 tuiles : `cmd=199`, `quads=32`.
+- Scène 8 colonnes avec 4 ghosts : `cmd=224`, `quads=36`.
+- Aucune commande n’est admise avec une page hors VRAM ni avec `page == depth`.
+- Les fonds hors `0x01C00000..0x02000000` sont rejetés.
+- Le SCISSOR correspond exactement à `window_width x window_height`, donc l’écriture hors fenêtre est cadrée par le target+scissor capturés.
+- Les matériaux capturés montrent l’ombre en `flags=1`, `alpha=112`, et les corps en `flags=9`, `alpha` Q8. C’est le comportement observé; la qualité perceptuelle reste à prouver par le rendu pixel non encore validé.
+
+## Éléments encore manquants
+
+- Le tableau `L3_MINI_MERGE1024`, les valeurs exactes des constantes enum mouvement, et les layouts R6 ne sont pas présents dans le paquet fourni; le banc suppose les headers fournis.
+- Aucune exécution ni capture matérielle n’a été faite ici.
+- La preuve pixel finale reste à établir; ce banc valide seulement la séquence, les bornes, les adresses et les compteurs de commandes.

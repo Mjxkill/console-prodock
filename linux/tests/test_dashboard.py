@@ -78,6 +78,14 @@ int main(void)
     b.line_cycles=2556;
     pd_dashboard(&v.t,&b,&a,&sd,&old,1);
     assert(colour(&v.t,3,3)==PD_RED && colour(&v.t,79,0)==PD_RED);
+    struct prodock_display_geometry neo={.width=1280,.height=720,.board=PRODOCK_BOARD_NEO,.line_budget=1663};
+    b.usb_status=0xffffffffU;b.line_cycles=1662;
+    pd_dashboard_geometry(&v.t,&b,&a,&sd,&old,1,&neo);
+    assert(colour(&v.t,3,3)==PD_AMBER && contains(&v.t,8,"1662/1663"));
+    assert(contains(&v.t,0,"TANG NEO") && contains(&v.t,3,"ETAT INCONNU"));
+    assert(contains(&v.t,6,"Debug BL616 2 Mbauds"));
+    b.line_cycles=1663;pd_dashboard_geometry(&v.t,&b,&a,&sd,&old,1,&neo);
+    assert(colour(&v.t,3,3)==PD_RED);
     assert(v.first==123 && v.last==456);
     puts("PASS dashboard: rates, idle, sticky resets, faults, unavailable data, counter wrap/reset, line budget");
     return 0;

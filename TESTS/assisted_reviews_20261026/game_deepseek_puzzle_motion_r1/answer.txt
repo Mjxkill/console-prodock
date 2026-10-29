@@ -1,0 +1,253 @@
+## 1. Faits vérifiables dans le paquet
+
+- Le module est bien « présentation seule » : `l3_puzzle_motion_observe()` ne modifie que `L3PuzzleMotion` et copie les vues (`puzzle_motion.c:200-219`). Le test vérifie aussi l’absence de mutation du `L3MiniState` (`test_motion.c:30`, `:108-111`).
+- Le mapping 1024 déduit la direction uniquement de `pressed` (`puzzle_motion.c:52-55`), avec l’ordre `UP, RIGHT, DOWN, LEFT`. Le moteur appelle `direction(pressed)` (`l3_minigames.c:434`) mais la définition de `direction()` n’est pas dans le paquet.
+- Le traitement des blocs ignore complètement `pressed` : `block_plan()` n’a pas ce paramètre (`puzzle_motion.c:124`), et `observe()` ne passe `pressed` qu’à `merge_plan()` (`:214`).
+- Pour un lock, la reconstruction part toujours des cellules actives **avant** étape (`puzzle_motion.c:168-172`), puis compare le plateau final à `after` (`:173-187`). Si la pièce a tourné ou bougé avant le hard-drop, le plateau reconstruit est l’ancienne orientation/colonne.
+- Le moteur applique pourtant mouvement, rotation, puis hard-drop dans la même étape : `l3_minigames.c:447-451`.
+- `active_cells()` retourne `5` si plus de 4 cellules actives (`puzzle_motion.c:90-97`), sans écrire `out[4]`.
+- `block_plan()` accepte `bn == 5` si le statut d’après n’est pas `RUNNING` (`puzzle_motion.c:128`), puis boucle `i < bn` et lit `bc[4]` (`:197`). `view_ok()` ne compte ni ne limite les flags actifs (`puzzle_motion.c:5-12`).
+- Le renderer GPU n’est pas dans le paquet : aucune conclusion d’affichage réel n’est possible.
+
+## 2. Défauts prouvables / contre-exemples
+
+### D1 — lock + rotation (et lock + mouvement) : snap alors que l’état final est reconstructible
+
+Contre-exemple minimal, valide pour `view_ok()` :
+
+- `before` : plateau 8×14 vide, pièce **I** active horizontale en `(3,0)…(6,0)`, `cursor=(3,0)`, `moves=0`.
+  - La forme I est bien `shapes[1]` (`l3_minigames.c:117`).
+- Entrée : `pressed = L3_MINI_ROTATE | L3_MINI_ACT`.
+  - Le moteur tourne la I en verticale colonne 3 (`try_rotate`, `l3_minigames.c:198-208`), puis hard-drop et lock (`:449-451`).
+- `after` : pièce verrouillée verticale en `(3,10)…(3,13)`, nouvelle pièce O active en spawn, `moves=1`.
+
+Le code actuel de `block_plan()` :
+
+1. prend `ac` = I horizontale `(3,0)…(6,0)` ;
+2. calcule `drop = 13` (`ghost_distance`, `puzzle_motion.c:110-122`) ;
+3. reconstruit une I **horizontale** en ligne 13 (`:168-172`) ;
+4. compare à `after` vertical et retourne `0` (`:183`) ;
+5. `observe()` incrémente `unsupported` et snap (`:215`).
+
+Ce n’est donc pas une limite théorique : c’est exactement le cas « lock+rotation » qui produit un snap visuel alors que `before`, `after` et `pressed` suffisent à reconstruire le résultat. Le même raisonnement s’applique à `LEFT|ACT` / `RIGHT|ACT` : le moteur bouge puis hard-drop, `block_plan()` reste sur l’ancienne colonne.
+
+Je ne prétends pas que cela explique exactement les 15 snaps du paquet — il faudrait un log des `pressed`/vues — mais c’est une cause structurelle certaine.
+
+### D2 — lecture hors bornes sur vue après invalide avec 5 cellules actives
+
+Contre-exemple au niveau API :
+
+- `after.kind = BLOCKS`, `after.status = WON` ou `LOST` ;
+- `after` contient 5 cellules `BLOCK` avec `L3_MINI_FLAG_ACTIVE` ;
+- `after.moves = before.moves + 1`, plateau statique cohérent avec un lock.
+
+`view_ok()` accepte cette vue : il ne contrôle que `kind` des cellules (`puzzle_motion.c:11`).  
+`active_cells()` retourne `5` sans écrire `bc[4]` (`:95`).  
+`block_plan()` ne rejette pas `bn == 5` si le statut n’est pas `RUNNING` (`:128`).  
+La boucle de spawn lit alors `bc[4]` (`:197`) : comportement indéfini.
+
+Ce n’est pas un cas moteur normal, mais c’est un défaut de robustesse mémoire réel pour un module frontal qui reçoit des vues.
+
+## 3. Patchs localisés proposés
+
+### P1 — prendre en compte mouvement/rotation avant lock
+
+Modifier la signature et l’appel :
+
+```c
+-static int block_plan(L3MotionEvent *e)
++static int block_plan(L3MotionEvent *e,uint32_t pressed)
+```
+
+```c
+-    int valid=before->kind==after->kind && (after->kind==L3_MINI_MERGE1024?merge_plan(e,pressed):after->kind==L3_MINI_BLOCKS?block_plan(e):0);
++    int valid=before->kind==after->kind && (after->kind==L3_MINI_MERGE1024?merge_plan(e,pressed):after->kind==L3_MINI_BLOCKS?block_plan(e,pressed):0);
+```
+
+Ajouter, après `ghost_distance()` et avant `block_plan()` :
+
+```c
+static int make_candidate(const L3MiniView *a,const unsigned ac[4],
+                          int dx,int rotate,unsigned out[4])
+{
+    int cx=a->cursor_x,cy=a->cursor_y;
+    int rx[4],ry[4],minx=99,miny=99;
+    if(cx<0 || cy<0)return 0;
+    for(unsigned i=0;i<4;i++){
+        int x=(int)(ac[i]%20)-cx,y=(int)(ac[i]/20)-cy;
+        if(rotate){int t=x;x=-y;y=t;}
+        rx[i]=x;ry[i]=y;
+        if(x<minx)minx=x;if(y<miny)miny=y;
+    }
+    for(unsigned i=0;i<4;i++){
+        int x=cx+dx+rx[i]-minx,y=cy+ry[i]-miny;
+        unsigned q;
+        if(x<0||x>=8||y<0||y>=14)return 0;
+        q=(unsigned)y*20u+(unsigned)x;
+        if(solid(&a->cells[q]))return 0;
+        for(unsigned j=0;j<i;j++)if(out[j]==q)return 0;
+        out[i]=q;
+    }
+    return 1;
+}
+```
+
+Extraire le corps « lock » actuel dans un helper qui prend les cellules verrouillées candidates :
+
+```c
+static int lock_plan_cells(L3MotionEvent *e,const unsigned src[4],
+                           const unsigned pos[4])
+{
+    const L3MiniView *a=&e->before,*b=&e->after;
+    unsigned bc[4],bn=active_cells(b,bc);
+    uint8_t board[280]={0};
+    unsigned cleared[14]={0},lines=0;
+    unsigned drop;
+    if(bn>4)return 0;
+    drop=ghost_distance(a,pos);
+    e->count=0;
+    for(unsigned y=0;y<14;y++)for(unsigned x=0;x<8;x++){
+        unsigned q=y*20+x;
+        if(solid(&a->cells[q]))board[q]=a->cells[q].color;
+    }
+    for(unsigned i=0;i<4;i++)
+        board[pos[i]+20*drop]=a->cells[src[i]].color;
+    for(unsigned y=0;y<14;y++){
+        int full=1;
+        for(unsigned x=0;x<8;x++)if(!board[y*20+x])full=0;
+        cleared[y]=(unsigned)full;lines+=(unsigned)full;
+    }
+    if(b->progress<a->progress ||
+       lines!=(unsigned)(b->progress-a->progress))return 0;
+    int dest_y=13;
+    for(int y=13;y>=0;y--){
+        if(cleared[y])continue;
+        for(unsigned x=0;x<8;x++){
+            unsigned q=(unsigned)y*20+x,dest=(unsigned)dest_y*20+x;
+            if(board[q]!=(solid(&b->cells[dest])?b->cells[dest].color:0))
+                return 0;
+        }
+        dest_y--;
+    }
+    for(;dest_y>=0;dest_y--)
+        for(unsigned x=0;x<8;x++)
+            if(solid(&b->cells[(unsigned)dest_y*20+x]))return 0;
+    for(unsigned y=0;y<14;y++)for(unsigned x=0;x<8;x++){
+        unsigned q=y*20+x,below=0,srcq;
+        const L3MiniCell *cell;
+        if(!board[q])continue;
+        for(unsigned yy=y+1;yy<14;yy++)below+=cleared[yy];
+        srcq=q;cell=&a->cells[q];
+        for(unsigned i=0;i<4;i++)
+            if(pos[i]+20*drop==q){srcq=src[i];cell=&a->cells[srcq];break;}
+        L3MotionTrack *t=track(e,srcq,q+20*below,cell,
+                               cleared[y]?L3_MOTION_CLEAR:L3_MOTION_SLIDE);
+        if(!t)return 0;
+        t->via_x=(int16_t)x;t->via_y=(int16_t)y;
+    }
+    for(unsigned i=0;i<bn;i++)
+        if(!track(e,bc[i],bc[i],&b->cells[bc[i]],L3_MOTION_SPAWN))return 0;
+    e->kind=L3_MOTION_EVENT_LOCK;
+    e->duration_ms=lines?220:110;
+    return 1;
+}
+```
+
+Puis remplacer la partie `board = ...` à `for(bn)` de `block_plan()` par une recherche bornée :
+
+```c
+    if(b->moves!=a->moves+1u)return 0;
+    unsigned cand[4];
+    int dxs[3];unsigned ndx=1;dxs[0]=0;
+    if(pressed&L3_MINI_LEFT)dxs[ndx++]=-1;
+    if(pressed&L3_MINI_RIGHT)dxs[ndx++]=1;
+
+    /* aucune rotation, éventuel déplacement horizontal */
+    for(unsigned i=0;i<ndx;i++)
+        if(make_candidate(a,ac,dxs[i],0,cand) &&
+           lock_plan_cells(e,ac,cand))return 1;
+
+    /* rotation éventuelle + kicks 0,-1,-2 comme try_rotate() */
+    if(pressed&(L3_MINI_ROTATE|L3_MINI_UP)){
+        for(unsigned i=0;i<ndx;i++)
+            for(int kick=0;kick>=-2;kick--)
+                if(make_candidate(a,ac,dxs[i]+kick,1,cand) &&
+                   lock_plan_cells(e,ac,cand))return 1;
+    }
+    e->count=0;return 0;
+```
+
+Cette approche reste locale : elle n’écrit aucun état opaque et n’ajoute pas de copie du moteur complet. Elle reconstruit seulement les quelques candidats plausibles à partir de `before`, `after`, `pressed`, puis **valide strictement** contre `after`.
+
+### P2 — borner les flags actifs dans `view_ok()`
+
+Patch minimal :
+
+```c
+-    for(unsigned i=0;i<400;i++)if(v->cells[i].kind>L3_MINI_CELL_FINISH)return 0;
++    unsigned active=0;
++    for(unsigned i=0;i<400;i++){
++        if(v->cells[i].kind>L3_MINI_CELL_FINISH)return 0;
++        if(v->cells[i].flags&L3_MINI_FLAG_ACTIVE)active++;
++    }
++    if(active>4)return 0;
+```
+
+En défense supplémentaire, dans `block_plan()` :
+
+```c
+-    if(an!=4 || (bn!=4 && b->status==L3_MINI_RUNNING))return 0;
++    if(an!=4 || bn>4 || (bn!=4 && b->status==L3_MINI_RUNNING))return 0;
+```
+
+Avec P2 dans `view_ok()`, une vue à 5 actifs retourne `L3_MOTION_INVALID` ; avec seulement la ligne `bn>4`, elle retourne `SNAPPED`. Les deux empêchent la lecture `bc[4]`.
+
+## 4. Tests discriminants à ajouter
+
+### T1 — lock+rotation, test module minimal
+
+À ajouter dans `test_motion.c` : construire manuellement `before`/`after` comme décrit en D1, puis :
+
+```c
+CHECK(l3_puzzle_motion_observe(m,&a,&b,
+      L3_MINI_ROTATE|L3_MINI_ACT,0,0,1)==L3_MOTION_ANIMATED);
+CHECK(l3_puzzle_motion_sample(m,.30,&f));
+CHECK(f.settled);
+CHECK(!memcmp(f.logical.cells,b.cells,sizeof(b.cells)));
+```
+
+Sur le code actuel, `observe()` retourne `L3_MOTION_SNAPPED` par construction. Après P1, il doit retourner `ANIMATED`. Je ne l’ai pas exécuté ; le test est reproductible sans modifier le moteur.
+
+### T2 — lock+mouvement, même méthode
+
+Même test avec `pressed = L3_MINI_LEFT | L3_MINI_ACT` ou `RIGHT|ACT`, pièce I ou T, colonne décalée dans `after`. Cela couvre la deuxième cause probable des snaps combinés.
+
+### T3 — robustesse mémoire
+
+Construire `after` avec `status=WON`, `moves=before.moves+1`, 5 flags actifs et un plateau statique cohérent. Attendre :
+
+- après P2 `view_ok()` : `L3_MOTION_INVALID` ;
+- sans P2 mais avec `bn>4` : `L3_MOTION_SNAPPED`.
+
+À lancer sous ASan/UBSan pour rendre la lecture `bc[4]` visible. Le test doit vérifier `result != L3_MOTION_ANIMATED` et, si possible, l’absence de rapport sanitizer.
+
+### T4 — priorité multi-direction 1024
+
+Preuve manquante : `direction()` et `at()` ne sont pas fournis. Ajouter un test qui appelle le vrai moteur avec `pressed = UP|LEFT` sur un plateau 1024 connu, puis compare :
+
+- soit `observe()` anime le même `after` que le moteur ;
+- soit il snap explicitement.
+
+Le test doit échouer si le module choisit `UP` alors que le moteur a choisi `LEFT`, car `puzzle_motion.c:52-55` code l’ordre `UP, RIGHT, DOWN, LEFT` sans preuve de correspondance.
+
+## 5. Priorités et preuves manquantes
+
+1. **P1 lock+rotation/mouvement** : défaut prouvable, directement lié aux 15 snaps combinés. C’est le patch à valider en premier.
+2. **P2 borne des actifs** : petit patch de robustesse mémoire, à ajouter même si le moteur réel ne produit pas 5 actifs.
+3. **Preuves manquantes** :
+   - définition de `direction()` et `at()` (`l3_minigames.c` n’est pas complet dans le paquet) ;
+   - `random32()` pour reproduire exactement les seeds des tests ;
+   - journal des 15 `unsupported` pour confirmer la proportion rotation/mouvement/multi-lock ;
+   - renderer GPU absent, donc aucune mesure de perte visuelle réelle possible.
+
+Je n’ai exécuté aucun test ni modifié aucun fichier.

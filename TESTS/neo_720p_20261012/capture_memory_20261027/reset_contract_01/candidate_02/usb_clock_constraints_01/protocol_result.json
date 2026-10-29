@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "hardware_access": false,
+  "scope": "Exact frozen RTL, four-state Icarus; stable bank/sequence and disarm NBA semantics; not routed timing or metastability proof",
+  "sources": {
+    "TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/usb_clock_constraints_01/usb_idle_trace_protocol_tb.sv": "1fa46043699bc0131f1167a5dbec3d2daf68081b7a6dd01fccb08e070761cb2e",
+    "tang/impl/console_neo_n56r21r2_resetqual_coupled/source/tang/rtl/usb/usb_idle_trace.v": "97854f943d523304877e4fafc52c53e71ef03cb3e54940f13cd1a7a0bdbe8d9f",
+    "tang/impl/console_neo_n56r21r2_resetqual_coupled/source/tang/rtl/board/ddr_dcfifo.v": "449b5d7e65d3290f0b9cc1d5e574e09191d40bbfe8960f45374d9690e965103b"
+  },
+  "cases": [
+    {
+      "args": [
+        "+hp=6.25",
+        "+up=8.333333",
+        "+phase=.317"
+      ],
+      "expected_fail": false,
+      "passed": true,
+      "returncode": 0,
+      "stdout": "PASS EXACT SNAPSHOT seq=4 ticks=2340 disarm_ticks=2339 hp=6.250000 up=8.333333 phase=0.317000\nTESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/usb_clock_constraints_01/usb_idle_trace_protocol_tb.sv:117: $finish called at 90012500 (1ps)\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "+hp=6.241",
+        "+up=8.342",
+        "+phase=3.713"
+      ],
+      "expected_fail": false,
+      "passed": true,
+      "returncode": 0,
+      "stdout": "PASS EXACT SNAPSHOT seq=4 ticks=2340 disarm_ticks=2339 hp=6.241000 up=8.342000 phase=3.713000\nTESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/usb_clock_constraints_01/usb_idle_trace_protocol_tb.sv:117: $finish called at 90082594 (1ps)\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "+hp=8.342",
+        "+up=6.241",
+        "+phase=1.117"
+      ],
+      "expected_fail": false,
+      "passed": true,
+      "returncode": 0,
+      "stdout": "PASS EXACT SNAPSHOT seq=4 ticks=2514 disarm_ticks=2513 hp=8.342000 up=6.241000 phase=1.117000\nTESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/usb_clock_constraints_01/usb_idle_trace_protocol_tb.sv:117: $finish called at 76396036 (1ps)\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "+wrong_equal"
+      ],
+      "expected_fail": true,
+      "passed": true,
+      "returncode": 1,
+      "stdout": "FATAL: TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/usb_clock_constraints_01/usb_idle_trace_protocol_tb.sv:112: negative witness: disarm front adds one tick\n       Time: 67662500  Scope: usb_idle_trace_protocol_tb\n",
+      "stderr": ""
+    }
+  ]
+}

@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include "prodock-uapi.h"
 #include "nebula-assets.h"
+#include "neo-gamepad-input.h"
 
 #define MAP_BYTES (14U*1024*1024)
 #define BASE 0x00800000U
@@ -44,6 +45,7 @@ typedef struct {
 } Game;
 typedef struct {
     int fd,display,failed,scale,host;
+    unsigned width,height,pitch,page_bytes; /* logical canvas = native / 2 */
     uint8_t *mem;uint32_t used,assets,stars[2][2],atlas[2],maps[2][3];
     Resource art[NEBULA_RESOURCE_COUNT];
     struct prodock_batch batch;
@@ -68,6 +70,15 @@ static int checked(Video *v,unsigned long op,void *p)
     }
     return 0;
 }
+static int geometry(Video *v,unsigned width,unsigned height)
+{
+    if(!((width==800 && height==480)||(width==1280 && height==720)))return -1;
+    v->width=width/2;v->height=height/2;v->pitch=width*2;
+    v->page_bytes=width==800?0x100000:0x200000;v->used=3*v->page_bytes;
+    return 0;
+}
+static float screen_x(Video *v,float x) { return x*v->width/400; }
+static float screen_y(Video *v,float y) { return y*v->height/240; }
 static uint32_t allocate(Video *v,unsigned bytes)
 {
     unsigned offset=(v->used+31)&~31U;
@@ -100,6 +111,7 @@ static uint32_t crc32(const uint8_t *p,size_t n)
 }
 static int assets(Video *v,const char *path)
 {
+    if(!v->width && geometry(v,800,480))return -1;
     FILE *f=fopen(path,"rb");if(!f) { perror(path);return -1; }
     uint8_t *data=malloc(NEBULA_ASSET_BYTES);
     if(!data) { fclose(f);return -1; }
@@ -120,21 +132,23 @@ static int assets(Video *v,const char *path)
     static const uint8_t inks[8]={227,225,228,229,231,233,235,224};
     for(unsigned s=0;s<2;++s) {
         unsigned scale=s+1,tile=8*scale;
-        v->atlas[s]=allocate(v,8192*tile*tile);
+        /* The HUD references only 8 inks x 128 glyphs. */
+        unsigned atlas_tiles=v->width==400?8192:1024;
+        v->atlas[s]=allocate(v,atlas_tiles*tile*tile);
         if(v->failed)return -1;
-        uint8_t *atlas=memory(v,v->atlas[s]);memset(atlas,0,8192*tile*tile);
+        uint8_t *atlas=memory(v,v->atlas[s]);memset(atlas,0,atlas_tiles*tile*tile);
         for(unsigned ink=0;ink<8;++ink)for(unsigned ch=0;ch<128;++ch)
             for(unsigned y=0;y<tile;++y)for(unsigned x=0;x<tile;++x)
                 atlas[(ink*128+ch)*tile*tile+y*tile+x]=
                     font[ch*8+y/scale]&(128U>>(x/scale))?inks[ink]:221;
         for(unsigned field=0;field<2;++field) {
-            unsigned pitch=(400*scale+31)&~31U,height=512*scale;
+            unsigned pitch=(v->width*scale+31)&~31U,height=512*scale;
             v->stars[field][s]=allocate(v,pitch*height*2);
             if(v->failed)return -1;
             uint8_t *pixels=memory(v,v->stars[field][s]);memset(pixels,0,pitch*height*2);
             Game seed={.rng=0xc0ffeeU+field*23467};
             for(unsigned i=0;i<75+field*35;++i) {
-                unsigned x=random_u(&seed)%398,y=random_u(&seed)%508;
+                unsigned x=random_u(&seed)%(v->width-2),y=random_u(&seed)%508;
                 unsigned length=field?2+random_u(&seed)%3:1;
                 for(unsigned yy=0;yy<length*scale;++yy)for(unsigned xx=0;xx<scale;++xx)
                     pixels[(y*scale+yy)*pitch+x*scale+xx]=field?235:239;
@@ -146,17 +160,32 @@ static int assets(Video *v,const char *path)
         v->maps[b][part]=allocate(v,64*4*2);if(v->failed)return -1;
         memset(memory(v,v->maps[b][part]),0,64*4*2);
     }
+    if(v->width!=400) {
+        Resource old=v->art[NA_BACKGROUND],next=old;
+        next.w=v->width;next.h=old.h*v->height/240;
+        next.pitch=(next.w*2+31)&~31U;next.bytes=next.pitch*next.h;
+        uint32_t addr=allocate(v,next.bytes);if(v->failed)return -1;
+        next.offset=addr-v->assets;
+        const uint16_t *src=memory(v,v->assets+old.offset);
+        uint16_t *dst=memory(v,addr);
+        for(unsigned y=0;y<next.h;++y)for(unsigned x=0;x<next.w;++x)
+            dst[y*(next.pitch/2)+x]=src[(y*old.h/next.h)*(old.pitch/2)+x*old.w/next.w];
+        v->art[NA_BACKGROUND]=next;
+    }
     return 0;
 }
 static void image_layer(Video *v,unsigned layer,unsigned art,int x,int y)
 {
     Resource r=v->art[art];uint32_t *p=v->scene.layers[layer];
+    /* Transform the centre; cached artwork keeps its native pixel size. */
+    x=(int)lroundf(screen_x(v,x+r.w*.5f)-r.w*.5f);
+    y=(int)lroundf(screen_y(v,y+r.h*.5f)-r.h*.5f);
     p[0]=v->assets+r.offset;p[1]=yx(r.w,r.h);p[2]=yx(x,y);p[3]=yx(r.w,r.h);p[5]=r.pitch;p[6]=3;
 }
 static void sprite(Video *v,unsigned art,float x,float y,unsigned priority)
 {
-    Resource r=v->art[art];int xx=(int)lroundf(x*v->scale)-r.w/2,yy=(int)lroundf(y*v->scale)-r.h/2;
-    if(xx>400*v->scale || yy>240*v->scale || xx+(int)r.w<=0 || yy+(int)r.h<=0)return;
+    Resource r=v->art[art];int xx=(int)lroundf(screen_x(v,x)*v->scale)-r.w/2,yy=(int)lroundf(screen_y(v,y)*v->scale)-r.h/2;
+    if(xx>(int)v->width*v->scale || yy>(int)v->height*v->scale || xx+(int)r.w<=0 || yy+(int)r.h<=0)return;
     if(v->sprites>=64) { ++v->fx_dropped;return; }
     uint32_t *p=v->scene.sprites[v->sprites++];
     p[0]=v->assets+r.offset;p[1]=yx(xx,yy);p[2]=r.w|(r.h<<8)|(1U<<16)|(priority<<20);
@@ -168,13 +197,18 @@ static void label(uint16_t *map,int x,int y,unsigned ink,const char *text)
 static void tile_layer(Video *v,unsigned layer,uint32_t map,int y,unsigned rows)
 {
     uint32_t *p=v->scene.layers[layer];p[0]=map;p[1]=v->atlas[v->scale-1];
-    p[2]=yx(0,y*v->scale);p[3]=yx(400*v->scale,rows*8*v->scale);
+    p[2]=yx((v->width-400)*v->scale/2,(int)lroundf(screen_y(v,y)*v->scale));p[3]=yx(400*v->scale,rows*8*v->scale);
     p[5]=6|(2<<4)|((v->scale-1)<<8);p[6]=7;
 }
 static void solid(Video *v,unsigned colour,int x,int y,unsigned w,unsigned h)
-{ emit(v,28U<<24,1,colour,0,xy(x,y),xy(w,h),0,0); }
+{
+    int right=(int)lroundf(screen_x(v,x+w)),bottom=(int)lroundf(screen_y(v,y+h));
+    x=(int)lroundf(screen_x(v,x));y=(int)lroundf(screen_y(v,y));
+    emit(v,28U<<24,1,colour,0,xy(x,y),xy(right-x,bottom-y),0,0);
+}
 static void glow(Video *v,float x,float y,int radius,unsigned colour,unsigned alpha)
 {
+    x=screen_x(v,x);y=screen_y(v,y);radius=(int)lroundf(screen_y(v,radius));
     if(radius<1)return;
     int left=(int)lroundf(x)-radius,top=(int)lroundf(y)-radius,size=radius*2;
     int32_t step=32*65536/size;
@@ -188,6 +222,7 @@ static void glow(Video *v,float x,float y,int radius,unsigned colour,unsigned al
 }
 static void ring(Video *v,float x,float y,float radius,unsigned alpha)
 {
+    x=screen_x(v,x);y=screen_y(v,y);radius=screen_y(v,radius);
     emit(v,25U<<24,32,alpha,0x6fff,256|(256<<9)|(256<<18),0,0,0);
     for(unsigned i=0;i<20;++i) {
         float a=i*PI*.1f,b=(i+1)*PI*.1f;
@@ -408,11 +443,12 @@ static void render(Video *v,const Game *g)
     unsigned page=v->frames&1,s=v->scale,offset=s==2?NA_PLAYER_2_0-NA_PLAYER_1_0:0;
     float shake=g->shake>0?sinf(g->time*130)*g->shake*6:0;
     v->sprites=0;v->capture_count=0;
-    v->scene=(struct prodock_scene){.base=BASE+page*0x100000,.stride=1600,.format=7,.layers_enabled=1,.sprites_enabled=1};
-    emit(v,22U<<24,v->scene.base,BASE+0x200000,xy(400,240),xy(1600,1600),0,0,0);
+    v->scene=(struct prodock_scene){.base=BASE+page*v->page_bytes,.stride=v->pitch,.format=7,.layers_enabled=1,.sprites_enabled=1};
+    emit(v,22U<<24,v->scene.base,BASE+2*v->page_bytes,xy(v->width,v->height),xy(v->pitch,v->pitch),0,0,0);
     Resource bg=v->art[NA_BACKGROUND];
     int sy=(int)(40+34*sinf(g->time*.045f)+shake);
-    emit(v,29U<<24,v->assets+bg.offset,xy(bg.w,bg.h),bg.pitch,xy(0,sy),0,xy(400,240),0);
+    sy=(int)screen_y(v,sy);
+    emit(v,29U<<24,v->assets+bg.offset,xy(bg.w,bg.h),bg.pitch,xy(0,sy),0,xy(v->width,v->height),0);
     Resource tex=v->art[NA_GLOW];
     if(!v->frames)emit(v,30U<<24,0,0,0,0,0,0,0);
     emit(v,24U<<24,v->assets+tex.offset,xy(tex.w,tex.h),tex.pitch|(1U<<16),0,0,0,0);
@@ -437,11 +473,11 @@ static void render(Video *v,const Game *g)
     }
     flush(v);
     for(unsigned field=0;field<2;++field) {
-        unsigned pitch=(400*s+31)&~31U,height=512*s;
+        unsigned pitch=(v->width*s+31)&~31U,height=512*s;
         unsigned scroll=(height-(unsigned)(g->time*(field?34:9)*s)%height)%height;
         uint32_t *l=v->scene.layers[field];
-        l[0]=v->stars[field][s-1]+scroll*pitch;l[1]=yx(400*s,240*s);
-        l[3]=yx(400*s,240*s);l[5]=pitch;l[6]=3;
+        l[0]=v->stars[field][s-1]+scroll*pitch;l[1]=yx(v->width*s,v->height*s);
+        l[3]=yx(v->width*s,v->height*s);l[5]=pitch;l[6]=3;
     }
     if(g->phase==1)image_layer(v,2,NA_BOSS_1+offset,(int)lroundf((g->bx-52)*s),(int)lroundf((g->by-46)*s));
     if(!g->finished || g->won) {
@@ -503,11 +539,16 @@ static int dump(Video *v,const Game *g,const char *base)
 int main(int argc,char **argv)
 {
     int demo=0,split=0,boss=0,sector=0,rc=1,changed=0;
+    NeoPad pads[2]={{.fd=-1},{.fd=-1}};
+    unsigned host_width=800,host_height=480;
     unsigned limit=0,pose=0;const char *capture=NULL,*snapshot=NULL,*path="/usr/share/nebula/nebula.bin";
     for(int i=1;i<argc;++i) {
         if(!strcmp(argv[i],"--demo"))demo=1;
         else if(!strcmp(argv[i],"--split"))split=1;
         else if(!strcmp(argv[i],"--boss"))boss=1;
+#ifdef NEBULA_HOST
+        else if(!strcmp(argv[i],"--720p")){host_width=1280;host_height=720;}
+#endif
         else if(!strcmp(argv[i],"--assets") && i+1<argc)path=argv[++i];
         else if(!strcmp(argv[i],"--capture") && i+1<argc)capture=argv[++i];
         else if(!strcmp(argv[i],"--snapshot") && i+1<argc)snapshot=argv[++i];
@@ -525,6 +566,7 @@ int main(int argc,char **argv)
 #else
     if(capture) { fprintf(stderr,"Capture is a host preview option\n");return 2; }
 #endif
+    if(geometry(v,host_width,host_height))return 2;
     struct termios saved={0},raw;
     if(v->host)v->mem=calloc(1,MAP_BYTES);
     else {
@@ -532,6 +574,7 @@ int main(int argc,char **argv)
         if(v->fd<0 || v->display<0) { perror("NEBULA open (stop another game first)");goto cleanup; }
         struct prodock_info info;
         if(checked(v,PRODOCK_INFO,&info) || (info.caps&0x1ff)!=0x1ff || info.faulted || info.errors)goto cleanup;
+        if(geometry(v,info.width,info.height))goto cleanup;
         if(checked(v,PRODOCK_DISPLAY_INFO,&v->initial))goto cleanup;
         v->mem=mmap(NULL,MAP_BYTES,PROT_READ|PROT_WRITE,MAP_SHARED,v->fd,0);
         if(v->mem==MAP_FAILED) { v->mem=NULL;perror("NEBULA mmap");goto cleanup; }
@@ -549,6 +592,7 @@ int main(int argc,char **argv)
     struct prodock_layout layout={.mode=split?PRODOCK_SPLIT:PRODOCK_GAME};
     if(checked(v,PRODOCK_LAYOUT,&layout))goto cleanup;
     Game game;reset_game(&game,demo,sector,boss);
+    if(!demo && !v->host)neo_pads_open(pads);
     if(pose) {
         game.demo=1;for(unsigned i=0;i<pose;++i)update(&game,1.f/55);
         if(!limit)limit=3;
@@ -559,6 +603,16 @@ int main(int argc,char **argv)
         double current=now();float dt=v->host?1.f/55:(float)(current-last);last=current;
         dt=clampf(dt,.001f,.05f);
         if(!demo) {
+            for(unsigned i=0;i<2;++i) {
+                neo_pad_read(&pads[i]);
+                if(!game.paused) { game.tx+=pads[i].x*240*dt;game.ty+=pads[i].y*180*dt; }
+                if(pads[i].pressed&PAD_NOVA)nova(&game);
+                if(pads[i].pressed&PAD_START)key(&game,game.finished?'r':'p');
+                if(pads[i].pressed&PAD_VIEW) {
+                    layout.mode=v->scale==2?PRODOCK_SPLIT:PRODOCK_GAME;
+                    checked(v,PRODOCK_LAYOUT,&layout);v->scale=layout.mode==PRODOCK_GAME?2:1;
+                }
+            }
             struct pollfd p={STDIN_FILENO,POLLIN,0};
             if(poll(&p,1,0)>0) {
                 if(p.revents&(POLLHUP|POLLERR|POLLNVAL))break;
@@ -603,18 +657,19 @@ int main(int argc,char **argv)
     else printf("NEBULA_RATE frames=%u seconds=%.3f fps=%.2f commands=%u max_sprites=%u max_layers=%u cosmetic_dropped=%u\n",
             v->frames,seconds,v->frames/fmax(seconds,.001),v->commands,v->max_sprites,v->max_layers,v->fx_dropped);
     if(pose && !v->host && !v->failed && v->frames) {
-        uint8_t *pixels=malloc(400*240*2);
+        uint8_t *pixels=malloc(v->width*v->height*2);
         if(!pixels)v->failed=1;
         else {
             const uint8_t *frame=memory(v,v->scene.base);
-            for(unsigned y=0;y<240;++y)memcpy(pixels+y*800,frame+y*1600,800);
-            printf("NEBULA_FRAME_CRC32 pose=%u crc=%08x pixels=96000\n",pose,crc32(pixels,400*240*2));free(pixels);
+            for(unsigned y=0;y<v->height;++y)memcpy(pixels+y*v->width*2,frame+y*v->pitch,v->width*2);
+            printf("NEBULA_FRAME_CRC32 pose=%u crc=%08x pixels=%u\n",pose,crc32(pixels,v->width*v->height*2),v->width*v->height);free(pixels);
         }
     }
     printf("NEBULA_RESULT score=%d kills=%d sector=%d boss_hp=%d health=%d victory=%d spawned=%u shots=%u damage=%u novas=%u status=%d\n",
             game.score,game.kills,game.sector+1,game.boss_hp,game.health,game.won,game.spawned,game.shots_fired,game.damage_taken,game.novas,v->failed);
     rc=v->failed?1:0;
 cleanup:
+    for(unsigned i=0;i<2;++i)if(pads[i].fd>=0)close(pads[i].fd);
     if(changed)tcsetattr(STDIN_FILENO,TCSANOW,&saved);
     if(v->mem) { if(v->host)free(v->mem);else munmap(v->mem,MAP_BYTES); }
     if(v->fd>=0)close(v->fd);

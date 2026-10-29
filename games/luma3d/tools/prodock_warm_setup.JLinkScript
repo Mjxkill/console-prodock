@@ -1,0 +1,28 @@
+/* Only Pro Dock J-Link 506005083, after Linux/game identity + clean stop.
+ * SetupTarget is called on an established connection. No reset operation.
+ * https://kb.segger.com/J-Link_script_files (CSR API since V7.94c). */
+int SetupTarget(void) {
+  U32 low;
+  U32 high;
+  U32 before;
+  if (JLINK_TARGET_Halt() != 0) return -1;
+  if (JLINK_RISCV_ReadCSR(0x7B0, &low, &high, 4) < 0) return -1;
+  before = low;
+  JLINK_SYS_Report1("LUMA_WARM_DCSR_BEFORE=", before);
+  if (JLINK_RISCV_ReadCSR(0x180, &low, &high, 4) < 0) return -1;
+  JLINK_SYS_Report1("LUMA_WARM_SATP_BEFORE=", low);
+  if (JLINK_RISCV_ReadCSR(0x300, &low, &high, 4) < 0) return -1;
+  JLINK_SYS_Report1("LUMA_WARM_MSTATUS_BEFORE=", low);
+  /* DCSR: resume in M, without single-step or mprven. */
+  if (JLINK_RISCV_WriteCSR(0x7B0, (before & 0xFFFFFFE8) | 3, 0, 4) < 0) return -1;
+  if (JLINK_RISCV_WriteCSR(0x304, 0, 0, 4) < 0) return -1;
+  if (JLINK_RISCV_WriteCSR(0x300, 0, 0, 4) < 0) return -1;
+  if (JLINK_RISCV_WriteCSR(0x180, 0, 0, 4) < 0) return -1;
+  if (JLINK_RISCV_ReadCSR(0x7B0, &low, &high, 4) < 0 || (low & 0x17) != 3) return -1;
+  JLINK_SYS_Report1("LUMA_WARM_DCSR_AFTER=", low);
+  if (JLINK_RISCV_ReadCSR(0x180, &low, &high, 4) < 0 || low != 0) return -1;
+  if (JLINK_RISCV_ReadCSR(0x304, &low, &high, 4) < 0 || low != 0) return -1;
+  if (JLINK_RISCV_ReadCSR(0x300, &low, &high, 4) < 0 || (low & 0x20008) != 0) return -1;
+  JLINK_SYS_Report("LUMA_WARM_CSR_READY");
+  return 0;
+}

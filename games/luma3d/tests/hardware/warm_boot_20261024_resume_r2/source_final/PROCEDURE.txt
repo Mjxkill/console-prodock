@@ -1,0 +1,40 @@
+Pro Dock : reprise contrôlée après le refus FTDI du premier essai
+
+Le premier essai a réellement arrêté LUMA2D, exécuté le parking M-mode et
+confirmé un nouveau READY UART ainsi que le statut DLM 5741524d/0. Le chargeur
+historique a refusé l’absence du câble FTDI de programmation FPGA AVANT toute
+écriture du payload en DDR. Le repli R17 a rencontré le même contrôle ;
+la carte est restée dans le parking. Cet échec et les fichiers exécutés
+sont conservés dans tests/hardware/warm_boot_20261024_r1/trial et source.
+
+Le chargeur isolé load_linux_from_warm.py est dérivé de tools/load_linux.py,
+sans modification de cet outil commun. Il ne permet que le format packed.
+Il impose le descripteur hérité du verrou diagnostic détenu, la console CDC
+11252024 à 480 Mbps, l’identité du parking et son acquittement de pause.
+J-Link 506005083 vérifie les 446 octets exacts du parking en ILM avant toute
+écriture DDR. Aucun programmateur FPGA n’est utilisé. Les contrôles de
+taille, SHA, adresses du manifeste, lanceur et CRC embarqué sont conservés.
+
+Le contrôleur --resume-from exige le rapport d’échec précédent, les mêmes
+identités noyau/parking, la preuve du refus FTDI avant le lancement J-Link
+du payload et une réponse fraîche du parking. Il répète ensuite la preuve
+M-mode/cache/UART/DLM avant le nouveau chargement. Sur échec ou interruption,
+le même chargeur tente le paquet R17 puis les trois ressources LUMA2D R9b
+et une relance dont le processus et les présentations sont vérifiés.
+
+Les cinq tests locaux couvrent panne, Ctrl-C, zombie, processus figé et
+reprise depuis le parking. Les identités préparées sont identiques sur PC
+et ax15. Cela ne constitue pas encore un succès de démarrage matériel.
+
+Chargeur SHA 36157c007e8863c06ebb89703d659817e2e591ea6799723a91ec4a45417c2edb
+Contrôleur SHA e2de7b2e8fde785f14648580f4415d1d7af97705bf1b7c2cb43b1e2496e8a2ce
+Prepared SHA 75db3de6fef237b3fa327111a230ea0050646036d4567316c12a787cfd076bda
+
+Après succès : le test raster historique précède l’oracle G3D1 et le jeu3D.
+La préférence utilisateur demeure de laisser LUMA visible après succès.
+Ni NEBULA, ni nouvelle configuration FPGA, ni flash ou SD ne sont écrits.
+
+Arrêt sûr du chargement : session séparée pour le chargeur et J-Link.
+Interruption ou timeout tue le groupe complet avant de tenter le repli ;
+un vrai test enfant/petit-enfant écrivain vérifie son arrêt effectif.
+La reprise marque le contexte M immédiatement après l’identité acceptée.

@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE = Path('/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src')
@@ -26,8 +27,7 @@ def main():
     parser.add_argument('--vvp', default='vvp')
     parser.add_argument('--ivl-root', type=Path)
     parser.add_argument('--reference', type=Path, default=REFERENCE)
-    parser.add_argument('--primitives', type=Path, default=Path(
-        '/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v'))
+    parser.add_argument('--primitives', type=Path, default=PRIMITIVES)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--jobs', type=int, choices=(1, 2), default=1)
     parser.add_argument('--direction', choices=('rx', 'tx'), default='rx')

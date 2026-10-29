@@ -1,0 +1,211 @@
+{
+  "schema": 1,
+  "id": "marees_reflections_01",
+  "title": "LUMA — Les Jardins du Souvenir",
+  "name": "La fenêtre de Lise",
+  "subtitle": "La Poste des Reflets",
+  "chapter": 3,
+  "width": 32,
+  "height": 24,
+  "tile": 32,
+  "indoors": true,
+  "spawn": {
+    "x": 336,
+    "y": 464
+  },
+  "terrain": {
+    "rows": [
+      "################################",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "#==============================#",
+      "################################"
+    ],
+    "palette": {
+      "=": "#a5ad98",
+      "#": "#344f5a",
+      "~": "#317f86"
+    }
+  },
+  "regions": [],
+  "decorations": [],
+  "entities": [
+    {
+      "id": "post_return",
+      "kind": "door",
+      "x": 80,
+      "y": 656,
+      "name": "Revenir au quai précédent",
+      "text": "",
+      "after": "",
+      "requires": 0,
+      "grants": 0,
+      "cost": 0,
+      "vehicle": 0,
+      "art": "portal",
+      "target_world": 2,
+      "target_x": 1808,
+      "target_y": 1392
+    },
+    {
+      "id": "optics_note",
+      "kind": "sign",
+      "x": 304,
+      "y": 528,
+      "name": "Le carnet d'Iria",
+      "text": "Le courrier du phare voyage en ligne droite. E tourne un miroir entre / et \\. Observe le rayon : le disque du nord attend sa lettre, tandis que la petite lampe du sud doit rester éteinte. Tu peux marcher dans la lumière sans l'arrêter.",
+      "after": "",
+      "requires": 0,
+      "grants": 0,
+      "cost": 0,
+      "vehicle": 0,
+      "art": "sign"
+    },
+    {
+      "id": "optics_reset",
+      "kind": "sign",
+      "x": 144,
+      "y": 496,
+      "name": "Reprendre l'expérience",
+      "text": "R remet les miroirs et les caisses dans leur état de départ. Tes trésors, les gardiens apaisés et les autres salles sont conservés.",
+      "after": "",
+      "requires": 0,
+      "grants": 0,
+      "cost": 0,
+      "vehicle": 0,
+      "art": "sign"
+    },
+    {
+      "id": "beam_sender_a",
+      "kind": "emitter",
+      "x": 176,
+      "y": 400,
+      "name": "La source du courrier",
+      "text": "",
+      "after": "",
+      "requires": 0,
+      "grants": 0,
+      "cost": 0,
+      "vehicle": 0,
+      "art": "emitter",
+      "direction": 0
+    },
+    {
+      "id": "beam_mirror_a",
+      "kind": "mirror",
+      "x": 464,
+      "y": 400,
+      "name": "Le miroir tournant",
+      "text": "",
+      "after": "",
+      "requires": 0,
+      "grants": 0,
+      "cost": 0,
+      "vehicle": 0,
+      "art": "mirror",
+      "orientation": 1
+    },
+    {
+      "id": "beam_address_a",
+      "kind": "receiver",
+      "x": 464,
+      "y": 176,
+      "name": "La fenêtre de Lise",
+      "text": "",
+      "after": "",
+      "requires": 0,
+      "grants": 1,
+      "cost": 0,
+      "vehicle": 0,
+      "art": "receiver"
+    },
+    {
+      "id": "beam_nest_a",
+      "kind": "receiver",
+      "x": 464,
+      "y": 688,
+      "name": "Le repos des oiseaux",
+      "text": "",
+      "after": "",
+      "requires": 0,
+      "grants": 2,
+      "cost": 0,
+      "vehicle": 0,
+      "art": "lamp"
+    },
+    {
+      "id": "post_exit",
+      "kind": "door",
+      "x": 912,
+      "y": 656,
+      "name": "La porte de la prochaine adresse",
+      "text": "",
+      "after": "",
+      "requires": 1,
+      "grants": 1048576,
+      "cost": 0,
+      "vehicle": 0,
+      "art": "portal",
+      "forbids": 2,
+      "target_world": 27
+    }
+  ],
+  "quests": [
+    {
+      "id": "reflections_goal_01",
+      "title": "La fenêtre de Lise",
+      "objective": "Tourner le miroir pour éclairer le disque du nord, en gardant la lampe du sud éteinte, puis franchir la porte.",
+      "requires": 0,
+      "complete_mask": 1048576
+    }
+  ],
+  "design": {
+    "status": "integrated_candidate",
+    "beam_goal": {
+      "on": 1,
+      "off": 2
+    },
+    "mechanics": [
+      "first_reflection",
+      "required_dark_receiver"
+    ],
+    "configuration_proof": {
+      "initial_bits": 1,
+      "solution_bits": 0,
+      "minimum_rotations_for_fixed_crates_and_source_flags": 1,
+      "complete_assignments_examined": 2,
+      "valid_assignments": 1,
+      "source_flags": 0,
+      "final_crate_positions": {},
+      "goal": {
+        "on": 1,
+        "off": 2
+      },
+      "used_mirrors": [
+        "beam_mirror_a"
+      ],
+      "scope": "Exhaustive mirror assignments with stated fixed crate positions and non-receiver source flags; not a global minimum over crate moves or walking."
+    },
+    "initial_receiver_flags": 2,
+    "initial_closed_loops": 0
+  }
+}

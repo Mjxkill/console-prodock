@@ -1,0 +1,232 @@
+{
+  "parent": "/home/michael/console/tang/impl/console_neo_n56r9_route2",
+  "netlist_sha256": "0b5ea22b83faf2bae943f399bdb734dc1e66c8507310dc25e054290e24ad6157",
+  "bitstream_parent_sha256": "150bd72724ef7ec79c511afe2cc1c01f5976113ec00c39e8fc15e1f272731a01",
+  "local_controls": [
+    "u_accel/u_v1/n56220_6",
+    "u_gpu_debug/n2835_5",
+    "scan_debug_live[224]",
+    "scan_debug_live_178[1]"
+  ],
+  "ddr_profile": {
+    "passed": true,
+    "profile": "neo-ddr-fifo-registers",
+    "variant": "neo-fifo-registers",
+    "base_profile": "prodock-g22r0-ddr",
+    "reference_bitstream_sha256": "fbbea9c357d0c4d5b33c3c4a7e54f9ed0ff8e31cc3fad1ac9dc1771f8e8cba5f",
+    "verified_files": 21,
+    "changed": [],
+    "system_reset_baseline_reconstructed": false,
+    "ddr_startup_baseline_reconstructed": false,
+    "scope": "Neo diagnostic only: explicit flip-flops for the four-slot 100/64-bit AHB DDR FIFOs; unchanged pointers, resets and head latency. Original Pro Dock DDR IP, adapter and arbiters. Not physically validated."
+  },
+  "reset_proof": {
+    "net": "scan_debug_live_178[1]",
+    "stages": [
+      {
+        "instance": "u_gpu/mrst_0_s0",
+        "synthesized": {
+          "kind": "DFFCE",
+          "pins": {
+            "Q": "scan_debug_live_0",
+            "D": "VCC",
+            "CLK": "gpu_clk",
+            "CLEAR": "n6_6",
+            "CE": "VCC"
+          }
+        },
+        "routed": {
+          "kind": "DFFCE",
+          "pins": {
+            "Q": "scan_debug_live_178[0]",
+            "D": "VCC",
+            "CLK": "gpu_clk",
+            "CLEAR": "u_scan_observe/gowin_split_inv_from_n6_s2_onet",
+            "CE": "VCC"
+          }
+        },
+        "init": "1'b0"
+      },
+      {
+        "instance": "u_gpu/mrst_1_s0",
+        "synthesized": {
+          "kind": "DFFCE",
+          "pins": {
+            "Q": "scan_debug_live_1",
+            "D": "scan_debug_live_0",
+            "CLK": "gpu_clk",
+            "CLEAR": "n6_6",
+            "CE": "VCC"
+          }
+        },
+        "routed": {
+          "kind": "DFFCE",
+          "pins": {
+            "Q": "scan_debug_live_178[1]",
+            "D": "scan_debug_live_178[0]",
+            "CLK": "gpu_clk",
+            "CLEAR": "u_scan_observe/gowin_split_inv_from_n6_s2_onet",
+            "CE": "VCC"
+          }
+        },
+        "init": "1'b0"
+      }
+    ],
+    "direct_loads": [
+      [
+        "u_scan_debug/held_1_s0",
+        "DFFRE",
+        "D"
+      ],
+      [
+        "u_gpu/n13507_s1",
+        "LUT3",
+        "I2"
+      ],
+      [
+        "u_gpu/n13539_s2",
+        "LUT2",
+        "I0"
+      ],
+      [
+        "u_gpu/n14051_s1",
+        "LUT2",
+        "I1"
+      ],
+      [
+        "u_gpu/n14054_s1",
+        "LUT2",
+        "I1"
+      ],
+      [
+        "u_gpu/n8686_s1",
+        "LUT2",
+        "I0"
+      ],
+      [
+        "u_gpu/lines_s17",
+        "LUT2",
+        "I0"
+      ],
+      [
+        "u_gpu/overlay_lines_s18",
+        "LUT4",
+        "I3"
+      ],
+      [
+        "u_gpu/raw_block_valid_s3",
+        "LUT4",
+        "I1"
+      ],
+      [
+        "u_gpu/n4629_s2",
+        "LUT1",
+        "I0"
+      ],
+      [
+        "u_gpu/gowin_split_inv_from_n4629_s2",
+        "INV",
+        "I"
+      ],
+      [
+        "u_gpu/u_sprites/n2145_s1",
+        "LUT4",
+        "I2"
+      ],
+      [
+        "u_gpu/u_sprites/heads_s57",
+        "LUT2",
+        "I0"
+      ],
+      [
+        "u_gpu/u_sprites/n1497_s2",
+        "LUT4",
+        "I0"
+      ],
+      [
+        "u_gpu/u_sprites/heads_s58",
+        "LUT3",
+        "I0"
+      ],
+      [
+        "u_gpu/u_sprites/heads_s59",
+        "LUT3",
+        "I1"
+      ],
+      [
+        "u_gpu/u_sprites/heads_s60",
+        "LUT3",
+        "I1"
+      ],
+      [
+        "u_gpu/u_sprites/heads_s61",
+        "LUT3",
+        "I1"
+      ],
+      [
+        "u_gpu/u_sprites/heads_s62",
+        "LUT3",
+        "I1"
+      ],
+      [
+        "u_gpu/u_sprites/heads_s63",
+        "LUT3",
+        "I1"
+      ],
+      [
+        "u_gpu/u_sprites/heads_s64",
+        "LUT3",
+        "I1"
+      ]
+    ],
+    "parent_route": "LW",
+    "clock_pin_loads": 0,
+    "source_alias": "u_gpu.scan_debug_live_1 = scanout mrst[1]",
+    "parent_global_nets": {
+      "clk_d": "PRIMARY",
+      "pixel_clk": "PRIMARY",
+      "clk48": "PRIMARY",
+      "fclk_960m": "HCLK",
+      "phy_clk": "PRIMARY",
+      "vid_hclk": "PRIMARY",
+      "gpu_clk": "PRIMARY",
+      "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk": "PRIMARY",
+      "usb_app_reset": "LW",
+      "rtc_clk": "LW",
+      "scan_debug_live_178[1]": "LW",
+      "u_accel/u_v1/n56864_3": "LW",
+      "u_accel/u_v1/n60439_3": "LW",
+      "u_accel/u_v1/n59467_5": "LW",
+      "u_soc/g_ddr.u_ddr/u_ip/gw3_top/ddr_rst": "LW",
+      "clk5x": "HCLK",
+      "u_soc/ddr3_memory_clk": "HCLK"
+    }
+  },
+  "inputs_sha256": {
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route_observed_scan_reset.py": "bd06251d96bc14eb38e0a8b89d2b749241b1828cb0002dad62bedc3456022d57",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/audit_scan_observer.py": "5502b0e0ca0371d2db005568a8727e2895556232313f6f65e706bc9428246226",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/r9_route2_rgb_observer/result.json": "0623d504304cd42e6dbf23f109369645bf0aef9c24afba3ab1ab2bea91770a29",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/r9_route2_rgb_observer/rgb_observer.log": "9ccff5a124517f10b3f0d8c8b719c9c47b62e2836f911667d634d2b29480718e",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/scan_observer_sim/result.json": "0c89e95cd8359d3197e7c21a9270bea8625240bb69aa520acf9f2d3a3d5fafb9",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route2/console_neo.vg": "0b5ea22b83faf2bae943f399bdb734dc1e66c8507310dc25e054290e24ad6157",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route2/impl/pnr/console_neo.vo": "a8368ceba116a844a832ffebf0944def31b8071564d01291aef30b387c910719",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route2/impl/pnr/console_neo.rpt.txt": "ff01021ccf5830ba696892928e6152f1eb25c84e6d77abad31a85379eda2c6c3",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route2/sources.json": "29e2255165ff6acf2310e09b66858500c880f2f27c6bde7ad1d0255af83017d9",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route2/source/tang/boards/neo/neo.cst": "d5c5f2a5e0752bec77160bf465cba8beb1cfb89e31e60ecb752409c43e2e284d",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route2/source/tang/boards/neo/neo.sdc": "c8da535e839157a361e78b06b2f65b2912891f8e9dc48b02d5b315ae9f953113",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route2/build.tcl": "ac330cb5301aa7036c19c009f9ca60ff737d7917a92deee985d2a1e07d52c14c"
+  },
+  "constraints_diff": "--- N56r9_route2\n+++ N56r9_route3_scan_reset\n@@ -404,3 +404,6 @@\n INS_LOC \"u_accel/u_blitter/wp_6_s3\" R[1:25]C[140:175];\n INS_LOC \"u_accel/u_blitter/wp_7_s0\" R[1:25]C[140:175];\n INS_LOC \"u_gpu_debug/last_word_27_s0\" R[1:25]C[140:175];\n+\n+// R9 route2 hardware: scanout reset remains 01; test local distribution.\n+CLOCK_LOC \"scan_debug_live_178[1]\" LOCAL_CLOCK;\n",
+  "hardware_access": false,
+  "synthesis": false,
+  "limits": [
+    "Observed reset state is measured on a timing-failing diagnostic build.",
+    "LW routing is a hypothesis; Pro Dock also uses LW for its scanout reset.",
+    "One constraint change still recomputes whole placement/routing; recheck all timing and functional behavior."
+  ],
+  "local_regressions": {
+    "result": "TESTS/dual_board/20261023_scan_reset_observed/result.json",
+    "sha256": "022856db4e953a8cef8cd46f69b820d3db77ed1732ccb6544bcda22ec05162b8",
+    "hardware_validation": false
+  }
+}

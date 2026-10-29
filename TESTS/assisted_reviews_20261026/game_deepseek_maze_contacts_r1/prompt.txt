@@ -1,0 +1,554 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Chercher des contre-exemples concrets dans les segments contacts/respawns, chemins traversant un mur, instant de disparition et reprise, avec tests C minimaux. Lire code exact et distinguer tests executes fournis et propositions. Aucun changement de regles ou appareil.
+
+EVIDENCE PACKET:
+CONTRE-REVUE CIBLEE, candidat local non charge. Regles/save/input inchanges. R4 GPU fige, R6 visible. Objectif: reporter la reaparition visuelle des fantomes et les vies jusqu a l arrivee interpolee du heros a la vraie cellule de contact, sans modifier sa trajectoire ni inventer de diagonales. Les positions actor_x/y sont capturees AVANT reset, respawn_x/y juste APRES la mutation reelle du moteur. Pouvoir: seul fantome concerne reset, mort: trois acteurs reset. Si heros deja sur cellule, contact peut etre immediat. Les chemins adverses non reconstructibles restent fallback explicite compte; ne pas masquer les compteurs. Verifiez surtout plusieurs contacts dans un appel, chemin en cours, segment warp de duree zero, dernier coeur, non mutation transactionnelle, continuation des deplacements apres respawn. Tests actuels strict+ASan passes135926checks chacun, fixtures tous14phasesfantomes etdeuxfantomes; couverture aleatoire/restart a renforcer maintenant. Aucun FPS deduit. Donnez contre-exemples precis et tests C, pas revuegenerique.
+
+FILE games/luma3d/candidates/maze_events_r1/include/l3_maze_motion.h SHA256 7a2cb4d8293abc3aa8cf0e1dd08e022f60007cfd9cf2ae32fb12e5926823d0bb
+1: #ifndef L3_MAZE_MOTION_H
+2: #define L3_MAZE_MOTION_H
+3: #include "l3_mini_actors.h"
+4: #include "l3_mini_trace.h"
+5: #define L3_MAZE_SEGMENTS 8
+6: /* Presentation only. Each segment is an observed legal axis-aligned move;
+7:  * it is never used by collision, AI, rewards or save serialization. */
+8: typedef struct {double start,end;uint16_t x0,y0,x1,y1;} L3MazeSegment;
+9: typedef struct {L3MazeSegment segments[L3_MAZE_SEGMENTS];unsigned head,count;
+10:  uint16_t settled_x,settled_y,logical_x,logical_y;} L3MazeTrack;
+11: typedef struct {L3MazeTrack actor[3];L3MiniActors latest;double time;
+12:  unsigned valid;uint32_t epoch;unsigned moves,teleports,overflows,resets,contacts,contact_fallbacks;} L3MazeMotion;
+13: int l3_maze_motion_observe_events(L3MazeMotion *,const L3MiniView *,const L3MiniActors *,double,uint32_t,const L3MiniTrace *);
+14: void l3_maze_motion_reset(L3MazeMotion *);
+15: /* Non-monotone time without a new epoch is rejected transactionally. Respawn,
+16:  * load and nonadjacent jumps reset the affected presentation, never lerp walls. */
+17: int l3_maze_motion_observe(L3MazeMotion *,const L3MiniView *,const L3MiniActors *,double seconds,uint32_t epoch);
+18: int l3_maze_motion_observe_trace(L3MazeMotion *,const L3MiniView *,const L3MiniActors *,double seconds,uint32_t epoch,unsigned warp_mask);
+19: int l3_maze_motion_sample(const L3MazeMotion *,double seconds,L3MiniActors *);
+20: #endif
+
+
+FILE games/luma3d/candidates/maze_events_r1/src/maze_motion.c SHA256 95fbfbc84eabb3dffff36db60571bd05a84d47af741dd6cc2e2a37a800fdc932
+1: #include "l3_maze_motion.h"
+2: #include <math.h>
+3: #include <string.h>
+4: #include <stdlib.h>
+5: static void settle(L3MazeTrack *t,unsigned x,unsigned y){
+6:  memset(t,0,sizeof *t);t->settled_x=t->logical_x=(uint16_t)x;t->settled_y=t->logical_y=(uint16_t)y;
+7: }
+8: static void retire(L3MazeTrack *t,double time){
+9:  while(t->count){const L3MazeSegment *s=t->segments+t->head;if(time<s->end)break;
+10:   t->settled_x=s->x1;t->settled_y=s->y1;t->head=(t->head+1)%L3_MAZE_SEGMENTS;t->count--;
+11:  }
+12: }
+13: static int open_cell(const L3MiniView *v,unsigned x,unsigned y){
+14:  if(x%256!=128||y%256!=128)return 0;x/=256;y/=256;
+15:  return x<v->width&&y<v->height&&v->cells[y*20+x].kind!=L3_MINI_CELL_WALL;
+16: }
+17: void l3_maze_motion_reset(L3MazeMotion *m){if(m)memset(m,0,sizeof *m);}
+18: int l3_maze_motion_observe_trace(L3MazeMotion *m,const L3MiniView *v,const L3MiniActors *a,double time,uint32_t epoch,unsigned warp){
+19:  if(warp>7||!m||!v||!a||!isfinite(time)||time<0||v->kind!=L3_MINI_MAZE||v->width>20||v->height>20||a->count!=3)return 0;
+20:  for(unsigned i=0;i<3;i++)if(!open_cell(v,a->actors[i].x256,a->actors[i].y256))return 0;
+21:  if(m->valid&&m->epoch==epoch&&time<m->time)return 0;
+22:  int reset=!m->valid||m->epoch!=epoch||a->respawn_ticks>m->latest.respawn_ticks;
+23:  if(reset){for(unsigned i=0;i<3;i++)settle(m->actor+i,a->actors[i].x256,a->actors[i].y256);m->resets++;}
+24:  else for(unsigned i=0;i<3;i++){
+25:   L3MazeTrack *t=m->actor+i;const L3MiniActor *p=a->actors+i;retire(t,time);
+26:   if(warp&(1u<<i)){settle(t,p->x256,p->y256);m->teleports++;continue;}
+27:   int dx=(int)p->x256-t->logical_x,dy=(int)p->y256-t->logical_y;
+28:   if(!dx&&!dy)continue;
+29:   if(abs(dx)+abs(dy)!=256||!open_cell(v,t->logical_x,t->logical_y)){
+30:    settle(t,p->x256,p->y256);m->teleports++;continue;
+31:   }
+32:   if(t->count==L3_MAZE_SEGMENTS){settle(t,p->x256,p->y256);m->overflows++;continue;}
+33:   unsigned tail=(t->head+t->count)%L3_MAZE_SEGMENTS;double start=time;
+34:   if(t->count){double end=t->segments[(tail+L3_MAZE_SEGMENTS-1)%L3_MAZE_SEGMENTS].end;if(end>start)start=end;}
+35:   t->segments[tail]=(L3MazeSegment){start,start+(i?14.:6.)/60.,t->logical_x,t->logical_y,p->x256,p->y256};
+36:   t->logical_x=p->x256;t->logical_y=p->y256;t->count++;m->moves++;
+37:  }
+38:  m->latest=*a;m->time=time;m->epoch=epoch;m->valid=1;return 1;
+39: }
+40: int l3_maze_motion_sample(const L3MazeMotion *m,double time,L3MiniActors *out){
+41:  if(!m||!out||!m->valid||!isfinite(time)||time<m->time)return 0;
+42:  L3MiniActors a=m->latest;
+43:  for(unsigned i=0;i<3;i++){
+44:   const L3MazeTrack *t=m->actor+i;double x=t->settled_x,y=t->settled_y;
+45:   for(unsigned j=0;j<t->count;j++){
+46:    const L3MazeSegment *s=t->segments+(t->head+j)%L3_MAZE_SEGMENTS;
+47:    if(time>=s->end){x=s->x1;y=s->y1;continue;}
+48:    double p=time<=s->start?0:(time-s->start)/(s->end-s->start);
+49:    x=s->x0+(s->x1-s->x0)*p;y=s->y0+(s->y1-s->y0)*p;break;
+50:   }
+51:   a.actors[i].x256=(uint16_t)lround(x);a.actors[i].y256=(uint16_t)lround(y);
+52:  }
+53:  *out=a;return 1;
+54: }
+55: 
+56: int l3_maze_motion_observe(L3MazeMotion *m,const L3MiniView *v,const L3MiniActors *a,double time,uint32_t epoch){
+57:  return l3_maze_motion_observe_trace(m,v,a,time,epoch,0);
+58: }
+59: 
+60: static void track_position(const L3MazeTrack *t,double time,unsigned *x,unsigned *y){
+61:  double px=t->settled_x,py=t->settled_y;
+62:  for(unsigned n=0;n<t->count;n++){
+63:   const L3MazeSegment *s=&t->segments[(t->head+n)%L3_MAZE_SEGMENTS];
+64:   if(time>=s->end){px=s->x1;py=s->y1;continue;}
+65:   double k=time<=s->start?0:(time-s->start)/(s->end-s->start);
+66:   px=s->x0+(s->x1-s->x0)*k;py=s->y0+(s->y1-s->y0)*k;break;
+67:  }
+68:  *x=(unsigned)lround(px);*y=(unsigned)lround(py);
+69: }
+70: static int observed_move(L3MazeMotion *m,const L3MiniView *v,unsigned i,unsigned x,unsigned y,double now){
+71:  L3MazeTrack *t=&m->actor[i];retire(t,now);
+72:  if(t->logical_x==x&&t->logical_y==y)return 1;
+73:  if(abs((int)x-t->logical_x)+abs((int)y-t->logical_y)!=256||!open_cell(v,x,y)||t->count==L3_MAZE_SEGMENTS)return 0;
+74:  unsigned tail=(t->head+t->count)%L3_MAZE_SEGMENTS;double start=now;
+75:  if(t->count&&t->segments[(tail+L3_MAZE_SEGMENTS-1)%L3_MAZE_SEGMENTS].end>start)start=t->segments[(tail+L3_MAZE_SEGMENTS-1)%L3_MAZE_SEGMENTS].end;
+76:  t->segments[tail]=(L3MazeSegment){start,start+(i?14.:6.)/60.,t->logical_x,t->logical_y,(uint16_t)x,(uint16_t)y};
+77:  t->logical_x=(uint16_t)x;t->logical_y=(uint16_t)y;t->count++;m->moves++;return 1;
+78: }
+79: /* Re-time only the already observed orthogonal path. The hero's segments
+80:  * are never changed to wait for a ghost. If he is already at the contact,
+81:  * the contact itself may vanish immediately; no ordinary move is invented. */
+82: static int contact_arrival(L3MazeTrack *t,double now,double due){
+83:  unsigned x,y;track_position(t,now,&x,&y);
+84:  if(due<=now){settle(t,t->logical_x,t->logical_y);return 1;}
+85:  unsigned xs[L3_MAZE_SEGMENTS+1],ys[L3_MAZE_SEGMENTS+1],count=0,total=0,px=x,py=y;
+86:  for(unsigned n=0;n<t->count;n++){
+87:   const L3MazeSegment *s=&t->segments[(t->head+n)%L3_MAZE_SEGMENTS];if(s->end<=now)continue;
+88:   if(s->end==s->start)return 0; /* A prior pending respawn is a discontinuity. */
+89:   unsigned dx=(unsigned)abs((int)s->x1-(int)px),dy=(unsigned)abs((int)s->y1-(int)py);
+90:   if(dx&&dy)return 0;if(!dx&&!dy)continue;
+91:   xs[count]=s->x1;ys[count++]=s->y1;total+=dx+dy;px=s->x1;py=s->y1;
+92:  }
+93:  if(px!=t->logical_x||py!=t->logical_y)return 0;
+94:  L3MazeTrack next={0};next.settled_x=(uint16_t)x;next.settled_y=(uint16_t)y;next.logical_x=t->logical_x;next.logical_y=t->logical_y;
+95:  if(!count){next.segments[0]=(L3MazeSegment){now,due,(uint16_t)x,(uint16_t)y,(uint16_t)x,(uint16_t)y};next.count=1;}
+96:  else {unsigned distance=0;double start=now;px=x;py=y;
+97:   for(unsigned n=0;n<count;n++){
+98:    distance+=(unsigned)(abs((int)xs[n]-(int)px)+abs((int)ys[n]-(int)py));double end=n+1==count?due:now+(due-now)*distance/total;
+99:    next.segments[n]=(L3MazeSegment){start,end,(uint16_t)px,(uint16_t)py,(uint16_t)xs[n],(uint16_t)ys[n]};start=end;px=xs[n];py=ys[n];
+100:   }next.count=count;
+101:  }
+102:  *t=next;return 1;
+103: }
+104: static int contact_warp(L3MazeTrack *t,unsigned x,unsigned y,double now,double due){
+105:  retire(t,now);unsigned px,py;track_position(t,due,&px,&py);L3MazeTrack next=*t;next.head=0;next.count=0;
+106:  for(unsigned n=0;n<t->count;n++){
+107:   L3MazeSegment s=t->segments[(t->head+n)%L3_MAZE_SEGMENTS];if(s.start>=due)break;
+108:   if(s.end>due){s.end=due;s.x1=(uint16_t)px;s.y1=(uint16_t)py;}
+109:   next.segments[next.count++]=s;if(s.end>=due)break;
+110:  }
+111:  if(next.count==L3_MAZE_SEGMENTS)return 0;
+112:  if(next.count==0){next.settled_x=(uint16_t)px;next.settled_y=(uint16_t)py;}
+113:  next.segments[next.count++]=(L3MazeSegment){due,due,(uint16_t)px,(uint16_t)py,(uint16_t)x,(uint16_t)y};
+114:  next.logical_x=(uint16_t)x;next.logical_y=(uint16_t)y;*t=next;return 1;
+115: }
+116: int l3_maze_motion_observe_events(L3MazeMotion *m,const L3MiniView *v,const L3MiniActors *a,double now,uint32_t epoch,const L3MiniTrace *trace){
+117:  if(!trace)return l3_maze_motion_observe_trace(m,v,a,now,epoch,0);
+118:  if(!m||!v||trace->event_count>L3_MAZE_TRACE_EVENTS||trace->event_overflow)return 0;
+119:  unsigned contacts=0;
+120:  for(unsigned n=0;n<trace->event_count;n++){
+121:   const L3MazeEvent *e=&trace->events[n];if(e->kind<L3_MAZE_COLLECT||e->kind>L3_MAZE_CONTACT_LOST)return 0;
+122:   if(e->kind==L3_MAZE_COLLECT)continue;contacts++;
+123:   if(!open_cell(v,e->x*256u+128,e->y*256u+128))return 0;
+124:   for(unsigned i=0;i<3;i++)if(!open_cell(v,e->actor_x[i]*256u+128,e->actor_y[i]*256u+128)||!open_cell(v,e->respawn_x[i]*256u+128,e->respawn_y[i]*256u+128))return 0;
+125:  }
+126:  if(!contacts)return l3_maze_motion_observe_trace(m,v,a,now,epoch,trace->maze_warp_mask);
+127:  L3MazeMotion original=*m,fallback=*m;
+128:  if(!l3_maze_motion_observe_trace(&fallback,v,a,now,epoch,trace->maze_warp_mask))return 0;
+129:  if(!original.valid||original.epoch!=epoch)goto fallback;
+130:  L3MazeMotion work=original;
+131:  for(unsigned n=0;n<trace->event_count;n++){
+132:   const L3MazeEvent *e=&trace->events[n];if(e->kind==L3_MAZE_COLLECT)continue;
+133:   for(unsigned i=0;i<3;i++)if(!observed_move(&work,v,i,e->actor_x[i]*256u+128,e->actor_y[i]*256u+128,now))goto fallback;
+134:   double due=now;L3MazeTrack *hero=&work.actor[0];
+135:   if(hero->count)due=fmax(due,hero->segments[(hero->head+hero->count-1)%L3_MAZE_SEGMENTS].end);
+136:   unsigned collided=e->kind==L3_MAZE_CONTACT_POWER?e->actor_mask:e->detail;
+137:   if((collided!=2&&collided!=4)||(e->kind!=L3_MAZE_CONTACT_POWER&&e->actor_mask!=7))return 0;
+138:   for(unsigned i=1;i<3;i++)if(collided&(1u<<i))if(!contact_arrival(&work.actor[i],now,due))goto fallback;
+139:   if(e->kind!=L3_MAZE_CONTACT_LOST)for(unsigned i=0;i<3;i++)if(e->actor_mask&(1u<<i)){
+140:    if(!contact_warp(&work.actor[i],e->respawn_x[i]*256u+128,e->respawn_y[i]*256u+128,now,due))goto fallback;work.teleports++;
+141:   }
+142:   work.contacts++;
+143:  }
+144:  for(unsigned i=0;i<3;i++)if(!observed_move(&work,v,i,a->actors[i].x256,a->actors[i].y256,now))goto fallback;
+145:  work.latest=*a;work.time=now;work.epoch=epoch;work.valid=1;*m=work;return 1;
+146: fallback:
+147:  fallback.contacts+=contacts;fallback.contact_fallbacks++;*m=fallback;return 1;
+148: }
+
+
+FILE games/luma3d/candidates/maze_events_r1/include/l3_mini_trace.h SHA256 01ede41567b15e21b1d95aadbd70743470699ad9134c0458caa7a8ba0fd93fd5
+1: #ifndef L3_MINI_TRACE_H
+2: #define L3_MINI_TRACE_H
+3: #include "l3_minigames.h"
+4: /* Transient presentation telemetry. Never serialized or used for decisions.
+5:  * Bits 0/1/2 identify player/ghost0/ghost1 resets performed by the real engine.
+6:  * A trace may include multiple contacts in one accepted step. */
+7: enum { L3_MAZE_COLLECT=1, L3_MAZE_CONTACT_POWER, L3_MAZE_CONTACT_DEATH,
+8:        L3_MAZE_CONTACT_LOST };
+9: #define L3_MAZE_TRACE_EVENTS 32u
+10: typedef struct {
+11:     uint8_t kind,actor_mask,x,y; /* Logical cell before any respawn. */
+12:     uint8_t tick,detail; /* Tick within this call; collect detail=board value2/3. */
+13:     uint8_t actor_x[3],actor_y[3],respawn_x[3],respawn_y[3];
+14: } L3MazeEvent;
+15: typedef struct {
+16:     uint32_t maze_warp_mask;
+17:     unsigned event_count,event_overflow,tick,ticks;
+18:     L3MazeEvent events[L3_MAZE_TRACE_EVENTS];
+19: } L3MiniTrace;
+20: uint32_t l3_mini_step_trace(L3MiniState *,uint32_t pressed,uint32_t held,
+21:                             uint32_t dt_ms,L3MiniTrace *);
+22: #endif
+
+
+FILE games/luma3d/candidates/maze_events_r1/include/l3_maze_events.h SHA256 8862c1754a2dcc24e97cc34b8a9a7ab4d1395548fe945ac59b28eed25cc10cf6
+1: #ifndef L3_MAZE_EVENTS_H
+2: #define L3_MAZE_EVENTS_H
+3: #include "l3_maze_motion.h"
+4: #include "l3_mini_trace.h"
+5: /* Presentation only. Logical floor/rewards remain immediate and untouched. */
+6: typedef struct {
+7:  uint8_t floor[400],pending[400];double until[400],time;
+8:  double life_until[3];
+9:  uint32_t epoch;unsigned valid,collections,deferred,fallbacks;
+10: } L3MazeEvents;
+11: void l3_maze_events_reset(L3MazeEvents *);
+12: int l3_maze_events_observe(L3MazeEvents *,const L3MazeMotion *,const uint8_t floor[400],const L3MiniTrace *,double,uint32_t);
+13: int l3_maze_events_sample(const L3MazeEvents *,double,uint8_t floor[400]);
+14: int l3_maze_events_pending(const L3MazeEvents *,double,unsigned *count);
+15: int l3_maze_events_pending_lives(const L3MazeEvents *,double,unsigned *count);
+16: #endif
+
+
+FILE games/luma3d/candidates/maze_events_r1/src/maze_events.c SHA256 d3d40c03c4de0b0ae9522d791963cf218104661ddfefc6ca1b6539537b0fcd23
+1: #include "l3_maze_events.h"
+2: #include <math.h>
+3: #include <string.h>
+4: void l3_maze_events_reset(L3MazeEvents *e){if(e)memset(e,0,sizeof *e);}
+5: int l3_maze_events_observe(L3MazeEvents *e,const L3MazeMotion *m,const uint8_t floor[400],const L3MiniTrace *trace,double now,uint32_t epoch){
+6:  if(!e||!m||!floor||!isfinite(now)||now<0||!m->valid)return 0;
+7:  if(e->valid&&e->epoch==epoch&&now<e->time)return 0;
+8:  if(trace&&(trace->event_count>L3_MAZE_TRACE_EVENTS||trace->event_overflow))return 0;
+9:  for(unsigned q=0;q<400;q++)if(floor[q]!=L3_MINI_CELL_EMPTY&&floor[q]!=L3_MINI_CELL_WALL&&floor[q]!=L3_MINI_CELL_PELLET&&floor[q]!=L3_MINI_CELL_POWER)return 0;
+10:  if(trace)for(unsigned i=0;i<trace->event_count;i++){
+11:   const L3MazeEvent *v=trace->events+i;
+12:   if(v->x>=20||v->y>=20||v->kind<L3_MAZE_COLLECT||v->kind>L3_MAZE_CONTACT_LOST)return 0;
+13:   if(v->kind==L3_MAZE_COLLECT&&(v->detail<2||v->detail>3||floor[v->y*20+v->x]!=L3_MINI_CELL_EMPTY))return 0;
+14:  }
+15:  if(!e->valid||e->epoch!=epoch){l3_maze_events_reset(e);e->valid=1;e->epoch=epoch;}
+16:  memcpy(e->floor,floor,sizeof e->floor);e->time=now;
+17:  for(unsigned q=0;q<400;q++)if(e->until[q]<=now)e->pending[q]=0;
+18:  if(trace)for(unsigned i=0;i<trace->event_count;i++){
+19:   const L3MazeEvent *v=trace->events+i;
+20:   if(v->kind!=L3_MAZE_COLLECT&&v->kind!=L3_MAZE_CONTACT_DEATH&&v->kind!=L3_MAZE_CONTACT_LOST)continue;
+21:   unsigned q=v->y*20+v->x;double arrival=now;const L3MazeTrack *t=&m->actor[0];
+22:   for(unsigned n=0;n<t->count;n++){
+23:    const L3MazeSegment *s=&t->segments[(t->head+n)%L3_MAZE_SEGMENTS];
+24:    if(s->x1==v->x*256u+128&&s->y1==v->y*256u+128&&s->end>arrival)arrival=s->end;
+25:   }
+26:   if(v->kind!=L3_MAZE_COLLECT){
+27:    if(arrival>now)for(unsigned n=0;n<3;n++)if(e->life_until[n]<=now){e->life_until[n]=arrival;break;}
+28:    continue;
+29:   }
+30:   e->collections++;
+31:   if(arrival>now){e->pending[q]=(uint8_t)(v->detail==3?L3_MINI_CELL_POWER:L3_MINI_CELL_PELLET);e->until[q]=arrival;e->deferred++;}
+32:   else e->fallbacks++; /* A reset/multi-move discontinuity has no traversed segment. */
+33:  }
+34:  return 1;
+35: }
+36: int l3_maze_events_sample(const L3MazeEvents *e,double now,uint8_t floor[400]){
+37:  if(!e||!e->valid||!floor||!isfinite(now)||now<e->time)return 0;
+38:  memcpy(floor,e->floor,sizeof e->floor);
+39:  for(unsigned q=0;q<400;q++)if(e->pending[q]&&now<e->until[q])floor[q]=e->pending[q];
+40:  return 1;
+41: }
+42: int l3_maze_events_pending(const L3MazeEvents *e,double now,unsigned *count){
+43:  if(!e||!e->valid||!count||!isfinite(now)||now<e->time)return 0;
+44:  unsigned n=0;for(unsigned q=0;q<400;q++)n+=e->pending[q]&&now<e->until[q];
+45:  *count=n;return 1;
+46: }
+47: int l3_maze_events_pending_lives(const L3MazeEvents *e,double now,unsigned *count){
+48:  if(!e||!e->valid||!count||!isfinite(now)||now<e->time)return 0;
+49:  unsigned n=0;for(unsigned i=0;i<3;i++)n+=now<e->life_until[i];*count=n;return 1;
+50: }
+
+
+FILE games/luma3d/candidates/maze_events_r1/src/presentation.c SHA256 46419dea081790ad3a69233c75cfbed684559fdbfa648917232caba5cb17a9df
+1: #include "luma3d_render.h"
+2: #include "luma3d_activity_observer.h"
+3: #include "l3_puzzle_presentation.h"
+4: #include "l3_simon_presentation.h"
+5: static int puzzle_view(const L3ArcadeView *v){return v&&(v->kind==L3_MINI_BLOCKS||v->kind==L3_MINI_MERGE1024);}
+6: static void observed(void *context,const L3ArcadeView *before,const L3ArcadeView *after,uint32_t pressed,uint32_t held,const L3MiniTrace *trace,double time,uint32_t epoch){
+7:  L3Render *r=context;(void)held;unsigned warp=trace?trace->maze_warp_mask:0;
+8:  if(pressed&L3_ARCADE_RESTART){
+9:   l3_maze_motion_reset(&r->maze_motion);l3_maze_events_reset(&r->maze_events);
+10:   l3_puzzle_presentation_reset(r);l3_simon_presentation_reset(r);
+11:   before=NULL;
+12:  }
+13:  if(after&&after->kind==L3_MINI_MAZE){
+14:   L3MiniActors actors;
+15:   if(!l3_mini_actors(&r->presentation_game->activities.arcade.base[L3_MINI_MAZE],&actors)||
+16:      !l3_maze_motion_observe_events(&r->maze_motion,&after->content.grid,&actors,time,epoch,trace))r->failed=1;
+17:   uint8_t floor[400];
+18:   if(!r->failed&&(!l3_mini_maze_floor(&r->presentation_game->activities.arcade.base[L3_MINI_MAZE],floor)||!l3_maze_events_observe(&r->maze_events,&r->maze_motion,floor,trace,time,epoch)))r->failed=1;
+19:  }else if(before&&before->kind==L3_MINI_MAZE){l3_maze_motion_reset(&r->maze_motion);l3_maze_events_reset(&r->maze_events);}
+20:  if(puzzle_view(before)||puzzle_view(after))l3_puzzle_presentation_observe(r,before,after,pressed,held,warp,time,epoch);
+21:  if((before&&before->kind==L3_ARCADE_SIMON)||(after&&after->kind==L3_ARCADE_SIMON))l3_simon_presentation_observe(r,before,after,pressed,held,warp,time,epoch);
+22: }
+23: void l3_presentation_bind(L3Render *r,const L3Game *g){
+24:  l3_puzzle_presentation_reset(r);l3_simon_presentation_reset(r);l3_maze_motion_reset(&r->maze_motion);l3_maze_events_reset(&r->maze_events);
+25:  r->presentation_game=g;l3_activity_observer_bind(g,255,observed,r);
+26: }
+27: int l3_presentation_clock(L3Render *r,double seconds,uint32_t epoch){
+28:  if(!l3_activity_observer_clock(seconds,epoch)){r->failed=1;return 0;}
+29:  r->presentation_seconds=seconds;r->presentation_epoch=epoch;return 1;
+30: }
+31: /* activity_enter may be followed by a render before the first engine step.
+32:  * Establish its real view/epoch before baking, without discarding a queue
+33:  * already observed during this frame's simulation steps. */
+34: int l3_presentation_prepare(L3Render *r,const L3Game *g){
+35:  unsigned active=g->activities.arcade.active;
+36:  int puzzle=active==L3_MINI_BLOCKS+1||active==L3_MINI_MERGE1024+1;
+37:  int simon=active==L3_ARCADE_SIMON+1;
+38:  if((puzzle&&!r->puzzle_presentation)||(simon&&!r->simon_presentation))return 0;
+39:  if(puzzle&&r->puzzle_presentation->motion.valid&&r->puzzle_presentation->motion.latest.kind==active-1&&r->puzzle_presentation->observed_epoch==r->presentation_epoch)return 1;
+40:  if(simon&&r->simon_presentation&&r->simon_presentation->light.valid&&r->simon_presentation->epoch==r->presentation_epoch)return 1;
+41:  if(!puzzle&&!simon)return 1;
+42:  L3ArcadeView view;if(!l3_arcade_view(&g->activities.arcade,&view))return 0;
+43:  if(puzzle)l3_puzzle_presentation_observe(r,NULL,&view,0,0,0,r->presentation_seconds,r->presentation_epoch);
+44:  else l3_simon_presentation_observe(r,NULL,&view,0,0,0,r->presentation_seconds,r->presentation_epoch);
+45:  return puzzle?r->puzzle_presentation->motion.valid:r->simon_presentation->light.valid;
+46: }
+47: void l3_presentation_unbind(L3Render *r){l3_activity_observer_bind(NULL,0,NULL,NULL);r->presentation_game=NULL;}
+
+
+FILE games/luma3d/candidates/maze_events_r1/tests/test_contacts.c SHA256 55087cae5552a40a9a52dfc7ecc527f3dd1df52c387321cc172dce2bdb5b7eef
+1: #include "l3_maze_events.h"
+2: #include <assert.h>
+3: #include <math.h>
+4: #include <stdio.h>
+5: #include <string.h>
+6: static unsigned checks;
+7: #define CHECK(x) do{assert(x);checks++;}while(0)
+8: static void floor_check(const L3MiniView *v,const L3MiniActors *a){
+9:  for(unsigned i=0;i<3;i++){unsigned x=a->actors[i].x256/256,y=a->actors[i].y256/256;CHECK(x<v->width&&y<v->height&&v->cells[y*20+x].kind!=L3_MINI_CELL_WALL);}
+10: }
+11: int main(void){
+12:  for(unsigned power=0;power<2;power++)for(unsigned enemy_tick=0;enemy_tick<14;enemy_tick++)for(unsigned both=0;both<2;both++){
+13:   L3MiniState s;CHECK(l3_mini_init(&s,L3_MINI_MAZE,42));
+14:   s.data[0]=4;s.data[1]=5;s.data[8]=s.data[9]=1;s.data[4]=5;s.data[7]=power?100:0;
+15:   s.data[10]=5;s.data[11]=5;s.data[14]=enemy_tick;s.data[15]=0;if(both){s.data[12]=5;s.data[13]=5;}
+16:   CHECK(l3_mini_validate(&s));L3MiniView v;L3MiniActors a,shown;L3MazeMotion motion={0};L3MazeEvents events={0};uint8_t floor[400];
+17:   CHECK(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a)&&l3_mini_maze_floor(&s,floor));
+18:   CHECK(l3_maze_motion_observe(&motion,&v,&a,0,1));CHECK(l3_maze_events_observe(&events,&motion,floor,0,0,1));
+19:   L3MiniTrace trace;l3_mini_step_trace(&s,0,0,17,&trace);L3MiniState unchanged=s;
+20:   CHECK(trace.maze_warp_mask);CHECK(l3_mini_view(&s,&v)&&l3_mini_actors(&s,&a)&&l3_mini_maze_floor(&s,floor));
+21:   CHECK(l3_maze_motion_observe_events(&motion,&v,&a,.017,1,&trace));CHECK(!motion.contact_fallbacks);
+22:   CHECK(l3_maze_events_observe(&events,&motion,floor,&trace,.017,1));
+23:   double due=.017+.1;CHECK(l3_maze_motion_sample(&motion,nextafter(due,.017),&shown));
+24:   CHECK(shown.actors[0].x256==5*256+128&&shown.actors[0].y256==5*256+128);
+25:   CHECK(shown.actors[1].x256==5*256+128&&shown.actors[1].y256==5*256+128);
+26:   CHECK(l3_maze_motion_sample(&motion,due,&shown));
+27:   CHECK(shown.actors[1].x256==6*256+128&&shown.actors[1].y256==5*256+128);
+28:   if(!power)CHECK(shown.actors[0].x256==1*256+128&&shown.actors[0].y256==1*256+128);
+29:   else CHECK(shown.actors[0].x256==5*256+128);
+30:   if(power&&both)CHECK(shown.actors[2].x256==11*256+128&&shown.actors[2].y256==9*256+128);
+31:   unsigned lives;CHECK(l3_maze_events_pending_lives(&events,nextafter(due,.017),&lives)&&lives==!power);CHECK(l3_maze_events_pending_lives(&events,due,&lives)&&!lives);
+32:   for(unsigned n=0;n<=600;n++){CHECK(l3_maze_motion_sample(&motion,.017+n*.001,&shown));floor_check(&v,&shown);}
+33:   CHECK(!memcmp(&s,&unchanged,sizeof s));
+34:   /* Reset/load must discard pending contacts and warp queues. */
+35:   l3_maze_motion_reset(&motion);l3_maze_events_reset(&events);CHECK(!l3_maze_motion_sample(&motion,.1,&shown));
+36:   CHECK(l3_maze_motion_observe(&motion,&v,&a,0,2));CHECK(l3_maze_motion_sample(&motion,0,&shown));CHECK(!memcmp(&a,&shown,sizeof a));
+37:  }
+38:  printf("CONTACTS_PASS checks=%u powered_death_two_ghosts=1 before_at_after_arrival=1 all_enemy_phases=1 no_wall_sampling=1 reset_clean=1 engine_unchanged=1\n",checks);return 0;
+39: }
+
+
+FILE games/luma3d/candidates/maze_events_r1/tests/contacts_r1/result.json SHA256 af14a4d51ff2f62f4205597a3976dff836f1080a7a45a09aceb7e0df738e7805
+1: {
+2:   "passed": true,
+3:   "hardware": false,
+4:   "records": [
+5:     {
+6:       "name": "strict",
+7:       "command": [
+8:         "cc",
+9:         "-std=c11",
+10:         "-O2",
+11:         "-Wall",
+12:         "-Wextra",
+13:         "-Werror",
+14:         "-Wno-misleading-indentation",
+15:         "-I/home/michael/console/games/luma3d/candidates/maze_events_r1/include",
+16:         "-I/home/michael/console/games/luma3d/candidates/maze_events_r1/minigames",
+17:         "-I/home/michael/console/games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/include",
+18:         "-I/home/michael/console/games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/minigames",
+19:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/tests/test_contacts.c",
+20:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/src/maze_events.c",
+21:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/src/maze_motion.c",
+22:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/minigames/l3_minigames.c",
+23:         "-lm",
+24:         "-o",
+25:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/tests/contacts_r1/strict/test"
+26:       ],
+27:       "output": "CONTACTS_PASS checks=135926 powered_death_two_ghosts=1 before_at_after_arrival=1 all_enemy_phases=1 no_wall_sampling=1 reset_clean=1 engine_unchanged=1\n",
+28:       "passed": true
+29:     },
+30:     {
+31:       "name": "asan",
+32:       "command": [
+33:         "cc",
+34:         "-std=c11",
+35:         "-O2",
+36:         "-Wall",
+37:         "-Wextra",
+38:         "-Werror",
+39:         "-Wno-misleading-indentation",
+40:         "-fsanitize=address,undefined,float-cast-overflow",
+41:         "-fno-omit-frame-pointer",
+42:         "-I/home/michael/console/games/luma3d/candidates/maze_events_r1/include",
+43:         "-I/home/michael/console/games/luma3d/candidates/maze_events_r1/minigames",
+44:         "-I/home/michael/console/games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/include",
+45:         "-I/home/michael/console/games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/minigames",
+46:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/tests/test_contacts.c",
+47:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/src/maze_events.c",
+48:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/src/maze_motion.c",
+49:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/minigames/l3_minigames.c",
+50:         "-lm",
+51:         "-o",
+52:         "/home/michael/console/games/luma3d/candidates/maze_events_r1/tests/contacts_r1/asan/test"
+53:       ],
+54:       "output": "CONTACTS_PASS checks=135926 powered_death_two_ghosts=1 before_at_after_arrival=1 all_enemy_phases=1 no_wall_sampling=1 reset_clean=1 engine_unchanged=1\n",
+55:       "passed": true
+56:     }
+57:   ],
+58:   "sources": {
+59:     "games/luma3d/candidates/maze_events_r1/tests/test_contacts.c": "55087cae5552a40a9a52dfc7ecc527f3dd1df52c387321cc172dce2bdb5b7eef",
+60:     "games/luma3d/candidates/maze_events_r1/src/maze_events.c": "d3d40c03c4de0b0ae9522d791963cf218104661ddfefc6ca1b6539537b0fcd23",
+61:     "games/luma3d/candidates/maze_events_r1/src/maze_motion.c": "95fbfbc84eabb3dffff36db60571bd05a84d47af741dd6cc2e2a37a800fdc932",
+62:     "games/luma3d/candidates/maze_events_r1/minigames/l3_minigames.c": "cc35d92882da460069a62f8c7df208648de6bc07c2c6c657b2d1cbda13c3247f",
+63:     "games/luma3d/candidates/maze_events_r1/include/l3_maze_motion.h": "7a2cb4d8293abc3aa8cf0e1dd08e022f60007cfd9cf2ae32fb12e5926823d0bb",
+64:     "games/luma3d/candidates/maze_events_r1/include/l3_maze_events.h": "8862c1754a2dcc24e97cc34b8a9a7ab4d1395548fe945ac59b28eed25cc10cf6",
+65:     "games/luma3d/candidates/maze_events_r1/include/l3_mini_trace.h": "01ede41567b15e21b1d95aadbd70743470699ad9134c0458caa7a8ba0fd93fd5",
+66:     "games/luma3d/candidates/maze_events_r1/tests/validate_contacts.py": "2ba8933e8d55aebd86cefcf5bc10df43c151ad1dc96cb706eeab7a25fafdfa58"
+67:   },
+68:   "scope": "Validated legal contact fixtures, grid paths retained, visual reset at hero arrival, lives aligned, no gameplay mutation. No hardware timing."
+69: }
+
+
+ENGINE EXACT FUNCTIONS games/luma3d/candidates/maze_events_r1/minigames/l3_minigames.c
+310: static const char *const maze[11]={
+311:     "#############", "#o....#....o#", "#.##..#..##.#",
+312:     "#...........#", "#.#.#####.#.#", "#.#.......#.#",
+313:     "#.#.#####.#.#", "#...........#", "#.##..#..##.#",
+314:     "#o....#....o#", "#############"
+315: };
+316: static int maze_open(const L3MiniState *s,int x,int y)
+317: { return x>=0 && y>=0 && x<13 && y<11 && s->board[at((unsigned)x,(unsigned)y)]!=1; }
+318: static void maze_reset_actors(L3MiniState *s)
+319: {
+320:     s->data[CX]=1;s->data[CY]=1;s->data[DIR]=4;s->data[NEXTDIR]=4;
+321:     s->data[EX0]=6;s->data[EY0]=5;s->data[EX1]=11;s->data[EY1]=9;
+322:     s->data[TIMER]=0;s->data[ETIMER]=0;s->data[AUXCOUNT]=120;
+323: }
+324: static void maze_event(L3MiniTrace *trace,const L3MiniState *s,unsigned kind,unsigned actors,unsigned detail)
+325: {
+326:     if(!trace)return;
+327:     if(trace->event_count>=L3_MAZE_TRACE_EVENTS){trace->event_overflow++;return;}
+328:     L3MazeEvent *e=&trace->events[trace->event_count++];memset(e,0,sizeof *e);
+329:     e->kind=(uint8_t)kind;e->actor_mask=(uint8_t)actors;e->x=(uint8_t)s->data[CX];e->y=(uint8_t)s->data[CY];e->tick=(uint8_t)trace->tick;e->detail=(uint8_t)detail;
+330:     const unsigned x[]={CX,EX0,EX1},y[]={CY,EY0,EY1};
+331:     for(unsigned i=0;i<3;i++){e->actor_x[i]=e->respawn_x[i]=(uint8_t)s->data[x[i]];e->actor_y[i]=e->respawn_y[i]=(uint8_t)s->data[y[i]];}
+332: }
+333: static void maze_event_respawn(L3MiniTrace *trace,const L3MiniState *s)
+334: {
+335:     if(!trace||!trace->event_count||trace->event_overflow)return;
+336:     L3MazeEvent *e=&trace->events[trace->event_count-1];const unsigned x[]={CX,EX0,EX1},y[]={CY,EY0,EY1};
+337:     for(unsigned i=0;i<3;i++){e->respawn_x[i]=(uint8_t)s->data[x[i]];e->respawn_y[i]=(uint8_t)s->data[y[i]];}
+338: }
+339: static void maze_eat(L3MiniState *s,L3MiniTrace *trace)
+340: {
+341:     unsigned q=at(s->data[CX],s->data[CY]),v=s->board[q];
+342:     if (v==2 || v==3) {
+343:         maze_event(trace,s,L3_MAZE_COLLECT,1,v);
+344:         s->board[q]=0; ++s->data[COUNT];
+345:         s->meta[SCORE]=add_sat(s->meta[SCORE],v==3?50u:10u);
+346:         if (v==3) s->data[POWER]=300;
+347:         if (s->data[COUNT]==s->meta[GOAL]) finish(s,L3_MINI_WON);
+348:     }
+349: }
+350: static void maze_contact(L3MiniState *s,L3MiniTrace *trace)
+351: {
+352:     unsigned e;
+353:     if (s->meta[ST]!=L3_MINI_RUNNING) return;
+354:     for (e=0;e<2;++e) if (s->data[CX]==s->data[EX0+2u*e] && s->data[CY]==s->data[EY0+2u*e]) {
+355:         if (s->data[POWER]) {
+356:             maze_event(trace,s,L3_MAZE_CONTACT_POWER,2u<<e,0);
+357:             if(trace)trace->maze_warp_mask|=2u<<e;
+358:             s->data[EX0+2u*e]= e ? 11 : 6;
+359:             s->data[EY0+2u*e]= e ? 9 : 5;
+360:             maze_event_respawn(trace,s);
+361:             /* Respawn cannot repeatedly award points if an actor waits there. */
+362:         } else if (!s->data[AUXCOUNT]) {
+363:             if (--s->data[LIVES]==0) { maze_event(trace,s,L3_MAZE_CONTACT_LOST,7,2u<<e);finish(s,L3_MINI_LOST);return; }
+364:             maze_event(trace,s,L3_MAZE_CONTACT_DEATH,7,2u<<e);
+365:             if(trace)trace->maze_warp_mask|=7u;
+366:             maze_reset_actors(s);maze_event_respawn(trace,s);return;
+367:         }
+368:     }
+369: }
+370: static void maze_distances(const L3MiniState *s,unsigned start,uint16_t *dist)
+371: {
+372:     unsigned queue[143],head=0,tail=0,i;
+373:     for(i=0;i<400;++i)dist[i]=UINT16_MAX;
+374:     dist[start]=0;queue[tail++]=start;
+375:     while(head<tail) {
+376:         unsigned q=queue[head++],d;
+377:         for(d=0;d<4;++d) {
+378:             int x=(int)(q%20u)+dx[d],y=(int)(q/20u)+dy[d]; unsigned z;
+379:             if(!maze_open(s,x,y))continue;
+380:             z=at((unsigned)x,(unsigned)y);
+381:             if(dist[z]!=UINT16_MAX)continue;
+382:             dist[z]=(uint16_t)(dist[q]+1u);queue[tail++]=z;
+383:         }
+384:     }
+385: }
+386: static void maze_enemies(L3MiniState *s,L3MiniTrace *trace)
+387: {
+388:     uint16_t dist[400];unsigned e;
+389:     maze_distances(s,at(s->data[CX],s->data[CY]),dist);
+390:     for(e=0;e<2;++e) {
+391:         unsigned d,best=4,ex=s->data[EX0+2u*e],ey=s->data[EY0+2u*e];
+392:         int value=s->data[POWER]?-1:INT_MAX;
+393:         for(d=0;d<4;++d) {
+394:             unsigned dd=(d+e)%4u;int x=(int)ex+dx[dd],y=(int)ey+dy[dd],v;
+395:             if(!maze_open(s,x,y))continue;
+396:             v=dist[at((unsigned)x,(unsigned)y)];
+397:             if((s->data[POWER] && v>value) || (!s->data[POWER] && v<value)) {best=dd;value=v;}
+398:         }
+399:         if(best<4){s->data[EX0+2u*e]=(unsigned)((int)ex+dx[best]);s->data[EY0+2u*e]=(unsigned)((int)ey+dy[best]);}
+400:     }
+401:     maze_contact(s,trace);
+402: }
+403: static void maze_tick(L3MiniState *s,L3MiniTrace *trace)
+404: {
+405:     if(s->data[POWER])--s->data[POWER];
+406:     if(s->data[AUXCOUNT])--s->data[AUXCOUNT];
+407:     if(++s->data[TIMER]==6) {
+408:         unsigned d=s->data[NEXTDIR];s->data[TIMER]=0;
+409:         if(d<4 && maze_open(s,(int)s->data[CX]+dx[d],(int)s->data[CY]+dy[d]))s->data[DIR]=d;
+410:         d=s->data[DIR];
+411:         if(d<4 && maze_open(s,(int)s->data[CX]+dx[d],(int)s->data[CY]+dy[d])) {
+412:             s->data[CX]=(unsigned)((int)s->data[CX]+dx[d]);s->data[CY]=(unsigned)((int)s->data[CY]+dy[d]);
+413:             s->meta[MOVES]=add_sat(s->meta[MOVES],1);
+414:             maze_eat(s,trace);maze_contact(s,trace);
+415:         }
+416:     }
+417:     if(s->meta[ST]==L3_MINI_RUNNING && ++s->data[ETIMER]==14) {s->data[ETIMER]=0;maze_enemies(s,trace);}
+418: }
+419: 

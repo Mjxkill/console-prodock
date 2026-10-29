@@ -1,0 +1,240 @@
+{
+  "f2ef208c-e977-448b-93e2-fabeb039a7ba": {
+    "prompt": [
+      28,
+      "f2ef208c-e977-448b-93e2-fabeb039a7ba",
+      {
+        "load": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "luma_hero_stride_a_cutout_00001_.png [output]"
+          }
+        },
+        "region": {
+          "class_type": "LoadImage",
+          "inputs": {
+            "image": "luma_hero_legs_mask_20261024.png"
+          }
+        },
+        "region_mask": {
+          "class_type": "ImageToMask",
+          "inputs": {
+            "image": [
+              "region",
+              0
+            ],
+            "channel": "red"
+          }
+        },
+        "foreground": {
+          "class_type": "InvertMask",
+          "inputs": {
+            "mask": [
+              "load",
+              1
+            ]
+          }
+        },
+        "legs": {
+          "class_type": "MaskComposite",
+          "inputs": {
+            "destination": [
+              "foreground",
+              0
+            ],
+            "source": [
+              "region_mask",
+              0
+            ],
+            "x": 0,
+            "y": 0,
+            "operation": "multiply"
+          }
+        },
+        "upper": {
+          "class_type": "MaskComposite",
+          "inputs": {
+            "destination": [
+              "foreground",
+              0
+            ],
+            "source": [
+              "region_mask",
+              0
+            ],
+            "x": 0,
+            "y": 0,
+            "operation": "subtract"
+          }
+        },
+        "legs_image": {
+          "class_type": "MaskToImage",
+          "inputs": {
+            "mask": [
+              "legs",
+              0
+            ]
+          }
+        },
+        "legs_flip": {
+          "class_type": "ImageFlip",
+          "inputs": {
+            "image": [
+              "legs_image",
+              0
+            ],
+            "flip_method": "y-axis: horizontally"
+          }
+        },
+        "new_legs": {
+          "class_type": "ImageToMask",
+          "inputs": {
+            "image": [
+              "legs_flip",
+              0
+            ],
+            "channel": "red"
+          }
+        },
+        "rgb_flip": {
+          "class_type": "ImageFlip",
+          "inputs": {
+            "image": [
+              "load",
+              0
+            ],
+            "flip_method": "y-axis: horizontally"
+          }
+        },
+        "rgb": {
+          "class_type": "ImageCompositeMasked",
+          "inputs": {
+            "destination": [
+              "load",
+              0
+            ],
+            "source": [
+              "rgb_flip",
+              0
+            ],
+            "x": 0,
+            "y": 0,
+            "resize_source": false,
+            "mask": [
+              "new_legs",
+              0
+            ]
+          }
+        },
+        "alpha": {
+          "class_type": "MaskComposite",
+          "inputs": {
+            "destination": [
+              "upper",
+              0
+            ],
+            "source": [
+              "new_legs",
+              0
+            ],
+            "x": 0,
+            "y": 0,
+            "operation": "add"
+          }
+        },
+        "inverse": {
+          "class_type": "InvertMask",
+          "inputs": {
+            "mask": [
+              "alpha",
+              0
+            ]
+          }
+        },
+        "rgba": {
+          "class_type": "JoinImageWithAlpha",
+          "inputs": {
+            "image": [
+              "rgb",
+              0
+            ],
+            "alpha": [
+              "inverse",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "rgba",
+              0
+            ],
+            "filename_prefix": "luma_hero_leg_rig"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792794969086
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "luma_hero_leg_rig_00001_.png",
+            "subfolder": "",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 512,
+              "height": 512
+            },
+            "id": "8e372332-5f4e-4968-a5ae-daffde7d592b"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "f2ef208c-e977-448b-93e2-fabeb039a7ba",
+            "timestamp": 1792794969087
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [],
+            "prompt_id": "f2ef208c-e977-448b-93e2-fabeb039a7ba",
+            "timestamp": 1792794969091
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "f2ef208c-e977-448b-93e2-fabeb039a7ba",
+            "timestamp": 1792794969251
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

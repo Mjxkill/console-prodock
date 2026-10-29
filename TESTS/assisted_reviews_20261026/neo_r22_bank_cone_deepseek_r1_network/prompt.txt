@@ -1,0 +1,4143 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Comparer exactement les cônes fournis bank/validité vers hrdata0 R19/R22, préciser ce qui est et n’est pas équivalent. Proposer tests discriminants sans nouveau bitstream, ou patch minimal uniquement si défaut de logique démontré. Aucune cause timing/FIFO/silicium sans preuve.
+
+EVIDENCE PACKET:
+FACTS: Four-phase A/B/A/B completed: exact R19 returns bank version0 each phase, exactR22r1 returns bank/raw1=1 each phase. All restore R19 fresh. No corrected cause claimed. The new witness adds taps/load/402FF/32readmux; new routing too. See exact evidence below.
+
+result.json
+{
+  "passed": true,
+  "scope": "Evidence integrity and comparison only",
+  "hardware_access": false,
+  "hardware_qualified": false,
+  "global_qualification": "FAIL",
+  "results": [
+    {
+      "label": "A1",
+      "build": "R19",
+      "input": "/home/michael/console/TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_000942/result.json",
+      "sha256": "1c39884c0dab5fca3a1217eef887cbd1ac7e8fca21f250174070ce85bfdf342d",
+      "rows": [
+        {
+          "phase": "ARM",
+          "sequence": 1,
+          "bank_version": 0,
+          "ticks": 0,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "DISARM",
+          "sequence": 2,
+          "bank_version": 0,
+          "ticks": 26061045,
+          "armed": true,
+          "sof_cycles": 1,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "STOPPED",
+          "sequence": 3,
+          "bank_version": 0,
+          "ticks": 26061046,
+          "armed": false,
+          "sof_cycles": 1,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "STABLE",
+          "sequence": 4,
+          "bank_version": 0,
+          "ticks": 26061046,
+          "armed": false,
+          "sof_cycles": 1,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        }
+      ],
+      "restored_exact_R19": true,
+      "qualification_status": "FAIL",
+      "error": "RuntimeError(\"Activity data contract failed: ['Version0: ARM first', 'Version0: ARM repeat', 'Version0: DISARM first', 'Version0: DISARM repeat', 'Version0: STOPPED first', 'Version0: STOPPED repeat', 'Version0: STABLE first', 'Version0: STABLE repeat']\")"
+    },
+    {
+      "label": "B1",
+      "build": "R22r1",
+      "input": "/home/michael/console/TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_124213/result.json",
+      "sha256": "af7599cc42c95136020911b236f91abc5208a8b7aee65518890fbd2fdd88e3a4",
+      "rows": [
+        {
+          "phase": "ARM",
+          "sequence": 1,
+          "bank_version": 1,
+          "ticks": 0,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            1,
+            1,
+            1
+          ],
+          "total": 32,
+          "frames": 1,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "phase": "DISARM",
+          "sequence": 2,
+          "bank_version": 1,
+          "ticks": 29695297,
+          "armed": true,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            2,
+            2,
+            2
+          ],
+          "total": 64,
+          "frames": 2,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "phase": "STOPPED",
+          "sequence": 3,
+          "bank_version": 1,
+          "ticks": 29695298,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            3,
+            3,
+            3
+          ],
+          "total": 96,
+          "frames": 3,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "STABLE",
+          "sequence": 4,
+          "bank_version": 1,
+          "ticks": 29695298,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            4,
+            4,
+            4
+          ],
+          "total": 128,
+          "frames": 4,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            3,
+            3,
+            3
+          ]
+        }
+      ],
+      "restored_exact_R19": true,
+      "qualification_status": "FAIL",
+      "error": null
+    },
+    {
+      "label": "A2",
+      "build": "R19",
+      "input": "/home/michael/console/TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_124422/result.json",
+      "sha256": "6e26b76d9252e2b6dcc163582e1ac5bb95f9c3aef438841a913c5585303e2d93",
+      "rows": [
+        {
+          "phase": "ARM",
+          "sequence": 1,
+          "bank_version": 0,
+          "ticks": 0,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "DISARM",
+          "sequence": 2,
+          "bank_version": 0,
+          "ticks": 26111935,
+          "armed": true,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "STOPPED",
+          "sequence": 3,
+          "bank_version": 0,
+          "ticks": 26111936,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        },
+        {
+          "phase": "STABLE",
+          "sequence": 4,
+          "bank_version": 0,
+          "ticks": 26111936,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": null
+        }
+      ],
+      "restored_exact_R19": true,
+      "qualification_status": "FAIL",
+      "error": "RuntimeError(\"Activity data contract failed: ['Version0: ARM first', 'Version0: ARM repeat', 'Version0: DISARM first', 'Version0: DISARM repeat', 'Version0: STOPPED first', 'Version0: STOPPED repeat', 'Version0: STABLE first', 'Version0: STABLE repeat']\")"
+    },
+    {
+      "label": "B2",
+      "build": "R22r1",
+      "input": "/home/michael/console/TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_124454/result.json",
+      "sha256": "bb05c3936dcdc82e8cb13e8cf7620bdb4d0c9fb65027a553b4e85e1a590d9720",
+      "rows": [
+        {
+          "phase": "ARM",
+          "sequence": 1,
+          "bank_version": 1,
+          "ticks": 0,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            1,
+            1,
+            1
+          ],
+          "total": 32,
+          "frames": 1,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "phase": "DISARM",
+          "sequence": 2,
+          "bank_version": 1,
+          "ticks": 29758497,
+          "armed": true,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            2,
+            2,
+            2
+          ],
+          "total": 64,
+          "frames": 2,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "phase": "STOPPED",
+          "sequence": 3,
+          "bank_version": 1,
+          "ticks": 29758498,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            3,
+            3,
+            3
+          ],
+          "total": 96,
+          "frames": 3,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "STABLE",
+          "sequence": 4,
+          "bank_version": 1,
+          "ticks": 29758498,
+          "armed": false,
+          "sof_cycles": 0,
+          "repeated_bank_equal": true,
+          "raw_witness": 1,
+          "raw_alias": 1,
+          "counts": [
+            4,
+            4,
+            4
+          ],
+          "total": 128,
+          "frames": 4,
+          "outside_busy": 0,
+          "flags": 4128775,
+          "tags": [
+            3,
+            3,
+            3
+          ]
+        }
+      ],
+      "restored_exact_R19": true,
+      "qualification_status": "FAIL",
+      "error": null
+    }
+  ],
+  "conclusion": "The constant version result follows the tested build across A/B/A/B: R19 returns zero, R22r1 returns one in the bank and witness. No captured disagreement between raw witness and bank.",
+  "changed_variables": [
+    "Added witness taps, load, 402 FF and combinational logic",
+    "Added 32 hrdata input muxes",
+    "Complete new placement/routing",
+    "R22 collector also reads extension words; read cadence differs from R19 activity collector"
+  ],
+  "not_established": [
+    "Root cause",
+    "FIFO fault versus bank validity/data fault",
+    "Silicon erratum",
+    "USB enumeration or negotiated speed",
+    "Physical clock frequencies",
+    "GPU functionality",
+    "DDR integrity"
+  ],
+  "first_failed_attempt": {
+    "path": "TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_105428",
+    "reason": "libusb_init() failed with LIBUSB_ERROR_OTHER before initial guard; no programming and no hardware observation; excluded from comparison"
+  },
+  "inputs": {
+    "/home/michael/console/TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_000942/result.json": "1c39884c0dab5fca3a1217eef887cbd1ac7e8fca21f250174070ce85bfdf342d",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_124213/result.json": "af7599cc42c95136020911b236f91abc5208a8b7aee65518890fbd2fdd88e3a4",
+    "/home/michael/console/TESTS/neo_common_cause_20261027/utna_activity_prepared_01/activity_20261028_124422/result.json": "6e26b76d9252e2b6dcc163582e1ac5bb95f9c3aef438841a913c5585303e2d93",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/utw1_collector_prepared_01/capture_20261028_124454/result.json": "bb05c3936dcdc82e8cb13e8cf7620bdb4d0c9fb65027a553b4e85e1a590d9720"
+  }
+}
+
+
+postroute_summary
+{
+  "schema": "neo-utw1-r22r1-postroute-summary-v1",
+  "candidate": true,
+  "hardware_access": false,
+  "hardware_qualified": false,
+  "route_status": "ROUTED_NOT_QUALIFIED",
+  "bitstream_sha256": "55601256120915adbb08279c0b6bd42caabf8deff261bf87b8a7b8d8cbf9c8aa",
+  "netlist_sha256": "0eb5638a63c4c2562f78db1dc71474830b7425b23c30b56674639bac4a4cb191",
+  "structure_passed": true,
+  "helper_ff": 402,
+  "target_requests_resolved": true,
+  "target_slacks_nonnegative": true,
+  "target_status_counts": {
+    "REPORTED_NONNEGATIVE": 2604
+  },
+  "target_minima": [
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "D",
+      "endpoints": 402,
+      "worst_slack_ns": 3.878,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_457/D"
+    },
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "CE",
+      "endpoints": 402,
+      "worst_slack_ns": 5.003,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_105/CE"
+    },
+    {
+      "group": "witness",
+      "analysis": "setup",
+      "pin": "RESET",
+      "endpoints": 402,
+      "worst_slack_ns": 7.099,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_105/RESET"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "D",
+      "endpoints": 402,
+      "worst_slack_ns": 0.247,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_123/D"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "CE",
+      "endpoints": 402,
+      "worst_slack_ns": 0.971,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_532/CE"
+    },
+    {
+      "group": "witness",
+      "analysis": "hold",
+      "pin": "RESET",
+      "endpoints": 402,
+      "worst_slack_ns": 0.756,
+      "worst_endpoint": "u_usb_idle_trace/utw_observer/utw_cell_596/RESET"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "D",
+      "endpoints": 32,
+      "worst_slack_ns": 2.828,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_3_s0/D"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "CE",
+      "endpoints": 32,
+      "worst_slack_ns": 10.076,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_26_s0/CE"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "setup",
+      "pin": "RESET",
+      "endpoints": 32,
+      "worst_slack_ns": 8.309,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_26_s0/RESET"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "D",
+      "endpoints": 32,
+      "worst_slack_ns": 0.559,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_3_s0/D"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "CE",
+      "endpoints": 32,
+      "worst_slack_ns": 0.515,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_19_s0/CE"
+    },
+    {
+      "group": "hrdata",
+      "analysis": "hold",
+      "pin": "RESET",
+      "endpoints": 32,
+      "worst_slack_ns": 0.661,
+      "worst_endpoint": "u_usb_idle_trace/hrdata_19_s0/RESET"
+    }
+  ],
+  "target_clock_pairs": [
+    {
+      "launch": "bus80_clk:[R]",
+      "latch": "bus80_clk:[R]",
+      "paths": 5982
+    }
+  ],
+  "global_timing_qualification": "FAIL",
+  "global_summary": {
+    "Numbers of Paths Analyzed": 192679,
+    "Numbers of Endpoints Analyzed": 190580,
+    "Numbers of Falling Endpoints": 22,
+    "Numbers of Setup Violated Endpoints": 9,
+    "Numbers of Hold Violated Endpoints": 0
+  },
+  "global_reports": [
+    {
+      "analysis": "setup",
+      "command": "report_timing -setup -max_paths 1000 -max_common_paths 1",
+      "reported_paths": 1000,
+      "invalid_rows": 0,
+      "minimum_slack_ns": -1.013
+    },
+    {
+      "analysis": "hold",
+      "command": "report_timing -hold -max_paths 200 -max_common_paths 1",
+      "reported_paths": 200,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.13
+    },
+    {
+      "analysis": "recovery",
+      "command": "report_timing -recovery -max_paths 10000 -max_common_paths 3",
+      "reported_paths": 10000,
+      "invalid_rows": 0,
+      "minimum_slack_ns": -0.212
+    },
+    {
+      "analysis": "recovery",
+      "command": "report_timing -recovery -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3",
+      "reported_paths": 9,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 1.199
+    },
+    {
+      "analysis": "removal",
+      "command": "report_timing -removal -max_paths 10000 -max_common_paths 3",
+      "reported_paths": 5411,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.289
+    },
+    {
+      "analysis": "removal",
+      "command": "report_timing -removal -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3",
+      "reported_paths": 9,
+      "invalid_rows": 0,
+      "minimum_slack_ns": 0.289
+    }
+  ],
+  "negative_paths": [
+    {
+      "analysis": "setup",
+      "valid": true,
+      "slack_ns": -1.013,
+      "source": "u_accel/u_blitter/wp_2_s0",
+      "destination": "u_accel/busy_sync_0_s0",
+      "endpoint_pin": "u_accel/busy_sync_0_s0/D",
+      "launch_clock": "ddr3_sys_clk:[R]",
+      "latch_clock": "bus80_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.212,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.212,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/after_event_13_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/after_event_13_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/at_event_12_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/at_event_12_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/at_event_13_s1",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/at_event_13_s1/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_0_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_0_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_1_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_1_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_2_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_2_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    },
+    {
+      "analysis": "recovery",
+      "valid": true,
+      "slack_ns": -0.207,
+      "source": "u_soc/vid_hrstn_r_s0",
+      "destination": "u_accel/u_v1/u_pixels/u_capture/beat_3_s0",
+      "endpoint_pin": "u_accel/u_v1/u_pixels/u_capture/beat_3_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "ddr3_sys_clk:[R]"
+    }
+  ],
+  "global_summary_caveat": "Gowin labels 9 endpoints as Setup Violated; detailed reports show one setup and eight recovery destinations. Preserve both outputs without treating the summary label as nine ordinary setup paths.",
+  "reset_and_clock_netlist_facts": {
+    "u_soc/vid_hrstn_r_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_soc/exts_hrstn",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "GND",
+        "Q": "vid_hrstn"
+      },
+      "parameters": {
+        "u_soc/vid_hrstn_r_s0.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/n77_s2": {
+      "type": "INV",
+      "pins": {
+        "I": "vid_hrstn",
+        "O": "u_accel/u_v1/u_pixels/u_capture/n77_7"
+      },
+      "parameters": {}
+    },
+    "u_usb_idle_trace/n6_s1": {
+      "type": "LUT2",
+      "pins": {
+        "I0": "rst_usb",
+        "I1": "vid_hrstn",
+        "F": "n6_5"
+      },
+      "parameters": {
+        "u_usb_idle_trace/n6_s1.INIT": "4'hB"
+      }
+    },
+    "u_usb_idle_trace/hreset_s0": {
+      "type": "LUT2",
+      "pins": {
+        "I0": "u_usb_idle_trace/hr[2]",
+        "I1": "u_usb_idle_trace/uh[1]",
+        "F": "u_usb_idle_trace/hreset"
+      },
+      "parameters": {
+        "u_usb_idle_trace/hreset_s0.INIT": "4'h7"
+      }
+    },
+    "u_usb_idle_trace/utw_observer/utw_cell_105": {
+      "type": "DFFRE",
+      "pins": {
+        "D": "u_usb_idle_trace/utw_observer/utw_net_343",
+        "CLK": "vid_hclk",
+        "CE": "u_usb_idle_trace/utw_observer/utw_net_274",
+        "RESET": "u_usb_idle_trace/hreset",
+        "Q": "u_usb_idle_trace/utw_observer/utw_net_344"
+      },
+      "parameters": {
+        "u_usb_idle_trace/utw_observer/utw_cell_105.INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/hr_2_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_usb_idle_trace/hr[1]",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "n6_5",
+        "Q": "u_usb_idle_trace/hr[2]"
+      },
+      "parameters": {
+        "u_usb_idle_trace/hr_2_s0.INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/uh_1_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_usb_idle_trace/uh[0]",
+        "CLK": "vid_hclk",
+        "CE": "VCC",
+        "CLEAR": "n6_5",
+        "Q": "u_usb_idle_trace/uh[1]"
+      },
+      "parameters": {
+        "u_usb_idle_trace/uh_1_s0.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_accel/u_v1/u_pixels/u_capture/n217_9",
+        "CLK": "gpu_clk",
+        "CE": "u_accel/u_v1/u_pixels/u_capture/complete_7",
+        "CLEAR": "u_accel/u_v1/u_pixels/u_capture/n77_7",
+        "Q": "u_accel/u_v1/u_pixels/u_capture/after_event[8]"
+      },
+      "parameters": {
+        "u_accel/u_v1/u_pixels/u_capture/after_event_8_s1.INIT": "1'b0"
+      }
+    },
+    "u_accel/u_v1/u_pixels/u_capture/beat_0_s0": {
+      "type": "DFFCE",
+      "pins": {
+        "D": "u_accel/u_v1/u_pixels/u_capture/n491_6",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "CLEAR": "u_accel/u_v1/u_pixels/u_capture/n77_7",
+        "Q": "u_accel/u_v1/u_pixels/u_capture/beat[0]"
+      },
+      "parameters": {
+        "u_accel/u_v1/u_pixels/u_capture/beat_0_s0.INIT": "1'b0"
+      }
+    }
+  },
+  "reset_relationship": "Common upstream AE350 HRESETN is sampled by vid_hrstn_r on vid_hclk. GPU local capture takes inverse vid_hrstn as asynchronous CLEAR under gpu_clk. UTNA uses rst_usb OR !vid_hrstn for reset synchronizers and derives hreset from hr[2]/uh[1]; UTW1/hrdata use hreset synchronously under vid_hclk.",
+  "clock_warnings": {
+    "clk_d": "PR1014 present in both R19 and this build; input-buffer output serves reference PLLs and init/reset logic.",
+    "ae350_tck_d": "PR1014 present in both R19 and this build; debugger clock branch. No causality established."
+  },
+  "clock_caveat": "STA clock names/rates are the constraint model, not measured frequency or physical lock evidence.",
+  "not_individually_targeted": [
+    "PHY-side snapshot and send_index",
+    "FIFO write/CDC/synchronizer and flag paths",
+    "Original bank storage/validity, receive_index, snapshot_count, busy, read_pending",
+    "Asynchronous reset release of UTNA synchronizers",
+    "AHB/JTAG upstream and external return route beyond hrdata"
+  ],
+  "diagnostic_recommendation": "Suitable to consider for the reviewed bounded diagnostic with CPU parked and no GPU/DDR workload, followed by exact R19 restoration. This is not global timing closure or board qualification.",
+  "interpretation_bounds": [
+    "Version zero remains FAIL even with a coherent capture.",
+    "Witness=1/bank=0 places disagreement after sampled boundary only conditional on witness/read-path validity.",
+    "Witness=0/bank=0 cannot distinguish upstream zero from witness failure; does not prove a FIFO defect.",
+    "Shared reset origin is real; different branches do not imply independent reset correctness.",
+    "No listed negative path ends in UTNA/UTW1; this does not prove CDC/metastability correctness or external clock/reset behavior."
+  ],
+  "inputs": {
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/route_result.json": "57dce7f81c3f7e8e5d1033426ebb01aca3cde319dd6344058c75939c337bd06e",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/postroute_structure_01/result.json": "63bf08832be2a195d05651e83b4bd7c4bc3c1b6cfbca7260bd5d9a1dedd200a3",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/postroute_timing_01/result.json": "4b12da4edf20373d9dea7c7aa303e0831bd5a2143ed778108900803cc4cba6a0",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.vo": "2a2cd1361999c40a743d38f90935df947c5d2641887c6b666bb68ab0ba9ab81d",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.tr": "2f12219270c3eb965916cc29693b9d89fe9fb0f7ea069efb624a70f44c89d86b",
+    "/home/michael/console/tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.fs": "55601256120915adbb08279c0b6bd42caabf8deff261bf87b8a7b8d8cbf9c8aa",
+    "/home/michael/console/TESTS/neo_common_cause_20261028/reply_witness_reports_01/summarize_route.py": "aead871489fb3e7df0b9b292040b972e619931d142dd81bfce0fd04c7999bc64"
+  }
+}
+
+
+tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.vo
+BACKWARD CONE hrdata0, stops at sequential/memory; bounded420 nodes; remaining=0
+{
+ "u_usb_idle_trace/hrdata_0_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n558_9",
+   "CLK": "vid_hclk",
+   "CE": "read_pending",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "usb_trace_hrdata[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/hrdata_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/hreset_s0": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/hr[2]",
+   "I1": "u_usb_idle_trace/uh[1]",
+   "F": "u_usb_idle_trace/hreset"
+  },
+  "parameters": {
+   "u_usb_idle_trace/hreset_s0.INIT": "4'h7"
+  }
+ },
+ "u_usb_idle_trace/uh_1_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_usb_idle_trace/uh[0]",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "CLEAR": "n6_5",
+   "Q": "u_usb_idle_trace/uh[1]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/uh_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/hr_2_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_usb_idle_trace/hr[1]",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "CLEAR": "n6_5",
+   "Q": "u_usb_idle_trace/hr[2]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/hr_2_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/read_pending_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n301_4",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "read_pending"
+  },
+  "parameters": {
+   "u_usb_idle_trace/read_pending_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll/PLL_inst": {
+  "type": "PLL",
+  "pins": {
+   "RESET": "u_pll_ae350/pll_rst",
+   "RESET_I": "GND",
+   "CLKIN": "clk_d",
+   "CLKFB": "GND",
+   "PSDIR": "GND",
+   "PSPULSE": "GND",
+   "PLLPWD": "GND",
+   "RESET_O": "GND",
+   "ENCLK0": "VCC",
+   "ENCLK1": "VCC",
+   "ENCLK2": "VCC",
+   "ENCLK3": "VCC",
+   "ENCLK4": "VCC",
+   "ENCLK5": "VCC",
+   "ENCLK6": "VCC",
+   "SSCPOL": "GND",
+   "SSCON": "GND",
+   "FBDSEL": "{GND,GND,GND,GND,GND,GND}",
+   "IDSEL": "{GND,GND,GND,GND,GND,GND}",
+   "ICPSEL": "{GND,GND,GND,GND,GND,u_pll_ae350/icpsel[0]}",
+   "LPFRES": "{u_pll_ae350/lpfres[2:0]}",
+   "LPFCAP": "{GND,GND}",
+   "PSSEL": "{GND,GND,GND}",
+   "MDSEL": "{GND,GND,GND,GND,GND,GND,GND}",
+   "MDSEL_FRAC": "{GND,GND,GND}",
+   "ODSEL0": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL0_FRAC": "{GND,GND,GND}",
+   "ODSEL1": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL2": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL3": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL4": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL5": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL6": "{GND,GND,GND,GND,GND,GND,GND}",
+   "DT0": "{GND,GND,GND,GND}",
+   "DT1": "{GND,GND,GND,GND}",
+   "DT2": "{GND,GND,GND,GND}",
+   "DT3": "{GND,GND,GND,GND}",
+   "SSCMDSEL": "{GND,GND,GND,GND,GND,GND,GND}",
+   "SSCMDSEL_FRAC": "{GND,GND,GND}",
+   "LOCK": "pll_lock",
+   "CLKOUT0": "vid_hclk",
+   "CLKOUT1": "core_clk",
+   "CLKOUT2": "u_pll_ae350/u_pll/clkout2",
+   "CLKOUT3": "u_pll_ae350/u_pll/clkout3",
+   "CLKOUT4": "rtc_clk",
+   "CLKOUT5": "u_pll_ae350/u_pll/clkout5",
+   "CLKOUT6": "u_pll_ae350/u_pll/clkout6",
+   "CLKFBOUT": "u_pll_ae350/u_pll/clkfbout"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll/PLL_inst.CLKFB_SEL": "\"INTERNAL\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_IDIV_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.IDIV_SEL": "1",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_FBDIV_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.FBDIV_SEL": "1",
+   "u_pll_ae350/u_pll/PLL_inst.FCLKIN": "\"50\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DPA_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ICP_SEL": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.ICP_SEL": "6'bXXXXXX",
+   "u_pll_ae350/u_pll/PLL_inst.RESET_I_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV0_SEL": "10",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV1_SEL": "1",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV2_SEL": "10",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV3_SEL": "10",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV4_SEL": "80",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV5_SEL": "128",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV6_SEL": "128",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV0_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV1_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV2_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV3_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV4_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV5_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV6_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_MDIV_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.MDIV_SEL": "16",
+   "u_pll_ae350/u_pll/PLL_inst.MDIV_FRAC_SEL": "0",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV0_FRAC_SEL": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT4_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT5_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT6_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DT0_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DT1_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DT2_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DT3_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_DT_DIR": "1'b1",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_DT_DIR": "1'b1",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_DT_DIR": "1'b1",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_DT_DIR": "1'b1",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_DT_STEP": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_DT_STEP": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_DT_STEP": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_DT_STEP": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK0_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK0_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK1_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK1_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK2_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK2_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK3_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK3_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK4_IN_SEL": "2'b00",
+   "u_pll_ae350/u_pll/PLL_inst.CLK4_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK5_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK5_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK6_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK6_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT4_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT4_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT5_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT5_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT6_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT6_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE0_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE1_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE2_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE3_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE4_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE5_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE6_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE0_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE1_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE2_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE3_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE4_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE5_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE6_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.RESET_O_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_LPF_SEL": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.LPF_RES": "3'bXXX",
+   "u_pll_ae350/u_pll/PLL_inst.LPF_CAP": "2'b00",
+   "u_pll_ae350/u_pll/PLL_inst.SSC_EN": "\"FALSE\""
+  }
+ },
+ "u_pll_ae350/u_pll_init/RomDreg_10_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n26_34",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "u_pll_ae350/lpfres[2]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/RomDreg_10_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/RomDreg_9_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n27_37",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "u_pll_ae350/lpfres[1]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/RomDreg_9_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/RomDreg_8_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n28_36",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "u_pll_ae350/lpfres[0]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/RomDreg_8_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/RomDreg_0_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n36_35",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "u_pll_ae350/icpsel[0]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/RomDreg_0_s0.INIT": "1'b0"
+  }
+ },
+ "clk_ibuf": {
+  "type": "IBUF",
+  "pins": {
+   "I": "clk",
+   "O": "clk_d"
+  },
+  "parameters": {}
+ },
+ "u_pll_ae350/u_pll_init/pll_rst_s1": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "state_178[0]",
+   "I1": "state_178[2]",
+   "I2": "state_178[1]",
+   "I3": "enable_r[1]",
+   "F": "u_pll_ae350/pll_rst"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/pll_rst_s1.INIT": "16'h10FF"
+  }
+ },
+ "u_pll_ae350/u_pll_init/enable_r_1_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/enable_r_0[0]",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "GND",
+   "Q": "enable_r[1]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/enable_r_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/state_1_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n516_11",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "state_178[1]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/state_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/state_2_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n513_12",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "state_178[2]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/state_2_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/state_0_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n519_11",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "state_178[0]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/state_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/n558_s5": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/n511_19",
+   "I1": "u_usb_idle_trace/snapshot_count[0]",
+   "I2": "u_usb_idle_trace/n558_10",
+   "F": "u_usb_idle_trace/n558_9"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n558_s5.INIT": "8'h8F"
+  }
+ },
+ "u_usb_idle_trace/n558_s6": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/n557_14",
+   "I1": "u_usb_idle_trace/busy",
+   "I2": "u_usb_idle_trace/n511_17",
+   "I3": "u_usb_idle_trace/n558_13",
+   "F": "u_usb_idle_trace/n558_10"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n558_s6.INIT": "16'h0007"
+  }
+ },
+ "u_usb_idle_trace/n558_s8": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[6]",
+   "I1": "u_usb_idle_trace/address[7]",
+   "I2": "u_usb_idle_trace/bank_ER",
+   "I3": "u_usb_idle_trace/bank_ER_init_71",
+   "F": "u_usb_idle_trace/n558_13"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n558_s8.INIT": "16'h6000"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_init_s10": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_init_75",
+   "I1": "VCC",
+   "I2": "u_usb_idle_trace/bank_ER_init",
+   "F": "u_usb_idle_trace/bank_ER_init_71"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_init_s10.INIT": "8'hAC"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_init_s9": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_init_76",
+   "I1": "u_usb_idle_trace/bank_ER_init_77",
+   "F": "u_usb_idle_trace/bank_ER_init"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_init_s9.INIT": "4'hE"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_init_s1": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_usb_idle_trace/hreset",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "CLEAR": "GND",
+   "Q": "u_usb_idle_trace/bank_ER_init_77"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_init_s1.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_init_s": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_usb_idle_trace/bank_ER_init",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "CLEAR": "GND",
+   "Q": "u_usb_idle_trace/bank_ER_init_76"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_init_s.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s158": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_126",
+   "I1": "u_usb_idle_trace/bank_ER_RS_127",
+   "I2": "u_usb_idle_trace/address[3]",
+   "I3": "u_usb_idle_trace/bank_ER_RS_149",
+   "F": "u_usb_idle_trace/bank_ER_init_75"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s158.INIT": "16'hCA00"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s133": {
+  "type": "MUX2_LUT6",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_145",
+   "I1": "u_usb_idle_trace/bank_ER_RS_143",
+   "S0": "u_usb_idle_trace/address[6]",
+   "O": "u_usb_idle_trace/bank_ER_RS_149"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/address_6_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[6]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[6]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_6_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s162": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_132",
+   "I1": "u_usb_idle_trace/bank_ER_RS_133",
+   "S0": "u_usb_idle_trace/address[5]",
+   "O": "u_usb_idle_trace/bank_ER_RS_143"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/address_5_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[5]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[5]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_5_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s168": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_40",
+   "I1": "u_usb_idle_trace/bank_ER_RS_42",
+   "I2": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/bank_ER_RS_133"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s168.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/address_4_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[4]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[4]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_4_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s41": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_195",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_42"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s41.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s39": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_163",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_40"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s39.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s167": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_36",
+   "I1": "u_usb_idle_trace/bank_ER_RS_38",
+   "I2": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/bank_ER_RS_132"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s167.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s37": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_161",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_38"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s37.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s35": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_159",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_36"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s35.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s161": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_134",
+   "I1": "u_usb_idle_trace/bank_ER_RS_135",
+   "S0": "u_usb_idle_trace/address[5]",
+   "O": "u_usb_idle_trace/bank_ER_RS_145"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s170": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_48",
+   "I1": "u_usb_idle_trace/bank_ER_RS_50",
+   "I2": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/bank_ER_RS_135"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s170.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s49": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_193",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_50"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s49.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s47": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_171",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_48"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s47.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s169": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_44",
+   "I1": "u_usb_idle_trace/bank_ER_RS_46",
+   "I2": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/bank_ER_RS_134"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s169.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s45": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_169",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_46"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s45.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s43": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_167",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_44"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s43.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/address_3_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[3]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[3]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_3_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s118": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_88",
+   "I1": "u_usb_idle_trace/bank_ER_RS_89",
+   "I2": "u_usb_idle_trace/address[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_127"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s118.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/address_2_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[2]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[2]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_2_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s2": {
+  "type": "RAM16SDP1",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_ER_RS_mem_74",
+   "DI": "u_usb_idle_trace/bank_ER_RS_157",
+   "WAD": "{GND,u_usb_idle_trace/receive_index[4:2]}",
+   "RAD": "{GND,u_usb_idle_trace/add_25,u_usb_idle_trace/address[5:4]}",
+   "DO": "u_usb_idle_trace/bank_ER_RS_89"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s2.INIT_0": "16'h00FF"
+  }
+ },
+ "u_usb_idle_trace/add_25_s8": {
+  "type": "LUT1",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[6]",
+   "F": "u_usb_idle_trace/add_25"
+  },
+  "parameters": {
+   "u_usb_idle_trace/add_25_s8.INIT": "2'h1"
+  }
+ },
+ "u_usb_idle_trace/receive_index_4_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n320_1",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[4]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_4_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/receive_index_3_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n321_1",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[3]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_3_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/receive_index_2_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n322_1",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[2]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_2_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s137": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "F": "u_usb_idle_trace/bank_ER_RS_157"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s137.INIT": "4'h8"
+  }
+ },
+ "u_usb_idle_trace/receive_index_1_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n323_1",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[1]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/receive_index_0_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n324_6",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s154": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "I2": "u_usb_idle_trace/bank_ER_RS_147",
+   "I3": "u_usb_idle_trace/head_valid_9",
+   "F": "u_usb_idle_trace/bank_ER_RS_mem_74"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s154.INIT": "16'h8F00"
+  }
+ },
+ "u_usb_idle_trace/u_replies/head_valid_s5": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/hr[2]",
+   "I1": "u_usb_idle_trace/uh[1]",
+   "I2": "u_usb_idle_trace/reply_valid",
+   "F": "u_usb_idle_trace/head_valid_9"
+  },
+  "parameters": {
+   "u_usb_idle_trace/u_replies/head_valid_s5.INIT": "8'h80"
+  }
+ },
+ "u_usb_idle_trace/u_replies/head_valid_s1": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/u_replies/pop",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/u_replies/head_valid_11",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/reply_valid"
+  },
+  "parameters": {
+   "u_usb_idle_trace/u_replies/head_valid_s1.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s132": {
+  "type": "MUX2_LUT6",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_139",
+   "I1": "u_usb_idle_trace/bank_ER_RS_141",
+   "S0": "u_usb_idle_trace/receive_index[4]",
+   "O": "u_usb_idle_trace/bank_ER_RS_147"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s160": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_130",
+   "I1": "u_usb_idle_trace/bank_ER_RS_131",
+   "S0": "u_usb_idle_trace/receive_index[3]",
+   "O": "u_usb_idle_trace/bank_ER_RS_141"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s166": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_48",
+   "I1": "u_usb_idle_trace/bank_ER_RS_50",
+   "I2": "u_usb_idle_trace/receive_index[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_131"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s166.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s165": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_44",
+   "I1": "u_usb_idle_trace/bank_ER_RS_46",
+   "I2": "u_usb_idle_trace/receive_index[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_130"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s165.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s159": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_128",
+   "I1": "u_usb_idle_trace/bank_ER_RS_129",
+   "S0": "u_usb_idle_trace/receive_index[3]",
+   "O": "u_usb_idle_trace/bank_ER_RS_139"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s164": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_40",
+   "I1": "u_usb_idle_trace/bank_ER_RS_42",
+   "I2": "u_usb_idle_trace/receive_index[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_129"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s164.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s163": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_36",
+   "I1": "u_usb_idle_trace/bank_ER_RS_38",
+   "I2": "u_usb_idle_trace/receive_index[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_128"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s163.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s1": {
+  "type": "RAM16SDP1",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_ER_RS_mem_73",
+   "DI": "u_usb_idle_trace/bank_ER_RS_155",
+   "WAD": "{GND,u_usb_idle_trace/receive_index[4:2]}",
+   "RAD": "{GND,u_usb_idle_trace/add_25,u_usb_idle_trace/address[5:4]}",
+   "DO": "u_usb_idle_trace/bank_ER_RS_88"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s1.INIT_0": "16'h00FF"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s136": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "F": "u_usb_idle_trace/bank_ER_RS_155"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s136.INIT": "4'h4"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s153": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "I2": "u_usb_idle_trace/bank_ER_RS_147",
+   "I3": "u_usb_idle_trace/head_valid_9",
+   "F": "u_usb_idle_trace/bank_ER_RS_mem_73"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s153.INIT": "16'h4F00"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s117": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_86",
+   "I1": "u_usb_idle_trace/bank_ER_RS_87",
+   "I2": "u_usb_idle_trace/address[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_126"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s117.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s0": {
+  "type": "RAM16SDP1",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_ER_RS_mem_72",
+   "DI": "u_usb_idle_trace/bank_ER_RS_153",
+   "WAD": "{GND,u_usb_idle_trace/receive_index[4:2]}",
+   "RAD": "{GND,u_usb_idle_trace/add_25,u_usb_idle_trace/address[5:4]}",
+   "DO": "u_usb_idle_trace/bank_ER_RS_87"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s0.INIT_0": "16'h00FF"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s135": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[1]",
+   "I1": "u_usb_idle_trace/receive_index[0]",
+   "F": "u_usb_idle_trace/bank_ER_RS_153"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s135.INIT": "4'h4"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s152": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[1]",
+   "I1": "u_usb_idle_trace/receive_index[0]",
+   "I2": "u_usb_idle_trace/bank_ER_RS_147",
+   "I3": "u_usb_idle_trace/head_valid_9",
+   "F": "u_usb_idle_trace/bank_ER_RS_mem_72"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s152.INIT": "16'h4F00"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s": {
+  "type": "RAM16SDP1",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_ER_RS_mem",
+   "DI": "u_usb_idle_trace/bank_ER_RS_151",
+   "WAD": "{GND,u_usb_idle_trace/receive_index[4:2]}",
+   "RAD": "{GND,u_usb_idle_trace/add_25,u_usb_idle_trace/address[5:4]}",
+   "DO": "u_usb_idle_trace/bank_ER_RS_86"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s.INIT_0": "16'h00FF"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s134": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "F": "u_usb_idle_trace/bank_ER_RS_151"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s134.INIT": "4'h1"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s151": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "I2": "u_usb_idle_trace/bank_ER_RS_147",
+   "I3": "u_usb_idle_trace/head_valid_9",
+   "F": "u_usb_idle_trace/bank_ER_RS_mem"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s151.INIT": "16'h1F00"
+  }
+ },
+ "u_usb_idle_trace/bank_DOL_0_G[0]_s0": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_208",
+   "I1": "u_usb_idle_trace/bank_176",
+   "I2": "u_usb_idle_trace/add_25",
+   "F": "u_usb_idle_trace/bank_ER"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_DOL_0_G[0]_s0.INIT": "8'hAC"
+  }
+ },
+ "u_usb_idle_trace/bank_bank_0_0_s": {
+  "type": "RAM16SDP4",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_245",
+   "DI": "{u_usb_idle_trace/reply[3:0]}",
+   "WAD": "{u_usb_idle_trace/receive_index[3:0]}",
+   "RAD": "{u_usb_idle_trace/address[5:2]}",
+   "DO": "{u_usb_idle_trace/bank_179,u_usb_idle_trace/bank_178,u_usb_idle_trace/bank_177,u_usb_idle_trace/bank_176}"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_bank_0_0_s.INIT_0": "16'h0000",
+   "u_usb_idle_trace/bank_bank_0_0_s.INIT_1": "16'h0000",
+   "u_usb_idle_trace/bank_bank_0_0_s.INIT_2": "16'h0000",
+   "u_usb_idle_trace/bank_bank_0_0_s.INIT_3": "16'h0000"
+  }
+ },
+ "u_usb_idle_trace/bank_bank_1_0_s": {
+  "type": "RAM16SDP4",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_247",
+   "DI": "{u_usb_idle_trace/reply[3:0]}",
+   "WAD": "{u_usb_idle_trace/receive_index[3:0]}",
+   "RAD": "{u_usb_idle_trace/address[5:2]}",
+   "DO": "{u_usb_idle_trace/bank_211,u_usb_idle_trace/bank_210,u_usb_idle_trace/bank_209,u_usb_idle_trace/bank_208}"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_bank_1_0_s.INIT_0": "16'h0000",
+   "u_usb_idle_trace/bank_bank_1_0_s.INIT_1": "16'h0000",
+   "u_usb_idle_trace/bank_bank_1_0_s.INIT_2": "16'h0000",
+   "u_usb_idle_trace/bank_bank_1_0_s.INIT_3": "16'h0000"
+  }
+ },
+ "u_usb_idle_trace/address_7_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[7]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[7]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_7_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/n511_s12": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[6]",
+   "I1": "u_usb_idle_trace/address[7]",
+   "I2": "u_usb_idle_trace/n511_13",
+   "I3": "u_usb_idle_trace/n511_14",
+   "F": "u_usb_idle_trace/n511_17"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n511_s12.INIT": "16'h1000"
+  }
+ },
+ "u_usb_idle_trace/n511_s10": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[3]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/address[5]",
+   "F": "u_usb_idle_trace/n511_14"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n511_s10.INIT": "8'h01"
+  }
+ },
+ "u_usb_idle_trace/n511_s9": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[0]",
+   "I1": "u_usb_idle_trace/address[1]",
+   "I2": "u_usb_idle_trace/address[2]",
+   "F": "u_usb_idle_trace/n511_13"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n511_s9.INIT": "8'h01"
+  }
+ },
+ "u_usb_idle_trace/address_1_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[1]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[1]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/address_0_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[0]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/busy_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/n246_3",
+   "RESET": "u_usb_idle_trace/n12214_5",
+   "Q": "u_usb_idle_trace/busy"
+  },
+  "parameters": {
+   "u_usb_idle_trace/busy_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/n557_s9": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/n35_4",
+   "I1": "u_usb_idle_trace/address[6]",
+   "I2": "u_usb_idle_trace/address[7]",
+   "I3": "u_usb_idle_trace/n511_14",
+   "F": "u_usb_idle_trace/n557_14"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n557_s9.INIT": "16'h0200"
+  }
+ },
+ "u_usb_idle_trace/n35_s1": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[0]",
+   "I1": "u_usb_idle_trace/address[1]",
+   "I2": "u_usb_idle_trace/address[2]",
+   "F": "u_usb_idle_trace/n35_4"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n35_s1.INIT": "8'h10"
+  }
+ },
+ "u_usb_idle_trace/snapshot_count_0_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n363_6",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/n12181_3",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/snapshot_count[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/snapshot_count_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/n511_s13": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/n35_5",
+   "I1": "u_usb_idle_trace/address[6]",
+   "I2": "u_usb_idle_trace/address[7]",
+   "I3": "u_usb_idle_trace/n511_13",
+   "F": "u_usb_idle_trace/n511_19"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n511_s13.INIT": "16'h0200"
+  }
+ },
+ "u_usb_idle_trace/n35_s2": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[4]",
+   "I1": "u_usb_idle_trace/address[5]",
+   "I2": "u_usb_idle_trace/address[3]",
+   "F": "u_usb_idle_trace/n35_5"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n35_s2.INIT": "8'h10"
+  }
+ }
+}
+
+tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.vo
+BACKWARD CONE hrdata0, stops at sequential/memory; bounded420 nodes; remaining=0
+{
+ "u_usb_idle_trace/hrdata_0_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/utw_read_mux[0]",
+   "CLK": "vid_hclk",
+   "CE": "read_pending",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "usb_trace_hrdata[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/hrdata_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/hreset_s0": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/hr[2]",
+   "I1": "u_usb_idle_trace/uh[1]",
+   "F": "u_usb_idle_trace/hreset"
+  },
+  "parameters": {
+   "u_usb_idle_trace/hreset_s0.INIT": "4'h7"
+  }
+ },
+ "u_usb_idle_trace/uh_1_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_usb_idle_trace/uh[0]",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "CLEAR": "n6_5",
+   "Q": "u_usb_idle_trace/uh[1]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/uh_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/hr_2_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_usb_idle_trace/hr[1]",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "CLEAR": "n6_5",
+   "Q": "u_usb_idle_trace/hr[2]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/hr_2_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/read_pending_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n301_4",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "read_pending"
+  },
+  "parameters": {
+   "u_usb_idle_trace/read_pending_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll/PLL_inst": {
+  "type": "PLL",
+  "pins": {
+   "RESET": "u_pll_ae350/pll_rst",
+   "RESET_I": "GND",
+   "CLKIN": "clk_d",
+   "CLKFB": "GND",
+   "PSDIR": "GND",
+   "PSPULSE": "GND",
+   "PLLPWD": "GND",
+   "RESET_O": "GND",
+   "ENCLK0": "VCC",
+   "ENCLK1": "VCC",
+   "ENCLK2": "VCC",
+   "ENCLK3": "VCC",
+   "ENCLK4": "VCC",
+   "ENCLK5": "VCC",
+   "ENCLK6": "VCC",
+   "SSCPOL": "GND",
+   "SSCON": "GND",
+   "FBDSEL": "{GND,GND,GND,GND,GND,GND}",
+   "IDSEL": "{GND,GND,GND,GND,GND,GND}",
+   "ICPSEL": "{GND,GND,GND,GND,GND,u_pll_ae350/icpsel[0]}",
+   "LPFRES": "{u_pll_ae350/lpfres[2:0]}",
+   "LPFCAP": "{GND,GND}",
+   "PSSEL": "{GND,GND,GND}",
+   "MDSEL": "{GND,GND,GND,GND,GND,GND,GND}",
+   "MDSEL_FRAC": "{GND,GND,GND}",
+   "ODSEL0": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL0_FRAC": "{GND,GND,GND}",
+   "ODSEL1": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL2": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL3": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL4": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL5": "{GND,GND,GND,GND,GND,GND,GND}",
+   "ODSEL6": "{GND,GND,GND,GND,GND,GND,GND}",
+   "DT0": "{GND,GND,GND,GND}",
+   "DT1": "{GND,GND,GND,GND}",
+   "DT2": "{GND,GND,GND,GND}",
+   "DT3": "{GND,GND,GND,GND}",
+   "SSCMDSEL": "{GND,GND,GND,GND,GND,GND,GND}",
+   "SSCMDSEL_FRAC": "{GND,GND,GND}",
+   "LOCK": "pll_lock",
+   "CLKOUT0": "vid_hclk",
+   "CLKOUT1": "core_clk",
+   "CLKOUT2": "u_pll_ae350/u_pll/clkout2",
+   "CLKOUT3": "u_pll_ae350/u_pll/clkout3",
+   "CLKOUT4": "rtc_clk",
+   "CLKOUT5": "u_pll_ae350/u_pll/clkout5",
+   "CLKOUT6": "u_pll_ae350/u_pll/clkout6",
+   "CLKFBOUT": "u_pll_ae350/u_pll/clkfbout"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll/PLL_inst.CLKFB_SEL": "\"INTERNAL\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_IDIV_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.IDIV_SEL": "1",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_FBDIV_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.FBDIV_SEL": "1",
+   "u_pll_ae350/u_pll/PLL_inst.FCLKIN": "\"50\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DPA_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ICP_SEL": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.ICP_SEL": "6'bXXXXXX",
+   "u_pll_ae350/u_pll/PLL_inst.RESET_I_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV0_SEL": "10",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV1_SEL": "1",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV2_SEL": "10",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV3_SEL": "10",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV4_SEL": "80",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV5_SEL": "128",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV6_SEL": "128",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV0_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV1_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV2_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV3_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV4_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV5_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_ODIV6_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_MDIV_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.MDIV_SEL": "16",
+   "u_pll_ae350/u_pll/PLL_inst.MDIV_FRAC_SEL": "0",
+   "u_pll_ae350/u_pll/PLL_inst.ODIV0_FRAC_SEL": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT4_EN": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT5_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT6_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DT0_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DT1_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DT2_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_DT3_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_DT_DIR": "1'b1",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_DT_DIR": "1'b1",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_DT_DIR": "1'b1",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_DT_DIR": "1'b1",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_DT_STEP": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_DT_STEP": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_DT_STEP": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_DT_STEP": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK0_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK0_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK1_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK1_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK2_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK2_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK3_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK3_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK4_IN_SEL": "2'b00",
+   "u_pll_ae350/u_pll/PLL_inst.CLK4_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK5_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK5_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK6_IN_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLK6_OUT_SEL": "1'b0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT0_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT1_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT2_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT3_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT4_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT4_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT5_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT5_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT6_PE_COARSE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.CLKOUT6_PE_FINE": "0",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE0_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE1_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE2_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE3_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE4_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE5_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_PE6_SEL": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE0_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE1_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE2_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE3_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE4_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE5_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DE6_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.RESET_O_EN": "\"FALSE\"",
+   "u_pll_ae350/u_pll/PLL_inst.DYN_LPF_SEL": "\"TRUE\"",
+   "u_pll_ae350/u_pll/PLL_inst.LPF_RES": "3'bXXX",
+   "u_pll_ae350/u_pll/PLL_inst.LPF_CAP": "2'b00",
+   "u_pll_ae350/u_pll/PLL_inst.SSC_EN": "\"FALSE\""
+  }
+ },
+ "u_pll_ae350/u_pll_init/RomDreg_10_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n26_34",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "u_pll_ae350/lpfres[2]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/RomDreg_10_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/RomDreg_9_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n27_37",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "u_pll_ae350/lpfres[1]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/RomDreg_9_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/RomDreg_8_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n28_36",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "u_pll_ae350/lpfres[0]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/RomDreg_8_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/RomDreg_0_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n36_35",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "u_pll_ae350/icpsel[0]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/RomDreg_0_s0.INIT": "1'b0"
+  }
+ },
+ "clk_ibuf": {
+  "type": "IBUF",
+  "pins": {
+   "I": "clk",
+   "O": "clk_d"
+  },
+  "parameters": {}
+ },
+ "u_pll_ae350/u_pll_init/pll_rst_s1": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "state_178[0]",
+   "I1": "state_178[2]",
+   "I2": "state_178[1]",
+   "I3": "enable_r[1]",
+   "F": "u_pll_ae350/pll_rst"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/pll_rst_s1.INIT": "16'h10FF"
+  }
+ },
+ "u_pll_ae350/u_pll_init/enable_r_1_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/enable_r_0[0]",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "GND",
+   "Q": "enable_r[1]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/enable_r_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/state_1_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n516_11",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "state_178[1]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/state_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/state_2_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n513_12",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "state_178[2]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/state_2_s0.INIT": "1'b0"
+  }
+ },
+ "u_pll_ae350/u_pll_init/state_0_s0": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_pll_ae350/u_pll_init/n519_11",
+   "CLK": "clk_d",
+   "CE": "VCC",
+   "CLEAR": "n20_6",
+   "Q": "state_178[0]"
+  },
+  "parameters": {
+   "u_pll_ae350/u_pll_init/state_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_mux_0": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/n558_9",
+   "I1": "u_usb_idle_trace/utw_read_data[0]",
+   "I2": "u_usb_idle_trace/utw_read_hit",
+   "F": "u_usb_idle_trace/utw_read_mux[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_mux_0.INIT": "8'hca"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1444",
+   "F": "u_usb_idle_trace/utw_read_hit"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F.INIT": "4'h8"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT2_F": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[1]",
+   "I1": "u_usb_idle_trace/address[0]",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1444"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT2_F.INIT": "4'h1"
+  }
+ },
+ "u_usb_idle_trace/address_0_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[0]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/address_1_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[1]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[1]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I0_LUT2_F": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[7]",
+   "I1": "u_usb_idle_trace/address[6]",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_865"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I0_LUT2_F.INIT": "4'h8"
+  }
+ },
+ "u_usb_idle_trace/address_6_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[6]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[6]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_6_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/address_7_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[7]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[7]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_7_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_1163",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1164",
+   "S0": "u_usb_idle_trace/utw_observer/utw_net_1165",
+   "O": "u_usb_idle_trace/utw_read_data[0]"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_LUT3_F": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_1031",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_209",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_1408",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1165"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_LUT3_F.INIT": "8'h70"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_LUT3_F_I2_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_276",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_945",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_202",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_180",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1408"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_LUT3_F_I2_LUT4_F.INIT": "16'h135f"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2_I3_LUT2_I1": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_868",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_866",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_180"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2_I3_LUT2_I1.INIT": "4'h8"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2_I3_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[3]",
+   "I1": "u_usb_idle_trace/address[2]",
+   "I2": "u_usb_idle_trace/address[1]",
+   "I3": "u_usb_idle_trace/address[0]",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_866"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2_I3_LUT4_F.INIT": "16'h0001"
+  }
+ },
+ "u_usb_idle_trace/address_2_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[2]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[2]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_2_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/address_3_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[3]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[3]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_3_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2_I3_LUT4_F_1": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[7]",
+   "I1": "u_usb_idle_trace/address[6]",
+   "I2": "u_usb_idle_trace/address[5]",
+   "I3": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_868"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2_I3_LUT4_F_1.INIT": "16'h0800"
+  }
+ },
+ "u_usb_idle_trace/address_4_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[4]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[4]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_4_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/address_5_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "bus_haddr[5]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/address_7_7",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/address[5]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/address_5_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[3]",
+   "I1": "u_usb_idle_trace/address[2]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_1444",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_868",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_202"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2.INIT": "16'h2000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_591": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/reply[0]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_463",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_945"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_591.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_58": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/utw_observer/utw_net_275",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_274",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_276"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_58.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_661": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[5]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_998",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_209"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_661.INIT": "16'h8000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I0_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[3]",
+   "I1": "u_usb_idle_trace/address[2]",
+   "I2": "u_usb_idle_trace/address[1]",
+   "I3": "u_usb_idle_trace/address[0]",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_998"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I0_LUT4_F.INIT": "16'h0002"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_701": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/snapshot_count[0]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_369",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_1031"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_701.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_I1_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_1404",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1405",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_1406",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_1407",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1164"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_I1_LUT4_F.INIT": "16'h7fff"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_1409",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1410",
+   "S0": "u_usb_idle_trace/utw_observer/utw_net_869",
+   "O": "u_usb_idle_trace/utw_observer/utw_net_1407"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_494": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_122",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_870",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_201",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_185",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_869"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_494.INIT": "16'h153f"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_492": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[5]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_867",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_185"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_492.INIT": "16'h2000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_496": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[3]",
+   "I1": "u_usb_idle_trace/address[2]",
+   "I2": "u_usb_idle_trace/address[1]",
+   "I3": "u_usb_idle_trace/address[0]",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_867"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_496.INIT": "16'h0008"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_497": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[5]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_867",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_201"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_497.INIT": "16'h8000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_733": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/snapshot_count[0]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_463",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_870"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_733.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_392": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/utw_observer/utw_net_756",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_116",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_122"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_392.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_I1_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_371",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1008",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_197",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_198",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1410"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_I1_LUT4_F.INIT": "16'h153f"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_493": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_867",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_868",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_198"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_493.INIT": "4'h8"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_495": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[5]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_871",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_197"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_495.INIT": "16'h8000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_F_LUT4_F_I3_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[3]",
+   "I1": "u_usb_idle_trace/address[2]",
+   "I2": "u_usb_idle_trace/address[1]",
+   "I3": "u_usb_idle_trace/address[0]",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_871"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_F_LUT4_F_I3_LUT4_F.INIT": "16'h0004"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_669": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/snapshot_count[0]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_274",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_1008"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_669.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_123": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/utw_observer/utw_net_370",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_369",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_371"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_123.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_I0_LUT1_F": {
+  "type": "LUT1",
+  "pins": {
+   "I0": "GND",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1409"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_I0_LUT1_F.INIT": "2'h0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_1": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_1411",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1412",
+   "S0": "u_usb_idle_trace/utw_observer/utw_net_176",
+   "O": "u_usb_idle_trace/utw_observer/utw_net_1406"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_F_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_1445",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_867",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_868",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_871",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_176"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_F_LUT4_F.INIT": "16'h0777"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_I2_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[7]",
+   "I1": "u_usb_idle_trace/address[6]",
+   "I2": "u_usb_idle_trace/address[5]",
+   "I3": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1445"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_I2_LUT4_F.INIT": "16'h0008"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_1_I1_LUT3_F": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_1077",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1195",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_205",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1412"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_1_I1_LUT3_F.INIT": "8'h13"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_F_LUT4_F_1": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[5]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_871",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_205"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_F_LUT4_F_1.INIT": "16'h2000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[3]",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1444",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_1445",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1195"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1.INIT": "8'h40"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_765": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/utw_observer/utw_net_1076",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_117",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_1077"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_765.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_1_I0_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_921",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_1077",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_1195",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_205",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1411"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_MUX2_LUT5_O_1_I0_LUT4_F.INIT": "16'h0105"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_559": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/reply[0]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_369",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_921"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_559.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_LUT4_F": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_897",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_969",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_175",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_206",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1405"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_LUT4_F.INIT": "16'h153f"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_I2_LUT2_I0": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_1445",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_998",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_206"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT3_I1_I2_LUT2_I0.INIT": "4'h8"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2_I3_LUT4_I3": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[5]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_866",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_175"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_hit_LUT2_F_I1_LUT4_I2_I3_LUT4_I3.INIT": "16'h8000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_623": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/utw_observer/utw_net_968",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_117",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_969"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_623.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_527": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/reply[0]",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_274",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_897"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_527.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_LUT4_F_1": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/utw_observer/utw_net_465",
+   "I1": "u_usb_idle_trace/utw_observer/utw_net_600",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_210",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_186",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1404"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_S0_LUT4_F_1.INIT": "16'h153f"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_491": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[5]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_866",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_186"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_491.INIT": "16'h2000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_662": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[5]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/utw_observer/utw_net_865",
+   "I3": "u_usb_idle_trace/utw_observer/utw_net_998",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_210"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_662.INIT": "16'h2000"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_278": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/utw_observer/utw_net_599",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_598",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_600"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_278.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/utw_cell_188": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/utw_observer/utw_net_464",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/utw_observer/utw_net_463",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/utw_observer/utw_net_465"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/utw_cell_188.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_I0_LUT1_F": {
+  "type": "LUT1",
+  "pins": {
+   "I0": "GND",
+   "F": "u_usb_idle_trace/utw_observer/utw_net_1163"
+  },
+  "parameters": {
+   "u_usb_idle_trace/utw_observer/read_data_MUX2_LUT5_O_I0_LUT1_F.INIT": "2'h3"
+  }
+ },
+ "u_usb_idle_trace/n558_s5": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/n511_19",
+   "I1": "u_usb_idle_trace/snapshot_count[0]",
+   "I2": "u_usb_idle_trace/n558_10",
+   "F": "u_usb_idle_trace/n558_9"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n558_s5.INIT": "8'h8F"
+  }
+ },
+ "u_usb_idle_trace/n558_s6": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/n557_14",
+   "I1": "u_usb_idle_trace/busy",
+   "I2": "u_usb_idle_trace/n511_17",
+   "I3": "u_usb_idle_trace/n558_13",
+   "F": "u_usb_idle_trace/n558_10"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n558_s6.INIT": "16'h0007"
+  }
+ },
+ "u_usb_idle_trace/n558_s8": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[6]",
+   "I1": "u_usb_idle_trace/address[7]",
+   "I2": "u_usb_idle_trace/bank_ER",
+   "I3": "u_usb_idle_trace/bank_ER_init_71",
+   "F": "u_usb_idle_trace/n558_13"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n558_s8.INIT": "16'h6000"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_init_s10": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_init_75",
+   "I1": "VCC",
+   "I2": "u_usb_idle_trace/bank_ER_init",
+   "F": "u_usb_idle_trace/bank_ER_init_71"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_init_s10.INIT": "8'hAC"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_init_s9": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_init_76",
+   "I1": "u_usb_idle_trace/bank_ER_init_77",
+   "F": "u_usb_idle_trace/bank_ER_init"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_init_s9.INIT": "4'hE"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_init_s1": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_usb_idle_trace/hreset",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "CLEAR": "GND",
+   "Q": "u_usb_idle_trace/bank_ER_init_77"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_init_s1.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_init_s": {
+  "type": "DFFCE",
+  "pins": {
+   "D": "u_usb_idle_trace/bank_ER_init",
+   "CLK": "vid_hclk",
+   "CE": "VCC",
+   "CLEAR": "GND",
+   "Q": "u_usb_idle_trace/bank_ER_init_76"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_init_s.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s158": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_126",
+   "I1": "u_usb_idle_trace/bank_ER_RS_127",
+   "I2": "u_usb_idle_trace/address[3]",
+   "I3": "u_usb_idle_trace/bank_ER_RS_149",
+   "F": "u_usb_idle_trace/bank_ER_init_75"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s158.INIT": "16'hCA00"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s133": {
+  "type": "MUX2_LUT6",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_145",
+   "I1": "u_usb_idle_trace/bank_ER_RS_143",
+   "S0": "u_usb_idle_trace/address[6]",
+   "O": "u_usb_idle_trace/bank_ER_RS_149"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s162": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_132",
+   "I1": "u_usb_idle_trace/bank_ER_RS_133",
+   "S0": "u_usb_idle_trace/address[5]",
+   "O": "u_usb_idle_trace/bank_ER_RS_143"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s168": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_40",
+   "I1": "u_usb_idle_trace/bank_ER_RS_42",
+   "I2": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/bank_ER_RS_133"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s168.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s41": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_195",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_42"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s41.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s39": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_163",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_40"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s39.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s167": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_36",
+   "I1": "u_usb_idle_trace/bank_ER_RS_38",
+   "I2": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/bank_ER_RS_132"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s167.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s37": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_161",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_38"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s37.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s35": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_159",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_36"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s35.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s161": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_134",
+   "I1": "u_usb_idle_trace/bank_ER_RS_135",
+   "S0": "u_usb_idle_trace/address[5]",
+   "O": "u_usb_idle_trace/bank_ER_RS_145"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s170": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_48",
+   "I1": "u_usb_idle_trace/bank_ER_RS_50",
+   "I2": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/bank_ER_RS_135"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s170.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s49": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_193",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_50"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s49.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s47": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_171",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_48"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s47.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s169": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_44",
+   "I1": "u_usb_idle_trace/bank_ER_RS_46",
+   "I2": "u_usb_idle_trace/address[4]",
+   "F": "u_usb_idle_trace/bank_ER_RS_134"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s169.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s45": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_169",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_46"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s45.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s43": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/bank_ER_RS_167",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/bank_ER_RS_44"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s43.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s118": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_88",
+   "I1": "u_usb_idle_trace/bank_ER_RS_89",
+   "I2": "u_usb_idle_trace/address[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_127"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s118.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s2": {
+  "type": "RAM16SDP1",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_ER_RS_mem_74",
+   "DI": "u_usb_idle_trace/bank_ER_RS_157",
+   "WAD": "{GND,u_usb_idle_trace/receive_index[4:2]}",
+   "RAD": "{GND,u_usb_idle_trace/add_25,u_usb_idle_trace/address[5:4]}",
+   "DO": "u_usb_idle_trace/bank_ER_RS_89"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s2.INIT_0": "16'h00FF"
+  }
+ },
+ "u_usb_idle_trace/add_25_s8": {
+  "type": "LUT1",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[6]",
+   "F": "u_usb_idle_trace/add_25"
+  },
+  "parameters": {
+   "u_usb_idle_trace/add_25_s8.INIT": "2'h1"
+  }
+ },
+ "u_usb_idle_trace/receive_index_4_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n320_1",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[4]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_4_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/receive_index_3_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n321_1",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[3]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_3_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/receive_index_2_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n322_1",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[2]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_2_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s137": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "F": "u_usb_idle_trace/bank_ER_RS_157"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s137.INIT": "4'h8"
+  }
+ },
+ "u_usb_idle_trace/receive_index_1_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n323_1",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[1]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_1_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/receive_index_0_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n324_6",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/reply_valid",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/receive_index[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/receive_index_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s154": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "I2": "u_usb_idle_trace/bank_ER_RS_147",
+   "I3": "u_usb_idle_trace/head_valid_9",
+   "F": "u_usb_idle_trace/bank_ER_RS_mem_74"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s154.INIT": "16'h8F00"
+  }
+ },
+ "u_usb_idle_trace/u_replies/head_valid_s5": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/hr[2]",
+   "I1": "u_usb_idle_trace/uh[1]",
+   "I2": "u_usb_idle_trace/reply_valid",
+   "F": "u_usb_idle_trace/head_valid_9"
+  },
+  "parameters": {
+   "u_usb_idle_trace/u_replies/head_valid_s5.INIT": "8'h80"
+  }
+ },
+ "u_usb_idle_trace/u_replies/head_valid_s1": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/u_replies/pop",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/u_replies/head_valid_11",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/reply_valid"
+  },
+  "parameters": {
+   "u_usb_idle_trace/u_replies/head_valid_s1.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s132": {
+  "type": "MUX2_LUT6",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_139",
+   "I1": "u_usb_idle_trace/bank_ER_RS_141",
+   "S0": "u_usb_idle_trace/receive_index[4]",
+   "O": "u_usb_idle_trace/bank_ER_RS_147"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s160": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_130",
+   "I1": "u_usb_idle_trace/bank_ER_RS_131",
+   "S0": "u_usb_idle_trace/receive_index[3]",
+   "O": "u_usb_idle_trace/bank_ER_RS_141"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s166": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_48",
+   "I1": "u_usb_idle_trace/bank_ER_RS_50",
+   "I2": "u_usb_idle_trace/receive_index[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_131"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s166.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s165": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_44",
+   "I1": "u_usb_idle_trace/bank_ER_RS_46",
+   "I2": "u_usb_idle_trace/receive_index[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_130"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s165.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s159": {
+  "type": "MUX2_LUT5",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_128",
+   "I1": "u_usb_idle_trace/bank_ER_RS_129",
+   "S0": "u_usb_idle_trace/receive_index[3]",
+   "O": "u_usb_idle_trace/bank_ER_RS_139"
+  },
+  "parameters": {}
+ },
+ "u_usb_idle_trace/bank_ER_RS_s164": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_40",
+   "I1": "u_usb_idle_trace/bank_ER_RS_42",
+   "I2": "u_usb_idle_trace/receive_index[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_129"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s164.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s163": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_36",
+   "I1": "u_usb_idle_trace/bank_ER_RS_38",
+   "I2": "u_usb_idle_trace/receive_index[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_128"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s163.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s1": {
+  "type": "RAM16SDP1",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_ER_RS_mem_73",
+   "DI": "u_usb_idle_trace/bank_ER_RS_155",
+   "WAD": "{GND,u_usb_idle_trace/receive_index[4:2]}",
+   "RAD": "{GND,u_usb_idle_trace/add_25,u_usb_idle_trace/address[5:4]}",
+   "DO": "u_usb_idle_trace/bank_ER_RS_88"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s1.INIT_0": "16'h00FF"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s136": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "F": "u_usb_idle_trace/bank_ER_RS_155"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s136.INIT": "4'h4"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s153": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "I2": "u_usb_idle_trace/bank_ER_RS_147",
+   "I3": "u_usb_idle_trace/head_valid_9",
+   "F": "u_usb_idle_trace/bank_ER_RS_mem_73"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s153.INIT": "16'h4F00"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s117": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_ER_RS_86",
+   "I1": "u_usb_idle_trace/bank_ER_RS_87",
+   "I2": "u_usb_idle_trace/address[2]",
+   "F": "u_usb_idle_trace/bank_ER_RS_126"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s117.INIT": "8'hCA"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s0": {
+  "type": "RAM16SDP1",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_ER_RS_mem_72",
+   "DI": "u_usb_idle_trace/bank_ER_RS_153",
+   "WAD": "{GND,u_usb_idle_trace/receive_index[4:2]}",
+   "RAD": "{GND,u_usb_idle_trace/add_25,u_usb_idle_trace/address[5:4]}",
+   "DO": "u_usb_idle_trace/bank_ER_RS_87"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s0.INIT_0": "16'h00FF"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s135": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[1]",
+   "I1": "u_usb_idle_trace/receive_index[0]",
+   "F": "u_usb_idle_trace/bank_ER_RS_153"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s135.INIT": "4'h4"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s152": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[1]",
+   "I1": "u_usb_idle_trace/receive_index[0]",
+   "I2": "u_usb_idle_trace/bank_ER_RS_147",
+   "I3": "u_usb_idle_trace/head_valid_9",
+   "F": "u_usb_idle_trace/bank_ER_RS_mem_72"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s152.INIT": "16'h4F00"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s": {
+  "type": "RAM16SDP1",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_ER_RS_mem",
+   "DI": "u_usb_idle_trace/bank_ER_RS_151",
+   "WAD": "{GND,u_usb_idle_trace/receive_index[4:2]}",
+   "RAD": "{GND,u_usb_idle_trace/add_25,u_usb_idle_trace/address[5:4]}",
+   "DO": "u_usb_idle_trace/bank_ER_RS_86"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s.INIT_0": "16'h00FF"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s134": {
+  "type": "LUT2",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "F": "u_usb_idle_trace/bank_ER_RS_151"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s134.INIT": "4'h1"
+  }
+ },
+ "u_usb_idle_trace/bank_ER_RS_s151": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/receive_index[0]",
+   "I1": "u_usb_idle_trace/receive_index[1]",
+   "I2": "u_usb_idle_trace/bank_ER_RS_147",
+   "I3": "u_usb_idle_trace/head_valid_9",
+   "F": "u_usb_idle_trace/bank_ER_RS_mem"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_ER_RS_s151.INIT": "16'h1F00"
+  }
+ },
+ "u_usb_idle_trace/bank_DOL_0_G[0]_s0": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/bank_208",
+   "I1": "u_usb_idle_trace/bank_176",
+   "I2": "u_usb_idle_trace/add_25",
+   "F": "u_usb_idle_trace/bank_ER"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_DOL_0_G[0]_s0.INIT": "8'hAC"
+  }
+ },
+ "u_usb_idle_trace/bank_bank_0_0_s": {
+  "type": "RAM16SDP4",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_245",
+   "DI": "{u_usb_idle_trace/reply[3:0]}",
+   "WAD": "{u_usb_idle_trace/receive_index[3:0]}",
+   "RAD": "{u_usb_idle_trace/address[5:2]}",
+   "DO": "{u_usb_idle_trace/bank_179,u_usb_idle_trace/bank_178,u_usb_idle_trace/bank_177,u_usb_idle_trace/bank_176}"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_bank_0_0_s.INIT_0": "16'h0000",
+   "u_usb_idle_trace/bank_bank_0_0_s.INIT_1": "16'h0000",
+   "u_usb_idle_trace/bank_bank_0_0_s.INIT_2": "16'h0000",
+   "u_usb_idle_trace/bank_bank_0_0_s.INIT_3": "16'h0000"
+  }
+ },
+ "u_usb_idle_trace/bank_bank_1_0_s": {
+  "type": "RAM16SDP4",
+  "pins": {
+   "CLK": "vid_hclk",
+   "WRE": "u_usb_idle_trace/bank_247",
+   "DI": "{u_usb_idle_trace/reply[3:0]}",
+   "WAD": "{u_usb_idle_trace/receive_index[3:0]}",
+   "RAD": "{u_usb_idle_trace/address[5:2]}",
+   "DO": "{u_usb_idle_trace/bank_211,u_usb_idle_trace/bank_210,u_usb_idle_trace/bank_209,u_usb_idle_trace/bank_208}"
+  },
+  "parameters": {
+   "u_usb_idle_trace/bank_bank_1_0_s.INIT_0": "16'h0000",
+   "u_usb_idle_trace/bank_bank_1_0_s.INIT_1": "16'h0000",
+   "u_usb_idle_trace/bank_bank_1_0_s.INIT_2": "16'h0000",
+   "u_usb_idle_trace/bank_bank_1_0_s.INIT_3": "16'h0000"
+  }
+ },
+ "u_usb_idle_trace/n511_s12": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[6]",
+   "I1": "u_usb_idle_trace/address[7]",
+   "I2": "u_usb_idle_trace/n511_13",
+   "I3": "u_usb_idle_trace/n511_14",
+   "F": "u_usb_idle_trace/n511_17"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n511_s12.INIT": "16'h1000"
+  }
+ },
+ "u_usb_idle_trace/n511_s10": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[3]",
+   "I1": "u_usb_idle_trace/address[4]",
+   "I2": "u_usb_idle_trace/address[5]",
+   "F": "u_usb_idle_trace/n511_14"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n511_s10.INIT": "8'h01"
+  }
+ },
+ "u_usb_idle_trace/n511_s9": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[0]",
+   "I1": "u_usb_idle_trace/address[1]",
+   "I2": "u_usb_idle_trace/address[2]",
+   "F": "u_usb_idle_trace/n511_13"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n511_s9.INIT": "8'h01"
+  }
+ },
+ "u_usb_idle_trace/busy_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "VCC",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/n246_3",
+   "RESET": "u_usb_idle_trace/n12214_5",
+   "Q": "u_usb_idle_trace/busy"
+  },
+  "parameters": {
+   "u_usb_idle_trace/busy_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/n557_s9": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/n35_4",
+   "I1": "u_usb_idle_trace/address[6]",
+   "I2": "u_usb_idle_trace/address[7]",
+   "I3": "u_usb_idle_trace/n511_14",
+   "F": "u_usb_idle_trace/n557_14"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n557_s9.INIT": "16'h0200"
+  }
+ },
+ "u_usb_idle_trace/n35_s1": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[0]",
+   "I1": "u_usb_idle_trace/address[1]",
+   "I2": "u_usb_idle_trace/address[2]",
+   "F": "u_usb_idle_trace/n35_4"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n35_s1.INIT": "8'h10"
+  }
+ },
+ "u_usb_idle_trace/snapshot_count_0_s0": {
+  "type": "DFFRE",
+  "pins": {
+   "D": "u_usb_idle_trace/n363_6",
+   "CLK": "vid_hclk",
+   "CE": "u_usb_idle_trace/n12181_3",
+   "RESET": "u_usb_idle_trace/hreset",
+   "Q": "u_usb_idle_trace/snapshot_count[0]"
+  },
+  "parameters": {
+   "u_usb_idle_trace/snapshot_count_0_s0.INIT": "1'b0"
+  }
+ },
+ "u_usb_idle_trace/n511_s13": {
+  "type": "LUT4",
+  "pins": {
+   "I0": "u_usb_idle_trace/n35_5",
+   "I1": "u_usb_idle_trace/address[6]",
+   "I2": "u_usb_idle_trace/address[7]",
+   "I3": "u_usb_idle_trace/n511_13",
+   "F": "u_usb_idle_trace/n511_19"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n511_s13.INIT": "16'h0200"
+  }
+ },
+ "u_usb_idle_trace/n35_s2": {
+  "type": "LUT3",
+  "pins": {
+   "I0": "u_usb_idle_trace/address[4]",
+   "I1": "u_usb_idle_trace/address[5]",
+   "I2": "u_usb_idle_trace/address[3]",
+   "F": "u_usb_idle_trace/n35_5"
+  },
+  "parameters": {
+   "u_usb_idle_trace/n35_s2.INIT": "8'h10"
+  }
+ }
+}
+
+tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/rtl/usb/usb_idle_trace.v
+// Passive IN/NAK observer. No output feeds the USB datapath.
+// Commands and coherent snapshots use two dual-clock FIFOs, independent of EP0.
+// AHB window: +00 ID, +04 status (bit0 busy, bit1 rejected command),
+// +08 completed snapshot count, +0c command, +40..bc snapshot (32 words).
+// Command: bit0 clear+arm, bit1 snapshot, bit2 disarm, bits14:8 USB address.
+// Use one command at a time; clear+snapshot returns the PRE-clear state.
+// USB bus reset is observed, not used to erase this diagnostic.
+`default_nettype none
+module usb_idle_trace (
+ input wire clk, reset_n, bus_reset, sof,
+ input wire rx_active, rx_valid, rx_error,
+ input wire [7:0] rx_data,
+ input wire tx_valid, tx_ready,
+ input wire [7:0] tx_data,
+ input wire [3:0] endpoint,
+ input wire cork,
+ input wire hclk, hsel, hwrite,
+ input wire [1:0] htrans,
+ input wire [31:0] haddr, hwdata,
+ output reg [31:0] hrdata,
+ output wire hready
+);
+ // Hold both FIFO ends in reset until each clock has actually restarted.
+ (* ASYNC_REG="TRUE" *) reg [2:0] hr=0, ur=0;
+ (* ASYNC_REG="TRUE" *) reg [1:0] hu=0, uh=0;
+ always @(posedge hclk or negedge reset_n)
+  if(!reset_n)begin hr<=0;uh<=0;end
+  else begin hr<={hr[1:0],1'b1};uh<={uh[0],ur[2]};end
+ always @(posedge clk or negedge reset_n)
+  if(!reset_n)begin ur<=0;hu<=0;end
+  else begin ur<={ur[1:0],1'b1};hu<={hu[0],hr[2]};end
+ wire hreset=!hr[2] || !uh[1], ureset=!ur[2] || !hu[1];
+ wire cmd_ready, cmd_valid, cmd_pop, reply_ready, reply_valid;
+ wire [31:0] command, reply;
+ reg write_pending, read_pending;
+ reg [7:0] address;
+ reg busy, rejected;
+ reg [31:0] snapshot_count;
+ reg [4:0] receive_index;
+ reg [31:0] bank[0:31];
+ wire [4:0] bank_index=address[6:2]-5'd16;
+ wire push_command=write_pending && address==8'h0c && !busy && cmd_ready && !hreset;
+ assign hready=!read_pending; // one local wait; never wait on the USB clock
+ ddr_dcfifo #(.WIDTH(32),.DEPTH_LOG2(2)) u_commands (
+  .wr_clk(hclk),.wr_rst(hreset),.wr_valid(push_command),.wr_data(hwdata),
+  .wr_ready(cmd_ready),.wr_full(),.wr_lost(),.wr_count(),
+  .rd_clk(clk),.rd_rst(ureset),.rd_valid(cmd_valid),.rd_data(command),
+  .rd_ready(cmd_pop),.rd_count());
+ ddr_dcfifo #(.WIDTH(32),.DEPTH_LOG2(5)) u_replies (
+  .wr_clk(clk),.wr_rst(ureset),.wr_valid(sending && reply_ready && !ureset),
+  .wr_data(snapshot[send_index*32+:32]),.wr_ready(reply_ready),
+  .wr_full(),.wr_lost(),.wr_count(),
+  .rd_clk(hclk),.rd_rst(hreset),.rd_valid(reply_valid),.rd_data(reply),
+  .rd_ready(!hreset),.rd_count());
+ integer b;
+ always @(posedge hclk)begin
+  if(hreset)begin
+   hrdata<=0;write_pending<=0;read_pending<=0;address<=0;
+   busy<=0;rejected<=0;snapshot_count<=0;receive_index<=0;
+   for(b=0;b<32;b=b+1)bank[b]<=0;
+  end else begin
+   write_pending<=hsel && htrans[1] && hwrite && hready;
+   read_pending<=hsel && htrans[1] && !hwrite && hready;
+   if(hready)address<=haddr[7:0];
+   if(write_pending && address==8'h0c)begin
+    if(push_command)begin busy<=1;rejected<=0;end
+    else rejected<=1;
+   end
+   if(reply_valid)begin
+    bank[receive_index]<=reply;receive_index<=receive_index+1'b1;
+    if(receive_index==31)begin snapshot_count<=snapshot_count+1'b1;busy<=0;end
+   end
+   if(read_pending)begin
+    case(address)
+     8'h00:hrdata<=32'h55544e41; // UTNA
+     8'h04:hrdata<={30'd0,rejected,busy};
+     8'h08:hrdata<=snapshot_count;
+     default:hrdata<=address>=8'h40 && address<8'hc0 ? bank[bank_index] : 32'd0;
+    endcase
+   end
+  end
+ end
+
+ // Sample the entire UTMI tuple together before decoding it. In particular,
+ // TXREADY already contains the controller->PHY combinational return path;
+ // adding counter/enable logic directly there exceeded the 60 MHz budget.
+ // This one-cycle delay is passive and identical for RX/TX/context, so
+ // response time differences are preserved.
+ (* syn_preserve=1 *) reg [27:0] tap;
+ always @(posedge clk)tap<={bus_reset,sof,rx_active,rx_valid,rx_error,rx_data,
+                           tx_valid,tx_ready,tx_data,endpoint,cork};
+ wire bus_reset_sample,sof_sample,rx_active_sample,rx_valid_sample,rx_error_sample;
+ wire [7:0] rx_data_sample,tx_data_sample;
+ wire tx_valid_sample,tx_ready_sample,cork_sample;
+ wire [3:0] endpoint_sample;
+ assign {bus_reset_sample,sof_sample,rx_active_sample,rx_valid_sample,rx_error_sample,rx_data_sample,
+         tx_valid_sample,tx_ready_sample,tx_data_sample,endpoint_sample,cork_sample}=tap;
+
+ function [4:0] crc5;
+  input [10:0] token;
+  integer i;reg [4:0] c;
+  begin
+   c=5'h1f;
+   for(i=0;i<11;i=i+1)
+    c=(c[0]^token[i]) ? ((c>>1)^5'h14) : (c>>1);
+   crc5=~c;
+  end
+ endfunction
+ reg armed;
+ reg [6:0] target;
+ reg [31:0] ticks,in2,in3,nak2,nak3,data2,data3,miss2,miss3;
+ reg [31:0] bad_response,rx_errors,bad_token,resets,sofs,stalls,last_token,last_response;
+ reg [7:0] max_offer,max_accept;
+ reg bus_reset_q;
+ reg [2:0] rx_count;
+ reg [7:0] rx_pid,token0,token1;
+ reg rx_bad;
+ wire token_end=!rx_active_sample && rx_count!=0;
+ wire token_in=token_end && rx_pid==8'h69;
+ wire token_good=rx_count==3 && !rx_bad && !rx_error_sample &&
+                 token1[7:3]==crc5({token1[2:0],token0});
+ wire [3:0] token_ep={token1[2:0],token0[7]};
+ wire selected_in=token_in && token_good && token0[6:0]==target &&
+                  (token_ep==2 || token_ep==3);
+ // Any subsequent valid token ends the old transaction context, including
+ // SOF, OUT/SETUP/IN for EP0 or another address. Never attribute its reply
+ // to an unanswered EP2/EP3 IN.
+ wire next_token=token_end && token_good &&
+                  (rx_pid==8'h69 || rx_pid==8'he1 || rx_pid==8'h2d ||
+                   rx_pid==8'ha5 || rx_pid==8'hb4);
+ reg pending;
+ reg [3:0] pending_ep;
+ reg [31:0] pending_time;
+ reg [9:0] age;
+ wire [7:0] short_age=|age[9:8] ? 8'hff : age[7:0];
+ reg tx_busy,tx_cork;
+ reg [3:0] tx_endpoint;
+ reg [7:0] tx_pid,tx_count,offer_age,accept_age;
+ wire finish=tx_busy && !tx_valid_sample && pending && tx_endpoint==pending_ep;
+ wire expired=pending && ((age==127 && (!tx_busy || tx_count==0)) || age==1023);
+ wire displaced=next_token && pending && !finish;
+ wire missing=expired || displaced;
+ wire event_valid=armed && (finish || missing);
+ wire malformed=finish && !((tx_pid==8'h5a && tx_count==1) ||
+                   (pending_ep==2 && (tx_pid==8'hc3 || tx_pid==8'h4b) && tx_count>=3));
+ wire [63:0] event_record={pending_time,1'b1,missing,malformed,tx_cork,
+                           pending_ep,tx_pid,accept_age,tx_count};
+ reg [255:0] history;
+ reg [63:0] first_fault;
+ reg [1023:0] snapshot;
+ reg sending;
+ reg [4:0] send_index;
+ assign cmd_pop=cmd_valid && !sending && !ureset;
+ wire clear=cmd_pop && command[0];
+ wire [1023:0] live={
+  {21'd0,armed,pending,2'd0,target},first_fault,history,
+  {16'd0,max_accept,max_offer},last_response,last_token,stalls,sofs,resets,
+  bad_token,rx_errors,bad_response,miss3,miss2,data3,data2,nak3,nak2,in3,in2,ticks,
+  command,32'd1,32'h55544e41};
+ always @(posedge clk)begin
+  if(ureset)begin sending<=0;send_index<=0;snapshot<=0;end
+  else begin
+   // Every command returns a complete bank, including clear/disarm, so the
+   // CPU can acknowledge execution without sampling an asynchronous flag.
+   if(cmd_pop)begin snapshot<=live;sending<=1;send_index<=0;end
+   else if(sending && reply_ready)begin
+    send_index<=send_index+1'b1;
+    if(send_index==31)sending<=0;
+   end
+  end
+ end
+ always @(posedge clk)begin
+  if(ureset || clear)begin
+   armed<=!ureset;target<=ureset ? 7'd0 : command[14:8];
+   ticks<=0;in2<=0;in3<=0;nak2<=0;nak3<=0;data2<=0;data3<=0;miss2<=0;miss3<=0;
+   bad_response<=0;rx_errors<=0;bad_token<=0;resets<=0;sofs<=0;stalls<=0;
+   last_token<=0;last_response<=0;max_offer<=0;max_accept<=0;
+   history<=0;first_fault<=0;bus_reset_q<=bus_reset_sample;
+   rx_count<=0;rx_pid<=0;token0<=0;token1<=0;rx_bad<=0;
+   pending<=0;pending_ep<=0;pending_time<=0;age<=0;
+   tx_busy<=0;tx_cork<=0;tx_endpoint<=0;tx_pid<=0;tx_count<=0;offer_age<=0;accept_age<=0;
+  end else begin
+   if(cmd_pop && command[2])armed<=0;
+   bus_reset_q<=bus_reset_sample;
+   if(armed)begin
+    ticks<=ticks+1'b1;
+    if(bus_reset_sample && !bus_reset_q)resets<=resets+1'b1;
+    if(sof_sample)sofs<=sofs+1'b1;
+    if(rx_error_sample)rx_errors<=rx_errors+1'b1;
+    if(tx_valid_sample && !tx_ready_sample)stalls<=stalls+1'b1;
+    if(token_in && !token_good)bad_token<=bad_token+1'b1;
+   end
+   if(rx_active_sample)begin
+    if(rx_error_sample)rx_bad<=1;
+    if(rx_valid_sample)begin
+     case(rx_count)
+      0:rx_pid<=rx_data_sample;
+      1:token0<=rx_data_sample;
+      2:token1<=rx_data_sample;
+      default:;
+     endcase
+     if(rx_count!=4)rx_count<=rx_count+1'b1;
+    end
+   end else begin rx_count<=0;rx_bad<=0;end
+   if(pending && age!=1023)age<=age+1'b1;
+   if(event_valid)begin
+    history<={history[191:0],event_record};
+    if((missing || malformed) && !first_fault[31])first_fault<=event_record;
+    pending<=0;
+    last_response<={4'd0,endpoint_sample,pending_ep,tx_cork,3'd0,tx_count,tx_pid};
+    if(missing)begin
+     if(pending_ep==2)miss2<=miss2+1'b1;else miss3<=miss3+1'b1;
+    end else begin
+     if(tx_pid==8'h5a && tx_count==1)begin
+      if(pending_ep==2)nak2<=nak2+1'b1;else nak3<=nak3+1'b1;
+      if(offer_age>max_offer)max_offer<=offer_age;
+      if(accept_age>max_accept)max_accept<=accept_age;
+     end
+     if(tx_pid==8'hc3 || tx_pid==8'h4b)begin
+      if(pending_ep==2)data2<=data2+1'b1;else data3<=data3+1'b1;
+     end
+     if(malformed)bad_response<=bad_response+1'b1;
+    end
+   end
+   if(armed && selected_in)begin
+    pending<=1;pending_ep<=token_ep;pending_time<=ticks;age<=1;
+    tx_count<=0;tx_pid<=0;offer_age<=0;accept_age<=0;
+    last_token<={8'd0,token1,token0,rx_pid};
+    if(token_ep==2)in2<=in2+1'b1;else in3<=in3+1'b1;
+   end
+   // TX sampling follows token initialization so acceptance on the very
+   // token_end edge is retained (delay zero), rather than overwritten.
+   if(tx_valid_sample && !tx_busy)begin
+    tx_busy<=1;tx_pid<=tx_data_sample;tx_count<=0;tx_cork<=cork_sample;
+    tx_endpoint<=endpoint_sample;offer_age<=selected_in ? 8'd0 : short_age;
+   end
+   if(tx_valid_sample && tx_ready_sample)begin
+    if(!tx_busy || tx_count==0)begin
+     tx_pid<=tx_data_sample;accept_age<=selected_in ? 8'd0 : short_age;
+    end
+    if(!tx_busy)tx_count<=1;
+    else if(tx_count!=255)tx_count<=tx_count+1'b1;
+   end
+   if(!tx_valid_sample)tx_busy<=0;
+   if(bus_reset_sample)pending<=0;
+  end
+ end
+endmodule
+`default_nettype wire

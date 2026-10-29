@@ -1,0 +1,100 @@
+{
+  "passed": true,
+  "proofs": [
+    {
+      "name": "native_issue",
+      "variables": 22,
+      "combinations": 4194304,
+      "equivalent": true,
+      "leaves": [
+        "alpha[0]",
+        "alpha[1]",
+        "alpha[2]",
+        "alpha[3]",
+        "alpha[4]",
+        "alpha[5]",
+        "alpha[6]",
+        "alpha[7]",
+        "alpha[8]",
+        "chunk_dirty",
+        "clear_flags[0]",
+        "clear_flags[1]",
+        "flags[0]",
+        "flags[1]",
+        "flags[5]",
+        "state[14]",
+        "state[16]",
+        "state[28]",
+        "state[30]",
+        "state[36]",
+        "state[38]",
+        "tex_argb"
+      ],
+      "cut_signals": []
+    },
+    {
+      "name": "native_valid_next_without_reset",
+      "variables": 11,
+      "combinations": 2048,
+      "equivalent": true,
+      "leaves": [
+        "fetch_valid",
+        "native_issue",
+        "native_valid",
+        "state[15]",
+        "state[17]",
+        "state[29]",
+        "state[31]",
+        "state[37]",
+        "state[39]",
+        "v1_accepted",
+        "v1_select"
+      ],
+      "cut_signals": [
+        "native_issue"
+      ]
+    },
+    {
+      "name": "pending_next_without_reset",
+      "variables": 9,
+      "combinations": 512,
+      "equivalent": true,
+      "leaves": [
+        "b_grant",
+        "cache_valid",
+        "copy_valid",
+        "fetch_valid",
+        "native_valid",
+        "raster_valid",
+        "v1_accepted",
+        "v1_pending",
+        "v1_select"
+      ],
+      "cut_signals": []
+    },
+    {
+      "name": "accepted_next_without_reset",
+      "variables": 2,
+      "combinations": 4,
+      "equivalent": true,
+      "leaves": [
+        "b_grant",
+        "v1_pending"
+      ],
+      "cut_signals": []
+    }
+  ],
+  "method": "Exhaustive bit-parallel truth-table equality; native_issue cut used only after separate exhaustive equivalence",
+  "inputs": {
+    "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/console_neo.vg": "dfac41d80eecaa0b6a3c152d36d8fcdb902060cecbd450647ede445d1c8004b6",
+    "/home/michael/console/TESTS/neo_720p_20261012/local_capture_20261026/check_handshake_truth.py": "fdfb464cded30c221ad3ce11ec16d3e40e4d054c16b0642ecd3873cf628ec83d"
+  },
+  "assumptions": [
+    "Reset inactive; documented D/CE flip-flop behavior.",
+    "Arbitrary Boolean leaves, no one-hot assumption."
+  ],
+  "limits": [
+    "No clock, propagation delay, physical connectivity or metastability model.",
+    "No complete GPU or memory-address/payload qualification."
+  ]
+}

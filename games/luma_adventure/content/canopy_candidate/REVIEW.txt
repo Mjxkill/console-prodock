@@ -1,0 +1,39 @@
+LUMA — L’Herbier des Ombres : second sanctuaire candidat
+
+État : dix salles raccordées à la Canopée, indices16..25, via herbarium_entry. Mission facultative b17_herbarium, après b15 ; plafond16 missions conservé. La validation complète de cette intégration et des nouveaux visuels est confiée au moteur.
+
+Parcours :
+1. Les ombres utiles — coupled_lamps.
+   Motif exact : 2 leviers au minimum.
+2. La réserve des trois saisons — three_crates, live_plates, corridor_ordering.
+   Sol complet : 15 poussées minimales, 277 états explorés ; graine 1062401.
+3. Le ciel de six feuilles — coupled_lamps.
+   Motif exact : 4 leviers au minimum.
+4. Le pont qui doit dormir — shoot_across_water, reversible_bridge, required_dark_state.
+5. Les veilleurs immobiles — stationary_aimed_fire, stone_cover, conditional_encounter.
+6. Le passage des réserves — three_crates, live_plates, corridor_ordering.
+   Sol complet : 21 poussées minimales, 1294 états explorés ; graine 1062402.
+7. Les reflets que l’on choisit — coupled_targets, water_shot_lines, required_dark_state.
+8. La chambre des racines croisées — three_crates, live_plates, corridor_ordering.
+   Sol complet : 16 poussées minimales, 518 états explorés ; graine 1062403.
+9. La relève des gardiens — staged_encounter, mixed_pursuit_and_turret, gated_cover.
+10. La graine de l'ombre — coupled_lamps, maintained_weight, staged_turrets, combined_dark_and_light.
+   Motif exact : 2 leviers au minimum.
+
+Preuves actuelles :
+- Témoins concrets dans solutions.json ; coordonnées en pixels monde.
+- validate_dungeons.py --directory canopy_candidate : PASS, 545 pas/poussées.
+- Les preuves A* portent sur le sol entier, y compris les vestibules.
+- Les caisses ont autant de dalles que de réserves. La sortie est éloignée des dalles : le joueur ne peut pas remplacer une caisse en activant la sortie.
+- Les circuits permettent de refaire un essai ; R réinitialise les mécanismes de la salle.
+- Les portes négatives exigent que les lampes interdites restent éteintes.
+
+Limites :
+- Les10 salles ont passé un parcours isolé par commandes réelles :237,9s simulées,8 ennemis,2 décès,74 tirs (build/validate_canopy_candidate/runtime.log). Le raccord et les visuels suivants demandent une nouvelle validation complète. Le solveur structurel seul ne simule pas les attaques.
+- Entrée au pixel1264,464 ; retour au pixel1264,496 de la Canopée, accessibles à pied ; accès après la mémoire facultative du jardin sud (flag256).
+- Aucun temps de jeu humain n’est mesuré, et aucun nombre de minutes n’est déduit des poussées.
+- Les indices16..25 sont désormais fixés ; conserver tous les IDs persistants. b16 est remplacée par un nouvel ID, sans transférer sa complétion. Le coffre, les autres missions, les véhicules et les éclats acquis restent conservés.
+
+Reproduction :
+python3 games/luma_adventure/content/build_canopy_sanctuary.py
+python3 games/luma_adventure/content/validate_dungeons.py --directory canopy_candidate

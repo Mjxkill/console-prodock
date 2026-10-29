@@ -37,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix='prodock-unpack-') as tmp:
         '-I',str(HERE/'boot'),str(p/'test.c'),'-o',str(p/'test')],check=True)
     r=random.Random(7319)
     samples=[bytes(8192),r.randbytes(9137),r.randbytes(4096)+bytes(65536)+r.randbytes(912),
-             (HERE/'build/opensbi/platform/generic/firmware/fw_payload.bin').read_bytes()]
+             (module.BUILD/'opensbi/platform/generic/firmware/fw_payload.bin').read_bytes()]
     for raw in samples:
         packed=module.pack_zero_runs(raw)
         (p/'raw').write_bytes(raw);(p/'packed').write_bytes(packed)

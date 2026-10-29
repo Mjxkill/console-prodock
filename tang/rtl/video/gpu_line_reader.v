@@ -4,11 +4,12 @@
 // source words of the line; clipping, alignment, masks, colour key, sprites
 // and priorities are those of a surface layer, which keeps its cycle count.
 `default_nettype none
-module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
+module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480,
+    parameter BLOCK_BITS=(WIDTH>1024 ? 6:5), parameter Y_BITS=(HEIGHT>512 ? 10:9)) (
     input wire clk, resetn, start, layers, config_bank, sprites,
     input wire clear_maxima,
     input wire [31:0] base,
-    input wire [8:0] line_y,
+    input wire [Y_BITS-1:0] line_y,
     output wire busy,
     output reg done,
     output wire [7:0] config_address,
@@ -19,7 +20,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     input wire [255:0] fetch_data,
     input wire fetch_data_valid,
     output wire block_valid,
-    output wire [4:0] block_index,
+    output wire [BLOCK_BITS-1:0] block_index,
     output wire [255:0] block_data,
     output wire [31:0] block_coverage,
     output reg [31:0] max_cycles, invalid_layers,
@@ -49,7 +50,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     // pas la refondre avec mode). mode seul alimentait 256 entrées de LUT plus la commande : les fils
     // s'allongeaient d'une compilation à l'autre (r601 : 0,74 ns en défaut vers les sommes de l'affichage).
     reg mode_data /* synthesis syn_preserve=1 */;
-    reg [8:0] y;
+    reg [Y_BITS-1:0] y;
     reg [3:0] layer;
     reg [3:0] descriptor_word;
     reg [31:0] surface_base;
@@ -65,10 +66,11 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     reg [31:0] row_offset;
     reg [32:0] byte_address;
     reg [10:0] visible_width;
-    // A clipped row is at most 1024 bytes. Only the final KiB can cross
-    // the 1-GiB DDR limit; avoid a 33-bit add/compare on request enables.
-    wire row_crosses_ddr_end=byte_address[29:10]==20'hfffff &&
-        ({1'b0,byte_address[9:0]}+visible_width)>11'd1024;
+    // A clipped row fits within 2**(BLOCK_BITS+5) bytes. Keep the
+    // short boundary check, widening it only for the 1280-pixel target.
+    localparam ROW_BITS=BLOCK_BITS+5;
+    wire row_crosses_ddr_end=(&byte_address[29:ROW_BITS]) &&
+        ({1'b0,byte_address[ROW_BITS-1:0]}+{1'b0,visible_width})>(1<<ROW_BITS);
     reg [5:0] issued,received,burst_count;
     reg [4:0] outstanding;
     reg more_requests,request_valid;
@@ -125,8 +127,8 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
     // it starts beyond the last column or has no width.
     reg reject_y,reject_x,reject_layer,narrow_stride;
     wire signed [17:0] sprite_x=$signed(sprite_metadata[15:0]);
-    wire signed [17:0] layer_relative_y=$signed({9'b0,y})-$signed(pos_y);
-    wire signed [17:0] sprite_relative_y=$signed({9'b0,y})-$signed(sprite_metadata[31:16]);
+    wire signed [17:0] layer_relative_y=$signed({{(18-Y_BITS){1'b0}},y})-$signed(pos_y);
+    wire signed [17:0] sprite_relative_y=$signed({{(18-Y_BITS){1'b0}},y})-$signed(sprite_metadata[31:16]);
     wire [4:0] next_outstanding=outstanding+{4'b0,accept}-{4'b0,fetch_data_valid};
     reg [31:0] elapsed;
     reg sprite_mode,is_sprite,sprite_flip_y;
@@ -139,13 +141,13 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
 
     // Adjacent source words always belong to opposite banks. Two synchronous
     // reads and one incoming DDR write therefore need only dual-port RAMs.
-    reg [255:0] source_even[0:15],source_odd[0:15];
-    reg [255:0] composed[0:31];
-    reg [31:0] covered[0:31];
+    reg [255:0] source_even[0:(1<<(BLOCK_BITS-1))-1],source_odd[0:(1<<(BLOCK_BITS-1))-1];
+    reg [255:0] composed[0:(1<<BLOCK_BITS)-1];
+    reg [31:0] covered[0:(1<<BLOCK_BITS)-1];
     reg [31:0] old_coverage,p2_coverage,p3_coverage,merged_coverage,write_coverage;
     reg [255:0] even_q,odd_q,old_q;
     reg signed [6:0] pair;
-    reg [4:0] current_block,first_block,last_block,clear_block,emit_block;
+    reg [BLOCK_BITS-1:0] current_block,first_block,last_block,clear_block,emit_block;
     reg [4:0] shift_bytes;
     reg [31:0] first_mask,last_mask;
     // Merge each block as soon as its last source word has arrived. Waiting
@@ -166,25 +168,25 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
         || (merge_issue ? words_received>needed_advanced : words_received>needed_same));
     wire [6:0] even_pair=pair[0] ? pair+7'd1 : pair;
     wire [6:0] odd_pair=pair[0] ? pair : pair+7'd1;
-    wire [4:0] ram_read_block=state==EMIT ? emit_block : current_block;
+    wire [BLOCK_BITS-1:0] ram_read_block=state==EMIT ? emit_block : current_block;
     reg source_write_valid=0;
-    reg [4:0] source_write_address;
+    reg [BLOCK_BITS-1:0] source_write_address;
     reg [255:0] source_write_data;
     always @(posedge clk) begin
         source_write_valid<=resetn && ((state==FETCH && mode && source_word_valid) || state==S_STORE);
-        source_write_address<=state==S_STORE ? 5'd0 : received[4:0];
+        source_write_address<=state==S_STORE ? {BLOCK_BITS{1'b0}} : received[BLOCK_BITS-1:0];
         source_write_data<=state==S_STORE ? sprite_row_data : tile_fetch ? tile_word : fetch_data;
         if(source_write_valid) begin
-            if(source_write_address[0]) source_odd[source_write_address[4:1]]<=source_write_data;
-            else source_even[source_write_address[4:1]]<=source_write_data;
+            if(source_write_address[0]) source_odd[source_write_address[BLOCK_BITS-1:1]]<=source_write_data;
+            else source_even[source_write_address[BLOCK_BITS-1:1]]<=source_write_data;
         end
-        even_q<=source_even[even_pair[4:1]];
-        odd_q<=source_odd[odd_pair[4:1]];
+        even_q<=source_even[even_pair[BLOCK_BITS-1:1]];
+        odd_q<=source_odd[odd_pair[BLOCK_BITS-1:1]];
         old_q<=composed[ram_read_block];
         old_coverage<=covered[ram_read_block];
     end
     reg p1_valid,p1_odd;
-    reg [4:0] p1_block,p2_block,p3_block;
+    reg [BLOCK_BITS-1:0] p1_block,p2_block,p3_block;
     reg [31:0] p1_mask,p2_mask,p3_mask;
     reg p2_valid,p3_valid;
     reg [511:0] p2_pair;
@@ -213,7 +215,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
         p3_pixels<=aligned_pair[255:0];p3_old<=p2_old;p3_coverage<=p2_coverage;
     end
     reg write_valid=0;
-    reg [4:0] write_block;
+    reg [BLOCK_BITS-1:0] write_block;
     reg [255:0] write_pixels;
     // Anticiper CLEAR depuis ses deux prédécesseurs : ces copies locales
     // valent state==CLEAR sans cycle supplémentaire. La remise à zéro des
@@ -232,12 +234,12 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
         if(write_valid) begin composed[write_block]<=write_pixels;covered[write_block]<=write_coverage;end
     end
     reg emit_valid;
-    reg [4:0] emit_index;
+    reg [BLOCK_BITS-1:0] emit_index;
     // framebuffer_fetch is state==FETCH && !mode, kept as a register: the
     // block strobe enables the line RAM and the checksum registers.
     reg framebuffer_fetch;
     assign block_valid=resetn && (mode ? emit_valid : framebuffer_fetch && fetch_data_valid);
-    assign block_index=mode ? emit_index : received[4:0];
+    assign block_index=mode ? emit_index : received[BLOCK_BITS-1:0];
     assign block_data=mode_data ? old_q : fetch_data;
     assign block_coverage=mode ? old_coverage:32'hffffffff;
 
@@ -371,7 +373,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
                     // from the wide mask/coordinate register enables.
                         source_x<=scroll_x+left_x-$signed(pos_x);source_y<=scroll_y+relative_y;
                         visible_width<=right_x-left_x+18'd1;
-                        first_block<=left_x[9:5];last_block<=right_x[9:5];
+                        first_block<=left_x[BLOCK_BITS+4:5];last_block<=right_x[BLOCK_BITS+4:5];
                         first_mask<=32'hffffffff<<left_x[4:0];last_mask<=32'hffffffff>>(31-right_x[4:0]);
 
                     if(reject_layer || reject_x || reject_y) state<=NEXT;
@@ -441,7 +443,7 @@ module gpu_line_reader #(parameter WIDTH=800, HEIGHT=480) (
                     if(reject_x || reject_y) state<=S_NEXT;
                     else begin
                         sprite_row_address<={sprite_index,sprite_flip_y ? source_h[4:0]-5'd1-relative_y[4:0] : relative_y[4:0]};
-                        first_block<=left_x[9:5];current_block<=left_x[9:5];last_block<=right_x[9:5];
+                        first_block<=left_x[BLOCK_BITS+4:5];current_block<=left_x[BLOCK_BITS+4:5];last_block<=right_x[BLOCK_BITS+4:5];
                         first_mask<=32'hffffffff<<left_x[4:0];last_mask<=32'hffffffff>>(31-right_x[4:0]);
                         shift_bytes<=clipped_source_x[4:0]-left_x[4:0];
                         pair<=clipped_source_x[4:0]<left_x[4:0] ? -7'sd1 : 7'sd0;

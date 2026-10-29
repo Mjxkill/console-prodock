@@ -1,0 +1,196 @@
+{
+  "5f2078bf-bead-40f1-8ef2-f342ed092bfe": {
+    "prompt": [
+      74,
+      "5f2078bf-bead-40f1-8ef2-f342ed092bfe",
+      {
+        "unet": {
+          "class_type": "UNETLoader",
+          "inputs": {
+            "unet_name": "flux-2-klein-4b-fp8.safetensors",
+            "weight_dtype": "default"
+          }
+        },
+        "clip": {
+          "class_type": "CLIPLoader",
+          "inputs": {
+            "clip_name": "qwen_3_4b.safetensors",
+            "type": "flux2"
+          }
+        },
+        "vae": {
+          "class_type": "VAELoader",
+          "inputs": {
+            "vae_name": "flux2-vae.safetensors"
+          }
+        },
+        "positive": {
+          "class_type": "CLIPTextEncode",
+          "inputs": {
+            "clip": [
+              "clip",
+              0
+            ],
+            "text": "Original character concept sheet for LUMA, a warm stylized 3D fantasy adventure. Three consistent full-body orthographic views of the SAME young adult wandering letter-carrier: FRONT, SIDE, BACK arranged in a clean row on a plain warm ivory background, no text. Appealing sculpted 3D forms, slightly generous hands and boots, expressive warm brown face with large attentive eyes, short dark curly hair, deep teal short tunic with subtle cream embroidery, small ochre-gold shoulder cape, brown leather belt and compact satchel, fitted brown trousers and soft leather walking boots. A tiny brass seed-shaped clasp at the collar. A completely ORIGINAL design, no familiar franchise characters. Beautiful elegant handmade painted surfaces, clear silhouette, readable colour blocks, natural proportions, gentle relaxed standing pose with arms slightly away from body for modelling. Consistent garment details across all views, high quality production design, soft neutral studio light, no environment or scenery."
+          }
+        },
+        "latent": {
+          "class_type": "EmptyFlux2LatentImage",
+          "inputs": {
+            "width": 1024,
+            "height": 1024,
+            "batch_size": 1
+          }
+        },
+        "noise": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 20261024400
+          }
+        },
+        "guider": {
+          "class_type": "BasicGuider",
+          "inputs": {
+            "model": [
+              "unet",
+              0
+            ],
+            "conditioning": [
+              "positive",
+              0
+            ]
+          }
+        },
+        "sampler": {
+          "class_type": "KSamplerSelect",
+          "inputs": {
+            "sampler_name": "euler"
+          }
+        },
+        "sigmas": {
+          "class_type": "Flux2Scheduler",
+          "inputs": {
+            "steps": 4,
+            "width": 1024,
+            "height": 1024
+          }
+        },
+        "sample": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": [
+              "noise",
+              0
+            ],
+            "guider": [
+              "guider",
+              0
+            ],
+            "sampler": [
+              "sampler",
+              0
+            ],
+            "sigmas": [
+              "sigmas",
+              0
+            ],
+            "latent_image": [
+              "latent",
+              0
+            ]
+          }
+        },
+        "decode": {
+          "class_type": "VAEDecode",
+          "inputs": {
+            "samples": [
+              "sample",
+              0
+            ],
+            "vae": [
+              "vae",
+              0
+            ]
+          }
+        },
+        "save": {
+          "class_type": "SaveImage",
+          "inputs": {
+            "images": [
+              "decode",
+              0
+            ],
+            "filename_prefix": "luma3d/concept_hero_turnaround"
+          }
+        }
+      },
+      {
+        "client_id": "luma-art-20261023",
+        "create_time": 1792841815592
+      },
+      [
+        "save"
+      ]
+    ],
+    "outputs": {
+      "save": {
+        "images": [
+          {
+            "filename": "concept_hero_turnaround_00001_.png",
+            "subfolder": "luma3d",
+            "type": "output",
+            "metadata": {
+              "kind": "image",
+              "width": 1024,
+              "height": 1024
+            },
+            "id": "df43fbe5-58bd-4345-a6af-61b372545adc"
+          }
+        ]
+      }
+    },
+    "status": {
+      "status_str": "success",
+      "completed": true,
+      "messages": [
+        [
+          "execution_start",
+          {
+            "prompt_id": "5f2078bf-bead-40f1-8ef2-f342ed092bfe",
+            "timestamp": 1792841815593
+          }
+        ],
+        [
+          "execution_cached",
+          {
+            "nodes": [
+              "unet",
+              "clip",
+              "vae",
+              "latent",
+              "sampler",
+              "sigmas"
+            ],
+            "prompt_id": "5f2078bf-bead-40f1-8ef2-f342ed092bfe",
+            "timestamp": 1792841815594
+          }
+        ],
+        [
+          "execution_success",
+          {
+            "prompt_id": "5f2078bf-bead-40f1-8ef2-f342ed092bfe",
+            "timestamp": 1792841818298
+          }
+        ]
+      ]
+    },
+    "meta": {
+      "save": {
+        "node_id": "save",
+        "display_node": "save",
+        "parent_node": null,
+        "real_node_id": "save"
+      }
+    }
+  }
+}

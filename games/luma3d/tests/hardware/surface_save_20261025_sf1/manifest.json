@@ -1,0 +1,617 @@
+{
+  "candidate": true,
+  "hardware_tested": false,
+  "tag": "sf1",
+  "program": "luma3d-sf1",
+  "helper": "sf1-helper",
+  "game": {
+    "sha256": "ad74b613145bf410c55ac3501962ecea9089f448d84a40e3056bff8671f09d8d",
+    "bytes": 4755672,
+    "crc32": "d2a4c3ae"
+  },
+  "baseline": {
+    "sha256": "7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882",
+    "bytes": 4560732,
+    "crc32": "97482905"
+  },
+  "validation": {
+    "passed": true,
+    "hardware": false,
+    "build": "games/luma3d/build/terrain_surface_20261025_r2",
+    "runtime": {
+      "sha256": "ad74b613145bf410c55ac3501962ecea9089f448d84a40e3056bff8671f09d8d",
+      "bytes": 4755672,
+      "crc32": "d2a4c3ae"
+    },
+    "checks": {
+      "surface_query": {
+        "path": "games/luma3d/build/terrain_surface_20261025_tests_r2/result.json",
+        "sha256": "89caa57a98a8740351b39f5d65e8a0033718f43217c39e8fd49813e5f052f912"
+      },
+      "renderer": {
+        "path": "games/luma3d/build/terrain_surface_20261025_r2/validation_surface/contract/result.json",
+        "sha256": "d2acf969876965524462deceea3c7c73bfef241164564226b3753682c00174cb"
+      },
+      "scenario": {
+        "path": "games/luma3d/build/terrain_surface_20261025_r2/validation_surface/result.json",
+        "sha256": "c0cdb81bc50f2521a3ccbf886ba40e1c2ccd0d9bfd16f6d252688c2cfb07d2e4"
+      },
+      "save_cli": {
+        "path": "games/luma3d/build/terrain_surface_20261025_r2/save_cli/result.json",
+        "sha256": "f17d7bca8b73fa669a54d78bc7d22af382302095f492680337dd89e752a5b409"
+      },
+      "migration_and_bridge": {
+        "path": "games/luma3d/build/terrain_surface_20261025_r2/surface_game_r4/result.json",
+        "sha256": "0d27ab31f0d3d0202a93cc5e2ee858c7f2a7d9e1230998a41e89e110f7ea6ff5"
+      },
+      "forced_lod": {
+        "path": "games/luma3d/build/terrain_surface_20261025_r2/surface_lod/result.json",
+        "sha256": "cc42e62ca9b001d592d1ea74aac5d11e57b1d61d6124e0c2ae4adcb58e7c25b3"
+      },
+      "anchors": {
+        "path": "games/luma3d/candidates/terrain_surface_r1/world/anchor_validation.json",
+        "sha256": "a16210eeded96c6d62514a9722dff972df1eb33fe6b1f7cbce621a60a170e9c6"
+      },
+      "tables": {
+        "path": "games/luma3d/build/terrain_surface_20261025_tables_r3/result.json",
+        "sha256": "35b71ebd13a38ea8e8ba3123a4b5ec475d8bb2dd6819e379ca7a8dffe194ffed"
+      }
+    },
+    "scope": "Canonical existing packed LOD0 surface for ground and deck; local-only save inherited. Not a performance candidate or content extension.",
+    "proof": {
+      "projected_area_m2": 25600,
+      "coverage": "Exact integer topology; once, no holes or overlaps",
+      "shared_edge_height_gap_m": 0,
+      "query_samples": 154551,
+      "query_max_error_m": 5.50563144e-06,
+      "bridge_samples": 220,
+      "bridge_max_error_m": 9.91420697e-08,
+      "migrated_existing_surface_positions": 1960,
+      "max_actual_migration_m": 0.507027,
+      "bridge_walk_steps": 184,
+      "bridge_walk_gap_m": 0,
+      "forced_lod_frames_two_profiles": 52,
+      "migration_baseline": "Exact frozen art3 world.c + data.c, symbols renamed only for coexistence in test binary"
+    },
+    "cost": {
+      "cpu_readonly_table_bytes": 210940,
+      "gpu_added_resources_bytes": 0,
+      "gpu_added_draws_on_nine_story_views": 0,
+      "gpu_added_triangles_on_nine_story_views": 0,
+      "hardware_fps": null
+    },
+    "limits": [
+      "Far LODs remain visual approximations; canonical near surface enforced within 3.05 m of player",
+      "Old collision off-path intentionally changes to existing rendered surface",
+      "Inn +0.0686511 m and stone_8 -0.4527557 m, corresponding collider vertical extents moved",
+      "No new map, mission or hours of gameplay",
+      "No board/SD/FPGA/kernel access; art3 stays live",
+      "Query test first assertion incorrectly demanded a rounded edge point remain in original triangle; corrected oracle extrapolates adjacent continuous edge plane",
+      "Migration test first expected >1m relocation based on missing old bridge override; exact old bridge restored, actual viable cases max0.507m, all prior failed logs preserved",
+      "Earlier migration reports used updated collider bounds; final r4 links the exact old callbacks and catalogue, 1960 shared occupiable positions instead of1961"
+    ]
+  },
+  "transfer_files": [
+    "sf1-helper",
+    "sf1.delta.lz4",
+    "sf1-pixels-0.lz4",
+    "sf1-hud-0.lz4",
+    "sf1-pixels-1450.lz4",
+    "sf1-hud-1450.lz4",
+    "sf1-pixels-3800.lz4",
+    "sf1-hud-3800.lz4"
+  ],
+  "new_references": [
+    "sf1-pixels-0.lz4",
+    "sf1-hud-0.lz4",
+    "sf1-pixels-1450.lz4",
+    "sf1-hud-1450.lz4",
+    "sf1-pixels-3800.lz4",
+    "sf1-hud-3800.lz4"
+  ],
+  "scenes": [
+    {
+      "variant": "art3",
+      "pose": 0,
+      "pixels": {
+        "file": "vl2-p1.lz4",
+        "bytes": 192000,
+        "sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "crc32": "d5431e55"
+      },
+      "hud": {
+        "file": "vl2-h1.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 431,
+        "draws": 93,
+        "submitted_triangles": 2581,
+        "instances": 93,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.19156704796478152,
+        "vertices": 1956,
+        "triangles": 1088,
+        "clipped": 600,
+        "culled": 1613,
+        "slivers": 0,
+        "fragments": 209814,
+        "command_sha256": "1a562d3117af7cbabecc30fdb78ecdefc4e8787f0b534dfc487b2686b071ec7a",
+        "asset_sha256": "5bf7a5093803a53be6040f54231f6eb9dc6840b22f8167e885875fbbf123fa58",
+        "image_sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "53366d087499c7b064329de01a926bcc18b4fa2e6357aaacd5c3b45d0fc04b98",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 83111.71,
+        "commands": 12570,
+        "batches": 210,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 93,
+        "triangles_last": 2581,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 0,
+      "pixels": {
+        "file": "sf1-pixels-0.lz4",
+        "bytes": 192000,
+        "sha256": "a49884b011f97aba600abec7660042f8b86cbcce9a0df359fe5494ee14f4087d",
+        "crc32": "ba3c449e"
+      },
+      "hud": {
+        "file": "sf1-hud-0.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 431,
+        "draws": 93,
+        "submitted_triangles": 2581,
+        "instances": 93,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.1848959640483372,
+        "vertices": 1956,
+        "triangles": 1086,
+        "clipped": 600,
+        "culled": 1615,
+        "slivers": 0,
+        "fragments": 209788,
+        "command_sha256": "0b0bcf75f697ce72c3910191782ae46b79da012a87ef11b2744b8bfc0c331683",
+        "asset_sha256": "5bf7a5093803a53be6040f54231f6eb9dc6840b22f8167e885875fbbf123fa58",
+        "image_sha256": "a49884b011f97aba600abec7660042f8b86cbcce9a0df359fe5494ee14f4087d",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "112c572cf34d6d65e4f85bf4ce104bc00d635735278f2187a7842652a45bf5e8",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 80516.81,
+        "commands": 12570,
+        "batches": 210,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 93,
+        "triangles_last": 2581,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 1450,
+      "pixels": {
+        "file": "sf1-pixels-1450.lz4",
+        "bytes": 192000,
+        "sha256": "6519cceb17203fadbe477d4f28f244be048c088bbf7b0f8be12887a3df16c6c6",
+        "crc32": "4e7e82c6"
+      },
+      "hud": {
+        "file": "sf1-hud-1450.lz4",
+        "bytes": 139200,
+        "sha256": "d14acd23e4b8391e858028f749c6db0ea3b426675320f4f01c71b3cf1c2f8afe",
+        "crc32": "517d1cdf"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 179,
+        "draws": 36,
+        "submitted_triangles": 1759,
+        "instances": 36,
+        "culled_instances": 83,
+        "hardware": false,
+        "model_seconds": 0.09649803501088172,
+        "vertices": 1187,
+        "triangles": 405,
+        "clipped": 584,
+        "culled": 1444,
+        "slivers": 0,
+        "fragments": 235554,
+        "command_sha256": "c2b45464353832448e6473f44b11451345bdfe61b7d6c3489e432d6a8ef154ed",
+        "asset_sha256": "71538ca8f4c959b52d5fc05b16923e2aba3de30988c6e2bcc6bd412b94c26c0d",
+        "image_sha256": "6519cceb17203fadbe477d4f28f244be048c088bbf7b0f8be12887a3df16c6c6",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 1,
+        "hud_uploads": 1,
+        "hud_bytes": 139200,
+        "composite_rgb_sha256": "cd51bbe2272f7637e24a16fd2ebe9e67c8e1ddf6ef81ce73e06d25d09c73a57e",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 164650.66,
+        "commands": 5010,
+        "batches": 90,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 36,
+        "triangles_last": 1759,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "new",
+      "pose": 3800,
+      "pixels": {
+        "file": "sf1-pixels-3800.lz4",
+        "bytes": 192000,
+        "sha256": "3148ab66692ab061ef2638e3aaf778825b5bac98beb2cd6ce929b18c297a5873",
+        "crc32": "f04bf276"
+      },
+      "hud": {
+        "file": "sf1-hud-3800.lz4",
+        "bytes": 86400,
+        "sha256": "b24f381cba96e9927755003cc3312090663e4ac89649d9d110d9c10723882280",
+        "crc32": "7c917d16"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 387,
+        "draws": 80,
+        "submitted_triangles": 2836,
+        "instances": 80,
+        "culled_instances": 42,
+        "hardware": false,
+        "model_seconds": 0.17825039196759462,
+        "vertices": 2049,
+        "triangles": 1013,
+        "clipped": 720,
+        "culled": 1924,
+        "slivers": 0,
+        "fragments": 237504,
+        "command_sha256": "40d2f9dcd8f350c20b7a0071b4cd53ab8a3cdfcd18b2c8d20b63baa696b39b07",
+        "asset_sha256": "2252f34bbc1606bdd140ad2b6911e2e2c2536c45fc83051f5d362798417e4074",
+        "image_sha256": "3148ab66692ab061ef2638e3aaf778825b5bac98beb2cd6ce929b18c297a5873",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 86400,
+        "composite_rgb_sha256": "90ebbf5cdea521889cf87740edf7703382c87468dc8fed7b5502744df7557712",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 90795.19,
+        "commands": 11250,
+        "batches": 180,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 80,
+        "triangles_last": 2836,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    },
+    {
+      "variant": "art3",
+      "pose": 0,
+      "pixels": {
+        "file": "vl2-p1.lz4",
+        "bytes": 192000,
+        "sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "crc32": "d5431e55"
+      },
+      "hud": {
+        "file": "vl2-h1.lz4",
+        "bytes": 67200,
+        "sha256": "25aeac20e125884c1e7288c8dc92e328ee88f583c9f5da59bcceb3740bc68229",
+        "crc32": "57a07a99"
+      },
+      "oracle": {
+        "width": 400,
+        "height": 240,
+        "pitch": 1600,
+        "page_bytes": 1048576,
+        "page": 0,
+        "bytes": 23068672,
+        "commands": 431,
+        "draws": 93,
+        "submitted_triangles": 2581,
+        "instances": 93,
+        "culled_instances": 29,
+        "hardware": false,
+        "model_seconds": 0.19156704796478152,
+        "vertices": 1956,
+        "triangles": 1088,
+        "clipped": 600,
+        "culled": 1613,
+        "slivers": 0,
+        "fragments": 209814,
+        "command_sha256": "1a562d3117af7cbabecc30fdb78ecdefc4e8787f0b534dfc487b2686b071ec7a",
+        "asset_sha256": "5bf7a5093803a53be6040f54231f6eb9dc6840b22f8167e885875fbbf123fa58",
+        "image_sha256": "b107c0f96c498db6876bcb1bc2f53f61abfe744d3fe48d1e947e551bd421d4b3",
+        "scope": "Independent integer GPU command oracle; no hardware timing or FPS claim",
+        "hud_layers": 2,
+        "hud_uploads": 1,
+        "hud_bytes": 67200,
+        "composite_rgb_sha256": "53366d087499c7b064329de01a926bcc18b4fa2e6357aaacd5c3b45d0fc04b98",
+        "hud_scope": "Offline composition of exact native indexed banks and PRESENT descriptors; not a hardware capture"
+      },
+      "host_benchmark": {
+        "frames": 30,
+        "elapsed": 0.0,
+        "fps": 83111.71,
+        "commands": 12570,
+        "batches": 210,
+        "feed_seconds": 0.0,
+        "present_seconds": 0.0,
+        "draws_last": 93,
+        "triangles_last": 2581,
+        "benchmark": 1,
+        "hardware": 0,
+        "warmup": 3
+      }
+    }
+  ],
+  "acceptance": {
+    "max_arrival_slowdown": 0.1,
+    "max_witness_drift": 0.05
+  },
+  "delta": {
+    "file": "sf1.delta.lz4",
+    "old_sha256": "7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882",
+    "new_sha256": "ad74b613145bf410c55ac3501962ecea9089f448d84a40e3056bff8671f09d8d",
+    "new_bytes": 4755672,
+    "new_crc32": "d2a4c3ae",
+    "patch_bytes": 323910,
+    "patch_crc32": "22f75217"
+  },
+  "source_changes": [
+    "games/luma3d/include/luma3d_surface.h",
+    "games/luma3d/include/surface_data.h",
+    "games/luma3d/include/luma3d_game.h",
+    "games/luma3d/include/luma3d_progress.h",
+    "games/luma3d/src/progress.c",
+    "games/luma3d/src/game.c",
+    "games/luma3d/src/world.c",
+    "games/luma3d/src/surface.c",
+    "games/luma3d/src/render.c",
+    "games/luma3d/src/main.c",
+    "games/luma3d/world/export_validation.json",
+    "games/luma3d/world/data.c",
+    "games/luma3d/world/export_c.py",
+    "games/luma3d/world/scene.json",
+    "games/luma3d/world/anchor_validation.json"
+  ],
+  "files": {
+    "TRIAL_PLAN.txt": {
+      "bytes": 2952,
+      "sha256": "e5678cf4031572fccf22105e5dd739230dce0327495de33dd36f2484d76ca911",
+      "crc32": "2fd79e5e"
+    },
+    "baseline_manifest.json": {
+      "bytes": 5951,
+      "sha256": "7af8b07f870c284821e3e2e0da65504bf61c6b0217009d0cad2b885454509387",
+      "crc32": "e7823c41"
+    },
+    "build_delta.py": {
+      "bytes": 2820,
+      "sha256": "f04c4b091bd58a06264f12cafb26caf70972822e65585c14836d28e14f739240",
+      "crc32": "95038be4"
+    },
+    "check_gpu_reloads.py": {
+      "bytes": 9436,
+      "sha256": "b023a7c4ff340dd5fb00f8da6a05baa37834998f0ab0eec024fc931c0f8bd754",
+      "crc32": "d7c834b5"
+    },
+    "check_linux.py": {
+      "bytes": 5723,
+      "sha256": "c5a7fd2b902e32169eae5fed71c3f7f6a4c66fe9ffeb25879d19141e447897d9",
+      "crc32": "74e12906"
+    },
+    "game_manifest.json": {
+      "bytes": 7079,
+      "sha256": "edd510c01c6b30f157e373f8e9b552678d7898fe2b3577dbead3032f21e1ff3e",
+      "crc32": "c4f63f05"
+    },
+    "helper-host": {
+      "bytes": 21032,
+      "sha256": "e13214370be9a69349037332c6ae518cd3f097a2d4480f314bd7b790bf32bbca",
+      "crc32": "3f4068ef"
+    },
+    "host_art3_0.log": {
+      "bytes": 521,
+      "sha256": "d9e55427098b63bfef56bb2f29329272b24cb978da2a18a90e70e5dc044184e4",
+      "crc32": "5483f83d"
+    },
+    "host_new_0.log": {
+      "bytes": 521,
+      "sha256": "f2894074678760d54057b88114c95da9b8539cfaf05e5ecc86b7dcd6bff40c50",
+      "crc32": "ddb7039e"
+    },
+    "host_new_1450.log": {
+      "bytes": 524,
+      "sha256": "6426d56a741d0b7b2503ff67f33cc88b05b3c35ee88b6cc832bd3aaf17dc529a",
+      "crc32": "1d4c5e4f"
+    },
+    "host_new_3800.log": {
+      "bytes": 525,
+      "sha256": "6fa2abcd3e31c87171f4016718e260957fd59d8aafb5e691c2f6edbbbd3de6dd",
+      "crc32": "ede34b1e"
+    },
+    "local_validation.json": {
+      "bytes": 3742,
+      "sha256": "efc444b9c09f96ed7ec23dab066f3f1f7ce1b3d8287599c86c5ce1c868f52847",
+      "crc32": "6a7ca2a9"
+    },
+    "prepare_trial.py": {
+      "bytes": 6399,
+      "sha256": "575a97ea1f6dd15a3674a007c63d13dd86e3609afc8819743104e7ffe4f34723",
+      "crc32": "4b592470"
+    },
+    "prodock-uapi.h": {
+      "bytes": 3678,
+      "sha256": "28c9b505ecab395639698c143ab8ce48890537fef1008cee6a604dbc93c22a51",
+      "crc32": "4bbb65c6"
+    },
+    "prodock_order.py": {
+      "bytes": 16438,
+      "sha256": "94b4142b4076f121897a0323707452b4c4196916c34b491b062d42f4d05871b9",
+      "crc32": "d7b74abe"
+    },
+    "prodock_surface.py": {
+      "bytes": 11642,
+      "sha256": "120bd9709bd23bcd54d0660551021831ab0de9ca3d0085a5d388417119ba0e55",
+      "crc32": "968ce2e1"
+    },
+    "prodock_transport.py": {
+      "bytes": 4089,
+      "sha256": "fbca604e76cb35f5e3d559644d8add769f40df1b85c129ba343159b327bf772b",
+      "crc32": "4ef1375c"
+    },
+    "prodock_valley_ab.py": {
+      "bytes": 11425,
+      "sha256": "7348d97f9ba20628750c8407419ab489e0f4b1698590b8e934a07f7e950038f4",
+      "crc32": "581bddca"
+    },
+    "prodock_valley_benchmark.py": {
+      "bytes": 14209,
+      "sha256": "38b035631a333f8660fb60faa104aa91c6a4d8f395081e375d7dd1683029b0e7",
+      "crc32": "0dd291db"
+    },
+    "prodock_valley_trial.py": {
+      "bytes": 9628,
+      "sha256": "0256ea224ccfa7e661b845b331f25cfdf4e560dd22b442e6f93b296161e14a8f",
+      "crc32": "34cbcb9b"
+    },
+    "reconstruction.log": {
+      "bytes": 46,
+      "sha256": "35ee86b081d25527c754916d54cea406f46f63b960d837a4873027a4a9292ba8",
+      "crc32": "d1e9f115"
+    },
+    "runtime_inspect.c": {
+      "bytes": 6183,
+      "sha256": "ee4b96fdb21371e86b94dd75cb08703cf14483e48432df444ad2fcf07595fb60",
+      "crc32": "8584ca7b"
+    },
+    "sf1-helper": {
+      "bytes": 221088,
+      "sha256": "c5d796594e3df4b8380e4eceac604abbe6b3849d95a92425ed5f246b9b677521",
+      "crc32": "c54f6692"
+    },
+    "sf1-hud-0.lz4": {
+      "bytes": 1637,
+      "sha256": "75c166ac25df7f37259138882fa62bf2b3fc3ab31e5846e62688a498b026238f",
+      "crc32": "2920d41a"
+    },
+    "sf1-hud-1450.lz4": {
+      "bytes": 4259,
+      "sha256": "efece2907709515be9ee86dfb74dfdd64e90190db4033b4abc4cae09760f41dc",
+      "crc32": "002c0564"
+    },
+    "sf1-hud-3800.lz4": {
+      "bytes": 2522,
+      "sha256": "2e501a3c26559d307e4eb92e288356b9c5c2bf51dbc89cff1885a9d42133640a",
+      "crc32": "cee0bd0c"
+    },
+    "sf1-pixels-0.lz4": {
+      "bytes": 83224,
+      "sha256": "6e6a11caca757ef94c37a9af18b8c19febc00cb67b5a84505a5cccc3d0c52abd",
+      "crc32": "a0b687b5"
+    },
+    "sf1-pixels-1450.lz4": {
+      "bytes": 41010,
+      "sha256": "20e86d27c8cae0251aead31c4c92a0d6a640058ef87ce49774acc4e690460774",
+      "crc32": "4eb7eda4"
+    },
+    "sf1-pixels-3800.lz4": {
+      "bytes": 63727,
+      "sha256": "c18bb725ab9cbeefc50685e6ba8c18cace3b2d1459fb58d96abf4bf7d17d415d",
+      "crc32": "f7faca19"
+    },
+    "sf1.delta.lz4": {
+      "bytes": 184351,
+      "sha256": "9c5d37dac2478c775d58b7c19cff0dffe5ca6869a55edd1a4f7af5a0d7fc74ae",
+      "crc32": "4f799943"
+    },
+    "source.patch": {
+      "bytes": 21915,
+      "sha256": "dbce4f9fa5596b429b86296825ff25a14961e476a79e2addd67bbe7b01c7fb0f",
+      "crc32": "446a8e81"
+    },
+    "test_trial.py": {
+      "bytes": 8035,
+      "sha256": "4b3b71630610b6bd8908cb7b0e5a8a107f608d7e416c356fbb98079c57369bf1",
+      "crc32": "abe40ec1"
+    },
+    "vl2-h1.lz4": {
+      "bytes": 1637,
+      "sha256": "75c166ac25df7f37259138882fa62bf2b3fc3ab31e5846e62688a498b026238f",
+      "crc32": "2920d41a"
+    },
+    "vl2-p1.lz4": {
+      "bytes": 83203,
+      "sha256": "70bac9484c8298d5a96985015a5026031f532bd50b64ef2eea1fcc25bb9b9420",
+      "crc32": "248c26fd"
+    }
+  },
+  "transport_bytes": 601818
+}

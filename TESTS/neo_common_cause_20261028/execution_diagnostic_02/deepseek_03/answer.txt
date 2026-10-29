@@ -1,0 +1,34 @@
+Implemented the bench-quality correction in `bench.sv` and completed `ANALYSIS.md`.
+
+## Files changed
+- `bench.sv` — 516 physical lines, below the 1000-line limit.
+- `ANALYSIS.md` — recorded exact outcomes and limits.
+
+No protected RTL, stimulus, or test files were modified.
+
+## Corrections
+- Removed the shared `j` variable from the concurrent `fork` producers. `CPU_MIX` now uses local `cj`/`cwd`, and `BLIT_MIX` uses local `bj`/`bwd`.
+- Replaced both fixed `repeat (128)` write delays with bounded `wait_native_writes` calls.
+  - Separate producer counters: `cpu_wr_issued`, `gpu_wr_issued`.
+  - External terminal acceptance counter: `native_wr_accepted`, counting only `m_en && m_ready && m_cmd==0 && m_wr_en && m_wr_end && m_wr_ready`.
+  - Producer readiness is no longer treated as DDR completion.
+- Added an independent global completion watchdog bounded at 20000 cycles, using `bench_done`.
+
+## Tests observed
+`taskbox_run_tests` passed all five cases:
+
+| Case | Result |
+|---|---|
+| `seed=1 fault=0` | rc=0, `PASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11` |
+| `seed=8 fault=0` | rc=0, `PASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11` |
+| `seed=1 fault=1` | rc=-6, `CHECK_FAIL DATA scanout` |
+| `seed=1 fault=2` | rc=-6, `INJECT dropped_response=0`, `CHECK_FAIL DATA cpu` |
+| `seed=1 fault=3` | rc=-6, `CHECK_FAIL TIMEOUT cpu read ready` |
+
+Harness result: `"passed": true`, with 0 test failures.
+
+## Limitations
+- `native_memory` is an ordered byte model, not a physical DDR3 controller/PHY. Terminal acceptance equals model byte update, not hardware DDR completion.
+- PASS only refutes owner/half/rotation label mixing for these stimuli; it does not identify a board defect.
+- Faults 1–3 are negative controls for bench sensitivity, not attributed hardware causes.
+- No DMA, hardware, network, or R22r1/R21r1 merging was used.

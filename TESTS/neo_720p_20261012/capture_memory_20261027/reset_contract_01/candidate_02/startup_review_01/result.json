@@ -1,0 +1,93 @@
+{
+  "passed": true,
+  "hardware_access": false,
+  "existing_tests": 6,
+  "extra_keyboard_interrupt_tests": {
+    "coupled_before_dmi": {
+      "passed": true,
+      "calls": [
+        [
+          "observe",
+          "r19_initial_guard"
+        ],
+        [
+          "camera",
+          "r19_before"
+        ],
+        [
+          "program",
+          "program_coupled"
+        ],
+        [
+          "camera",
+          "coupled_before_dmi"
+        ],
+        [
+          "program",
+          "restore_r19"
+        ],
+        [
+          "observe",
+          "restored_guard"
+        ],
+        [
+          "camera",
+          "r19_restored"
+        ]
+      ]
+    },
+    "coupled_startup": {
+      "passed": true,
+      "calls": [
+        [
+          "observe",
+          "r19_initial_guard"
+        ],
+        [
+          "camera",
+          "r19_before"
+        ],
+        [
+          "program",
+          "program_coupled"
+        ],
+        [
+          "camera",
+          "coupled_before_dmi"
+        ],
+        [
+          "observe",
+          "coupled_startup"
+        ],
+        [
+          "program",
+          "restore_r19"
+        ],
+        [
+          "observe",
+          "restored_guard"
+        ],
+        [
+          "camera",
+          "r19_restored"
+        ]
+      ]
+    }
+  },
+  "findings": [
+    {
+      "severity": "preflight binding",
+      "status": "to ensure in root hardware_ready proof_files",
+      "description": "Imported IO/runner/config must be explicitly hashed in proof_files; controller_self_hash alone does not bind them."
+    }
+  ],
+  "source_files": {
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/trial_coupled_startup.py": "0db68e0593316c853931d2749648de129e878d10237c023aa451d17249a52afc",
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/test_coupled_startup.py": "3ca2026de7f413b77293bc44902310e89878114eac020bb30354dab67d0f5c0c",
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/warm_mode1_trial.py": "4ac4b7dbd0648192149795dcbbb4cf2d9f9613c360d7e1fcf239cbf3099ca408",
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/board_trial_r21.py": "95cd8b547c8e50d320363d368960142818fa26144a8cb84cfb4e46168251f368",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/probe_route9_led_compare.py": "e59aa8eea8765787ce2798f5858bf9196c8df26fd6c3271333cdbe7f80f5877b",
+    "/home/michael/console/tools/neo/ae350_espprog.cfg": "aa317f61c5093b8c230d96ba70b56cda65448f4b295a70b4e67cf09cd5ef9b67"
+  },
+  "guard_sha256": "fe3085fdebbf03b7e010f075100309510d97d8a8694058498376b23e8f3de50f"
+}

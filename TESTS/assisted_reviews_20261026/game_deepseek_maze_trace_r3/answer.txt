@@ -1,0 +1,129 @@
+Je n’ai exécuté aucun test ni accédé à du matériel. Analyse statique du paquet uniquement.
+
+## Verdict court
+
+- Je ne trouve pas de traversée interpolée de mur pour des mouvements adjacents valides : `observe` impose un déplacement axial de 256 unités (`src/maze_motion.c:29`), et `sample` n’interpole qu’un segment à la fois (`src/maze_motion.c:45-51`).
+- En revanche, je trouve **deux incohérences concrètes** dans le paquet : la sortie `BACK` et la cadence moteur/file d’animation. Un troisième point est un saut non testé en cas de saturation de file.
+- Les lignes manquantes de la boucle `l3_mini_step_trace` sont critiques : sans elles, le point cadence reste une hypothèse forte, mais le paquet contient déjà une incompatibilité entre `test_maze_trace.c` et l’affirmation « 60 Hz avec interpolation 100/233 ms ».
+
+## 1. Contre-exemple concret : `BACK` ne réinitialise pas la présentation
+
+Faits fournis :
+
+- `l3_mini_step_trace` retourne `L3_MINI_EVENT_EXIT` sur `BACK` (`EXACT DIFF minigames/l3_minigames.c`, autour du hunk `@@ -465,8 +465,9 @@`).
+- `l3_arcade_step_trace` ne teste, dans le diff fourni, que `L3_MINI_EVENT_WON` après l’appel moteur ; aucun `if(e & L3_MINI_EVENT_EXIT)` n’apparaît avant `return e` (`EXACT DIFF src/arcade_core.c`, hunk `@@ -54,12 +56,15 @@`).
+- `l3_activity_step` ne remet pas `a->arcade.active` à zéro : elle ne fait que `pending_us=0` et les révisions (`src/activities.c:42-43`).
+- Pourtant `test_observer.c:27-28` exige `!g.activities.arcade.active` et `r.exits==1` après `BACK`.
+- Le commentaire de `l3_activity_observer_emit` dit explicitement que la sortie peut avoir effacé `active` (`src/activity_observer.c:22`), ce qui confirme l’intention.
+
+Conséquence concrète : sur une partie maze active, un tick avec `mini_pressed=L3_MINI_BACK` laisse, d’après les lignes fournies, `arcade.active` non nul. Donc `l3_arcade_view` reste vrai, `after` est non NULL, et `src/presentation.c:10` ne fait pas `l3_maze_motion_reset`. Le test `test_observer.c:28` et le reset de présentation à la sortie ne peuvent pas être satisfaits simultanément avec ce code.
+
+Patch minimal proposé, dans `l3_arcade_step_trace` avant `return e` :
+
+```c
+if (e & L3_MINI_EVENT_EXIT) {
+    s->active = 0;
+    s->release_inputs = 1;
+}
+```
+
+Test minimal : conserver `test_observer.c:27-28`, et ajouter côté présentation après le `BACK` :
+
+```c
+assert(!g.activities.arcade.active);
+assert(!r->maze_motion.valid);   /* reset réel de la présentation */
+```
+
+Si une ligne non diffée efface déjà `active`, alors le paquet est incomplet : c’est une preuve manquante, pas une défense du code fourni.
+
+## 2. Contre-exemple / incohérence : cadence moteur contre durées 6/60 et 14/60
+
+Faits :
+
+- Le joueur bouge quand `TIMER==6`, les ennemis quand `ETIMER==14` (`R6 ENGINE CONTACT/TICK context`, lignes 385-395).
+- Les segments de présentation durent `6/60` s pour le joueur et `14/60` s pour les ghosts (`src/maze_motion.c:35`), soit 100 ms et 233 ms.
+- À 60 Hz, `src/activities.c:36` produit environ `ms=16`.
+- `test_maze_trace.c:24-30` initialise `ETIMER=0..13`, appelle **un seul** `l3_mini_step_trace(...,17,...)` et attend un contact pour toutes les valeurs. Cela exige que l’appel `dt=17` fasse progresser `ETIMER` jusqu’à 14, donc que `maze_tick` soit appelé de l’ordre de `dt_ms` fois.
+
+Dichotomie concrète :
+
+1. Si `maze_tick` est appelé environ `dt_ms` fois, alors à 60 Hz le joueur avance de 2 à 3 cases par appel (`16/6`). `l3_maze_motion_observe` voit `abs(dx)+abs(dy) != 256` et prend la branche `settle`/`teleports` (`src/maze_motion.c:29-30`). Le module ne glisse donc pas à 60 Hz : il téléporte à chaque frame. Les 100/233 ms ne sont jamais utilisés dans le cas nominal.
+2. Si `maze_tick` n’est appelé qu’une fois par appel, alors `test_maze_trace.c:24-30` ne peut pas produire un contact pour `enemy_tick=0..13` avec `dt=17`.
+
+Le paquet ne peut pas être cohérent avec les deux affirmations « frontend 60 Hz » et « test trace dt=17 ». La boucle de `l3_mini_step_trace` avant la ligne 482 n’est pas fournie : c’est l’évidence manquante décisive.
+
+Le test `run(16)` ne détecte pas ce problème : il imprime `moves` et `teleports` (`test_maze_motion.c:44`) mais n’assert ni `moves>0` ni `teleports==0`. Seul `!m.overflows` est vérifié (`test_maze_motion.c:45`).
+
+Test minimal ciblé, sur le vrai chemin frontend :
+
+```c
+/* boucle 60 Hz, entrée demo, présentation liée */
+for (i = 0; i < N; i++) {
+    l3_presentation_clock(r, i/60.0, 1);
+    l3_activity_step(&g, &in, 1.0f/60.0f);
+    assert(l3_maze_motion_sample(&r->maze_motion, i/60.0, &shown));
+    /* hors contact/reset, un pas de 60 Hz ne doit pas sauter plus d'une case */
+    assert(abs((int)shown.actors[0].x256 - (int)prev.actors[0].x256) +
+           abs((int)shown.actors[0].y256 - (int)prev.actors[0].y256) <= 256);
+    prev = shown;
+}
+assert(r->maze_motion.moves > 0);
+assert(r->maze_motion.teleports == 0); /* hors contacts/respawns */
+```
+
+Avec la branche « dt fois », ce test échoue dès les premières frames.
+
+Patch minimal selon le contrat voulu :
+
+- Si le contrat est réellement 100/233 ms à 60 Hz : avancer le moteur d’au plus **un tick maze par frame 60 Hz**, ou exposer un snapshot par tick. Sinon `observe` ne peut voir qu’un saut multi-case.
+- Si le contrat est tick=1 ms : remplacer les durées par `6/1000` et `14/1000` et accepter que les délais ne soient plus 100/233 ms. Cela ne suffit toutefois pas à obtenir un glissement à 60 Hz si plusieurs ticks moteur ont lieu entre deux observations.
+
+## 3. Saturation de file : saut non testé, pas traversée interpolée
+
+Fait direct : neuf mouvements adjacents observés plus vite que 100 ms déclenchent `t->count==L3_MAZE_SEGMENTS` (`src/maze_motion.c:32`), puis `settle` vers la position autoritaire et `overflows++`. Les huit segments en attente sont supprimés.
+
+Contre-exemple synthétique reproductible, sans moteur :
+
+- vue 12×3 avec un couloir en U autour d’un mur ;
+- actor 0 déplacé d’une case adjacente à chaque observation à `t=0.001, 0.002, ...` ;
+- au 9e déplacement, `overflows` passe à 1 et `sample` saute de la position affichée proche de la 1re case à la 9e.
+
+Ce n’est pas une interpolation linéaire à travers un mur, mais c’est un saut visuel qui peut traverser un mur à l’écran. Le test actuel interdit précisément ce scénario en asservissant `!m.overflows` (`test_maze_motion.c:45`) sans jamais tester la branche de saturation.
+
+Test minimal :
+
+```c
+/* construire un couloir U ouvert de 10 cases, ghosts hors trajectoire */
+for (k = 1; k <= 9; k++) {
+    a.actors[0] = position_case(k);
+    assert(l3_maze_motion_observe(&m, &v, &a, k*0.001, 1));
+    assert(!l3_maze_motion_sample(&m, k*0.001, &shown));
+    /* vérifier la continuité, pas seulement l'appartenance à une case ouverte */
+    assert(manhattan(shown.actors[0], prev.actors[0]) <= 256);
+}
+```
+
+Si la politique « snap » est assumée, il faut au minimum changer l’assertion `!m.overflows` en un test explicite de saturation, et vérifier que le renderer ne ré-interpole pas entre les deux échantillons.
+
+## 4. Ce qui tient dans le module, et les lacunes de test
+
+Ce qui tient, sous réserve des points ci-dessus :
+
+- Les virages A→B→C ne produisent pas de diagonale : les segments sont ajoutés dans l’ordre et `sample` finalise le premier avant d’interpoler le second (`src/maze_motion.c:33-36`, `45-51`). Le test `test_maze_motion.c:59-66` est cohérent mais ne vérifie que l’appartenance à une case ouverte (`verify`, lignes 8-13), pas la continuité entre échantillons.
+- Les respawns non adjacents passent par `warp`/`settle`, donc pas par une interpolation à travers le labyrinthe (`src/maze_motion.c:26`).
+- Le trace de contact est bien un OR de contacts réels (`EXACT DIFF minigames/l3_minigames.c`, `maze_contact`), et le test compare l’état complet au pas de référence (`test_maze_trace.c:8-10`).
+
+Lacunes ciblées :
+
+- `test_maze_trace.c:24-36` ne teste qu’un respawn **adjacent** `(5,5)→(6,5)` et un seul ghost. Il faut un contact power loin de `(6,5)`, par exemple `(5,3)`, pour prouver que le warp est utilisé et non une simple transition adjacente.
+- Aucun test de deux contacts simultanés : `warp_mask=6` (bit 1 et bit 2) doit produire deux `settle` et deux `teleports`.
+- Le cas `warp_mask=7` est testé côté trace (`test_maze_trace.c:37-41`) mais pas côté motion : ajouter `observe_trace(...,7)`, puis vérifier que les trois tracks sont remis à zéro et que `sample` rend exactement les positions de reset.
+- Le cas `BACK` + présentation n’est pas testé conjointement (`test_observer.c` ne teste que l’état arcade ; `presentation.c:10` n’est pas exercé).
+- Aucune preuve d’exécution de `test_maze_motion` ne montre `overflows=0` pour `run(1)` (`test_maze_motion.c:48`) ; c’est précisément le scénario qui, par lecture, sature la file si `maze_tick` est appelé par ms.
+
+## 5. Preuves manquantes
+
+- La tête de boucle de `l3_mini_step_trace` (lignes 465-482 non fournies) : elle décide si `maze_tick` est appelé `dt_ms` fois ou une fois par frame.
+- Le code complet non diffué de `l3_arcade_step_trace` autour de `EXIT`, ou une confirmation qu’une ligne hors diff efface `active`.
+- Une capture réelle 60 Hz avec `moves`, `teleports`, `overflows` et positions échantillonnées frame par frame. Sans elle, le glissement 60 Hz n’est pas prouvé.
+- La sortie de `test_maze_motion` pour `run(1)` et `run(16)`, notamment `teleports` : le test imprime ces compteurs mais ne les asserte pas.

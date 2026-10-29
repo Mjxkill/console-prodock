@@ -1,0 +1,226 @@
+{
+  "prompt": [
+    32,
+    "43664e76-c965-4d56-86e6-765a1ad5a855",
+    {
+      "unet": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "clip": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        }
+      },
+      "vae": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "qwen_image_vae.safetensors"
+        }
+      },
+      "shift": {
+        "class_type": "ModelSamplingAuraFlow",
+        "inputs": {
+          "model": [
+            "lora",
+            0
+          ],
+          "shift": 3.0
+        }
+      },
+      "latent": {
+        "class_type": "EmptySD3LatentImage",
+        "inputs": {
+          "width": 512,
+          "height": 512,
+          "batch_size": 1
+        }
+      },
+      "positive": {
+        "class_type": "TextEncodeQwenImageEditPlus",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "prompt": "Edit the attached illustration. Preserve its exact curly-haired character, expressive cartoon face, compact proportions, short orange jacket, teal scarf, cream boots, and hand-painted storybook rendering. Show this same illustrated adventurer STANDING on a wooden kick scooter: one boot on the narrow deck and the other boot pushing the ground, two small wheels, tall copper handlebar held in both hands. Keep the same illustrated style as the reference. Show the whole figure and complete vehicle centered with margins, a slightly overhead camera. Keep the background plain.",
+          "vae": [
+            "vae",
+            0
+          ],
+          "image1": [
+            "ref_crop",
+            0
+          ]
+        }
+      },
+      "negative": {
+        "class_type": "TextEncodeQwenImageEditPlus",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "prompt": "",
+          "vae": [
+            "vae",
+            0
+          ],
+          "image1": [
+            "ref_crop",
+            0
+          ]
+        }
+      },
+      "sample": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": [
+            "shift",
+            0
+          ],
+          "seed": 2310261600,
+          "steps": 4,
+          "cfg": 1.0,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "positive": [
+            "positive",
+            0
+          ],
+          "negative": [
+            "negative",
+            0
+          ],
+          "latent_image": [
+            "latent",
+            0
+          ],
+          "denoise": 1.0
+        }
+      },
+      "decode": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "sample",
+            0
+          ],
+          "vae": [
+            "vae",
+            0
+          ]
+        }
+      },
+      "save": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "decode",
+            0
+          ],
+          "filename_prefix": "luma_kick_scooter_illustrated"
+        }
+      },
+      "lora": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "model": [
+            "unet",
+            0
+          ],
+          "lora_name": "Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors",
+          "strength_model": 1.0
+        }
+      },
+      "reference": {
+        "class_type": "LoadImage",
+        "inputs": {
+          "image": "luma_hero_sheet_00001_.png [output]"
+        }
+      },
+      "ref_crop": {
+        "class_type": "ImageCrop",
+        "inputs": {
+          "image": [
+            "reference",
+            0
+          ],
+          "x": 256,
+          "y": 0,
+          "width": 256,
+          "height": 256
+        }
+      }
+    },
+    {
+      "client_id": "luma-art-20261023",
+      "create_time": 1792795477318
+    },
+    [
+      "save"
+    ]
+  ],
+  "outputs": {
+    "save": {
+      "images": [
+        {
+          "filename": "luma_kick_scooter_illustrated_00001_.png",
+          "subfolder": "",
+          "type": "output",
+          "metadata": {
+            "kind": "image",
+            "width": 512,
+            "height": 512
+          },
+          "id": "ce05b092-529b-484d-a906-a8bafe78a53c"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "43664e76-c965-4d56-86e6-765a1ad5a855",
+          "timestamp": 1792795477319
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "clip",
+            "vae"
+          ],
+          "prompt_id": "43664e76-c965-4d56-86e6-765a1ad5a855",
+          "timestamp": 1792795477322
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "43664e76-c965-4d56-86e6-765a1ad5a855",
+          "timestamp": 1792795492385
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "save": {
+      "node_id": "save",
+      "display_node": "save",
+      "parent_node": null,
+      "real_node_id": "save"
+    }
+  }
+}

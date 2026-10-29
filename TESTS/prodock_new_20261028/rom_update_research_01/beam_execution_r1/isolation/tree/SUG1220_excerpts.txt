@@ -1,0 +1,271 @@
+===== PDF page 3, SUG1220 =====
+Revision History
+Date         Version   Description
+08/29/2025   1.0E      Initial version published.
+                          Updated Section 3.1 Command Type.
+                          Added the BitStream property configuration option
+12/31/2025   1.1E          -bsram_init_print_mode to set_option.
+                          Added the Place & Route property configuration option
+                           -co-place_io_registers to set_option.
+                          Updated Chapter 2 Overview.
+                          Updated Chapter 3 title and content hierarchy.
+                          Added Chapter 4 IP Generation Flow Using Tcl
+06/17/2026   2.0E         Added the encrypt command for design file encryption.
+                          Added synthesis configuration options to set_option, including
+                           -opt_goal, -netlist_hierarchy, -dsp_style, -ram_style, -rom_style,
+                           -shift_reg, and -map_option.
+
+===== PDF page 4, SUG1220 =====
+                                                                                                                                                   Contents
+
+
+
+
+Contents
+
+    Contents ............................................................................................................... i
+    List of Figures .................................................................................................... iii
+    List of Tables ...................................................................................................... iv
+    1 About This Guide .......................................................................................... 1
+         1.1 Purpose ............................................................................................................................. 1
+         1.2 Related Documents ........................................................................................................... 1
+         1.3 Terminology and Abbreviations ......................................................................................... 1
+         1.4 Support and Feedback ...................................................................................................... 1
+
+    2 Overview ........................................................................................................ 2
+         2.1 Gowin Software Tcl Overview ............................................................................................ 2
+         2.2 Run Tcl in Gowin Software ................................................................................................ 2
+         2.2.1 Command-Line Mode .................................................................................................... 2
+         2.2.2 Graphical User Interface (GUI) Mode ............................................................................ 3
+
+    3 Tcl Commands ............................................................................................... 5
+         3.1 Command Type ................................................................................................................. 5
+         3.2 Command List ................................................................................................................... 6
+         3.3 Command Description ....................................................................................................... 7
+         3.3.1 add_file .......................................................................................................................... 7
+         3.3.2 encrypt ........................................................................................................................... 8
+         3.3.3 create_ipc ...................................................................................................................... 9
+         3.3.4 create_project .............................................................................................................. 10
+         3.3.5 generate_target ............................................................................................................ 11
+         3.3.6 get_ips ......................................................................................................................... 11
+         3.3.7 import_files ................................................................................................................... 12
+         3.3.8 list_property ................................................................................................................. 13
+         3.3.9 open_project ................................................................................................................ 14
+         3.3.10 read_ipc ....................................................................................................................... 14
+         3.3.11 report_property ............................................................................................................ 15
+         3.3.12 rm_file .......................................................................................................................... 16
+         3.3.13 run ................................................................................................................................ 16
+
+SUG1220-2.0E                                                                                                                                              i
+
+===== PDF page 23, SUG1220 =====
+3 Tcl Commands                                                                   3.3 Command Description
+
+
+
+                 See also
+                     set_property
+                     list_property
+3.3.12 rm_file
+                      Removes design files.
+                 Syntax
+                      rm_file [-h/--help ] <files>
+                 Usage
+                 Name                         Description
+                 <-files>                     Design files to be removed
+                 [-h/--help]                  Displays help information
+
+                 Type
+                      Project
+                 Description
+                      Removes design files; and for the file path format, see 3.3.1 add_file.
+                 Parameter
+                    <-files> Specifies the design files to be removed. Multiple files can be
+                     specified, separated by spaces.
+                    [-h/--help]: Displays help information.
+                 Example
+                      rm_file a.v
+                      rm_file a.v b.v c.v
+                      rm_file D:/gowin_project/top.v
+                      rm_file D:\\gowin_project\\top.v
+3.3.13 run
+                      Runs flows.
+                 Syntax
+                      run [-h/--help] <syn/pnr/all>
+                 Usage
+                 Name                                Description
+                 <syn/pnr/all>                       Specifies the name of the flow to be run
+                 [-h/--help]                         Displays help information
+
+                 Type
+                      Project
+
+
+SUG1220-2.0E                                                                                       16(71)
+
+===== PDF page 40, SUG1220 =====
+3 Tcl Commands                                                              3.3 Command Description
+
+
+
+                     -gen_ibis <0|1>
+                     Usage
+                 Name                      Description
+                 <0|1>                     0: Do not generate *.ibs file.
+                                           1: Generates *.ibs file.
+
+                     Type
+                     Project
+                     Description
+                     Specifies whether Place & Route generates the input/output buffer
+                 information file named *.ibs.
+                     Parameter
+                     <0|1>: Disable or enable generating the specified file containing
+                 input/output buffer information.
+                     Example
+                     set_option -gen_ibis 1
+                 -gen_posp
+                     Whether to generate a device placement file.
+                     Syntax
+                     -gen_posp <0|1>
+                     Usage
+                 Name                           Description
+                 <0|1>                          0: Do not generate *.posp file.
+                                                1: Generates *.posp file.
+
+                     Type
+                     Project
+                     Description
+                     Specifies whether Place & Route generates a device placement file
+                 named *.posp, which contains only BSRAM placement information. The
+                 default value is 0.
+                     Parameter
+                     <0|1>: Disable or enable generating the device placement file.
+                     Example
+                     set_option -gen_posp 1
+                 -gen_text_timing_rpt
+                     Generate a timing report in text format.
+                     Syntax
+                     -gen_text_timing_rpt <0|1>
+
+SUG1220-2.0E                                                                                  33(71)
+
+===== PDF page 58, SUG1220 =====
+3 Tcl Commands                                                               3.3 Command Description
+
+
+
+                     Parameter
+                     <0|1>: Disable or enable security bit.
+                     Example
+                     set_option -bit_security 1
+                 -bit_incl_bsram_init
+                     Prints initial values of BSRAM to the Bitstream file.
+                     Syntax
+                     -bit_incl_bsram_init <0|1>
+                     Usage
+                 Name                     Description
+                 <0|1>                    0: Do not print initial values of BSRAM to the Bitstream
+                                          file；
+                                          1: Prints initial values of BSRAM to the Bitstream file.
+
+                     Type
+                     Project
+                     Description
+                      This option is used to control whether the initial values of BSRAM are
+                 printed into the bitstream file. The default value is 1. For GW1N and GW2A
+                 devices, when this option is set to 1, all positions of the BSRAM will have
+                 their initial values printed in the bitstream file, and the initial values of
+                 unoccupied BSRAM positions are printed as 0. For GW5A(N)(S)(R)(T)
+                 devices, when this option is set to 1, all initial values of BSRAM in the same
+                 column as the occupied BSRAM will be printed to the bitstream file, and the
+                 initial values of unoccupied BSRAM positions in that column are printed as
+                 0.
+                     Parameter
+                     <0|1>: Disable or enable printing initial values of BSRAM to the
+                 Bitstream file.
+                     Example
+                     set_option -bit_incl_bsram_init 1
+                 -bsram_init_print_mode
+                       Selects the mode for printing BSRAM initial values into the bitstream
+                 file. This option is only supported on GW5A(S)(T)-138 / GW5AT-75
+                 devices.
+                     Syntax
+                     -bsram_init_print_mode <default | partial>
+                     Usage
+                 Name                     Description
+                 <default | partial>      default: Print the initial values of all BSRAM locations
+
+
+SUG1220-2.0E                                                                                    51(71)
+
+===== PDF page 59, SUG1220 =====
+3 Tcl Commands                                                                 3.3 Command Description
+
+
+
+                                            into the bitstream file. Unused BSRAM locations are
+                                            printed as 0.
+                                            partial: Print the initial values of all BSRAMs in the
+                                            columns containing used BSRAM locations into the
+                                            bitstream file. Unused BSRAM locations in those
+                                            columns are printed as 0.
+
+                     Type
+                     Project
+                     Description
+                      This option is used to control the mode for printing BSRAM initial
+                 values into the bitstream file, with the default set to default, and is only
+                 supported on GW5A(S)(T)-138/GW5AT-75 devices. When set to default,
+                 the initial values of all BSRAM locations are printed into the bitstream file,
+                 and unused BSRAM locations are printed as 0. When set to partial, the
+                 initial values of all BSRAMs in the columns containing used BSRAM
+                 locations are printed into the bitstream file, and unused BSRAM locations
+                 in those columns are printed as 0. When partial is selected, the
+                 multiboot_mode or mspijump_mode value must first be set to quad.
+                     Parameter
+                      <0|1>: Selects the mode for printing BSRAM initial values into the
+                 bitstream file.
+                     Example
+                     set_option -bsram_init_print_mode partial
+                 -bg_programming
+                     Background programming function.
+                     Syntax
+                     -bg_programming <off | jtag | i2c | goconfig | userlogic |
+                 i2c_jtag_sspi_qsspi | jtag_sspi_qsspi>
+                     Usage
+                 Name                                       Description
+                 <off|jtag|i2c|goconfig|userlogic|          Off: Do not use background
+                 i2c_jtag_sspi_qsspi|jtag_sspi_qsspi>       programming function.
+                                                            jtag: Background programming via JTAG
+                                                            mode.
+                                                            i2c: Background programming via I2C
+                                                            mode.
+                                                            goconfig: Background programming
+                                                            using goConfig IP.
+                                                            userlogic: Background programming
+                                                            using FPGA internal logic.
+                                                            i2c_jtag_sspi_qsspi: Background
+                                                            programming using
+                                                            I2C/JTAG/SSPI/QSSPI mode.
+                                                            jtag_sspi_qsspi: Background
+                                                            programming using JTAG/SSPI/QSSPI
+
+SUG1220-2.0E                                                                                     52(71)
+
+===== PDF page 78, SUG1220 =====
+4 IP Generation Flow Using Tcl                                          3.3 Command Description
+
+
+
+                         #set the option value of specified options
+                         set_property CONFIG.Data_Width 8 [get_ips Gowin_ROM]
+                       set_property CONFIG.Memory_Initialization_File $initFile [get_ips
+                    Gowin_ROM]
+                         #generate IP file and add to project
+                         generate_target [get_ips Gowin_ROM]
+
+
+
+
+SUG1220-2.0E                                                                               71(71)

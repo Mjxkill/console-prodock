@@ -1,0 +1,172 @@
+Task: produce a small executable Python unittest script (<=130 lines), not broad review, for the host protocol defect below. No tools, no external data, no hardware. Tests must distinguish live host counter from received latched at last snapshot, verify a fresh sequence ACK before consuming received, and handle 32-bit word counters /16-bit done rollover and stale/partial snapshots. Include realistic counterexamples. Do not claim your code ran. Parent will execute and inspect proposed tests separately. Do not propose FPGA or timing changes.
+
+We observed real captures: BEFORE seq1 host0 received0 done0; host accepts8, old raw +10 still0, live done1. AFTER snapshot seq2 host8 received8 done1, FINAL seq3 same. Original host diagnostic falsely FAILed before refreshing +10. Exact RTL simulation reproduces stale0 then fresh8. Isolated ordering fix requests next snapshot after done poll, before reading/comparing +10; same snapshot request count. Source model originally returned live received at +10 and missed this.
+
+Exact RTL:
+// Neo diagnostic only: coherent GPU snapshots independent of cdc_word.
+// No output controls the GPU. One outstanding request, held data until ACK.
+`default_nettype none
+module neo_gpu_debug (
+    input wire hclk, resetn, mem_clk,
+    input wire hsel, hwrite,
+    input wire [1:0] htrans,
+    input wire [31:0] haddr, hwdata,
+    output reg [31:0] hrdata,
+    output wire hready,
+    input wire host_accept,
+    input wire [255:0] live,
+    input wire [63:0] observe_packet_words
+);
+    reg [1:0] mem_up=0;
+    always @(posedge mem_clk or negedge resetn)
+        if(!resetn)mem_up<=0;else mem_up<={mem_up[0],1'b1};
+    reg request=0, ack=0;
+    reg [1:0] req_s=0, ack_s=0, ready_s=0;
+    reg [31:0] host_words=0, received=0, last_word=0;
+    reg [319:0] held=0, snapshot=0;
+    reg busy=0, valid=0;
+    // Ungated observation path, independent of the snapshot handshake.
+    // These per-bit synchronizers are NOT an atomic multi-bit capture. Read
+    // only with the GPU idle, require repeated equal samples, and interpret
+    // them as diagnostic evidence only. They never control the GPU or ACK.
+    reg [63:0] observe_words_s1=0,observe_words_s2=0;
+    reg [31:0] observe_meta_s1=0,observe_meta_s2=0;
+    wire [31:0] observe_meta={8'd0,live[255:248],4'd0,valid,busy,
+        ready_s,mem_up,ack_s,ack,req_s,request};
+    always @(posedge hclk)begin
+        if(!resetn)begin
+            observe_words_s1<=0;observe_words_s2<=0;
+            observe_meta_s1<=0;observe_meta_s2<=0;
+        end else begin
+            observe_words_s1<=observe_packet_words;observe_words_s2<=observe_words_s1;
+            observe_meta_s1<=observe_meta;observe_meta_s2<=observe_meta_s1;
+        end
+    end
+    reg [31:0] sequence_id=0;
+    reg bus_write=0;
+    reg [7:0] bus_addr=0;
+    // One wait state separates address decode from the registered response.
+    // Four identical selectors keep each decode local to one response byte.
+    // Only this diagnostic slave changes latency; GPU commands are unaffected.
+    reg read_wait=0;
+    reg [67:0] read_select /* synthesis syn_preserve=1 */ = 0;
+    assign hready=!read_wait;
+    always @(posedge hclk)
+        if(!resetn)read_wait<=0;
+        else if(read_wait)read_wait<=0;
+        else read_wait<=hsel && htrans[1] && !hwrite;
+    genvar sel;
+    generate for(sel=0;sel<68;sel=sel+1)begin: decode
+        always @(posedge hclk)
+            if(!resetn)read_select[sel]<=0;
+            else if(hready)read_select[sel]<=(haddr[7:0]==(sel%17)*4);
+    end endgenerate
+    wire [31:0] register_value [0:16];
+    assign register_value[0]=32'h4e474442; // NGDB
+    assign register_value[1]={29'd0,ready_s[1],valid,busy};
+    assign register_value[2]=host_words;
+    assign register_value[3]=sequence_id;
+    assign register_value[4]=snapshot[287:256];
+    assign register_value[5]=snapshot[319:288];
+    assign register_value[6]=observe_words_s2[31:0]; // geometry captured header
+    assign register_value[7]=observe_words_s2[63:32]; // pixel captured header
+    assign register_value[16]=observe_meta_s2; // raw handshake/opcode, not a snapshot
+    genvar lane;
+    generate for(lane=0;lane<8;lane=lane+1)begin: snapshot_word
+        assign register_value[8+lane]=snapshot[lane*32+:32];
+    end endgenerate
+    wire [31:0] response_data;
+    genvar byte_index;
+    generate for(byte_index=0;byte_index<4;byte_index=byte_index+1)begin: response
+        integer k;
+        reg [7:0] selected_byte;
+        assign response_data[byte_index*8+:8]=selected_byte;
+        always @* begin
+            selected_byte=0;
+            for(k=0;k<17;k=k+1)
+                selected_byte=selected_byte |
+                    ({8{read_select[byte_index*17+k]}} & register_value[k][byte_index*8+:8]);
+        end
+    end endgenerate
+    always @(posedge mem_clk)begin
+        if(!mem_up[1])begin
+            req_s<=0;ack<=0;held<=0;received<=0;last_word<=0;
+        end else begin
+            req_s<={req_s[0],request};
+            if(live[36])begin // gpu_accel command_we, same mem_clk edge
+                received<=received+1'b1;last_word<=live[223:192];
+            end
+            if(req_s[1]!=ack)begin
+                held<={last_word,received,live};
+                ack<=req_s[1];
+            end
+        end
+    end
+    always @(posedge hclk)begin
+        if(!resetn)begin
+            request<=0;ack_s<=0;ready_s<=0;host_words<=0;snapshot<=0;
+            busy<=0;valid<=0;sequence_id<=0;bus_write<=0;bus_addr<=0;hrdata<=0;
+        end else begin
+            ack_s<={ack_s[0],ack};
+            ready_s<={ready_s[0],mem_up[1]};
+            if(hready)begin
+                bus_write<=hsel && htrans[1] && hwrite;
+                bus_addr<=haddr[7:0];
+            end
+            if(host_accept)host_words<=host_words+1'b1;
+            if(bus_write && hready && bus_addr==8'h04 && hwdata[0] && !busy && ready_s[1])begin
+                request<=~request;busy<=1;
+            end
+            if(busy && ack_s[1]==request)begin
+                snapshot<=held;busy<=0;valid<=1;sequence_id<=sequence_id+1'b1;
+            end
+            hrdata<=response_data;
+        end
+    end
+endmodule
+`default_nettype wire
+
+Isolated Tcl ordering fix test:
+#!/usr/bin/env python3
+"""Test isolated Tcl ordering fix against held snapshots, without a hardware controller."""
+import ast,importlib.util,json,subprocess
+from pathlib import Path
+HERE=Path(__file__).resolve().parent;OLD=HERE.parent/'combined_gpu_usb_prepared_01'
+spec=importlib.util.spec_from_file_location('combined_frozen',OLD/'controller.py')
+c=importlib.util.module_from_spec(spec);spec.loader.exec_module(c)
+def literal(path,name):
+ t=ast.parse(path.read_text())
+ return next(ast.literal_eval(n.value) for n in t.body if isinstance(n,ast.Assign) and any(isinstance(x,ast.Name) and x.id==name for x in n.targets))
+base=literal(c.PARENT/'test_collector.py','HARNESS').split('source [lindex $argv 1]')[0]
+extra=literal(OLD/'test_combined.py','EXTRA')
+extra=extra.replace('set gpuwords 0','set gpuwords 0\narray set held {0xe9005000 0 0xe9006000 0}',1)
+extra=extra.replace('global snap gpuwords gpudone fault','global snap gpuwords gpudone fault held')
+extra=extra.replace('global snap gpuwords gpudone frames fault','global snap gpuwords gpudone frames fault held')
+extra=extra.replace('incr snap($base);return', '''incr snap($base)
+  set held($base) [expr {$base==0xe9005000?($fault eq "gpu_lost" && $gpuwords?7:$gpuwords):0}]
+  if {$fault eq "second_snapshot_timeout" && $snap($base)>1} {incr snap($base) -1}
+  return''')
+extra=extra.replace('lset v 4 $gpuwords','lset v 4 $held($base)')
+extra=extra.replace('16 {return [expr {$fault eq "gpu_lost" && $gpuwords?7:$gpuwords}]}','16 {return $held($base)}')
+begin,finish=c.parts()
+# A local candidate only: request GPU_AFTER_MATRIX after polling done, before
+# comparing +0x10. Remove the former outside call so there is still one capture.
+old=' set sent_after [lindex [read_memory 0xe9005008 32 1] 0]'
+assert begin.count(old)==1
+begin=begin.replace(old,' if {![cv_snapshot 0xe9005000 GPU_AFTER_MATRIX]} {return}\n'+old)
+outside='\ncv_snapshot 0xe9005000 GPU_AFTER_MATRIX\ncv_video AFTER_MATRIX'
+assert begin.count(outside)==1
+begin=begin.replace(outside,'\ncv_video AFTER_MATRIX')
+out=HERE/'snapshot_fix_tests';out.mkdir(exist_ok=False)
+for name,text in [('harness.tcl',base+extra),('begin.tcl',begin),('finish.tcl',finish)]: (out/name).write_text(text)
+cases=[]
+for fault,want in [('good',True),('gpu_lost',False),('gpu_timeout',False),('second_snapshot_timeout',False),('source_stopped',False),('snapshot_timeout',False),('video_stopped',False),('version0',False),('raw0',False)]:
+ p=subprocess.run(['tclsh',str(out/'harness.tcl'),fault,str(out/'begin.tcl'),str(out/'finish.tcl')],capture_output=True,text=True,timeout=10)
+ (out/(fault+'.log')).write_text(p.stdout+p.stderr)
+ assert p.returncode==0,(fault,p.stderr)
+ r=c.parse(p.stdout,'a'*64,origin='synthetic')
+ assert r['protocol_passed']==want,(fault,r['combined_errors'])
+ if want:assert r['matrix']['AFTER'][:3]==[8,8,1] and r['snapshots']['GPU_AFTER_MATRIX'][3]==2
+ cases.append(dict(name=fault,passed=True,protocol_passed=r['protocol_passed'],errors=r['combined_errors']))
+result=dict(passed=True,hardware_access=False,controller_created=False,cases=cases,inputs={str(p):c.sha(p) for p in [OLD/'controller.py',OLD/'test_combined.py',c.PARENT/'test_collector.py',Path(__file__)]},outputs={str(p):c.sha(p) for p in out.iterdir() if p.is_file()})
+(out/'result.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(dict(passed=True,cases=len(cases),hardware_access=False)))

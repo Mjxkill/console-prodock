@@ -1,0 +1,298 @@
+# Revue adversariale RTL — slot de requête V1 / arbitre DDR (R19)
+
+## 1. Faits établis dans le packet (sans interpolation)
+
+- **S10:199-204** : le slot étendu est à **une entrée** : `v1_accepted`, `v1_pending`, `v1_tx_write`, `v1_rx_valid`, plus l'adresse/données/masque `v1_tx_*`.
+- **S10:209-210** : `extended_request = v1_select ? v1_request : raster_valid` est le point d'entrée unique du slot.
+- **S10:208** : `v1_select` est verrouillé sur l'opcode (`>=22`) seulement quand `!ext_active`; pendant `ext_active`, le propriétaire reste figé.
+- **S10:215-228** : la machine d'état enregistrée :
+  - si `!mrst[1]` : reset de `v1_accepted`, `v1_pending`, `v1_rx_valid` ;
+  - sinon : `v1_accepted <= v1_pending && ready` ;
+  - si `v1_pending` : `if (ready) v1_pending <= 0;`
+  - sinon si `extended_request && !v1_accepted` : `v1_pending <= 1`.
+  - En parallèle, `v1_rx_valid <= rd_valid && ext_active`.
+- **S10:229-238** : capture du payload uniquement si `!v1_pending` :
+  - `v1_tx_addr <= v1_select ? v1_addr : raster_addr`, données, masque, write.
+- **S10:239** : `v1_valid = v1_pending`.
+- **S10:247** : retour prêt vers le shader V1 : `ready = v1_accepted && v1_select`.
+- **S10:55** : `write_fire = bus_write && !read_wait && hresetn` côté commande AHB.
+- **S11:43/52** : `fetch_valid` existe au niveau géométrie ; `valid = fetch_valid || shader_valid`.
+- **S11:60** : prêt vers le pixel shader V1 : `ready(ready && !fetch_valid)`, soit backpressure explicite pendant une lecture texture.
+- **S13:64/82-84/86-87/90** : l'arbitre DDR expose `g_ready` (scanout), `b_grant`/`b_ready` (blitter/V1), `c_ready` (CPU), et n'accepte une transaction que sous `issue && ... && m_ready`, avec backpressure additionnelle sur write/readiness.
+- **S10:33-36/26-27** : `engine_resetn` est tiré de `mrst[0]`, tandis que la logique de slot AHB/FIFO est tirée de `mrst[1]`; il y a donc un cycle de décalage entre libération de certains resets moteur et libération de `mrst[1]`.
+- **Packet point 5** : les sondes R19 actuelles **n'exposent pas** le FSM pixel, ni `native VALID/pending`, ni `READY` de l'arbitre, ni l'acceptation enregistrée.
+- **Packet point 7** : la comparaison exhaustive de quatre fonctions handshake excluding l'erreur de capture de payload, la distribution et le timing.
+- **Packet point 6** : R20/R20r1 n'a pas produit de bitstream/observation; ne pas traiter ses courbes comme données.
+
+---
+
+## 2. Hypothèses nécessaires (à états explicitement)
+
+1. **Prêt `ready` de S10:18** est le signal d'acceptation DDR correspondant à la transaction actuellement présentée par `valid/write/addr/...` au même domaine `mem_clk`.  
+   - Si `ready` provient d'un niveau plus bas (IP DDR) avec retards, les assertions restent vraies au niveau signal, mais la causalité temporelle doit être revalidée.
+2. Le producteur natif en amont honore un protocole `VALID` actif maintenu jusqu'à observation de son `READY` local, et conserve `addr/data/mask/write` stables pendant cette validité.  
+   - Le packet dit que c'est l'hypothèse de travail du focus; ici on la **state**, car le RTL fourni ne prouve pas le comportement du producteur natif.
+3. Un signal lisible `extended_request` est disponible au banc.  
+   - En R19, seule la capture opcode bits[31:24] est observée; `extended_request` peut nécessiter le câblage d'observation prévu pour R20/R20r1 ou une lecture hiérarchique simulée.
+4. Le reset mem étudié est l'état `mrst[1]` pour le slot; `hresetn` est la cause amont.  
+   - `engine_resetn` peut se libérer un cycle avant `mrst[1]`, donc une libération reset ne doit pas être interprétée comme "tout le pipeline est réinitialisé dans le même cycle."
+5. Les assertions ci-dessous vérifient **le protocole du slot et de sa présentation**, pas le fait que la DDR ait physiquement écrit la couleur.  
+   - Elles ne remplacent pas la preuve d'écriture (readback DDR).
+
+---
+
+## 3. Tableau cycle-par-cycle — scénario I : handshake nominal avec backpressure puis acceptation
+
+Définition de temps : une ligne = état **au début du cycle** `mem_clk`, puis évaluation combinatoire, puis mise à jour sur le front.  
+`ext_req` = `extended_request`; `tx` = `v1_tx_addr/data/mask/write`; `eng_ready_v1` = `v1_accepted && v1_select` côté producteur V1.
+
+| Cycle | `mrst[1]` | `ext_req` | `v1_pending` début | `v1_accepted` début | `ready` DDR | Payload en entrée | Résultat au front | Observation attendue |
+|---|---:|---:|---:|---:|---:|---|---|---|
+| C0 | 1 | 1 | 0 | 0 | 0 | A | `v1_pending` devient 1; capture A dans `tx` | Capture unique; départ de présentation |
+| C1 | 1 | 1 (maintenu) | 1 | 0 | 0 | B (mutation adverse) | `v1_pending` reste 1; `tx` reste A | Payload stable malgré mutation; pas de recapture |
+| C2 | 1 | 0 ou 1 | 1 | 0 | 1 | B | `v1_accepted` devient 1; `v1_pending` devient 0; `tx` reste A | Acceptation unique; front d'acceptation |
+| C3 | 1 | 1 (si maintenu) | 0 | 1 | 0 ou 1 | B | Garde `!v1_accepted` : **pas** de nouvelle capture; `v1_pending` reste 0 | Pas de réarmement sur le cycle d'acceptation |
+| C4 | 1 | 1 (si maintenu) | 0 | 0 | 0 | B | `v1_pending` devient 1; capture B | Nouvelle capture seulement après disparition de l'impulsion d'acceptation |
+
+Lecture critique :
+
+- Le passage C2 montre que `ready=1` pendant `v1_pending=1` efface le slot au front suivant.
+- Le passage C3 montre le rôle du garde `!v1_accepted` : même si `ext_req` reste actif, aucune capture ne se produit pendant le cycle où l'acceptation précédente est encore visible.
+- Si `ext_req` est relâché à C2, C3 présente naturellement un emplacement vide et le comportement est encore plus simple : aucune demande ne doit être perdue si l'avoirs déjà présentée reste pending jusqu'à `ready`.
+
+## 4. Tableau cycle-par-cycle — scénario II : garde d'acceptation et transactions consécutives
+
+| Cycle | `ext_req` | `v1_pending` début | `v1_accepted` début | `ready` | Interprétation |
+|---|---:|---:|---:|---:|---|
+| D0 | 1 | 0 | 0 | 1 | Première capture A; `ready` haute mais pending n'était pas déjà actif, donc `v1_accepted` ne devient 1 qu'au front |
+| D1 | 1 | 1 | 0 | 1 | Acceptation A; `v1_pending` effacé au front; `v1_accepted` validé |
+| D2 | 1 | 0 | 1 | 1 | Garde : ext_req présent mais pending ne se réarme pas ce cycle |
+| D3 | 1 | 0 | 0 | 1 | Réarmement/récupération possible; capture B si ext_req maintenu |
+| D4 | 0 | 1 | 0 | 0 | Transaction B reste présentée jusqu'à `ready=1` même si ext_req tombe; le slot ne dépend plus de ext_req une fois capturé |
+
+Ce tableau fixe la propriété la plus utile pour le banc : **une demande en cours reste présentée même si la demande amont change ou disparaît**. C'est exactement ce qui manque au test fonctionnel antérieur "scanout+queue+arbiter", qui ne teste pas la capture native.
+
+## 5. Tableau cycle-par-cycle — scénario III : reset du slot en cours de transaction
+
+On utilise `hresetn` comme source, mais on interprète le slot au niveau `mrst[1]`. La mise à zéro asynchrone `hresetn` force `mrst <= 0`, donc `mrst[0]` et `mrst[1]` à 0; `engine_resetn` passe aussi à 0.
+
+| Cycle | `hresetn`/`mrst[1]` | `v1_pending` début | `ready` | Action |
+|---|---|---:|---:|---|
+| R0 | 1 / 1 | 1 | 0 | Transaction active, pas d'acceptation |
+| R1 | 0 / 0 (reset asyn) | 1 → reset au front actif | X | Au front actif, le bloc `if (!mrst[1])` impose `v1_pending=0`, `v1_accepted=0`, `v1_rx_valid=0` |
+| R2 | 0 / 0 | 0 | X | Maintien en reset; aucune capture de payload même si `!v1_pending` observationnel |
+| R3 | 1 / 0 | 0 | X | `engine_resetn` peut se libérer un cycle avant `mrst[1]`; le slot reste en reset |
+| R4 | 1 / 1 | 0 | 0 | Libération : premier front actif se termine avec slot vide |
+| R5 | 1 / 1 | 0 | 0 | Injecter un nouveau `ext_req` stable : capture au front |
+| R6 | 1 / 1 | 1 | 0 | Nouvelle requête stable; comparer avec le titre logiciel/compteur de complétion |
+
+Point crucial : **S10:229-238** capture le payload dans un `always` séparé, sans branche `if (!mrst[1])`. Pendant le reset, si `v1_pending` est déjà 0, cette branche peut mettre à jour `v1_tx_*` avec les valeurs étendues disponibles pendant le reset. Cela ne met pas `v1_valid` à 1, car `v1_valid=v1_pending`, mais c'est une hypothèse de propreté à tester. Une patch minimale candidate, si le banc montre un symptôme, serait de conditionner cette capture à `mrst[1]` ou de réinitialiser ces registres. **Ce n'est pas une conclusion de cause racine à ce stade.**
+
+---
+
+## 6. Assertions SystemVerilog proposées
+
+Les assertions suivantes sont conçues pour le RTL réellement compilé. Elles doivent être attachées au banc qui instancie le vrai `gpu_accel` et, si possible, à des signaux hiérarchiques réels. Les chemins sont des placeholders à adapter au banc réel.
+
+```systemverilog
+// À adapter au banc réellement compilé
+logic mem_clk;
+logic mrst1 = dut.mrst[1];              // S10:25-36
+logic extended_request = dut.extended_request; // S10:209-210
+logic v1_pending = dut.v1_pending;      // S10:199-227
+logic v1_accepted = dut.v1_accepted;
+logic v1_valid = dut.v1_valid;          // S10:239
+logic ready = dut.ready;                // S10:18
+logic [28:0] v1_tx_addr = dut.v1_tx_addr;
+logic [255:0] v1_tx_data = dut.v1_tx_data;
+logic [31:0] v1_tx_mask = dut.v1_tx_mask;
+logic v1_tx_write = dut.v1_tx_write;
+
+default clocking cb @(posedge mem_clk); endclocking
+
+// R1 : reset actif du slot
+property p_slot_reset_state;
+  @(posedge mem_clk) (!mrst1) |-> (!v1_pending && !v1_accepted && !v1_valid);
+endproperty
+assert property (p_slot_reset_state);
+
+// R2 : à la libération du reset, le slot est vide
+property p_slot_reset_recovery;
+  @(posedge mem_clk) $rose(mrst1) |=> (!v1_pending && !v1_accepted);
+endproperty
+assert property (p_slot_reset_recovery);
+
+// A1 : capture seulement depuis un emplacement vide et sans acceptation en cours
+property p_capture_condition;
+  @(posedge mem_clk) disable iff (!mrst1)
+    $rose(v1_pending) |-> (!$past(v1_pending) &&
+                           $past(extended_request) &&
+                           !$past(v1_accepted));
+endproperty
+assert property (p_capture_condition);
+
+// A2 : si l'acceptation précédente est encore visible, pas de réarmement
+property p_no_rearm_on_accepted_cycle;
+  @(posedge mem_clk) disable iff (!mrst1)
+    (!v1_pending && v1_accepted && extended_request) |=> !v1_pending;
+endproperty
+assert property (p_no_rearm_on_accepted_cycle);
+
+// A3 : emplacement conservé sous backpressure
+property p_pending_holds_without_ready;
+  @(posedge mem_clk) disable iff (!mrst1)
+    (v1_pending && !ready) |=> v1_pending;
+endproperty
+assert property (p_pending_holds_without_ready);
+
+// A4 : effacement au cycle suivant une acceptation
+property p_pending_clears_on_accept;
+  @(posedge mem_clk) disable iff (!mrst1)
+    (v1_pending && ready) |=> !v1_pending;
+endproperty
+assert property (p_pending_clears_on_accept);
+
+// A5 : payload stable pendant la backpressure
+property p_payload_stable_under_backpressure;
+  @(posedge mem_clk) disable iff (!mrst1)
+    (v1_pending && !ready) |=> (v1_tx_addr  == $past(v1_tx_addr)  &&
+                                v1_tx_data  == $past(v1_tx_data)  &&
+                                v1_tx_mask  == $past(v1_tx_mask)  &&
+                                v1_tx_write == $past(v1_tx_write));
+endproperty
+assert property (p_payload_stable_under_backpressure);
+
+// A6 : acceptation issue d'une transaction réellement pending et ready
+property p_accepted_origin;
+  @(posedge mem_clk) disable iff (!mrst1)
+    $rose(v1_accepted) |-> $past(v1_pending && ready);
+endproperty
+assert property (p_accepted_origin);
+
+// A7 : impulsion d'acceptation d'un cycle
+property p_accepted_one_cycle;
+  @(posedge mem_clk) disable iff (!mrst1)
+    $rose(v1_accepted) |=> !v1_accepted;
+endproperty
+assert property (p_accepted_one_cycle);
+
+// A8 : accepted et pending ne sont pas simultanés après le front
+property p_accepted_excludes_pending;
+  @(posedge mem_clk) disable iff (!mrst1)
+    v1_accepted |-> !v1_pending;
+endproperty
+assert property (p_accepted_excludes_pending);
+
+// A9 : valid est exactement l'état pending
+property p_valid_equals_pending;
+  @(posedge mem_clk) disable iff (!mrst1)
+    (v1_valid == v1_pending);
+endproperty
+assert property (p_valid_equals_pending);
+
+// A10 : ready V1 vers le producteur est une impulsion issue de v1_accepted
+// (qualifier par v1_select si on veut isoler le chemin V1)
+property p_producer_ready_pulse_v1;
+  @(posedge mem_clk) disable iff (!mrst1)
+    $rose(v1_accepted && v1_select) |=> !(v1_accepted && v1_select);
+endproperty
+assert property (p_producer_ready_pulse_v1);
+```
+
+Commentaire d'interprétation :
+
+- Si **A1/A2/A3/A4** passent, le slot n'est probablement pas la source de la perte, car il capture une fois, tient la charge et s'efface une seule fois par `ready`.
+- Si **A5** échoue, il y a recapture ou non-maintien réel du payload sous backpressure : ce serait un défaut direct du slot.
+- Si **A6/A7** échouent, l'acceptation n'a pas l'origine attendue ou n'est pas une impulsion unique : chercher l'arbitre DDR, `b_ready`, `m_ready`, `m_wr_ready`.
+- Si toutes passent et que le CLEAR reste bloqué, la cause probable est en amont : pixel FSM, `fetch_valid`, condition `ready && !fetch_valid`, maintien de `extended_request`, ou la présentation `valid/write/addr` au moment exact de l'acceptation.
+- **R1/R2** ciblent spécifiquement la phrase "aucune perte au reset du slot" : un reset ne doit pas laisser un `pending` suspendu, ni une acceptation fantôme, ni un compteur logiciel incohérent.
+
+---
+
+## 7. Stimuli adversariaux applicables au banc réellement compilé
+
+### 7.1. Stimuli RTL / testbench, sans modèle de remplacement
+
+1. **Handshake retardé contrôlé** :
+   - forcer ou observer `extended_request=1` avec payload A ;
+   - imposer `ready=0` pendant 2 à 5 cycles ;
+   - mettre `ready=1` un seul cycle ;
+   - vérifier A1-A7.
+
+2. **Mutation du payload pendant l'occupation** :
+   - pendant `v1_pending=1 && ready=0`, faire varier `v1_addr`, `v1_data`, `v1_mask`, `v1_write`, et éventuellement `v1_select` indirectement via un changement d'opcode;
+   - attendre `tx` inchangé.  
+   - C'est le test qui cible la différence exacte laissée par la comparaison exhaustive déjà citée (payload capture non couvert).
+
+3. **Maintien continu de la demande** :
+   - garder `extended_request=1` au-delà de l'acceptation ;
+   - observer la fenêtre d'un cycle où le réarmement est interdit (D2), puis la nouvelle capture (D3/D4).  
+   - Si le producteur relâche `ext_req` trop tôt, la demande déjà capturée doit rester présentée jusqu'à `ready=1`.
+
+4. **Remise à zéro à trois instants** :
+   - reset avec slot vide ;
+   - reset avec `v1_pending=1 && ready=0` ;
+   - reset sur le front d'acceptation (`v1_pending=1 && ready=1`).  
+   - Vérifier R1/R2 et la reprise avec une commande identique.
+
+5. **Backpressure externe réelle** :
+   - combiner la transaction V1 avec des lectures scanout `g_valid` pour saturer `scan_count` ;
+   - injecter des commandes CPU pour activer `cpu_pending` et `take_blitter` ;
+   - observer `b_ready` issu de S13:83 qui peut valoir 0 même si le slot est sain.  
+   - Ce n'est pas un défaut de slot : c'est le moyen de tester la stabilité du payload sous capacité DDR réduite.
+
+6. **Chemin `fetch_valid`** :
+   - tester avec `fetch_valid=1`, donc `ready` vers le pixel shader effectivement barré par S11:60 ;
+   - vérifier que le slot ne capture pas une transaction fetch au moment où il est déjà pending, et que la présentation reste cohérente.  
+   - Pour le CLEAR color-only rapporté, `fetch_valid` devrait normalement rester faux; c'est précisément pourquoi ce stimulus est adversarial.
+
+7. **Opérations distinctes pour observer l'opcode** :
+   - utiliser le CLEAR color-only 16x1, RGB565, valeur 0x5aa5, cible couleur à l'adresse exacte et Z à `0x00810000` ;
+   - ajouter des mots de commande distinguables (opcode plus champs connus) pour que les 8 mots du FIFO 80/75 MHz et `observe_packet_words` permettent de corréler la capture réelle, pas seulement bits[31:24].
+
+### 7.2. Stimuli au niveau carte / différenciation, sans nouvelle PnR
+
+1. **Commande minimale de référence** :
+   - CLEAR color-only, rectangle 16x1, pas de texture, petite surface ;
+   - conserver la preuve que 32 octets voisins à `0x00800020` restent `0xa6`.
+2. **Stress par contention** :
+   - lancer la préparation DDR CPU déjà validée (remplissage 32 octets de `0xa6`) pendant le CLEAR ;
+   - lancer un trafic scanout soutenu ;
+   - noter seulement si le CLEAR finit, et combien de cycles `ready=0` sont observés.
+3. **Repeat avec timing global connu** :
+   - réutiliser exactement R19 (`1056917b...`) ; ne pas faire de nouvelle itération PnR pour la phase de mesure.
+4. **Comparaison Pro Dock / Neo** :
+   - utiliser la configuration GW5AST-138B/PG676 G22r0 comme preuve d'une configuration fonctionnelle ;
+   - ne pas rétroporter de conclusions "tout Neo" sans comparer bitstream, routage et signaux.
+
+---
+
+## 8. Observations attendues / critères de réussite
+
+| Résultat attendu | Interprétation |
+|---|---|
+| `captures == accepted == complétions` | slot/acceptation cohérents au niveau RTL |
+| payload stable sous `!ready` | pas de recapture parasite |
+| acceptation en impulsion unique | pas de boucle READY acceptée plusieurs fois |
+| reset : `pending=0` et pas de pending fantôme | pas de perte au reset du slot |
+| CLEAR termine avec `done` ≠ 4 | la commande native ne reste pas bloquée, indépendamment de la validité du slot |
+| CLEAR ne termine pas malgré assertions parfaites | la cause est ailleurs : pixel FSM, `fetch_valid`, maintien amont, arbiter DDR ou timing physique |
+
+---
+
+## 9. Preuves manquantes dans le packet
+
+1. **Native VALID/pending/arbitre READY/acceptation** ne sont pas exposés en R19; donc les assertions ci-dessus ne peuvent pas être runnées "sur carte" sans reprise d'instrumentation. R20/R20r1 n'a pas donné de bitstream.
+2. Le **FSM pixel réel de S11** n'est fourni que partiellement; on ne peut pas conclure si `fetch_valid` ou la commande 8 mots est complète pour ce CLEAR.
+3. Le **chemin timing** global est en échec (`setup -2.888 ns`, `hold +0.124 ns`, `recovery -0.239 ns`, `removal +0.274 ns`), mais rien ne dit que la pire route est celle de capture/acceptation. Ces assertions logiques ne valident pas le temps réel.
+4. Les snapshots stables montrent queue vide et blitter `wp=rp=88`, mais ils ne prouvent pas que `native VALID/READY` a fonctionné; ils sont asynchrones.
+5. Aucun test n'a relié directement `v1_pending` au compteur de complétion logiciel pour la commande CLEAR de 16x1.
+
+---
+
+## 10. Conclusion technique (non cause racine déclarée)
+
+Le RTL fourni montre une architecture de slot à une entrée correctement guardée par `v1_pending` et `v1_accepted`, avec capture payload conditionnelle à `!v1_pending` et respect d'une impulsion d'acceptation. Les propriétés proposées testent précisément les quatre points demandés : capture unique, stabilité du payload sous backpressure, acceptation unique, reset propre. 
+
+**La comparaison exhaustive antérieure ne couvre pas la capture de payload**; c'est le meilleur candidat de discriminating test.  
+Si les assertions passent dans une simulation RTL fidèle (banc réellement compilé sur S10/S11/S13, sans modèle de remplacement), il faudra chercher la cause dans le producteur natif, le FSM pixel, le conditionnement `ready && !fetch_valid`, ou l'arbitre DDR/contingences physiques, et non dans le simple slot. Si l'une d'elles échoue, l'échec localise le défaut au niveau du protocole correspondant.

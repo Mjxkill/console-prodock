@@ -1,0 +1,1156 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-revue du conseiller compact32: chercher une divergence reelle, limites des64k etats testes, invariants RNG/terminal/tie/codec et RV32. Ne toucher aucun runtime.
+
+EVIDENCE PACKET:
+Independent falsification review. Compact adviser-only candidate NOT integrated into the running PP1/R6. The public engine and codec are unchanged. Tests compare every legal direction and root advice, original RNG/score/moves/status/quality,128 seeds including alternative reachable choices. Look for real reachable counterexamples, semantic differences, invalid claimed proof, overflow/RV32 issues. Do not claim exhaustive11^16 or hardware speed. Propose targeted missing tests only. No tools or file modification.
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_minigames.c SHA256 1b8538b6b037499a998facc16158d5fe3efd444bfdb03ae2eca5c2d27750682f
+#include "l3_minigames.h"
+#include "l3_mini_actors.h"
+
+#include <limits.h>
+#include <string.h>
+
+/* Private, serialized indices. Bump VERSION if their meaning changes. */
+enum { V, K, ST, SEED, RNG, TICKS, MOVES, SCORE, GOAL, W, H, PHASE };
+enum { CX, CY, ROT, PIECE, TIMER, COUNT, LIVES, POWER, DIR, NEXTDIR,
+       EX0, EY0, EX1, EY1, ETIMER, AUXCOUNT };
+enum { NORTH = 1, EAST = 2, SOUTH = 4, WEST = 8 };
+static const int dx[4] = {0, 1, 0, -1};
+static const int dy[4] = {-1, 0, 1, 0};
+static const uint32_t keys[4] = {
+    L3_MINI_UP, L3_MINI_RIGHT, L3_MINI_DOWN, L3_MINI_LEFT
+};
+static const char *const titles[5] = {
+    "Circuit des lucioles", "Blocs de la carriere", "Atelier des formes",
+    "Cristal 1024", "Maison des lueurs"
+};
+static const char *const helps[5] = {
+    "Fleches: choisir. Action/rotation: tourner. Retour: sortir.",
+    "G/D: glisser. Haut/rotation: tourner. Bas: descendre. Action: chute.",
+    "Fleches: deplacer. Rotation: tourner. Action: assembler. Retour: sortir.",
+    "Fleches: glisser et fusionner les nombres egaux. Retour: sortir.",
+    "Fleches: avancer. Lanternes: eloigner les fantomes. Retour: sortir."
+};
+static const char *const objectives[5] = {
+    "Relier la source a gauche a la sortie a droite, en 120 rotations.",
+    "Effacer 4 lignes. La pile ne doit pas atteindre le sommet.",
+    "Assembler les 4 formes sur leurs empreintes; 8 essais incorrects permis.",
+    "Former une tuile 1024. Une tuile ne fusionne qu'une fois par coup.",
+    "Retrouver toutes les lumieres et lanternes de la maison avec 3 vies."
+};
+
+typedef char l3_mini_state_fits[(sizeof(L3MiniState) <= 4096) ? 1 : -1];
+
+static unsigned at(unsigned x, unsigned y) { return y * 20u + x; }
+static uint32_t add_sat(uint32_t a, uint32_t b)
+{ return UINT32_MAX - a < b ? UINT32_MAX : a + b; }
+static uint32_t random32(L3MiniState *s)
+{
+    uint32_t x = s->meta[RNG];
+    x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+    s->meta[RNG] = x;
+    return x;
+}
+static uint8_t turn(uint8_t m)
+{ return (uint8_t)(((m << 1) | (m >> 3)) & 15u); }
+static int direction(uint32_t buttons)
+{
+    unsigned i;
+    for (i = 0; i < 4; ++i) if (buttons & keys[i]) return (int)i;
+    return -1;
+}
+static void finish(L3MiniState *s, unsigned status)
+{ s->meta[ST] = status; s->meta[PHASE] = 0; }
+
+/* A random monotone route is built first; its pipes are then rotated.
+ * aux's bit4 marks the constructed witness path; low4 are its solved pipes. */
+static void circuit_generate(L3MiniState *s)
+{
+    unsigned x = 0, y = 0, i;
+    for (y = 0; y < 6; ++y) for (x = 0; x < 6; ++x) {
+        static const uint8_t masks[3] = {3, 5, 7};
+        s->aux[at(x,y)] = masks[random32(s) % 3u];
+    }
+    x = 0; y = 0; s->aux[0] = WEST | 16u;
+    while (x != 5 || y != 5) {
+        int right = y == 5 || (x != 5 && (random32(s) & 1u));
+        unsigned old = at(x,y);
+        if (right) { s->aux[old] |= EAST; ++x; s->aux[at(x,y)] = WEST | 16u; }
+        else { s->aux[old] |= SOUTH; ++y; s->aux[at(x,y)] = NORTH | 16u; }
+    }
+    s->aux[at(5,5)] |= EAST;
+    for (y = 0; y < 6; ++y) for (x = 0; x < 6; ++x) {
+        uint8_t m = s->aux[at(x,y)] & 15u;
+        unsigned turns = random32(s) % 4u;
+        for (i = 0; i < turns; ++i) m = turn(m);
+        s->board[at(x,y)] = m;
+    }
+    while (s->board[0] & WEST) s->board[0] = turn(s->board[0]);
+}
+
+static unsigned circuit_reachable(const L3MiniState *s, uint8_t *seen)
+{
+    unsigned queue[36], head = 0, tail = 0, count = 0;
+    memset(seen, 0, 400);
+    if (!(s->board[0] & WEST)) return 0;
+    queue[tail++] = 0; seen[0] = 1;
+    while (head < tail) {
+        unsigned p = queue[head++], d, x = p % 20u, y = p / 20u;
+        ++count;
+        for (d = 0; d < 4; ++d) {
+            int xx = (int)x + dx[d], yy = (int)y + dy[d];
+            unsigned q;
+            if (xx < 0 || xx >= 6 || yy < 0 || yy >= 6) continue;
+            q = at((unsigned)xx, (unsigned)yy);
+            if (!seen[q] && (s->board[p] & (1u << d)) &&
+                (s->board[q] & (1u << ((d + 2u) % 4u)))) {
+                seen[q] = 1; queue[tail++] = q;
+            }
+        }
+    }
+    return count;
+}
+static int circuit_won(const L3MiniState *s)
+{
+    uint8_t seen[400];
+    circuit_reachable(s, seen);
+    return seen[at(5,5)] && (s->board[at(5,5)] & EAST);
+}
+
+/* Seven tetrominoes; rotations are normalized to their bounding box. */
+static const uint8_t shapes[7][8] = {
+    {0,0, 1,0, 0,1, 1,1}, /* O */
+    {0,0, 1,0, 2,0, 3,0}, /* I */
+    {0,0, 1,0, 2,0, 1,1}, /* T */
+    {0,0, 0,1, 0,2, 1,2}, /* L */
+    {1,0, 1,1, 0,2, 1,2}, /* J */
+    {1,0, 2,0, 0,1, 1,1}, /* S */
+    {0,0, 1,0, 1,1, 2,1}  /* Z */
+};
+static void offsets(unsigned piece, unsigned rotation, int *xs, int *ys)
+{
+    unsigned i, j;
+    int minx = 9, miny = 9;
+    for (i = 0; i < 4; ++i) {
+        int x = shapes[piece][2u*i], y = shapes[piece][2u*i+1u];
+        for (j = 0; j < rotation; ++j) { int t = x; x = -y; y = t; }
+        xs[i] = x; ys[i] = y;
+        if (x < minx) minx = x;
+        if (y < miny) miny = y;
+    }
+    for (i = 0; i < 4; ++i) { xs[i] -= minx; ys[i] -= miny; }
+}
+static int piece_fits(const L3MiniState *s, unsigned piece, unsigned rot,
+                      int x, int y, int collide)
+{
+    int xs[4], ys[4]; unsigned i;
+    offsets(piece, rot, xs, ys);
+    for (i = 0; i < 4; ++i) {
+        int xx = x + xs[i], yy = y + ys[i];
+        if (xx < 0 || yy < 0 || xx >= (int)s->meta[W] || yy >= (int)s->meta[H]) return 0;
+        if (collide && s->board[at((unsigned)xx,(unsigned)yy)]) return 0;
+    }
+    return 1;
+}
+static int current_fits(const L3MiniState *s, int x, int y, unsigned rot)
+{ return piece_fits(s, s->data[PIECE], rot, x, y, s->meta[K] == L3_MINI_BLOCKS); }
+static unsigned remove_lines(L3MiniState *s)
+{
+    int y, dst = 13; unsigned x, n = 0;
+    for (y = 13; y >= 0; --y) {
+        int full = 1;
+        for (x = 0; x < 8; ++x) if (!s->board[at(x,(unsigned)y)]) full = 0;
+        if (full) { ++n; continue; }
+        for (x = 0; x < 8; ++x) s->board[at(x,(unsigned)dst)] = s->board[at(x,(unsigned)y)];
+        --dst;
+    }
+    while (dst >= 0) {
+        for (x = 0; x < 8; ++x) s->board[at(x,(unsigned)dst)] = 0;
+        --dst;
+    }
+    return n;
+}
+static void blocks_spawn(L3MiniState *s)
+{
+    /* The first two square pieces teach the two-column well. */
+    s->data[PIECE] = s->data[AUXCOUNT] < 2 ? 0 : random32(s) % 7u;
+    s->data[AUXCOUNT] = add_sat(s->data[AUXCOUNT], 1);
+    s->data[CX] = 3; s->data[CY] = 0; s->data[ROT] = 0; s->data[TIMER] = 0;
+    if (!current_fits(s, 3, 0, 0)) finish(s, L3_MINI_LOST);
+}
+static void blocks_lock(L3MiniState *s)
+{
+    int xs[4], ys[4]; unsigned i, n;
+    offsets(s->data[PIECE], s->data[ROT], xs, ys);
+    for (i = 0; i < 4; ++i)
+        s->board[at(s->data[CX]+(unsigned)xs[i],s->data[CY]+(unsigned)ys[i])] = (uint8_t)(s->data[PIECE]+1u);
+    n = remove_lines(s);
+    s->data[COUNT] += n;
+    s->meta[SCORE] = add_sat(s->meta[SCORE], 100u*n*n);
+    s->meta[MOVES] = add_sat(s->meta[MOVES], 1);
+    if (s->data[COUNT] >= 4) { finish(s,L3_MINI_WON); return; }
+    blocks_spawn(s);
+}
+static void blocks_down(L3MiniState *s)
+{
+    if (current_fits(s,(int)s->data[CX],(int)s->data[CY]+1,s->data[ROT])) ++s->data[CY];
+    else blocks_lock(s);
+}
+static void try_move(L3MiniState *s, int dir)
+{
+    int x = (int)s->data[CX] + dx[dir], y = (int)s->data[CY] + dy[dir];
+    if (current_fits(s,x,y,s->data[ROT])) { s->data[CX] = (unsigned)x; s->data[CY] = (unsigned)y; }
+}
+static void try_rotate(L3MiniState *s)
+{
+    unsigned rot = (s->data[ROT]+1u)%4u;
+    int kick;
+    for (kick = 0; kick >= -2; --kick) {
+        int x = (int)s->data[CX]+kick;
+        if (current_fits(s,x,(int)s->data[CY],rot)) {
+            s->data[CX] = (unsigned)x; s->data[ROT] = rot; break;
+        }
+    }
+}
+
+static const unsigned assembly_types[4] = {3, 2, 5, 0};
+static void assembly_generate(L3MiniState *s)
+{
+    unsigned p,i;
+    for (p=0;p<4;++p) {
+        int xs[4],ys[4]; unsigned r=random32(s)%4u;
+        unsigned x=4u*(p%2u), y=4u*(p/2u);
+        offsets(assembly_types[p],r,xs,ys);
+        for (i=0;i<4;++i) s->aux[at(x+(unsigned)xs[i],y+(unsigned)ys[i])] = (uint8_t)(p+1u);
+    }
+}
+static void assembly_spawn(L3MiniState *s)
+{
+    s->data[PIECE]=assembly_types[s->data[COUNT]];
+    s->data[CX]=2; s->data[CY]=2; s->data[ROT]=random32(s)%4u;
+}
+static int assembly_match(const L3MiniState *s,int x,int y,unsigned r)
+{
+    int xs[4],ys[4];unsigned i;
+    if (!piece_fits(s,s->data[PIECE],r,x,y,0)) return 0;
+    offsets(s->data[PIECE],r,xs,ys);
+    for (i=0;i<4;++i) {
+        unsigned q=at((unsigned)(x+xs[i]),(unsigned)(y+ys[i]));
+        if (s->aux[q]!=s->data[COUNT]+1u || s->board[q]) return 0;
+    }
+    return 1;
+}
+static void assembly_lock(L3MiniState *s)
+{
+    unsigned i;
+    s->meta[MOVES]=add_sat(s->meta[MOVES],1);
+    if (!assembly_match(s,(int)s->data[CX],(int)s->data[CY],s->data[ROT])) {
+        if (--s->data[LIVES]==0) finish(s,L3_MINI_LOST);
+        return;
+    }
+    for (i=0;i<400;++i) if (s->aux[i]==s->data[COUNT]+1u) s->board[i]=s->aux[i];
+    ++s->data[COUNT]; s->meta[SCORE]=s->data[COUNT]*100u;
+    if (s->data[COUNT]==4) finish(s,L3_MINI_WON);
+    else assembly_spawn(s);
+}
+
+static void merge_spawn(L3MiniState *s)
+{
+    unsigned freecells[16],n=0,x,y,q; uint8_t v;
+    for (y=0;y<4;++y) for (x=0;x<4;++x) if (!s->board[at(x,y)]) freecells[n++]=at(x,y);
+    if (!n) return;
+    q=freecells[random32(s)%n]; v=(uint8_t)((random32(s)%10u)==0 ? 2 : 1);
+    s->board[q]=v; ++s->data[0]; if (v==2) ++s->data[1];
+}
+static unsigned merge_index(unsigned dir,unsigned line,unsigned pos)
+{
+    if (dir==0) return at(line,pos);
+    if (dir==1) return at(3u-pos,line);
+    if (dir==2) return at(line,3u-pos);
+    return at(pos,line);
+}
+static int merge_slide(L3MiniState *s,unsigned dir)
+{
+    unsigned line,pos;int changed=0;
+    for (line=0;line<4;++line) {
+        uint8_t packed[4]={0},out[4]={0}; unsigned n=0,k=0,i=0;
+        for (pos=0;pos<4;++pos) {
+            uint8_t v=s->board[merge_index(dir,line,pos)];
+            if (v) packed[n++]=v;
+        }
+        while (i<n) {
+            uint8_t v=packed[i++];
+            if (i<n && packed[i]==v) {
+                ++i; ++v; s->meta[SCORE]=add_sat(s->meta[SCORE],1u<<v);
+            }
+            out[k++]=v;
+        }
+        for (pos=0;pos<4;++pos) {
+            unsigned q=merge_index(dir,line,pos);
+            if (s->board[q]!=out[pos]) changed=1;
+            s->board[q]=out[pos];
+        }
+    }
+    return changed;
+}
+static int merge_has_move(const L3MiniState *s)
+{
+    unsigned x,y;
+    for (y=0;y<4;++y) for (x=0;x<4;++x) {
+        unsigned q=at(x,y),v=s->board[q];
+        if (!v || (x<3 && s->board[q+1]==v) || (y<3 && s->board[q+20]==v)) return 1;
+    }
+    return 0;
+}
+static void merge_move(L3MiniState *s,unsigned dir)
+{
+    unsigned i;
+    if (!merge_slide(s,dir)) return;
+    ++s->meta[MOVES]; merge_spawn(s);
+    for (i=0;i<400;++i) if (s->board[i]==10) { finish(s,L3_MINI_WON); return; }
+    if (!merge_has_move(s)) finish(s,L3_MINI_LOST);
+}
+
+/* Original compact haunted-house layout, no imported maze or artwork. */
+static const char *const maze[11]={
+    "#############", "#o....#....o#", "#.##..#..##.#",
+    "#...........#", "#.#.#####.#.#", "#.#.......#.#",
+    "#.#.#####.#.#", "#...........#", "#.##..#..##.#",
+    "#o....#....o#", "#############"
+};
+static int maze_open(const L3MiniState *s,int x,int y)
+{ return x>=0 && y>=0 && x<13 && y<11 && s->board[at((unsigned)x,(unsigned)y)]!=1; }
+static void maze_reset_actors(L3MiniState *s)
+{
+    s->data[CX]=1;s->data[CY]=1;s->data[DIR]=4;s->data[NEXTDIR]=4;
+    s->data[EX0]=6;s->data[EY0]=5;s->data[EX1]=11;s->data[EY1]=9;
+    s->data[TIMER]=0;s->data[ETIMER]=0;s->data[AUXCOUNT]=120;
+}
+static void maze_eat(L3MiniState *s)
+{
+    unsigned q=at(s->data[CX],s->data[CY]),v=s->board[q];
+    if (v==2 || v==3) {
+        s->board[q]=0; ++s->data[COUNT];
+        s->meta[SCORE]=add_sat(s->meta[SCORE],v==3?50u:10u);
+        if (v==3) s->data[POWER]=300;
+        if (s->data[COUNT]==s->meta[GOAL]) finish(s,L3_MINI_WON);
+    }
+}
+static void maze_contact(L3MiniState *s)
+{
+    unsigned e;
+    if (s->meta[ST]!=L3_MINI_RUNNING) return;
+    for (e=0;e<2;++e) if (s->data[CX]==s->data[EX0+2u*e] && s->data[CY]==s->data[EY0+2u*e]) {
+        if (s->data[POWER]) {
+            s->data[EX0+2u*e]= e ? 11 : 6;
+            s->data[EY0+2u*e]= e ? 9 : 5;
+            /* Respawn cannot repeatedly award points if an actor waits there. */
+        } else if (!s->data[AUXCOUNT]) {
+            if (--s->data[LIVES]==0) { finish(s,L3_MINI_LOST);return; }
+            maze_reset_actors(s);return;
+        }
+    }
+}
+static void maze_distances(const L3MiniState *s,unsigned start,uint16_t *dist)
+{
+    unsigned queue[143],head=0,tail=0,i;
+    for(i=0;i<400;++i)dist[i]=UINT16_MAX;
+    dist[start]=0;queue[tail++]=start;
+    while(head<tail) {
+        unsigned q=queue[head++],d;
+        for(d=0;d<4;++d) {
+            int x=(int)(q%20u)+dx[d],y=(int)(q/20u)+dy[d]; unsigned z;
+            if(!maze_open(s,x,y))continue;
+            z=at((unsigned)x,(unsigned)y);
+            if(dist[z]!=UINT16_MAX)continue;
+            dist[z]=(uint16_t)(dist[q]+1u);queue[tail++]=z;
+        }
+    }
+}
+static void maze_enemies(L3MiniState *s)
+{
+    uint16_t dist[400];unsigned e;
+    maze_distances(s,at(s->data[CX],s->data[CY]),dist);
+    for(e=0;e<2;++e) {
+        unsigned d,best=4,ex=s->data[EX0+2u*e],ey=s->data[EY0+2u*e];
+        int value=s->data[POWER]?-1:INT_MAX;
+        for(d=0;d<4;++d) {
+            unsigned dd=(d+e)%4u;int x=(int)ex+dx[dd],y=(int)ey+dy[dd],v;
+            if(!maze_open(s,x,y))continue;
+            v=dist[at((unsigned)x,(unsigned)y)];
+            if((s->data[POWER] && v>value) || (!s->data[POWER] && v<value)) {best=dd;value=v;}
+        }
+        if(best<4){s->data[EX0+2u*e]=(unsigned)((int)ex+dx[best]);s->data[EY0+2u*e]=(unsigned)((int)ey+dy[best]);}
+    }
+    maze_contact(s);
+}
+static void maze_tick(L3MiniState *s)
+{
+    if(s->data[POWER])--s->data[POWER];
+    if(s->data[AUXCOUNT])--s->data[AUXCOUNT];
+    if(++s->data[TIMER]==6) {
+        unsigned d=s->data[NEXTDIR];s->data[TIMER]=0;
+        if(d<4 && maze_open(s,(int)s->data[CX]+dx[d],(int)s->data[CY]+dy[d]))s->data[DIR]=d;
+        d=s->data[DIR];
+        if(d<4 && maze_open(s,(int)s->data[CX]+dx[d],(int)s->data[CY]+dy[d])) {
+            s->data[CX]=(unsigned)((int)s->data[CX]+dx[d]);s->data[CY]=(unsigned)((int)s->data[CY]+dy[d]);
+            s->meta[MOVES]=add_sat(s->meta[MOVES],1);
+            maze_eat(s);maze_contact(s);
+        }
+    }
+    if(s->meta[ST]==L3_MINI_RUNNING && ++s->data[ETIMER]==14) {s->data[ETIMER]=0;maze_enemies(s);}
+}
+
+int l3_mini_init(L3MiniState *state,L3MiniKind kind,uint32_t seed)
+{
+    L3MiniState s;unsigned x,y;
+    if(!state || (unsigned)kind>=L3_MINI_KIND_COUNT)return 0;
+    memset(&s,0,sizeof(s));
+    s.meta[V]=L3_MINI_VERSION;s.meta[K]=(unsigned)kind;s.meta[SEED]=seed;
+    s.meta[RNG]=seed^0x9e3779b9u;if(!s.meta[RNG])s.meta[RNG]=0xa341316cu;
+    switch(kind) {
+    case L3_MINI_CIRCUIT:
+        s.meta[W]=6;s.meta[H]=6;s.meta[GOAL]=1;s.data[LIVES]=120;
+        circuit_generate(&s);break;
+    case L3_MINI_BLOCKS:
+        s.meta[W]=8;s.meta[H]=14;s.meta[GOAL]=4;s.data[NEXTDIR]=random32(&s)%7u;
+        for(y=10;y<14;++y)for(x=0;x<8;++x)
+            if(x!=s.data[NEXTDIR] && x!=s.data[NEXTDIR]+1u)s.board[at(x,y)]=8;
+        blocks_spawn(&s);break;
+    case L3_MINI_SHAPES:
+        s.meta[W]=8;s.meta[H]=8;s.meta[GOAL]=4;s.data[LIVES]=8;
+        assembly_generate(&s);assembly_spawn(&s);break;
+    case L3_MINI_MERGE1024:
+        s.meta[W]=4;s.meta[H]=4;s.meta[GOAL]=1024;
+        merge_spawn(&s);merge_spawn(&s);break;
+    case L3_MINI_MAZE:
+        s.meta[W]=13;s.meta[H]=11;s.data[LIVES]=3;
+        for(y=0;y<11;++y)for(x=0;x<13;++x) {
+            unsigned v=maze[y][x]=='#'?1u:(maze[y][x]=='o'?3u:2u);
+            s.board[at(x,y)]=(uint8_t)v;if(v>=2)++s.meta[GOAL];
+        }
+        maze_reset_actors(&s);maze_eat(&s);break;
+    default:return 0;
+    }
+    *state=s;return 1;
+}
+
+static void input(L3MiniState *s,uint32_t pressed,uint32_t held)
+{
+    int d=direction(pressed);unsigned kind=s->meta[K];
+    if(kind==L3_MINI_CIRCUIT) {
+        if(d>=0) {
+            int x=(int)s->data[CX]+dx[d],y=(int)s->data[CY]+dy[d];
+            if(x>=0 && y>=0 && x<6 && y<6){s->data[CX]=(unsigned)x;s->data[CY]=(unsigned)y;}
+        }
+        if(pressed&(L3_MINI_ACT|L3_MINI_ROTATE)) {
+            unsigned q=at(s->data[CX],s->data[CY]);s->board[q]=turn(s->board[q]);
+            ++s->meta[MOVES];--s->data[LIVES];
+            if(circuit_won(s)){s->meta[SCORE]=s->data[LIVES]+1u;finish(s,L3_MINI_WON);}
+            else if(!s->data[LIVES])finish(s,L3_MINI_LOST);
+        }
+    } else if(kind==L3_MINI_BLOCKS) {
+        if(d==1 || d==3)try_move(s,d);
+        if((pressed&L3_MINI_ROTATE) || d==0)try_rotate(s);
+        if(pressed&L3_MINI_ACT) {
+            while(current_fits(s,(int)s->data[CX],(int)s->data[CY]+1,s->data[ROT]))++s->data[CY];
+            blocks_lock(s);
+        } else if(d==2)blocks_down(s);
+    } else if(kind==L3_MINI_SHAPES) {
+        if(d>=0)try_move(s,d);
+        if(pressed&L3_MINI_ROTATE)try_rotate(s);
+        if(pressed&L3_MINI_ACT)assembly_lock(s);
+    } else if(kind==L3_MINI_MERGE1024) {
+        if(d>=0)merge_move(s,(unsigned)d);
+    } else {
+        if(d<0)d=direction(held);
+        if(d>=0)s->data[NEXTDIR]=(unsigned)d;
+    }
+}
+
+uint32_t l3_mini_step(L3MiniState *s,uint32_t pressed,uint32_t held,uint32_t dt_ms)
+{
+    uint32_t oldstatus,phase,n,i;
+    if(!l3_mini_validate(s) || ((pressed|held)&~L3_MINI_INPUT_MASK))return L3_MINI_EVENT_INVALID;
+    if(pressed&L3_MINI_BACK)return L3_MINI_EVENT_EXIT;
+    if(s->meta[ST]!=L3_MINI_RUNNING)return 0;
+    oldstatus=s->meta[ST];
+    input(s,pressed,held);
+    if(dt_ms>L3_MINI_MAX_DT_MS)dt_ms=L3_MINI_MAX_DT_MS;
+    phase=s->meta[PHASE]+60u*dt_ms;n=phase/1000u;
+    if(s->meta[ST]==L3_MINI_RUNNING)s->meta[PHASE]=phase%1000u;
+    for(i=0;i<n && s->meta[ST]==L3_MINI_RUNNING;++i) {
+        s->meta[TICKS]=add_sat(s->meta[TICKS],1);
+        if(s->meta[K]==L3_MINI_BLOCKS) {
+            unsigned period=(held&L3_MINI_DOWN)?3u:30u;
+            if(++s->data[TIMER]>=period){s->data[TIMER]=0;blocks_down(s);}
+        } else if(s->meta[K]==L3_MINI_MAZE)maze_tick(s);
+    }
+    if(s->meta[ST]!=oldstatus)return L3_MINI_EVENT_CHANGED|(s->meta[ST]==L3_MINI_WON?L3_MINI_EVENT_WON:L3_MINI_EVENT_LOST);
+    return (pressed || held || dt_ms)?L3_MINI_EVENT_CHANGED:0;
+}
+
+/* Validation checks canonical padding, dimensions, ranges and game invariants.
+ * Saved data is not trusted merely because its checksum matches. */
+int l3_mini_validate(const L3MiniState *s)
+{
+    unsigned i,x,y,kind,status;L3MiniState initial;
+    if(!s || s->meta[V]!=L3_MINI_VERSION || s->meta[K]>=5 || s->meta[ST]>L3_MINI_LOST || !s->meta[RNG] || s->meta[PHASE]>=1000 || s->meta[PHASE]%20u)return 0;
+    kind=s->meta[K];status=s->meta[ST];
+    for(i=12;i<16;++i)if(s->meta[i])return 0;
+    if(status!=L3_MINI_RUNNING && s->meta[PHASE])return 0;
+    l3_mini_init(&initial,(L3MiniKind)kind,s->meta[SEED]);
+    if(s->meta[W]!=initial.meta[W] || s->meta[H]!=initial.meta[H] || s->meta[GOAL]!=initial.meta[GOAL])return 0;
+    for(y=0;y<20;++y)for(x=0;x<20;++x) {
+        i=at(x,y);
+        if((x>=s->meta[W] || y>=s->meta[H]) && (s->board[i] || s->aux[i]))return 0;
+    }
+    if(kind!=L3_MINI_CIRCUIT && kind!=L3_MINI_SHAPES)for(i=0;i<400;++i)if(s->aux[i])return 0;
+    if(kind==L3_MINI_CIRCUIT) {
+        int won;
+        if(s->data[CX]>=6 || s->data[CY]>=6 || s->data[LIVES]>120 || s->meta[MOVES]+s->data[LIVES]!=120)return 0;
+        if(memcmp(s->aux,initial.aux,400)!=0 || s->meta[RNG]!=initial.meta[RNG])return 0;
+        for(i=0;i<32;++i)if(i!=CX && i!=CY && i!=LIVES && s->data[i])return 0;
+        for(y=0;y<6;++y)for(x=0;x<6;++x) {
+            uint8_t v=s->aux[at(x,y)]&15u;unsigned r;int same=0;
+            for(r=0;r<4;++r){if(v==s->board[at(x,y)])same=1;v=turn(v);}if(!same)return 0;
+        }
+        won=circuit_won(s);
+        if((status==L3_MINI_WON)!=won || (status==L3_MINI_LOST)!=(s->data[LIVES]==0 && !won))return 0;
+        if(s->meta[SCORE]!=(won?s->data[LIVES]+1u:0u))return 0;
+    } else if(kind==L3_MINI_BLOCKS) {
+        unsigned occupied=0;
+        if(s->data[PIECE]>=7 || s->data[ROT]>=4 || s->data[CX]>=8 || s->data[CY]>=14 || s->data[TIMER]>=30 || s->data[COUNT]>7 || s->data[NEXTDIR]>=7 || !s->data[AUXCOUNT])return 0;
+        for(i=0;i<400;++i){if(s->board[i]>8)return 0;occupied+=s->board[i]!=0;}
+        for(i=0;i<32;++i)if(i!=CX && i!=CY && i!=ROT && i!=PIECE && i!=TIMER && i!=COUNT && i!=NEXTDIR && i!=AUXCOUNT && s->data[i])return 0;
+        if(s->meta[SCORE]%100u || (status==L3_MINI_WON)!=(s->data[COUNT]>=4))return 0;
+        if(s->data[NEXTDIR]!=initial.data[NEXTDIR] || s->meta[MOVES]>28 ||
+           occupied+8u*s->data[COUNT]!=24u+4u*s->meta[MOVES] ||
+           s->data[AUXCOUNT]!=s->meta[MOVES]+(status==L3_MINI_WON?0u:1u) ||
+           s->meta[SCORE]<100u*s->data[COUNT] || s->meta[SCORE]>400u*s->data[COUNT])return 0;
+        if(status==L3_MINI_RUNNING && !current_fits(s,(int)s->data[CX],(int)s->data[CY],s->data[ROT]))return 0;
+        if(status==L3_MINI_LOST && (s->data[CX]!=3 || s->data[CY]!=0 || s->data[ROT]!=0 || current_fits(s,3,0,0)))return 0;
+        for(y=0;y<14;++y){unsigned full=0;for(x=0;x<8;++x)full+=s->board[at(x,y)]!=0;if(full==8)return 0;}
+    } else if(kind==L3_MINI_SHAPES) {
+        unsigned active;
+        if(s->data[COUNT]>4 || s->data[LIVES]>8 || s->data[ROT]>=4 || s->data[CX]>=8 || s->data[CY]>=8)return 0;
+        active=s->data[COUNT]<4?s->data[COUNT]:3;
+        if(s->data[PIECE]!=assembly_types[active] || !current_fits(s,(int)s->data[CX],(int)s->data[CY],s->data[ROT]))return 0;
+        if(memcmp(s->aux,initial.aux,400)!=0 || s->meta[SCORE]!=s->data[COUNT]*100u || s->meta[MOVES]!=s->data[COUNT]+8u-s->data[LIVES])return 0;
+        for(i=0;i<400;++i)if(s->board[i]!=(s->aux[i] && s->aux[i]<=s->data[COUNT]?s->aux[i]:0))return 0;
+        for(i=0;i<32;++i)if(i!=CX && i!=CY && i!=ROT && i!=PIECE && i!=COUNT && i!=LIVES && s->data[i])return 0;
+        if((status==L3_MINI_WON)!=(s->data[COUNT]==4) || (status==L3_MINI_LOST)!=(s->data[LIVES]==0))return 0;
+    } else if(kind==L3_MINI_MERGE1024) {
+        uint32_t sum=0;int won=0;
+        for(i=0;i<400;++i){unsigned v=s->board[i];if(v>10)return 0;if(v)sum+=1u<<v;if(v==10)won=1;}
+        if(s->data[0]!=s->meta[MOVES]+2u || s->data[1]>s->data[0] || (uint64_t)sum!=2ull*s->data[0]+2ull*s->data[1] || s->meta[SCORE]%4u)return 0;
+        for(i=2;i<32;++i)if(s->data[i])return 0;
+        if((status==L3_MINI_WON)!=won || (status==L3_MINI_LOST)!=(!won && !merge_has_move(s)))return 0;
+    } else {
+        unsigned remaining=0,power_eaten=0,pellet_eaten=0;
+        if(s->data[CX]>=13 || s->data[CY]>=11 || s->data[DIR]>4 || s->data[NEXTDIR]>4 || s->data[TIMER]>=6 || s->data[ETIMER]>=14 || s->data[LIVES]>3 || s->data[POWER]>300 || s->data[AUXCOUNT]>120)return 0;
+        if(!maze_open(s,(int)s->data[CX],(int)s->data[CY]))return 0;
+        for(i=EX0;i<=EX1;i+=2)if(s->data[i]>=13 || s->data[i+1]>=11 || !maze_open(s,(int)s->data[i],(int)s->data[i+1]))return 0;
+        for(y=0;y<11;++y)for(x=0;x<13;++x) {
+            unsigned q=at(x,y),v=s->board[q];char c=maze[y][x];
+            if(c=='#'){if(v!=1)return 0;}
+            else {if(v!=0 && v!=(c=='o'?3u:2u))return 0;if(v)++remaining;else if(c=='o')++power_eaten;else ++pellet_eaten;}
+        }
+        if(remaining+s->data[COUNT]!=s->meta[GOAL] || s->meta[SCORE]!=50u*power_eaten+10u*pellet_eaten)return 0;
+        for(i=16;i<32;++i)if(s->data[i])return 0;
+        if(s->data[ROT] || s->data[PIECE] || s->meta[RNG]!=initial.meta[RNG])return 0;
+        if((status==L3_MINI_WON)!=(remaining==0) || (status==L3_MINI_LOST)!=(s->data[LIVES]==0))return 0;
+    }
+    return 1;
+}
+
+int l3_mini_view(const L3MiniState *s,L3MiniView *v)
+{
+    unsigned x,y,kind;uint8_t seen[400];uint64_t elapsed;
+    if(!v || !l3_mini_validate(s))return 0;
+    memset(v,0,sizeof(*v));kind=s->meta[K];
+    v->kind=kind;v->status=s->meta[ST];v->width=(uint16_t)s->meta[W];v->height=(uint16_t)s->meta[H];
+    v->score=s->meta[SCORE];v->target=s->meta[GOAL];v->moves=s->meta[MOVES];
+    elapsed=((uint64_t)s->meta[TICKS]*1000u+s->meta[PHASE])/60u;
+    v->elapsed_ms=elapsed>UINT32_MAX?UINT32_MAX:(uint32_t)elapsed;
+    v->title=titles[kind];v->help=helps[kind];v->objective=objectives[kind];
+    v->cursor_x=-1;v->cursor_y=-1;
+    if(kind==L3_MINI_CIRCUIT){circuit_reachable(s,seen);v->progress=s->meta[ST]==L3_MINI_WON;v->lives=(uint16_t)s->data[LIVES];}
+    else if(kind==L3_MINI_BLOCKS || kind==L3_MINI_SHAPES || kind==L3_MINI_MAZE){v->progress=(uint16_t)s->data[COUNT];v->lives=(uint16_t)s->data[LIVES];}
+    for(y=0;y<s->meta[H];++y)for(x=0;x<s->meta[W];++x) {
+        unsigned q=at(x,y),b=s->board[q];L3MiniCell *c=&v->cells[q];c->color=1;
+        if(kind==L3_MINI_CIRCUIT) {
+            c->kind=L3_MINI_CELL_WIRE;c->value=(uint16_t)b;c->color=seen[q]?10:6;c->glyph='+';
+            if(seen[q])c->flags|=L3_MINI_FLAG_CONNECTED;
+            if(q==0)c->kind=L3_MINI_CELL_START;
+            if(x==5 && y==5)c->kind=L3_MINI_CELL_FINISH;
+        } else if(kind==L3_MINI_BLOCKS) {
+            if(b){c->kind=L3_MINI_CELL_BLOCK;c->color=(uint8_t)(b==8?8:b+2u);c->glyph='#';}
+        } else if(kind==L3_MINI_SHAPES) {
+            if(s->aux[q]){c->kind=b?L3_MINI_CELL_BLOCK:L3_MINI_CELL_TARGET;c->color=(uint8_t)(s->aux[q]+9u);c->value=s->aux[q];c->glyph=b?'#':'.';}
+        } else if(kind==L3_MINI_MERGE1024) {
+            if(b){c->kind=L3_MINI_CELL_NUMBER;c->value=(uint16_t)(1u<<b);c->color=(uint8_t)(b+2u);c->glyph=(uint8_t)(b<10?'0'+b:'A');if(c->value>v->progress)v->progress=c->value;}
+        } else {
+            if(b==1){c->kind=L3_MINI_CELL_WALL;c->color=4;c->glyph='#';}
+            if(b==2){c->kind=L3_MINI_CELL_PELLET;c->color=14;c->glyph='.';}
+            if(b==3){c->kind=L3_MINI_CELL_POWER;c->color=11;c->glyph='O';}
+        }
+    }
+    if(kind==L3_MINI_CIRCUIT) {
+        v->cursor_x=(int16_t)s->data[CX];v->cursor_y=(int16_t)s->data[CY];
+        v->cells[at(s->data[CX],s->data[CY])].flags|=L3_MINI_FLAG_CURSOR;
+    } else if((kind==L3_MINI_BLOCKS || kind==L3_MINI_SHAPES) && s->meta[ST]==L3_MINI_RUNNING) {
+        int xs[4],ys[4];unsigned i;
+        offsets(s->data[PIECE],s->data[ROT],xs,ys);
+        for(i=0;i<4;++i){L3MiniCell *c=&v->cells[at(s->data[CX]+(unsigned)xs[i],s->data[CY]+(unsigned)ys[i])];
+            c->kind=L3_MINI_CELL_BLOCK;c->color=(uint8_t)(kind==L3_MINI_SHAPES?s->data[COUNT]+10u:s->data[PIECE]+3u);c->flags|=L3_MINI_FLAG_ACTIVE;c->glyph='@';}
+        v->cursor_x=(int16_t)s->data[CX];v->cursor_y=(int16_t)s->data[CY];
+    } else if(kind==L3_MINI_MAZE) {
+        unsigned i;
+        for(i=0;i<2;++i){L3MiniCell *c=&v->cells[at(s->data[EX0+2u*i],s->data[EY0+2u*i])];c->kind=L3_MINI_CELL_ENEMY;c->color=s->data[POWER]?6:(uint8_t)(12u+i);c->glyph='X';}
+        {L3MiniCell *c=&v->cells[at(s->data[CX],s->data[CY])];c->kind=L3_MINI_CELL_PLAYER;c->color=14;c->glyph='@';if(s->data[POWER])c->flags|=L3_MINI_FLAG_ACTIVE;}
+    }
+    return 1;
+}
+
+static void put32(uint8_t *p,uint32_t v)
+{ p[0]=(uint8_t)v;p[1]=(uint8_t)(v>>8);p[2]=(uint8_t)(v>>16);p[3]=(uint8_t)(v>>24); }
+static uint32_t get32(const uint8_t *p)
+{ return (uint32_t)p[0]|((uint32_t)p[1]<<8)|((uint32_t)p[2]<<16)|((uint32_t)p[3]<<24); }
+static uint32_t checksum(const uint8_t *p)
+{
+    uint32_t h=2166136261u;unsigned i;
+    for(i=0;i<L3_MINI_SAVE_BYTES;++i)if(i<12 || i>=16){h^=p[i];h*=16777619u;}
+    return h;
+}
+size_t l3_mini_encode(const L3MiniState *s,void *output,size_t capacity)
+{
+    uint8_t bytes[L3_MINI_SAVE_BYTES];unsigned i;
+    if(!l3_mini_validate(s))return 0;
+    if(!output)return L3_MINI_SAVE_BYTES;
+    if(capacity<L3_MINI_SAVE_BYTES)return 0;
+    memcpy(bytes,"L3MG",4);put32(bytes+4,L3_MINI_VERSION);put32(bytes+8,992u);put32(bytes+12,0);
+    for(i=0;i<16;++i)put32(bytes+16u+4u*i,s->meta[i]);
+    for(i=0;i<32;++i)put32(bytes+80u+4u*i,s->data[i]);
+    memcpy(bytes+208,s->board,400);memcpy(bytes+608,s->aux,400);
+    put32(bytes+12,checksum(bytes));memcpy(output,bytes,sizeof(bytes));return sizeof(bytes);
+}
+int l3_mini_decode(L3MiniState *s,const void *input_bytes,size_t size)
+{
+    const uint8_t *p=(const uint8_t *)input_bytes;L3MiniState tmp;unsigned i;
+    if(!s || !p || size!=L3_MINI_SAVE_BYTES || memcmp(p,"L3MG",4)!=0 || get32(p+4)!=L3_MINI_VERSION || get32(p+8)!=992u || get32(p+12)!=checksum(p))return 0;
+    memset(&tmp,0,sizeof(tmp));
+    for(i=0;i<16;++i)tmp.meta[i]=get32(p+16u+4u*i);
+    for(i=0;i<32;++i)tmp.data[i]=get32(p+80u+4u*i);
+    memcpy(tmp.board,p+208,400);memcpy(tmp.aux,p+608,400);
+    if(!l3_mini_validate(&tmp))return 0;
+    *s=tmp;return 1;
+}
+
+/* Adviser only: inspect a legal position and choose a normal next command. */
+static int merge_quality(const L3MiniState *s)
+{
+    unsigned x,y;int empty=0,smooth=0,mono=0,max=0,corner=0;
+    for(y=0;y<4;++y)for(x=0;x<4;++x) {
+        int v=s->board[at(x,y)],a,b;
+        if(!v)++empty;
+        if(v>max)max=v;
+        if(x==0 || x==3)if((y==0 || y==3) && v>corner)corner=v;
+        if(x<3){a=s->board[at(x+1,y)];if(v && a){b=v-a;smooth-=b<0?-b:b;}}
+        if(y<3){a=s->board[at(x,y+1)];if(v && a){b=v-a;smooth-=b<0?-b:b;}}
+    }
+    for(y=0;y<4;++y) {
+        int plus=0,minus=0;
+        for(x=0;x<3;++x){int d=(int)s->board[at(x,y)]-(int)s->board[at(x+1,y)];if(d>0)plus+=d;else minus-=d;}
+        mono-=plus<minus?plus:minus;
+    }
+    for(x=0;x<4;++x) {
+        int plus=0,minus=0;
+        for(y=0;y<3;++y){int d=(int)s->board[at(x,y)]-(int)s->board[at(x,y+1)];if(d>0)plus+=d;else minus-=d;}
+        mono-=plus<minus?plus:minus;
+    }
+    if(s->meta[ST]==L3_MINI_WON)return 10000000;
+    if(s->meta[ST]==L3_MINI_LOST)return -10000000;
+    return 1200*empty+220*mono+35*smooth+700*max+600*corner;
+}
+static int merge_search(const L3MiniState *s,unsigned depth)
+{
+    unsigned d;int best=INT_MIN;
+    if(!depth || s->meta[ST]!=L3_MINI_RUNNING)return merge_quality(s);
+    for(d=0;d<4;++d) {
+        L3MiniState t=*s;int value;
+        merge_move(&t,d);if(t.meta[MOVES]==s->meta[MOVES])continue;
+        value=merge_search(&t,depth-1u);if(value>best)best=value;
+    }
+    return best==INT_MIN?merge_quality(s):best;
+}
+int l3_mini_demo_input(const L3MiniState *s,uint32_t *pressed,uint32_t *held,uint32_t *dt_ms)
+{
+    unsigned kind;uint32_t key=0,dt=0;
+    if(!pressed || !held || !dt_ms || !l3_mini_validate(s) || s->meta[ST]!=L3_MINI_RUNNING)return 0;
+    kind=s->meta[K];
+    if(kind==L3_MINI_CIRCUIT) {
+        unsigned x,y,tx=0,ty=0;int found=0;
+        for(y=0;y<6 && !found;++y)for(x=0;x<6;++x) {
+            unsigned q=at(x,y);
+            if((s->aux[q]&16u) && s->board[q]!=(s->aux[q]&15u)){tx=x;ty=y;found=1;break;}
+        }
+        if(!found)return 0;
+        if(s->data[CX]<tx)key=L3_MINI_RIGHT;else if(s->data[CX]>tx)key=L3_MINI_LEFT;
+        else if(s->data[CY]<ty)key=L3_MINI_DOWN;else if(s->data[CY]>ty)key=L3_MINI_UP;
+        else key=L3_MINI_ROTATE;
+    } else if(kind==L3_MINI_BLOCKS) {
+        int best=INT_MIN,bx=-1;unsigned br=0,r;int x;
+        for(r=0;r<4;++r)for(x=0;x<8;++x) {
+            L3MiniState t=*s;int y=(int)s->data[CY],height=0,holes=0,bump=0,prev=0,value;unsigned xx,n;
+            if(!piece_fits(s,s->data[PIECE],r,x,y,1))continue;
+            while(piece_fits(s,s->data[PIECE],r,x,y+1,1))++y;
+            t.data[CX]=(unsigned)x;t.data[CY]=(unsigned)y;t.data[ROT]=r;
+            n=t.data[COUNT];blocks_lock(&t);n=t.data[COUNT]-n;
+            for(xx=0;xx<8;++xx){int yy,h=0,seen=0;for(yy=0;yy<14;++yy){if(t.board[at(xx,(unsigned)yy)]){if(!seen)h=14-yy;seen=1;}else if(seen)++holes;}height+=h;if(xx){int diff=h-prev;bump+=diff<0?-diff:diff;}prev=h;}
+            value=(int)n*1000-holes*400-height*10-bump*20;
+            if(t.meta[ST]==L3_MINI_WON)value+=100000;
+            if(t.meta[ST]==L3_MINI_LOST)value-=100000;
+            if(value>best){best=value;bx=x;br=r;}
+        }
+        if(bx<0)key=L3_MINI_ACT;
+        else if(s->data[ROT]!=br)key=L3_MINI_ROTATE;
+        else if(s->data[CX]<(unsigned)bx)key=L3_MINI_RIGHT;
+        else if(s->data[CX]>(unsigned)bx)key=L3_MINI_LEFT;
+        else key=L3_MINI_ACT;
+    } else if(kind==L3_MINI_SHAPES) {
+        unsigned x,y,r,tx=0,ty=0,tr=0;int found=0;
+        for(r=0;r<4 && !found;++r)for(y=0;y<8 && !found;++y)for(x=0;x<8;++x)
+            if(assembly_match(s,(int)x,(int)y,r)){tx=x;ty=y;tr=r;found=1;break;}
+        if(!found)return 0;
+        /* Move to the interior before rotating, so edge bounds cannot jam it. */
+        if(s->data[ROT]!=tr){if(s->data[CX]>4)key=L3_MINI_LEFT;else if(s->data[CY]>4)key=L3_MINI_UP;else key=L3_MINI_ROTATE;}
+        else if(s->data[CX]<tx)key=L3_MINI_RIGHT;else if(s->data[CX]>tx)key=L3_MINI_LEFT;
+        else if(s->data[CY]<ty)key=L3_MINI_DOWN;else if(s->data[CY]>ty)key=L3_MINI_UP;
+        else key=L3_MINI_ACT;
+    } else if(kind==L3_MINI_MERGE1024) {
+        unsigned d;int best=INT_MIN;
+        for(d=0;d<4;++d){L3MiniState t=*s;int value;merge_move(&t,d);if(t.meta[MOVES]==s->meta[MOVES])continue;
+            value=merge_search(&t,3);if(value>best){best=value;key=keys[d];}}
+        if(!key)return 0;
+    } else {
+        unsigned q=at(s->data[CX],s->data[CY]),d,target=0,i;uint16_t dist[400],back[400];int best=INT_MAX;
+        maze_distances(s,q,dist);
+        for(i=0;i<400;++i)if(s->board[i]>=2 && dist[i]!=UINT16_MAX){int cost=dist[i];
+            if(s->data[POWER]<60 && s->board[i]==3)cost-=4;
+            if(cost<best){best=cost;target=i;}}
+        if(best==INT_MAX)return 0;
+        maze_distances(s,target,back);best=INT_MAX;
+        for(d=0;d<4;++d){int x=(int)s->data[CX]+dx[d],y=(int)s->data[CY]+dy[d],cost;unsigned z;
+            if(!maze_open(s,x,y))continue;
+            z=at((unsigned)x,(unsigned)y);cost=back[z];
+            if(!s->data[POWER] && !s->data[AUXCOUNT]){unsigned e;for(e=0;e<2;++e){int a=x-(int)s->data[EX0+2u*e],b=y-(int)s->data[EY0+2u*e];if(a<0)a=-a;if(b<0)b=-b;if(a+b<=1)cost+=100;}}
+            if(cost<best){best=cost;key=keys[d];}}
+        dt=100;
+    }
+    *pressed=key;*held=0;*dt_ms=dt;return 1;
+}
+
+int l3_mini_actors(const L3MiniState *s,L3MiniActors *out)
+{
+    L3MiniActors a;uint16_t dist[400];unsigned i;
+    if(!out || !l3_mini_validate(s) || s->meta[K]!=L3_MINI_MAZE)return 0;
+    memset(&a,0,sizeof(a));a.count=3;
+    a.power_ticks=(uint16_t)s->data[POWER];a.respawn_ticks=(uint16_t)s->data[AUXCOUNT];
+    a.progress=(uint16_t)s->data[COUNT];a.target=(uint16_t)s->meta[GOAL];
+    a.player_tick=(uint8_t)s->data[TIMER];a.enemy_tick=(uint8_t)s->data[ETIMER];
+    a.next_direction=(uint8_t)s->data[NEXTDIR];
+    maze_distances(s,at(s->data[CX],s->data[CY]),dist);
+    for(i=0;i<3;++i){L3MiniActor *actor=&a.actors[i];unsigned x,y;
+        if(i==0){x=s->data[CX];y=s->data[CY];actor->direction=(uint8_t)s->data[DIR];
+            actor->kind=L3_MINI_CELL_PLAYER;actor->color=14;
+            if(s->data[POWER])actor->flags|=L3_MINI_ACTOR_POWERED;
+            if(s->data[AUXCOUNT])actor->flags|=L3_MINI_ACTOR_PROTECTED;
+        }else{unsigned e=i-1u,d,best=4;int value=s->data[POWER]?-1:INT_MAX;
+            x=s->data[EX0+2u*e];y=s->data[EY0+2u*e];
+            for(d=0;d<4;++d){unsigned dd=(d+e)%4u;int xx=(int)x+dx[dd],yy=(int)y+dy[dd],v;
+                if(!maze_open(s,xx,yy))continue;
+                v=dist[at((unsigned)xx,(unsigned)yy)];
+                if((s->data[POWER] && v>value) || (!s->data[POWER] && v<value)){best=dd;value=v;}}
+            actor->direction=(uint8_t)best;actor->kind=L3_MINI_CELL_ENEMY;
+            actor->color=s->data[POWER]?6:(uint8_t)(12u+e);
+            if(s->data[POWER])actor->flags=L3_MINI_ACTOR_FRIGHTENED;
+        }
+        actor->x256=(uint16_t)(x*256u+128u);actor->y256=(uint16_t)(y*256u+128u);
+    }
+    *out=a;return 1;
+}
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_minigames.h SHA256 a3bd99b497a1c0c965144a68c956e9232044752bf332ac2ebdac3a5115b92f0d
+#ifndef L3_MINIGAMES_H
+#define L3_MINIGAMES_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define L3_MINI_VERSION 1u
+#define L3_MINI_STRIDE 20u
+#define L3_MINI_CELLS 400u
+#define L3_MINI_SAVE_BYTES 1008u
+#define L3_MINI_MAX_DT_MS 250u
+
+typedef enum L3MiniKind {
+    L3_MINI_CIRCUIT, L3_MINI_BLOCKS, L3_MINI_SHAPES,
+    L3_MINI_MERGE1024, L3_MINI_MAZE, L3_MINI_KIND_COUNT
+} L3MiniKind;
+
+typedef enum L3MiniStatus {
+    L3_MINI_RUNNING, L3_MINI_WON, L3_MINI_LOST,
+    L3_MINI_PLAYING = L3_MINI_RUNNING
+} L3MiniStatus;
+
+enum {
+    L3_MINI_UP = 1u, L3_MINI_DOWN = 2u,
+    L3_MINI_LEFT = 4u, L3_MINI_RIGHT = 8u,
+    L3_MINI_ACT = 16u, L3_MINI_ROTATE = 32u, L3_MINI_BACK = 64u,
+    L3_MINI_INPUT_MASK = 127u
+};
+enum {
+    L3_MINI_EVENT_CHANGED = 1u, L3_MINI_EVENT_WON = 2u,
+    L3_MINI_EVENT_LOST = 4u, L3_MINI_EVENT_EXIT = 8u,
+    L3_MINI_EVENT_INVALID = 16u
+};
+typedef enum L3MiniCellKind {
+    L3_MINI_CELL_EMPTY, L3_MINI_CELL_WALL, L3_MINI_CELL_WIRE,
+    L3_MINI_CELL_BLOCK, L3_MINI_CELL_TARGET, L3_MINI_CELL_NUMBER,
+    L3_MINI_CELL_PLAYER, L3_MINI_CELL_ENEMY, L3_MINI_CELL_PELLET,
+    L3_MINI_CELL_POWER, L3_MINI_CELL_START, L3_MINI_CELL_FINISH
+} L3MiniCellKind;
+enum {
+    L3_MINI_FLAG_CURSOR = 1u, L3_MINI_FLAG_ACTIVE = 2u,
+    L3_MINI_FLAG_CONNECTED = 4u, L3_MINI_FLAG_GHOST = 8u
+};
+
+/* Opaque to callers: use view/encode/decode, never write these members.
+ * Integer storage is naturally aligned, has no pointers or compiler unions.
+ * sizeof is 992 on supported C ABIs, always <=4096. Not a wire format. */
+typedef struct L3MiniState {
+    uint32_t meta[16];
+    uint32_t data[32];
+    uint8_t board[L3_MINI_CELLS];
+    uint8_t aux[L3_MINI_CELLS];
+} L3MiniState;
+
+typedef struct L3MiniCell {
+    uint16_t value; /* wire N/E/S/W bits 1/2/4/8; number actual 2..1024 */
+    uint8_t kind, color, flags, glyph; /* color is a logical index 0..15 */
+} L3MiniCell;
+
+typedef struct L3MiniView {
+    L3MiniCell cells[L3_MINI_CELLS]; /* index y*L3_MINI_STRIDE+x */
+    uint32_t kind, status, score, target, moves, elapsed_ms;
+    uint16_t width, height;
+    int16_t cursor_x, cursor_y; /* -1 if no cursor */
+    uint16_t lives, progress;
+    const char *title, *help, *objective; /* static French strings */
+} L3MiniView;
+
+/* Invalid arguments return 0 and leave destination intact. seed=0 is valid. */
+int l3_mini_init(L3MiniState *state, L3MiniKind kind, uint32_t seed);
+/* dt_ms is clamped to250. Internally fixed60Hz with saved fractional phase.
+ * Fronts execute once immediately, even at dt=0. held never synthesizes fronts.
+ * BACK has priority and returns EXIT with byte-identical state, no time spent.
+ * Finished states stay frozen. Restart via init(kind,seed); resume by retaining
+ * state. Integration must release/latch buttons before entering/restarting. */
+uint32_t l3_mini_step(L3MiniState *state, uint32_t pressed,
+                      uint32_t held, uint32_t dt_ms);
+int l3_mini_view(const L3MiniState *state, L3MiniView *view);
+int l3_mini_validate(const L3MiniState *state);
+/* Fixed portable LE format, checksum and strict semantic validation.
+ * Decode is transactional: dst unchanged on every failure, exact length only.
+ * Encode returns byte count or0; NULL output returns required size if valid. */
+size_t l3_mini_encode(const L3MiniState *state, void *output, size_t capacity);
+int l3_mini_decode(L3MiniState *state, const void *input, size_t size);
+/* Deterministic demo adviser; returns ordinary inputs, never changes state.
+ * Calling step with these inputs obeys precisely the human game's rules.
+ * Does not guarantee victory for arbitrary already-damaged positions. */
+int l3_mini_demo_input(const L3MiniState *state, uint32_t *pressed,
+                       uint32_t *held, uint32_t *dt_ms);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+
+FILE games/luma3d/candidates/adviser_compact_r1/compact_proposal.h SHA256 f80c99bf30caf82ba8706d60956cbc406c86cdeb97ab05c435c2c9f74fc2f20d
+/* Isolated adviser-only proposal. Includes no public engine change. */
+typedef struct L3CompactMergeState {
+    uint8_t  board[16];
+    uint32_t rng;
+    uint32_t score;
+    uint32_t moves;
+    uint8_t  status;
+} L3CompactMergeState;
+
+static void compact_from_l3(const L3MiniState *s, L3CompactMergeState *c)
+{
+    unsigned x, y;
+
+    for (y = 0; y < 4u; ++y)
+        for (x = 0; x < 4u; ++x)
+            c->board[y * 4u + x] = s->board[at(x, y)];
+
+    c->rng    = s->meta[RNG];
+    c->score  = s->meta[SCORE];
+    c->moves  = s->meta[MOVES];
+    c->status = (uint8_t)s->meta[ST];
+}
+
+static uint32_t compact_random32(L3CompactMergeState *s)
+{
+    uint32_t x = s->rng;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    s->rng = x;
+    return x;
+}
+
+static uint32_t compact_add_sat(uint32_t a, uint32_t b)
+{
+    return UINT32_MAX - a < b ? UINT32_MAX : a + b;
+}
+
+static unsigned compact_index(unsigned dir, unsigned line, unsigned pos)
+{
+    /* Copie exacte de la sémantique de merge_index, mais en coordonnées board[4]. */
+    if (dir == 0) return pos * 4u + line;          /* at(line,pos) */
+    if (dir == 1) return line * 4u + (3u - pos);   /* at(3-pos,line) */
+    if (dir == 2) return (3u - pos) * 4u + line;   /* at(line,3-pos) */
+    return line * 4u + pos;                        /* at(pos,line) */
+}
+
+static int compact_slide(L3CompactMergeState *s, unsigned dir)
+{
+    unsigned line, pos;
+    int changed = 0;
+
+    for (line = 0; line < 4; ++line) {
+        uint8_t packed[4] = {0, 0, 0, 0};
+        uint8_t out[4] = {0, 0, 0, 0};
+        unsigned n = 0, k = 0, i = 0;
+
+        for (pos = 0; pos < 4; ++pos) {
+            uint8_t v = s->board[compact_index(dir, line, pos)];
+            if (v) packed[n++] = v;
+        }
+        while (i < n) {
+            unsigned v = packed[i++];
+            if (i < n && packed[i] == v) {
+                ++i;
+                ++v;
+                s->score = compact_add_sat(s->score, 1u << v);
+            }
+            out[k++] = (uint8_t)v;
+        }
+        for (pos = 0; pos < 4; ++pos) {
+            unsigned q = compact_index(dir, line, pos);
+            if (s->board[q] != out[pos]) changed = 1;
+            s->board[q] = out[pos];
+        }
+    }
+    return changed;
+}
+
+static int compact_has_move(const L3CompactMergeState *s)
+{
+    unsigned x, y;
+
+    for (y = 0; y < 4; ++y)
+        for (x = 0; x < 4; ++x) {
+            unsigned q = y * 4u + x;
+            uint8_t v = s->board[q];
+            if (!v) return 1;
+            if (x < 3 && s->board[q + 1] == v) return 1;
+            if (y < 3 && s->board[q + 4] == v) return 1;
+        }
+    return 0;
+}
+
+static void compact_spawn(L3CompactMergeState *s)
+{
+    unsigned freecells[16];
+    unsigned n = 0, x, y, q;
+    uint8_t v;
+
+    for (y = 0; y < 4; ++y)
+        for (x = 0; x < 4; ++x)
+            if (!s->board[y * 4u + x])
+                freecells[n++] = y * 4u + x;
+
+    if (!n) return;
+
+    q = freecells[compact_random32(s) % n];
+    v = (uint8_t)((compact_random32(s) % 10u) == 0u ? 2u : 1u);
+    s->board[q] = v;
+}
+
+static void compact_move(L3CompactMergeState *s, unsigned dir)
+{
+    unsigned i;
+
+    if (!compact_slide(s, dir)) return;
+
+    ++s->moves;
+    compact_spawn(s);
+
+    for (i = 0; i < 16; ++i)
+        if (s->board[i] == 10) {
+            s->status = L3_MINI_WON;
+            return;
+        }
+
+    if (!compact_has_move(s)) s->status = L3_MINI_LOST;
+}
+
+static int compact_quality(const L3CompactMergeState *s)
+{
+    unsigned x, y;
+    int empty = 0, smooth = 0, mono = 0, max = 0, corner = 0;
+
+    if (s->status == L3_MINI_WON) return 10000000;
+    if (s->status == L3_MINI_LOST) return -10000000;
+
+    for (y = 0; y < 4; ++y)
+        for (x = 0; x < 4; ++x) {
+            uint8_t v = s->board[y * 4u + x];
+            int a, b;
+
+            if (!v) ++empty;
+            if (v > max) max = v;
+            if ((x == 0 || x == 3) && (y == 0 || y == 3) && v > corner)
+                corner = v;
+
+            if (x < 3) {
+                a = s->board[y * 4u + x + 1];
+                if (v && a) {
+                    b = v - a;
+                    smooth -= b < 0 ? -b : b;
+                }
+            }
+            if (y < 3) {
+                a = s->board[(y + 1) * 4u + x];
+                if (v && a) {
+                    b = v - a;
+                    smooth -= b < 0 ? -b : b;
+                }
+            }
+        }
+
+    for (y = 0; y < 4; ++y) {
+        int plus = 0, minus = 0;
+        for (x = 0; x < 3; ++x) {
+            int d = (int)s->board[y * 4u + x] - (int)s->board[y * 4u + x + 1];
+            if (d > 0) plus += d;
+            else minus -= d;
+        }
+        mono -= plus < minus ? plus : minus;
+    }
+
+    for (x = 0; x < 4; ++x) {
+        int plus = 0, minus = 0;
+        for (y = 0; y < 3; ++y) {
+            int d = (int)s->board[y * 4u + x] - (int)s->board[(y + 1) * 4u + x];
+            if (d > 0) plus += d;
+            else minus -= d;
+        }
+        mono -= plus < minus ? plus : minus;
+    }
+
+    return 1200 * empty + 220 * mono + 35 * smooth + 700 * max + 600 * corner;
+}
+
+static int compact_search(const L3CompactMergeState *s, unsigned depth)
+{
+    unsigned d;
+    int best = INT_MIN;
+
+    if (!depth || s->status != L3_MINI_RUNNING)
+        return compact_quality(s);
+
+    for (d = 0; d < 4; ++d) {
+        L3CompactMergeState t = *s;
+        int value;
+
+        compact_move(&t, d);
+        if (t.moves == s->moves) continue;
+        value = compact_search(&t, depth - 1u);
+        if (value > best) best = value;
+    }
+    return best == INT_MIN ? compact_quality(s) : best;
+}
+
+FILE games/luma3d/candidates/adviser_compact_r1/differential.c SHA256 9bb28c9265c2d80a5c78dd47187c72ba96ba2d3c77f18aee69b9c20806220bc2
+#define _POSIX_C_SOURCE 200809L
+#include <assert.h>
+#include <stdio.h>
+#include <time.h>
+#include "../../build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_minigames.c"
+#include "compact_proposal.h"
+
+static unsigned checks;
+static double seconds(void){struct timespec t;assert(!clock_gettime(CLOCK_MONOTONIC,&t));return t.tv_sec+t.tv_nsec*1e-9;}
+static void equal(const L3MiniState *s,const L3CompactMergeState *c){
+ for(unsigned y=0;y<4;y++)for(unsigned x=0;x<4;x++){assert(s->board[at(x,y)]==c->board[y*4+x]);checks++;}
+ assert(s->meta[RNG]==c->rng&&s->meta[SCORE]==c->score&&s->meta[MOVES]==c->moves&&s->meta[ST]==c->status);checks+=4;
+}
+static unsigned advice(const L3MiniState *s){
+ L3CompactMergeState c;compact_from_l3(s,&c);unsigned key=0;int best=INT_MIN;
+ for(unsigned d=0;d<4;d++){L3CompactMergeState t=c;compact_move(&t,d);if(t.moves==c.moves)continue;int value=compact_search(&t,3);if(value>best){best=value;key=keys[d];}}
+ return key;
+}
+int main(void){
+ unsigned states=0,wins=0,losses=0;double old_time=0,new_time=0;
+ for(unsigned seed=1;seed<=128;seed++){
+  L3MiniState s;assert(l3_mini_init(&s,L3_MINI_MERGE1024,seed));
+  for(unsigned count=0;count<1500;count++){
+   L3CompactMergeState c;compact_from_l3(&s,&c);equal(&s,&c);assert(merge_quality(&s)==compact_quality(&c));checks++;states++;
+   if(s.meta[ST]!=L3_MINI_RUNNING){wins+=s.meta[ST]==L3_MINI_WON;losses+=s.meta[ST]==L3_MINI_LOST;break;}
+   for(unsigned d=0;d<4;d++){
+    L3MiniState t=s;L3CompactMergeState u=c;merge_move(&t,d);compact_move(&u,d);equal(&t,&u);
+    assert(merge_quality(&t)==compact_quality(&u));checks++;
+   }
+   L3MiniState before=s;uint32_t pressed,held,dt;double start=seconds();assert(l3_mini_demo_input(&s,&pressed,&held,&dt));old_time+=seconds()-start;
+   start=seconds();unsigned fast=advice(&s);new_time+=seconds()-start;assert(fast==pressed);assert(!memcmp(&s,&before,sizeof s));checks+=2;
+   /* Include alternative reachable states, not only the solver's own route. */
+   if(seed%4==0&&count%7==0)pressed=keys[(count+seed)%4];
+   l3_mini_step(&s,pressed,held,dt);
+   assert(l3_mini_validate(&s));checks++;
+   if(!(count%31)){uint8_t save[L3_MINI_SAVE_BYTES];L3MiniState restored;assert(l3_mini_encode(&s,save,sizeof save)==sizeof save);assert(l3_mini_decode(&restored,save,sizeof save));assert(!memcmp(&s,&restored,sizeof s));checks+=3;}
+  }
+ }
+ printf("COMPACT_DIFF_PASS states=%u checks=%u wins=%u losses=%u old_seconds=%.6f compact_seconds=%.6f state_bytes=%zu compact_bytes=%zu hardware=0 integrated=0\n",states,checks,wins,losses,old_time,new_time,sizeof(L3MiniState),sizeof(L3CompactMergeState));return 0;
+}
+
+FILE games/luma3d/candidates/adviser_compact_r1/strict_result.json SHA256 4cb9e58a88e38b4f520e8655196f8e4505ecc9a836caf5a9383b5cb62eb11700
+{
+  "passed": true,
+  "hardware": false,
+  "integrated": false,
+  "states": 64332,
+  "checks": 6943110,
+  "seeds": 128,
+  "wins": 125,
+  "losses": 3,
+  "old_seconds_host": 3.860248,
+  "compact_seconds_host": 2.202882,
+  "state_bytes": 992,
+  "compact_bytes": 32,
+  "files": {
+    "compact_proposal.h": "f80c99bf30caf82ba8706d60956cbc406c86cdeb97ab05c435c2c9f74fc2f20d",
+    "differential.c": "9bb28c9265c2d80a5c78dd47187c72ba96ba2d3c77f18aee69b9c20806220bc2",
+    "provenance.json": "c7ed15afd45c56cb2edc764dbc0e93d81ba3eae83708f45c35119b4b874e87fd"
+  }
+}

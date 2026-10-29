@@ -1,0 +1,73 @@
+{
+  "passed": true,
+  "scope": "Functional post-PnR GPU test. Official primitives, unchanged cells, no SDF.\n\nKeep every u_accel/u_gpu_debug primitive and recursively every input driver\noutside those prefixes, stopping ONLY at the reviewed post-synthesis bench\nboundaries. Preserve exact instances, defparams and wire declarations. Fail on\nunknown pins, undriven nets or ambiguous drivers. The CPU, video_bus_stage,\nDDR and all physical delays remain outside this test.\n",
+  "source_netlist_sha256": "0ee8804519059985a5632a6fa30916475acc027baaf025e62ba7ca893dfb3ab4",
+  "total_cells": 86894,
+  "gpu_debug_cells": 86894,
+  "dependency_cells": [],
+  "primitive_counts": {
+    "LUT4": 18192,
+    "DFFCE": 2995,
+    "LUT3": 15916,
+    "DFFRE": 27667,
+    "ALU": 15863,
+    "LUT2": 4494,
+    "MULTALU27X18": 50,
+    "MUX2_LUT5": 805,
+    "LUT1": 65,
+    "INV": 61,
+    "DFFSE": 278,
+    "MUX2_LUT6": 257,
+    "MUX2_LUT8": 33,
+    "SDPB": 40,
+    "MUX2_LUT7": 66,
+    "MULT27X36": 54,
+    "SDPX9B": 23,
+    "MULT12X12": 17,
+    "DPX9B": 9,
+    "MULTADDALU12X12": 9
+  },
+  "boundary_assignments": {
+    "gpu_clk": "clock_model",
+    "vid_hclk": "hclk",
+    "vid_hrstn": "resetn",
+    "bus_hwrite": "hwrite",
+    "bus_hwdata[31:0]": "hwdata",
+    "bus_htrans[1]": "htrans",
+    "bus_haddr[14:0]": "haddr",
+    "b_grant": "1'b1",
+    "m_rd_data_valid": "1'b0",
+    "blit_rd_data[255:0]": "256'bx",
+    "n2024_1": "1'bx",
+    "n2023_2": "1'bx",
+    "n8_3": "1'bx",
+    "GND": "1'b0",
+    "VCC": "1'b1"
+  },
+  "source_instances_and_defparams_unchanged": true,
+  "sha256": {
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/test_accel_routed.py": "07776bd17d5318d33d5395de6c75762cb25558695beb9359f9dc0f5770f95455",
+    "tang/impl/console_neo_n55r2/impl/pnr/console_neo.vo": "0ee8804519059985a5632a6fa30916475acc027baaf025e62ba7ca893dfb3ab4",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/n55_full_routed_r2/routed.v": "05d62a3dcecfbf366b838ab96ccfb1efa24708d68461815c81ff1e67309d842d",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/n55_full_routed_r2/tb.sv": "d124899876b2bfccb5f4e56fd21317d5c09919dad152aabaee488ed10c916c4b",
+    "/home/michael/gowin/IDE/simlib/gw5a/prim_sim.v": "7db6e9953af24f1233dbc8f58352a1673e91d01bb69656a16ae893a68089f85d",
+    "TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/n55_full_mapped/result.json": "deb7c20be09295d5b8a7103185ebbb291f34804701d8bdcf5673466e39f08be4"
+  },
+  "compile_command": [
+    "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+    "-B",
+    "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+    "-g2012",
+    "-s",
+    "tb",
+    "-o",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/n55_full_routed_r2/sim.vvp",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/n55_full_routed_r2/tb.sv",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/n55_full_routed_r2/routed.v",
+    "/home/michael/gowin/IDE/simlib/gw5a/prim_sim.v"
+  ],
+  "simulation_command": [
+    "/tmp/console-usb-sim-tools/extracted/usr/bin/vvp",
+    "/home/michael/console/TESTS/neo_720p_20261012/n55_gpu_diagnosis_20261021/n55_full_routed_r2/sim.vvp"
+  ]
+}

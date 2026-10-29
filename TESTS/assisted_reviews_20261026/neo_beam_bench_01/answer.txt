@@ -1,0 +1,300 @@
+## Verdict adversarial
+
+Le banc **passe** functionnellement sur la séquence fournie, mais le PASS ne démontre ni une preuve de conservation, ni l’absence de rejeu, ni une qualification physique. Cinq lacunes précises sont suffisantes pour nuire à la valeur du PASS. Le RTL reste figé; seule le banc est visé.
+
+---
+
+## Faits établis depuis le packet
+
+1. `simulation.log` contient bien `PASS R19 REAL SLOT CLEAR tests=13 ...` ; le runner déclare `passed` uniquement si cette chaîne est présente, et `subprocess.run` exigeait un code retour 0. Donc une assertion `$fatal` would have fait échouer le runner.
+2. Le banc ne dépend du DDR que par un modèle externe : `m_rd_data=256'd0`, `m_rd_valid=1'b0`, `m_rd_end=1'b0`, prêtés statiquement dans `ddr_gpu_arb`.
+3. Le RTL est figé ; le banc n’utilise pas `force`/`deposit` ni de logique de pending/accepted substituée.
+4. Le problème de timing physique R19 reste explicitement **non résolu**; le bench est une couverture fonctionnelle, pas une qualification de timing/routing/preuve matérielle.
+
+---
+
+## Défauts / lacunes établis (≤ 5)
+
+### 1. Invariant des slots calibré à la séquence, pas invariant de conservation
+
+**Fait / code** : dans `tb_reviewed.sv`, le comptage est :
+
+```systemverilog
+if(dut.mrst[1]) begin
+    if(!dut.v1_pending && dut.extended_request && !dut.v1_accepted) slot_loads++;
+    if(old_grant) native_grants++;
+    if(dut.v1_accepted) returned_acks++;
+    ...
+end
+...
+if(native_grants != returned_acks || slot_loads != native_grants+1)
+    $fatal(1, "Grant/ACK/slot conservation: ...");
+```
+
+Le `+1` est une calibration empirique pour la séquence actuelle, pas une conservation par identifiant. Le filtre `!dut.v1_accepted` est justement celui qui évite de compter le cycle d’acceptation, donc un rejeu ou un chargement spurié dans ce cycle précis n’est pas détecté comme déséquilibre.
+
+**Hypothèse non testée** : le banc prouve que les compteurs ont la relation attendue pour cette séquence, pas qu’un transaction-court-circuitée ou rejouée ne puisse pas conserver la même relation.
+
+**Patch minimal du banc** : remplacer le compte conditionnel par un registre de transaction identifiée :
+
+```systemverilog
+reg [28:0] load_addr [0:1023];
+reg [255:0] load_data [0:1023];
+reg [31:0]  load_mask [0:1023];
+integer load_count=0, unique_loads=0;
+```
+
+Puis, au moment du chargement :
+
+```systemverilog
+if (dut.mrst[1] && !dut.v1_pending && dut.extended_request) begin
+    // un seul chargement attendu par requête observable
+    load_addr[load_count]  = dut.v1_tx_addr;
+    load_data[load_count]  = dut.v1_tx_data;
+    load_mask[load_count]  = dut.v1_tx_mask;
+    load_count++;
+end
+```
+
+Et vérifier :
+
+```systemverilog
+if (native_grants > returned_acks) $fatal(1, "More grants than ACKs");
+if (returned_acks > native_grants) $fatal(1, "ACK without grant");
+// tout ACK doit correspondre à un chargement déjà observé
+```
+
+**Test négatif démontrant la sensibilité** : ajouter une requête dupliquée artificielle dans le stimulus (même adresse/masque, payload différent) avec assertion locale :
+
+```systemverilog
+// contrôlé dans initial begin, sans RTL modifié
+if (dut.v1_pending && dut.v1_accepted) $fatal(1, "acceptance while pending after duplicate request");
+```
+
+Si l’assertion n’est pas assez stricte, le test doit quand même tomber sur la comparaison mémoire ou sur la conservation des ACK.
+
+---
+
+### 2. Assertions de backpressure trop vagues : comptage et seuil, sans preuve de maintien octet-par-octet par mode
+
+**Fait / code** :
+
+```systemverilog
+if(dut.v1_pending && !mready && mwready) command_only_blocked++;
+if(dut.v1_pending && mready && !mwready) data_only_blocked++;
+...
+if(held_checks<160 || command_only_blocked<50 || data_only_blocked<50)
+    $fatal(1,"Missing independent stall coverage");
+```
+
+Le banc compte des occurrences, pas une garantie que la transaction bloquée reste bit-identique pendant toute la fenêtre bloquée. Il ne vérifie pas non plus explicitement qu’il n’y a pas d’ACK pendant le blocage.
+
+**Lacune** : un bug qui accepte partiellement la commande, ou qui recharge la payload tout en gardant `v1_pending`, pourrait rester sous le radar si les compteurs restent suffisants.
+
+**Patch minimal du banc** : ajouter un registre bloqué actif et interdire l’acceptation pendant le blocage :
+
+```systemverilog
+integer blocked_accepts=0;
+...
+always @(posedge mc) begin
+    if (rst && mode != 0 && dut.v1_pending) begin
+        if (dut.v1_accepted) begin
+            blocked_accepts++;
+            $fatal(1, "ACK during blocked window mode=%0d writes=%0d", mode, writes);
+        end
+    end
+end
+```
+
+Et ajouter dans les assertions finales :
+
+```systemverilog
+if (blocked_accepts != 0) $fatal(1, "Blocked acceptance escape");
+```
+
+**Test négatif** : forcer temporairement une violaton locale de masque pendant le blocage, sans changer le RTL :
+
+```systemverilog
+// insertion temporaire dans la vérification payload
+if (old_pending && mode != 0 && payload_corrupt_test)
+    if ({dut.v1_tx_write,dut.v1_tx_addr,dut.v1_tx_data,dut.v1_tx_mask} !== old_payload)
+        $fatal(1, "held payload changed during blocked test");
+```
+
+La sensibilité de l’assertion se démontre en inversant une comparaison `!==` en `===` dans une copie locale : le test doit ne plus tomber, puis le patch doit la rétablir.
+
+---
+
+### 3. Fence de complétion possiblement trop précoce par rapport aux dernières écritures DDR
+
+**Fait / code** :
+
+```systemverilog
+task automatic fence(input integer count);
+    integer deadline;
+    deadline=0;
+    while(dut.done_count!=count && deadline<30000) begin @(negedge mc);deadline++; end
+    if(dut.done_count!=count) ...
+    repeat(24)@(negedge mc);
+    if(dut.v1_pending || dut.v1_accepted || ... || bv) ...
+endtask
+```
+
+Le banc considère que 24 cycles mémoire après `done_count` suffisent pour drainer. Mais il ne vérifie pas explicitement qu’aucune écriture `me` n’arrive pendant ce drain ni qu’un replay tardif n’élève `writes`.
+
+**Lacune** : si un moteur signale `done` avant la dernière acceptation DDR, le compteur `writes` peut encore changer après `compare_memory` immédiat dans le scénario. Le test ne conserve pas un dernier cycle d’écriture.
+
+**Patch minimal du banc** : mémoriser le dernier cycle d’écriture et exiger une fenêtre réelle :
+
+```systemverilog
+integer last_me_cycle=0;
+...
+always @(posedge mc) if (rst && me) last_me_cycle = tick;
+```
+
+Dans `fence`, attendre au moins 24 cycles *après la dernière écriture* :
+
+```systemverilog
+task automatic fence(input integer count);
+    integer before_writes_local, deadline;
+    deadline=0;
+    while ((dut.done_count != count ||
+            (tick - last_me_cycle) < 24) && deadline < 30000) begin
+        @(negedge mc); deadline++;
+    end
+    before_writes_local = writes;
+    repeat(12) @(negedge mc);
+    if (writes != before_writes_local)
+        $fatal(1, "Late DDR write after completion: %0d -> %0d", before_writes_local, writes);
+    ...
+endtask
+```
+
+**Test négatif démontrant la sensibilité** : réduire artificiellement la fenêtre à 2 cycles dans une copie du banc ; le scénario CLEAR 16×1 doit alors pouvoir faire échouer soit sur `Late DDR write`, soit sur transaction survivante, démontrant que l’assertion contrôle un comportement observable.
+
+---
+
+### 4. Modèle DDR de lecture figé à zéro : le chemin de lecture / texture / réutilisation de données n’est pas audité
+
+**Fait / code** :
+
+```systemverilog
+.m_rd_data(256'd0),
+.m_rd_valid(1'b0),
+.m_rd_end(1'b0));
+```
+
+Pour les CLEAR, cela peut suffire, mais le banc ne prouve rien sur les chemins où le GPU lit le framebuffer, la texture, le scanout ou l’adapter CPU. Le modèle externe suppose qu’aucune réponse de lecture n’est jamais nécessaire à la progression.
+
+**Lacune** : le PASS global ne couvre pas les performances/timing de route de données de lecture, les masques partiels avec vrai contenu, ni la contention `arb` en lecture. C’est une lacune de couverture fonctionnelle, pas une faute du RTL.
+
+**Patch minimal du banc** : au minimum, rendre le banc explicitement incapable de réussir un scénario read-backed sans assertion dédiée, plutôt que de laisser implicite :
+
+```systemverilog
+localparam READ_COVERAGE_REQUIRED = 0; // 0 dans ce bench frozen
+if (READ_COVERAGE_REQUIRED)
+    $fatal(1, "Read path coverage not implemented");
+```
+
+Ou mieux : ajouter un scénario simple de fill+read/texturing dans le même banc et un modèle de réponse de lecture basé sur la mémoire guardée :
+
+```systemverilog
+// réponse externe à deux cycles, basée sur expected[], sous contrôle du test
+reg [255:0] rd_pipe;
+...
+if (m_en && !m_wr_en) rd_pipe <= expected_read_word(ma);
+m_rd_data <= rd_pipe;
+m_rd_valid <= read_pending;
+```
+
+**Test négatif** : laisser `READ_COVERAGE_REQUIRED=1` et vérifier que le banc échoue explicitement avant tout PASS, prouvant que la réussite actuelle ne prétend pas couvrir les lectures.
+
+---
+
+### 5. Le modèle mémoire suppose une polarité de masque et un format d’adresse ; c’est une hypothèse DDR non validée physiquement
+
+**Fait / code** :
+
+```systemverilog
+address_byte=int'(ma)*4-BASE;
+...
+for(integer b=0;b<32;b++) if(!mm[b]) memory[address_byte+b]=md[b*8+:8];
+```
+
+Le banc interprète `mm=0` comme octet écrit. C’est cohérent avec une UI DDR à masque actif bas, mais le test attendu est construit dans le même cadre. Un bug systématique d’inversion du masque dans le comportement réel ne produirait pas nécessairement une comparaison évidente si la référence attendue était elle-même dérivée du même hypothèse. De plus, `ma` est interprété comme adresse de mot de 32 bits multiplié par 4, tandis que la transaction est de 8 mots = 32 octets.
+
+**Lacune** : pas de preuve indépendante au niveau bit que le masque envoyé correspond au masque actif low documenté ; pas de vérification d’alignement à 32 octets (`ma[2:0]` vérifié, mais pas `ma[4:3]` ? Le masque de 32 octets implique alignement sur 32 octets, donc au moins `ma[2:0]==0` donne 4 octets, pas 32; il faudrait `ma[4:0]==0` si l’adresse est en octets/word selon convention. Or ici l’adresse MA est en mots de 32 bits; un bond de 8 mots = `ma+8`, donc l’alignement 32 octets est `ma[2:0]==0`? En mots de 32 bits, 8 mots = 3 bits, donc oui si MA est un mot de 32 bits. Donc c’est cohérent si la convention d’adresse est bien en mots de 32 bits. La lacune reste physique/DDR.)
+
+**Patch minimal du banc** : déclarer explicitement l’hypothèse et faire d’elle une variable de banc :
+
+```systemverilog
+localparam MASK_ACTIVE_LOW = 1;
+localparam ADDR_WORDS_32BIT = 1;
+...
+if (MASK_ACTIVE_LOW) begin
+    if (!mm[b]) memory[...] = md[...];
+end else begin
+    if (mm[b]) memory[...] = md[...];
+end
+```
+
+Et garder une assertion d’alignement transactionnel :
+
+```systemverilog
+if (ma[2:0] !== 3'b000) $fatal(1, "DDR transaction not 8-word aligned: %h", ma);
+// ma est en mots de 32 bits; 8 mots = bits [2:0]==0
+```
+
+Cette assertion existedéjà pour `ma[2:0]`, mais la convention d’unité doit être documentée dans le code.
+
+**Test négatif** : passer `MASK_ACTIVE_LOW=0` en define et vérifier que le premier CLEAR partiel fait échouer la comparaison mémoire ; cela prouve que l’assertion de comparaison est sensible à la polarité du masque.
+
+---
+
+## Patch global recommandé du banc (minimal, non-RTL)
+
+Au lieu de disperser les ajouts, patch concentré dans trois zones :
+
+1. **Déclarations de compteurs** : ajouter `blocked_accepts`, `last_me_cycle`, et éventuellement la convention mask.
+2. **Modèle mémoire et charge utile** : mémoriser le dernier cycle d’écriture et documenter l’hypothèse de masque actif bas.
+3. **Assertions finales** : ajouter `blocked_accepts==0`, fenêtre post-écriture, et remplacer la conservation calibrée par une conservation par ACK sans `+1` arbitraire.
+
+Patch illustratif :
+
+```systemverilog
+integer blocked_accepts=0, last_me_cycle=-1;
+...
+always @(posedge mc) begin
+    if (rst && me) last_me_cycle = tick;
+    if (rst && mode != 0 && dut.v1_pending && dut.v1_accepted) begin
+        blocked_accepts++;
+        $fatal(1, "ACK escaped during backpressure: mode=%0d", mode);
+    end
+end
+...
+// dans fence()
+while ((dut.done_count != count || (tick - last_me_cycle) < 24) &&
+       deadline < 30000) begin
+    @(negedge mc); deadline++;
+end
+```
+
+Et test négatif simple à déposer dans une copie locale :
+
+```systemverilog
+// Négatif : corrompre une attente pour prouver que l'assertion fatalise
+// Dans compare_memory, remplacer temporairement :
+if (memory[k] !== expected[k]) ...
+// par (copie de revue) :
+if (k == 0) expected[0] ^= 8'h01;
+```
+
+Comportement attendu si exécuté : le simulateur doit fataliser sur `Memory/guard mismatch`, puis le runner `passed=false`.
+
+---
+
+## Distinction nette à préserver dans le rapport
+
+- **Ce que le banc établit réellement** : absence de rejeu pour la séquence testée, maintien de la payload sous backpressure command/data pour les CLEAR étroits, reset flush, réinitialisation post-reset, et conservation empirique des compteurs pour ces stimuli.
+- **Ce que le banc n’établit pas** : timing physique R19, robustesse sous contention physique DDR, chemins de lecture, contention complète, stabilité post-synthèse, et comportement hors de l’enveloppe de fréquence `mem_half=6.666 ns`.
+- **Conclusion** : aucune preuve matérielle ne doit être déduite du PASS; il faut traiter le résultat comme couverture fonctionnelle de banc sur RTL figé.

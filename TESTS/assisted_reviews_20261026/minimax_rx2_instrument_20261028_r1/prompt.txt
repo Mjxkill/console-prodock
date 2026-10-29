@@ -1,0 +1,236 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Code instrumentation de débit précis sans perturber protocole.
+
+EVIDENCE PACKET:
+Écrire un module Python instrumentation temps/compteurs pour mesurer read/write/ACK RX2, sans changer protocole ni cadence. Tests temps simulés, journaux peu fréquents hors chemin critique. Le transfert actuel est figé; candidat séparé. Mesures actuelles approximatives500–600octets utiles/s malgré pause16octets/2ms.
+
+FILE games/luma3d/candidates/uart_rx2_20261028_r1/sender.py
+1: """RX2 host protocol. Generic I/O only: no device open or shell launch by default.
+2: 
+3: The caller owns the exclusive console lock, identity, storage and bootstrap.
+4: After launch, this module emits only Base64/NUL until a fresh RETURN is observed.
+5: """
+6: import base64
+7: import dataclasses
+8: import math
+9: import re
+10: import struct
+11: import time
+12: import zlib
+13: 
+14: BLOCK=512
+15: SAFE=frozenset(b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\0')
+16: LINE=re.compile(rb'RX2 ([0-9a-f]{32}) ([RANX]) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8})')
+17: 
+18: def crc(data):return zlib.crc32(data)&0xffffffff
+19: def frame(nonce,op,seq,offset,data=b''):
+20:     head=b'LX2P'+bytes.fromhex(nonce)+struct.pack('<5I',op,seq,offset,len(data),crc(data))
+21:     assert len(head)==40 and len(data)<=BLOCK
+22:     wire=b'\0'+base64.b64encode(head+struct.pack('<I',crc(head))+data)+b'\0'
+23:     assert set(wire)<=SAFE
+24:     return wire
+25: 
+26: @dataclasses.dataclass(frozen=True)
+27: class Reply:
+28:     kind:str; seq:int; offset:int; prefix:int; reason:int
+29: 
+30: class TransferError(RuntimeError):pass
+31: class Uncertain(TransferError):pass
+32: 
+33: class Session:
+34:     def __init__(self,io,nonce,data,idle_ms=5000,total_ms=1800000,chunk=16,pause=.002):
+35:         if not re.fullmatch('[0-9a-f]{32}',nonce):raise ValueError('nonce')
+36:         if len(data)>32*1024*1024 or not 100<=idle_ms<=30000 or not idle_ms<=total_ms<=3600000:raise ValueError('bounds')
+37:         if type(chunk)!=int or not 1<=chunk<=4096 or not math.isfinite(pause) or pause<0:raise ValueError('pacing')
+38:         full_frame=math.ceil(746/chunk)*pause
+39:         if full_frame+max(.02,full_frame*.25)>idle_ms/1000:raise ValueError('pacing exceeds idle budget')
+40:         if math.ceil(len(data)/BLOCK)*full_frame>total_ms/1000:raise ValueError('pacing exceeds total budget')
+41:         self.io,self.nonce,self.data=io,nonce,bytes(data)
+42:         self.idle_ms,self.total_ms,self.chunk,self.pause=idle_ms,total_ms,chunk,pause
+43:         self.pending=bytearray();self.replies=[];self.returncode=None;self.ready=False;self.offset=0;self.seq=0;self.sent_frames=0;self.retries=0;self.terminal=None
+44:         self.started=time.monotonic();self.return_seen=False;self.cancelled=False
+45:         self.return_line=re.compile(rb'RX2_RETURN_'+nonce.encode()+rb':([0-9]+)')
+46:         # Linear construction, rather than rehashing an ever-growing prefix
+47:         # for every block of a multi-megabyte ELF.
+48:         self.prefixes={0:0};prefix=0
+49:         for offset in range(0,len(self.data),BLOCK):
+50:             part=self.data[offset:offset+BLOCK];prefix=zlib.crc32(part,prefix)&0xffffffff
+51:             self.prefixes[offset+len(part)]=prefix
+52: 
+53:     def command(self,executable,path,resume=False):
+54:         if not re.fullmatch('/tmp/luma-rx2-[a-z0-9_-]+',executable):raise ValueError('RX path')
+55:         if not re.fullmatch('/tmp/rx2-[a-z0-9_.-]+',path) or '..' in path or len(path)>220:raise ValueError('target path')
+56:         # Sole textual command, BEFORE this Session receives READY. Root must
+57:         # confirm a shell and verify executable bytes before issuing it.
+58:         return (f"rc=0; {executable} {path} {self.nonce} {len(self.data)} {crc(self.data):08x} "
+59:                 f"{'resume' if resume else 'new'} {self.idle_ms} {self.total_ms} || rc=$?; "
+60:                 f"printf '\\nRX2_RETURN_{self.nonce}:%s\\n' \"$rc\"\n").encode()
+61: 
+62:     def _line(self,line):
+63:         line=line.rstrip(b'\r')
+64:         m=self.return_line.fullmatch(line)
+65:         if m:
+66:             self.returncode=int(m[1]);self.return_seen=True;return ('return',self.returncode)
+67:         m=LINE.fullmatch(line)
+68:         if m:
+69:             if m[1].decode()!=self.nonce:raise Uncertain('foreign nonce reply')
+70:             if crc(line.rsplit(b' ',1)[0])!=int(m[7],16):raise Uncertain('reply CRC')
+71:             r=Reply(m[2].decode(),*[int(m[i],16) for i in range(3,7)])
+72:             self.replies.append(r)
+73:             if r.kind=='X':self.terminal=r
+74:             return ('reply',r)
+75:         if line.startswith(b'RX2 '):raise Uncertain('malformed reply')
+76:         if self.ready and line and line not in (b'RX2_PROMPT> ',):
+77:             raise Uncertain('unexpected receiver output '+repr(line[:100]))
+78:         # A bounded printable command echo/banner may precede READY.
+79:         if not self.ready and any(c<32 and c not in (9,13) for c in line):raise Uncertain('nontext preamble')
+80:         return None
+81: 
+82:     def event(self,timeout):
+83:         end=time.monotonic()+timeout;received=0
+84:         while time.monotonic()<end:
+85:             while b'\n' in self.pending:
+86:                 line,_,tail=self.pending.partition(b'\n');self.pending[:]=tail
+87:                 r=self._line(bytes(line))
+88:                 if r:return r
+89:             b=self.io.read(min(.1,max(0,end-time.monotonic())))
+90:             if b:self.pending.extend(b);received+=len(b)
+91:             if len(self.pending)>8192 or received>32768:raise Uncertain('bounded output exceeded')
+92:         raise Uncertain('receive timeout; no retransmission allowed')
+93: 
+94:     def _checkpoint(self,r):
+95:         if r.offset>len(self.data) or r.offset%BLOCK and r.offset!=len(self.data):raise Uncertain('checkpoint offset')
+96:         if r.seq!=(r.offset+BLOCK-1)//BLOCK or r.prefix!=self.prefixes[r.offset]:raise Uncertain('checkpoint prefix')
+97: 
+98:     def begin(self):
+99:         kind,r=self.event(self.idle_ms/1000+2)
+100:         if kind!='reply' or r.kind!='R' or r.reason:raise TransferError('receiver not ready')
+101:         self._checkpoint(r);self.offset,self.seq=r.offset,r.seq;self.ready=True
+102:         return r
+103: 
+104:     def send(self,wire):
+105:         if not self.ready or self.return_seen or self.terminal:raise TransferError('receiver not active')
+106:         if not wire or not set(wire)<=SAFE:raise ValueError('unsafe wire alphabet')
+107:         self.sent_frames+=1
+108:         # io.write must itself have a finite timeout. A partial write error
+109:         # abandons this session; it never causes a replay of the frame.
+110:         for i in range(0,len(wire),self.chunk):
+111:             if time.monotonic()>=self.started+self.total_ms/1000:raise Uncertain('host session deadline')
+112:             part=wire[i:i+self.chunk];n=self.io.write(part)
+113:             if n!=len(part):raise Uncertain('partial transmit')
+114:             if self.pause:time.sleep(self.pause)
+115: 
+116:     def block(self,mutate=None):
+117:         if self.offset>=len(self.data):raise TransferError('no block remains')
+118:         initial=self.offset;data=self.data[initial:initial+BLOCK];end=initial+len(data)
+119:         packet=frame(self.nonce,1,self.seq,initial,data)
+120:         for attempt in range(4):
+121:             wire=mutate(packet,attempt) if mutate else packet;self.send(wire)
+122:             deadline=time.monotonic()+self.idle_ms/1000+1
+123:             while True:
+124:                 if time.monotonic()>=deadline:raise Uncertain('ACK deadline')
+125:                 kind,r=self.event(max(.001,deadline-time.monotonic()))
+126:                 if kind!='reply':raise TransferError('receiver returned during DATA')
+127:                 self._checkpoint(r)
+128:                 if r.kind=='X':raise TransferError('receiver terminal reason '+str(r.reason))
+129:                 if r.kind=='A' and r.offset==end and r.reason==0:
+130:                     self.offset,self.seq=r.offset,r.seq;return r
+131:                 if r.kind=='A' and r.offset<=initial and r.reason==0:continue
+132:                 if r.kind=='N' and r.offset==initial and r.reason==1:
+133:                     self.retries+=1;break
+134:                 raise Uncertain('unexpected acknowledgement')
+135:         raise TransferError('NACK retry limit')
+136: 
+137:     def finish(self,stop=False):
+138:         if not stop and self.offset!=len(self.data):raise TransferError('incomplete source')
+139:         self.send(frame(self.nonce,3 if stop else 2,self.seq,self.offset))
+140:         deadline=time.monotonic()+self.idle_ms/1000+2
+141:         # A duplicate prior ACK may precede the terminal response.
+142:         while not self.terminal:
+143:             if time.monotonic()>=deadline:raise Uncertain('FIN deadline')
+144:             kind,r=self.event(max(.001,deadline-time.monotonic()))
+145:             if kind!='reply':raise Uncertain('return without terminal checkpoint')
+146:             self._checkpoint(r)
+147:             if r.kind=='A' and r.offset<=self.offset:continue
+148:             if r.kind!='X':raise Uncertain('unexpected FIN response')
+149:         self._checkpoint(self.terminal)
+150:         expected=1 if stop else 0
+151:         if self.terminal.reason!=expected:raise TransferError('terminal failure')
+152:         self.await_return(max(.001,deadline-time.monotonic()))
+153:         if self.returncode!=expected:raise TransferError('wrapper/terminal mismatch')
+154:         return self.terminal
+155: 
+156:     def await_return(self,timeout=None):
+157:         # This method NEVER writes. Use it even following timeout/corruption.
+158:         if timeout is None:timeout=self.idle_ms/1000+3
+159:         end=time.monotonic()+timeout
+160:         while not self.return_seen:
+161:             if time.monotonic()>=end:raise Uncertain('shell return not confirmed')
+162:             try:self.event(max(.001,end-time.monotonic()))
+163:             except Uncertain:
+164:                 # Malformed reply is not permission to send. Preserve the
+165:                 # remaining bytes and continue looking for the fresh wrapper.
+166:                 if time.monotonic()>=end:raise
+167:         return self.returncode
+168: 
+169:     def cancel_line(self):
+170:         if not self.return_seen:raise Uncertain('no fresh process return')
+171:         if self.cancelled:raise TransferError('already cancelled')
+172:         # A separate caller must now verify the prompt before a new command.
+173:         if self.io.write(b'\x15\n')!=2:raise Uncertain('line cancellation partial')
+174:         self.cancelled=True
+
+FILE games/luma3d/tests/hardware/festival_metrics_20261028_transfer_prepared_r1/support.py
+1: """Exact selected helpers from frozen R6 recovery; no entry point."""
+2: import os,fcntl,termios,select,re,hashlib
+3: SAVE_SHA="2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+4: PROMPT=b"prodock# "
+5: class Refused(RuntimeError):pass
+6: def need(condition,message):
+7:  if not condition:raise Refused(message)
+8: def resync_valid(data):
+9:  # BusyBox line editor may erase each character or redraw its line. Permit
+10:  # erasure and prompt tokens only, never a diagnostic or echoed command word.
+11:  need(len(data)<=16384,'Resync transcript exceeds bound');raw=data;prompts=0
+12:  while raw:
+13:   if raw.startswith(PROMPT):prompts+=1;raw=raw[len(PROMPT):];continue
+14:   if raw[:1] in (b'\b',b'\r',b'\n',b' '):raw=raw[1:];continue
+15:   m=re.match(rb'\x1b\[[0-9;]*[JKGH]',raw)
+16:   if m:raw=raw[m.end():];continue
+17:   if PROMPT.startswith(raw) or re.fullmatch(rb'\x1b(?:\[[0-9;]*)?',raw):return False
+18:   raise Refused('Unexpected output during shell line cancellation')
+19:  return prompts>0
+20: class UART:
+21:  """No flush, baud change, DTR/RTS transition, or termios mutation."""
+22:  def __init__(self,port):
+23:   self.fd=os.open(port,os.O_RDWR|os.O_NOCTTY|os.O_NONBLOCK)
+24:   try:
+25:    fcntl.ioctl(self.fd,termios.TIOCEXCL)
+26:    attrs=termios.tcgetattr(self.fd)
+27:    need(attrs[4]==attrs[5]==termios.B115200,'Host UART speed changed')
+28:    need(not(attrs[3]&(termios.ICANON|termios.ECHO|termios.ISIG)),'Host UART is not raw')
+29:    need(not(attrs[0]&(termios.IGNCR|termios.ICRNL|termios.INLCR|termios.IXON|termios.IXOFF|termios.ISTRIP)) and not(attrs[1]&termios.OPOST),'Host UART would translate/control bytes')
+30:    need((attrs[2]&termios.CSIZE)==termios.CS8 and not(attrs[2]&(termios.PARENB|termios.CSTOPB)),'Host UART is not 8N1')
+31:   except BaseException:os.close(self.fd);raise
+32:  def read(self,n,timeout):
+33:   ready,_,_=select.select([self.fd],[],[],timeout)
+34:   if not ready:return b''
+35:   try:return os.read(self.fd,n)
+36:   except BlockingIOError:return b''
+37:  def write(self,data):
+38:   _,ready,_=select.select([],[self.fd],[],2);need(ready,'UART write timeout');return os.write(self.fd,data)
+39:  def close(self):os.close(self.fd)
+40: def octets(data,limit):
+41:  blob=bytearray();end=None
+42:  for row in data.replace(b'\r',b'').splitlines():
+43:   if re.fullmatch(rb'[0-7]{7,}(?: +[0-7]{3}){1,16}',row):
+44:    parts=row.split();need(end is None and int(parts[0],8)==len(blob),'Bad octal order');blob.extend(int(x,8) for x in parts[1:]);need(len(blob)<=limit,'Octal overflow')
+45:   elif re.fullmatch(rb'[0-7]{7,}',row):need(end is None,'Duplicate octal end');end=int(row,8)
+46:  need(end==len(blob),'Incomplete octal dump');return bytes(blob)
+47: def save(raw):
+48:  blob=octets(raw,5292);need(len(blob)==5292 and hashlib.sha256(blob).hexdigest()==SAVE_SHA,'GM1 save changed');return {'bytes':len(blob),'sha256':SAVE_SHA}
+49: def gpu(raw):
+50:  lines=re.findall(rb'^DISPLAY [^\r\n]+',raw,re.M);need(len(lines)==1,'Missing GPU display status');line=lines[0];d={k.decode():int(v) for k,v in re.findall(rb'\b(errors|uf|invalid|sprites|fault|presents)=(\d+)\b',line)}
+51:  need(set(d)=={'errors','uf','invalid','sprites','fault','presents'} and not any(d[k] for k in d if k!='presents'),'GPU error counters nonzero');return d

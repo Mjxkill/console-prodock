@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "scope": "Static installed-tool argument-parser diagnosis; no vendor execution, no PNR, no hardware",
+  "r13_retained": true,
+  "cause": "Proxy-mode false skips input selectors in cmd.do and requires addArguments seeds; wrapper cleared arguments without seeding design. isArgumentsLegal prints help when neither -d, -design nor -pdl exists.",
+  "argc_verified": 3,
+  "bool_verified": false,
+  "seeds_required_in_this_candidate": [
+    "-p",
+    "-pn",
+    "-d",
+    "-cfg",
+    "-cst",
+    "-sdc",
+    "-gao"
+  ],
+  "addresses": {
+    "proxy_argc3_false_call": "libGowinProxy.so:0x7524..0x752e",
+    "proxy_seed_device": "0x6c04",
+    "proxy_seed_part": "0x6d5f",
+    "proxy_seed_netlist": "0x6eba",
+    "proxy_seed_config": "0x7016",
+    "proxy_seed_sdc": "0x8578",
+    "proxy_seed_cst": "0x8690",
+    "proxy_seed_gao": "0x8708",
+    "script_false_selectors": "libgowin.so:0x7b5d5b..0x7b5ef3",
+    "script_skip": "0x7b67c0..0x7b67cf",
+    "script_skip_design": "0x7b67d8..0x7b6800",
+    "legal_requires_design": "0x7b4609..0x7b46f6",
+    "legal_false_return1": "0x7d59f4..0x7d5a09"
+  },
+  "not_yet_proven": [
+    "Runtime parsing after adding seeds",
+    "GAO CST resolves control0[0]",
+    "Clock resource allocation",
+    "Placement/routing/timing"
+  ],
+  "input_sha256": {
+    "/home/michael/gowin/IDE/lib/libgowin.so": "7e7920244fbfa518c228e51a2e8143c67d8c19cfba535d1c4d3700b780f10b4d",
+    "/home/michael/gowin/IDE/lib/libGowinProxy.so": "d4a4c2300adbfd42f111432f7bed84c8c3b80fb571ba4ae77c383793ee5f1b32",
+    "/home/michael/console/tang/impl/console_neo_n56r13_gao_tck_cst/backend_args.log": "718bf6eaba35e7a68d3355fccf2fad25c965a165a0ba85edebf2b5ad63977537",
+    "/home/michael/console/tang/impl/console_neo_n56r13_gao_tck_cst/backend_args_result.json": "9e116b72b3065c1e5e498931e04f27d2f99370fec69b1f577a3f4d8d2900900b",
+    "/home/michael/console/tang/impl/console_neo_n56r13_gao_tck_cst/backend_prepared.json": "b02c0015e31514760ab03e584eb539e8d6b08cdca14bc2e4279f3626db1716e9",
+    "/home/michael/console/tang/impl/console_neo_n56r13_gao_tck_cst/impl/pnr/cmd.do": "c5d2f4eef4c9de8790650748f8fc074310705a2d2f1d950fad0c67e2cee0a24f",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/gao_cst_namespace/gao_backend_tcl.cpp": "bf5e9fc46a88424fc606c9f89a491e9e91168d514d065d458ee860ffd34f81a7"
+  },
+  "evidence_sha256": {
+    "arguments_legal_full.asm": "69db99782ff52622cc7572a23be5ce545c759f8fd427f9d07c9fdc8bc6d38898",
+    "parse_command_full.asm": "e98947d7ba9161c5e15433b8df6d8c674f6c4a96251155ef0e62dab5d6ef6793",
+    "parse_script_full.asm": "79206ea997e3cce5a905f94e2e6781a043d56fb9c6fdff8f10a3ee5efe83867a",
+    "proxy_launch_full.asm": "e1727596328b1aa7b72695c129774c45295192132ca03baf2e6a02774a8adf12",
+    "read_user_full.asm": "547ffad2cbb78a86bd73e071b8cdebe48855c317c6b5003c4a1cc88c3c55415f"
+  }
+}

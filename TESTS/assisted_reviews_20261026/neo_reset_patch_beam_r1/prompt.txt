@@ -1,0 +1,885 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Verifie le contrat de reset et la coherence CDC/contraintes de ce patch. Ne propose aucune false_path sans identifier precisement synchroniseur et besoin; analyse les bornes existantes, la qualification et les limites physiques. Distingue anomalies certaines et evidence manquante.
+
+EVIDENCE PACKET:
+RESET PATCH REVIEW — R21r1 isolated Neo candidate; no hardware loaded.
+
+Please challenge the RTL patch, not a hypothetical Gowin LW erratum. All three
+reviewers receive this same frozen packet. Do not claim tool execution.
+
+Established parent defect: real50MHz/80MHz ideal-clock simulations of the
+extracted reset chain reproduced (a) stale delay qualification after a LOCK
+loss between clk50 edges, (b) one-cycle POR release while delay_done=0 after a
+sampled loss. These were also present in R19. This does NOT establish that a
+LOCK loss caused the physical R21 black-screen/DMI failure. No CPU/PLL analog
+model is substituted by the tests. R19 is still the physical fallback.
+
+Patch intent: asynchronously invalidate two clk50 readiness synchronizer bits
+on availability loss; require a new qualification; clear BOTH existing AHB
+POR stages on permission loss. Normal mode50ms nominal. Diagnostic mode0 now
+2.08ms nominal (it used to bypass the delay). Valid UART reset commands retain
+their framing and reset-hold handshake. PLL and DDR resets are not changed.
+
+Primary-doc basis: UG306-1.0.9E page40/table5-2 note asks to monitor LOCK
+continuously for at least2ms; LOCK can glitch during locking. No quantitative
+AE350 POR/HW duration was found in MUG1031-1.3.1E. The20ms precedent is a Sipeed
+example debounce block fed by DDRready, not a proved vendor minimum. User
+selected50ms margin. DS1239 table3-13 gives SR-to-Q delay, NOT a minimum fabric
+reset pulse width. Its10ns RSTMIN-PULSE is the PLL specification. Thus an ideal
+RTL1ns test does not establish physical1ns pulse capture.
+
+Evidence provenance: the four root phase runs below use the supplied frozen
+v2 bench and the exact candidate source hashes, checked against Verilator's
+source-size/mtime build record. Phase sweep15 releases each includes valid and
+invalid UART, expired parser prefix, mode0/1, AHB stopped with warm-reset
+command, reference clock stopped with LOCK loss, DDR loss. All4 passed. The
+three ordinary phases and mapped primitive synthesis/test are being completed
+separately; they are NOT evidence claimed by this packet.
+
+The older v1 bench timed out after CASE14 because align_reference waited for
+$time%100==0 after restarting clk50 at a changed phase. v2 removes only this
+unnecessary rendezvous. Old v1 logs are deliberately NOT mixed into this
+packet. The broad dual-board suite is11groupsPASS, distinct from this helper
+and physical qualification. SDC inherited from parent below; no new exception
+has been added. Local reset/CDC timing still requires post-route inspection.
+
+Requested output: concrete counterexample if any, source/line citations,
+distinguish proven RTL behavior from analog limits and missing evidence. Say
+whether the current patch is coherent enough to synthesize/route as a candidate,
+not whether the Neo failure is solved. Avoid generic refactoring or a new clock
+architecture unless a counterexample actually requires it.
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/candidate.diff
+SHA256 bb3880ea562a5958e504f8294db5e40ae7d5c7b834348c46071e9372c89f6bbb
+1: --- tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo_reset_trial.v
+2: +++ TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/neo_reset_trial.v
+3: @@ -3,6 +3,7 @@
+4:  `default_nettype none
+5:  module neo_reset_trial #(
+6:      parameter integer WAIT_CYCLES = 2500000, // user-selected 50 ms at 50 MHz
+7: +    parameter integer MIN_LOCK_CYCLES = 104000, // 2.08 ms minimum in diagnostic mode0
+8:      parameter integer HOLD_CYCLES = 1000,    // common 20 us warm-reset hold
+9:      parameter integer GAP_CYCLES = 100000,
+10:      parameter integer UART_DIV = 25         // existing BL616 relay: 2 Mbit/s
+11: @@ -16,7 +17,8 @@
+12:      output reg delay_done = 0,
+13:      output wire ahb_tick, rtc_tick
+14:  );
+15: -    localparam integer WAIT_WIDTH = WAIT_CYCLES > 1 ? $clog2(WAIT_CYCLES) : 1;
+16: +    localparam integer MAX_WAIT_CYCLES = WAIT_CYCLES > MIN_LOCK_CYCLES ? WAIT_CYCLES : MIN_LOCK_CYCLES;
+17: +    localparam integer WAIT_WIDTH = MAX_WAIT_CYCLES > 1 ? $clog2(MAX_WAIT_CYCLES) : 1;
+18:      localparam integer HOLD_WIDTH = HOLD_CYCLES > 1 ? $clog2(HOLD_CYCLES) : 1;
+19:      localparam integer GAP_WIDTH = GAP_CYCLES > 1 ? $clog2(GAP_CYCLES) : 1;
+20:      // Independent activity witnesses: never reset by the CPU/bus under test.
+21: @@ -66,11 +68,15 @@
+22:          end else if (parse_state != 0) gap_count <= gap_count + 1'b1;
+23:      end
+24:  
+25: +    // Loss invalidates the authorization even between reference-clock edges.
+26: +    // Release is synchronized; counters remain ordinary clk_ref registers.
+27: +    wire available = ddr_ready && pll_ready;
+28:      reg [1:0] ready_meta = 0, reset_meta = 0;
+29: -    always @(posedge clk_ref) begin
+30: -        ready_meta <= {ready_meta[0], ddr_ready && pll_ready};
+31: -        reset_meta <= {reset_meta[0], cpu_reset_n};
+32: +    always @(posedge clk_ref or negedge available) begin
+33: +        if (!available) ready_meta <= 2'b00;
+34: +        else ready_meta <= {ready_meta[0], 1'b1};
+35:      end
+36: +    always @(posedge clk_ref) reset_meta <= {reset_meta[0], cpu_reset_n};
+37:      reg [WAIT_WIDTH-1:0] wait_count = 0;
+38:      reg [HOLD_WIDTH-1:0] hold_count = 0;
+39:      always @(posedge clk_ref) begin
+40: @@ -79,8 +85,6 @@
+41:              command_epoch <= command_epoch + 1'b1;
+42:              holding <= 1;
+43:              hold_count <= 0;
+44: -            wait_count <= 0;
+45: -            delay_done <= 0;
+46:          end else begin
+47:              if (holding) begin
+48:                  // Do not lose a reset request while AHB is stopped: wait until
+49: @@ -90,15 +94,23 @@
+50:                      holding <= 0; hold_count <= 0;
+51:                  end else hold_count <= hold_count + 1'b1;
+52:              end
+53: -            if (!ready_meta[1] || holding) begin wait_count <= 0; delay_done <= 0; end
+54: -            else if (!delay_done) begin
+55: -                if (wait_count == WAIT_WIDTH'(WAIT_CYCLES-1)) delay_done <= 1;
+56: -                else wait_count <= wait_count + 1'b1;
+57: -            end
+58:          end
+59:      end
+60: -    // In short mode the original DDR-ready level is passed to the unchanged
+61: -    // two AHB flops. All modes still honor calibration loss; no force-to-one.
+62: -    assign release_request = ddr_ready && !holding && (!delay_mode || delay_done);
+63: +    // Mode0 is diagnostic, but never bypasses the documented LOCK interval.
+64: +    // A command first asserts holding, clears stale qualification, and requires
+65: +    // a fresh full interval after holding ends. Mode1 retains the real50ms wait.
+66: +    always @(posedge clk_ref) begin
+67: +        if (!ready_meta[1] || holding || command_valid) begin
+68: +            wait_count <= 0;
+69: +            delay_done <= 0;
+70: +        end else if (!delay_done) begin
+71: +            if (wait_count == WAIT_WIDTH'((delay_mode ? WAIT_CYCLES : MIN_LOCK_CYCLES)-1))
+72: +                delay_done <= 1;
+73: +            else wait_count <= wait_count + 1'b1;
+74: +        end
+75: +    end
+76: +    // The Neo top also uses this permission as asynchronous assertion input
+77: +    // of its existing two-flop CPU reset chain, flushing any stale pipeline bit.
+78: +    assign release_request = available && ready_meta[1] && !holding && delay_done;
+79:  endmodule
+80:  `default_nettype wire
+81: --- tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/console_neo.v
+82: +++ TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/console_neo.v
+83: @@ -166,7 +166,7 @@
+84:      ae350_soc u_soc (
+85:          .trial_release(trial_request),
+86:          .clk50(clk),
+87: -        .rst_key_n(ae350_por_n),
+88: +        .rst_key_n(ae350_por_n && trial_request),
+89:          .core_clk(core_clk), .ahb_clk(ahb_clk), .apb_clk(apb_clk), .rtc_clk(rtc_clk),
+90:          .ddr_bank(ddr_bank), .ddr_cs(ddr_cs), .ddr_ras(ddr_ras), .ddr_cas(ddr_cas), .ddr_we(ddr_we),
+91:          .ddr_ck(ddr_ck), .ddr_ck_n(ddr_ck_n), .ddr_cke(ddr_cke), .ddr_reset_n(ddr_reset_n), .ddr_odt(ddr_odt),
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/neo_reset_trial.v
+SHA256 caf346369c7aa2ec10bbd2342dc32ffabc09d4973476619e27a17dffddd914f3
+1: // Neo-only experiment. This module never drives a PLL or DDR reset.
+2: // The existing AE350 two-flop reset synchronizer remains downstream.
+3: `default_nettype none
+4: module neo_reset_trial #(
+5:     parameter integer WAIT_CYCLES = 2500000, // user-selected 50 ms at 50 MHz
+6:     parameter integer MIN_LOCK_CYCLES = 104000, // 2.08 ms minimum in diagnostic mode0
+7:     parameter integer HOLD_CYCLES = 1000,    // common 20 us warm-reset hold
+8:     parameter integer GAP_CYCLES = 100000,
+9:     parameter integer UART_DIV = 25         // existing BL616 relay: 2 Mbit/s
+10: ) (
+11:     input wire clk_ref, ahb_clk, rtc_clk, serial_rx,
+12:     input wire ddr_ready, pll_ready, cpu_reset_n,
+13:     output wire release_request,
+14:     output reg delay_mode = 1'b1,
+15:     output reg [3:0] command_epoch = 0,
+16:     output reg holding = 0,
+17:     output reg delay_done = 0,
+18:     output wire ahb_tick, rtc_tick
+19: );
+20:     localparam integer MAX_WAIT_CYCLES = WAIT_CYCLES > MIN_LOCK_CYCLES ? WAIT_CYCLES : MIN_LOCK_CYCLES;
+21:     localparam integer WAIT_WIDTH = MAX_WAIT_CYCLES > 1 ? $clog2(MAX_WAIT_CYCLES) : 1;
+22:     localparam integer HOLD_WIDTH = HOLD_CYCLES > 1 ? $clog2(HOLD_CYCLES) : 1;
+23:     localparam integer GAP_WIDTH = GAP_CYCLES > 1 ? $clog2(GAP_CYCLES) : 1;
+24:     // Independent activity witnesses: never reset by the CPU/bus under test.
+25:     reg [7:0] ahb_div = 0, rtc_div = 0;
+26:     always @(posedge ahb_clk) ahb_div <= ahb_div + 1'b1;
+27:     always @(posedge rtc_clk) rtc_div <= rtc_div + 1'b1;
+28:     assign ahb_tick = ahb_div[7];
+29:     assign rtc_tick = rtc_div[7];
+30: 
+31:     reg [2:0] up = 0;
+32:     always @(posedge clk_ref) up <= {up[1:0], 1'b1};
+33:     wire [7:0] rx_byte;
+34:     wire rx_valid;
+35:     neo_reset_trial_rx #(.DIV_WIDTH(16)) u_rx (
+36:         .clk(clk_ref), .rst(!up[2]), .clk_div(16'(UART_DIV)),
+37:         .rx(serial_rx), .data(rx_byte), .valid(rx_valid));
+38: 
+39:     // A5 5A 52 31 35 mode complement 0D. Only mode 0/1 is accepted.
+40:     // Parser timeout prevents unrelated console bytes completing a stale command.
+41:     reg [2:0] parse_state = 0;
+42:     reg pending_mode = 0;
+43:     reg [GAP_WIDTH-1:0] gap_count = 0;
+44:     reg command_valid = 0, command_mode = 0;
+45:     always @(posedge clk_ref) begin
+46:         command_valid <= 0;
+47:         if (!up[2]) begin parse_state <= 0; gap_count <= 0; end
+48:         else if (parse_state != 0 && gap_count == GAP_WIDTH'(GAP_CYCLES-1)) begin
+49:             parse_state <= 0; gap_count <= 0;
+50:         end else if (rx_valid) begin
+51:             gap_count <= 0;
+52:             case (parse_state)
+53:                 0: parse_state <= rx_byte == 8'ha5 ? 1 : 0;
+54:                 1: parse_state <= rx_byte == 8'h5a ? 2 : 0;
+55:                 2: parse_state <= rx_byte == 8'h52 ? 3 : 0;
+56:                 3: parse_state <= rx_byte == 8'h31 ? 4 : 0;
+57:                 4: parse_state <= rx_byte == 8'h35 ? 5 : 0;
+58:                 5: begin
+59:                     if (rx_byte < 2) begin pending_mode <= rx_byte[0]; parse_state <= 6; end
+60:                     else parse_state <= 0;
+61:                 end
+62:                 6: parse_state <= rx_byte == (pending_mode ? 8'hfe : 8'hff) ? 7 : 0;
+63:                 7: begin
+64:                     parse_state <= 0;
+65:                     if (rx_byte == 8'h0d) begin command_valid <= 1; command_mode <= pending_mode; end
+66:                 end
+67:             endcase
+68:         end else if (parse_state != 0) gap_count <= gap_count + 1'b1;
+69:     end
+70: 
+71:     // Loss invalidates the authorization even between reference-clock edges.
+72:     // Release is synchronized; counters remain ordinary clk_ref registers.
+73:     wire available = ddr_ready && pll_ready;
+74:     reg [1:0] ready_meta = 0, reset_meta = 0;
+75:     always @(posedge clk_ref or negedge available) begin
+76:         if (!available) ready_meta <= 2'b00;
+77:         else ready_meta <= {ready_meta[0], 1'b1};
+78:     end
+79:     always @(posedge clk_ref) reset_meta <= {reset_meta[0], cpu_reset_n};
+80:     reg [WAIT_WIDTH-1:0] wait_count = 0;
+81:     reg [HOLD_WIDTH-1:0] hold_count = 0;
+82:     always @(posedge clk_ref) begin
+83:         if (command_valid) begin
+84:             delay_mode <= command_mode;
+85:             command_epoch <= command_epoch + 1'b1;
+86:             holding <= 1;
+87:             hold_count <= 0;
+88:         end else begin
+89:             if (holding) begin
+90:                 // Do not lose a reset request while AHB is stopped: wait until
+91:                 // the existing two-flop synchronizer has actually asserted reset.
+92:                 if (reset_meta[1]) hold_count <= 0;
+93:                 else if (hold_count == HOLD_WIDTH'(HOLD_CYCLES-1)) begin
+94:                     holding <= 0; hold_count <= 0;
+95:                 end else hold_count <= hold_count + 1'b1;
+96:             end
+97:         end
+98:     end
+99:     // Mode0 is diagnostic, but never bypasses the documented LOCK interval.
+100:     // A command first asserts holding, clears stale qualification, and requires
+101:     // a fresh full interval after holding ends. Mode1 retains the real50ms wait.
+102:     always @(posedge clk_ref) begin
+103:         if (!ready_meta[1] || holding || command_valid) begin
+104:             wait_count <= 0;
+105:             delay_done <= 0;
+106:         end else if (!delay_done) begin
+107:             if (wait_count == WAIT_WIDTH'((delay_mode ? WAIT_CYCLES : MIN_LOCK_CYCLES)-1))
+108:                 delay_done <= 1;
+109:             else wait_count <= wait_count + 1'b1;
+110:         end
+111:     end
+112:     // The Neo top also uses this permission as asynchronous assertion input
+113:     // of its existing two-flop CPU reset chain, flushing any stale pipeline bit.
+114:     assign release_request = available && ready_meta[1] && !holding && delay_done;
+115: endmodule
+116: `default_nettype wire
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/neo_reset_trial_rx.v
+SHA256 599ce905f84a6a4d55373cd0f8cd276136ae5c31124e6b6d7f717dca6b161625
+1: // uart_rx.v — récepteur 8N1, cycles par bit programmable, échantillonnage au milieu du bit.
+2: // Un stop bit à 0 rejette l'octet : rien n'est inventé.
+3: // Le front de start est vu SYNC_LAT = 2 cycles après son arrivée (double bascule) :
+4: // le compte jusqu'au milieu du bit en tient compte, sinon à 5 cycles/bit (20 Mbps)
+5: // l'échantillon tombe sur la frontière du bit.
+6: `default_nettype none
+7: module neo_reset_trial_rx #(parameter DIV_WIDTH = 8) (
+8:     input  wire       clk,
+9:     input  wire       rst,
+10:     input  wire [DIV_WIDTH-1:0] clk_div,
+11:     input  wire       rx,
+12:     output reg  [7:0] data,
+13:     output reg        valid
+14: );
+15:     localparam [DIV_WIDTH-1:0] SYNC_LAT = 2;
+16:     reg [1:0] rx_sync = 2'b11;
+17:     reg [DIV_WIDTH-1:0] cnt;
+18:     wire [DIV_WIDTH-1:0] half = {1'b0, clk_div[DIV_WIDTH-1:1]};
+19:     wire [DIV_WIDTH-1:0] first_cnt = (half > SYNC_LAT) ? (half - SYNC_LAT) : 0;
+20:     reg [3:0] bit_idx;
+21:     reg [7:0] shift;
+22:     reg       busy;
+23:     always @(posedge clk) rx_sync <= {rx_sync[0], rx};
+24:     wire rxs = rx_sync[1];
+25: 
+26:     always @(posedge clk) begin
+27:         valid <= 1'b0;
+28:         if (rst) begin
+29:             busy <= 1'b0;
+30:         end else if (!busy) begin
+31:             if (!rxs) begin busy <= 1'b1; bit_idx <= 4'd0; cnt <= first_cnt; end
+32:         end else if (cnt != 0) begin
+33:             cnt <= cnt - 1'b1;
+34:         end else begin
+35:             cnt <= clk_div - 1'b1;
+36:             case (bit_idx)
+37:             4'd0: if (rxs) busy <= 1'b0; else bit_idx <= 4'd1;
+38:             4'd9: begin busy <= 1'b0; if (rxs) begin data <= shift; valid <= 1'b1; end end
+39:             default: begin shift <= {rxs, shift[7:1]}; bit_idx <= bit_idx + 4'd1; end
+40:             endcase
+41:         end
+42:     end
+43: endmodule
+44: `default_nettype wire
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/exact_chain.sv
+SHA256 ac88f206678f60fbe671055a5811ecdb5f40964304909033cc0e55e0cf97e590
+1: `timescale 1ns/1ps
+2: `default_nettype none
+3: // Exact extracted fabric reset blocks. NO hard CPU or PLL behavioral substitute.
+4: module exact_soc_reset(input wire ahb_clk, rst_key_n, trial_release, output wire por_n);
+5:     reg  [1:0] init_sync = 2'b00;
+6:     always @(posedge ahb_clk or negedge rst_key_n)
+7:         if (!rst_key_n) init_sync <= 2'b00;
+8:         else init_sync <= {init_sync[0], trial_release};
+9:     wire ae350_rstn = init_sync[1];
+10:     assign por_n=ae350_rstn;
+11: endmodule
+12: module exact_chain(input wire clk, bus80_clk, rtc_clk, pll_ae350_lock, ddr_init, uart_rx,
+13:  output wire por_n, trial_done_o, trial_holding_o);
+14:  wire ahb_clk=bus80_clk;
+15:  wire [3:0] soc_dbg={3'b000,por_n}; // Only bit0 is consumed by exact trial instance.
+16:     reg [1:0] ae350_rst_sync = 2'b11;
+17:     always @(posedge bus80_clk or negedge pll_ae350_lock)
+18:         if (!pll_ae350_lock) ae350_rst_sync <= 2'b11;
+19:         else ae350_rst_sync <= {ae350_rst_sync[0], 1'b0};
+20:     wire ae350_por_n = ~ae350_rst_sync[1];
+21:     wire trial_request, trial_mode, trial_holding, trial_done;
+22:     wire trial_ahb_tick, trial_rtc_tick;
+23:     wire [3:0] trial_epoch;
+24:     neo_reset_trial u_reset_trial (
+25:         .clk_ref(clk), .ahb_clk(bus80_clk), .rtc_clk(rtc_clk), .serial_rx(uart_rx),
+26:         .ddr_ready(ddr_init), .pll_ready(pll_ae350_lock), .cpu_reset_n(soc_dbg[0]),
+27:         .release_request(trial_request), .delay_mode(trial_mode), .command_epoch(trial_epoch),
+28:         .holding(trial_holding), .delay_done(trial_done),
+29:         .ahb_tick(trial_ahb_tick), .rtc_tick(trial_rtc_tick));
+30:  exact_soc_reset u_soc(.ahb_clk(ahb_clk),.rst_key_n(ae350_por_n && trial_request),.trial_release(trial_request),.por_n(por_n));
+31:  assign trial_done_o=trial_done;
+32:  assign trial_holding_o=trial_holding;
+33: endmodule
+34: `default_nettype wire
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/invariants_tb.sv
+SHA256 2117d4ddb45012d473107e7a9a2992fb152964d9a449a9a4af7e0ecbcef85538
+1: `timescale 1ns/1ps
+2: module tb;
+3:  reg clk=0,bus80=0,rtc=0,locked=0,ready=0,rx=1;
+4:  reg ref_run=1,bus_run=1;
+5:  wire por,done,holding;wire available=locked&&ready;
+6:  exact_chain dut(.clk(clk),.bus80_clk(bus80),.rtc_clk(rtc),.pll_ae350_lock(locked),.ddr_init(ready),.uart_rx(rx),.por_n(por),.trial_done_o(done),.trial_holding_o(holding));
+7:  integer phase_ps=1000,quick=0,case_id=0,result_fd,releases=0;
+8:  realtime last_lock_rise=0,last_available_rise=0,last_hold_end=0;
+9:  realtime last_por_rise=0,last_policy_elapsed=0,anchor=0;
+10:  initial begin if($value$plusargs("PHASE_PS=%d",phase_ps))begin end
+11:   #(phase_ps/1000.0);bus80=1;forever begin #6.25;if(bus_run)bus80=~bus80;else bus80=0;end end
+12:  initial begin #20;clk=1;forever begin #10;if(ref_run)clk=~clk;else clk=0;end end
+13:  always #50 rtc=~rtc;
+14:  always @(posedge locked)last_lock_rise=$realtime;
+15:  always @(posedge available)last_available_rise=$realtime;
+16:  always @(negedge holding)last_hold_end=$realtime;
+17:  always @(posedge por) begin : release_check
+18:   realtime origin,window,rise_time;
+19:   rise_time=$realtime;#0.001;
+20:   if(!por)$fatal(1,"Zero-delta release observed case%0d",case_id);
+21:   if(!available||!done||holding||!dut.trial_request)$fatal(1,"Unqualified POR release case%0d",case_id);
+22:   if(rise_time-last_lock_rise<2000000.0)$fatal(1,"LOCK_2MS_VIOLATION case%0d delta_ns=%0.3f",case_id,rise_time-last_lock_rise);
+23:   origin=last_available_rise>last_hold_end?last_available_rise:last_hold_end;
+24:   window=dut.u_reset_trial.delay_mode?50000000.0:2080000.0;
+25:   if(rise_time-origin<window)$fatal(1,"MODE_WINDOW_VIOLATION case%0d delta_ns=%0.3f required=%0.3f",case_id,rise_time-origin,window);
+26:   releases=releases+1;last_por_rise=rise_time;last_policy_elapsed=rise_time-origin;
+27:   $fwrite(result_fd,"RELEASE,%0d,%0.3f,%0.3f,%0.3f,%0d,%0d\n",case_id,rise_time,rise_time-last_lock_rise,last_policy_elapsed,dut.u_reset_trial.delay_mode,done);$fflush(result_fd);
+28:  end
+29:  task await_release;
+30:   begin wait(por===1'b1);#0.01;if(!done||holding||!available)$fatal(1,"Bad release state");end
+31:  endtask
+32:  task align_reference;
+33:   begin @(posedge clk);anchor=$realtime;end
+34:  endtask
+35:  task loss(input integer id,input realtime offset_ns,input realtime width_ns,input integer ddr);
+36:   integer old_releases;
+37:   begin
+38:    case_id=id;old_releases=releases;align_reference();
+39:    #(offset_ns);if(ddr)ready=0;else locked=0;
+40:    #0.002;if(por)$fatal(1,"Loss failed to assert reset case%0d",id);
+41:    #(width_ns-0.002);if(ddr)ready=1;else locked=1;
+42:    #200;if(por||dut.trial_request)$fatal(1,"Premature post-loss permission case%0d",id);
+43:    await_release();
+44:    if(releases!=old_releases+1)$fatal(1,"Extra or missing POR pulse case%0d",id);
+45:    $fwrite(result_fd,"CASE,%0d,%0.3f,%0.3f,%0d\n",id,offset_ns,width_ns,ddr);$fflush(result_fd);
+46:   end
+47:  endtask
+48:  task ddr_rearm;
+49:   begin ready=0;#200;if(por||done)$fatal(1,"DDR rearm failed");ready=1;end
+50:  endtask
+51:  task byte_tx(input [7:0]b);
+52:   integer k;
+53:   begin
+54:    @(negedge clk);rx=0;repeat(25)@(negedge clk);
+55:    for(k=0;k<8;k=k+1)begin rx=b[k];repeat(25)@(negedge clk);end
+56:    rx=1;repeat(25)@(negedge clk);
+57:   end
+58:  endtask
+59:  task command(input [7:0]mode,input [7:0]check);
+60:   begin byte_tx('ha5);byte_tx('h5a);byte_tx('h52);byte_tx('h31);byte_tx('h35);byte_tx(mode);byte_tx(check);byte_tx('h0d);repeat(10)@(negedge clk);end
+61:  endtask
+62:  initial begin
+63:   result_fd=$fopen("events.csv","w");if(!result_fd)$fatal(1,"Output open failed");
+64:   if($value$plusargs("QUICK=%d",quick))begin end
+65:   #211;locked=1;#177;ready=1;await_release();
+66:   loss(1,6,8,0);loss(2,16,8,0);
+67:   if(!quick)begin
+68:    loss(3,2,1,0);loss(4,4,4,0);loss(5,12,6,0);loss(6,3,30,0);
+69:    case_id=7;ddr_rearm();#500000;align_reference();#6;locked=0;#8;locked=1;await_release();
+70:    case_id=8;ddr_rearm();wait(dut.u_reset_trial.wait_count==2499990);align_reference();#6;locked=0;#8;locked=1;await_release();
+71:    // Invalid complement and expired parser prefix must not reset or change mode.
+72:    case_id=9;command(0,8'hfe);
+73:    if(dut.u_reset_trial.command_epoch!=0||!por||holding||!dut.u_reset_trial.delay_mode)$fatal(1,"Invalid command accepted");
+74:    byte_tx('ha5);byte_tx('h5a);repeat(100100)@(negedge clk);
+75:    byte_tx('h52);byte_tx('h31);byte_tx('h35);byte_tx(0);byte_tx('hff);byte_tx('h0d);repeat(10)@(negedge clk);
+76:    if(dut.u_reset_trial.command_epoch!=0||!por||holding)$fatal(1,"Expired command accepted");
+77:    case_id=10;command(0,8'hff);
+78:    if(dut.u_reset_trial.command_epoch!=1||dut.u_reset_trial.delay_mode||por)$fatal(1,"Mode0 command failed");
+79:    await_release();if(last_policy_elapsed>2100000.0)$fatal(1,"Mode0 no longer short diagnostic interval");
+80:    loss(11,6,8,0);if(last_policy_elapsed>2100000.0)$fatal(1,"Mode0 recovery interval too long");
+81:    case_id=12;command(1,8'hfe);
+82:    if(dut.u_reset_trial.command_epoch!=2||!dut.u_reset_trial.delay_mode||por)$fatal(1,"Mode1 command failed");await_release();
+83:    // An AHB stop cannot prevent reset assertion or release the CPU without edges.
+84:    case_id=13;@(negedge bus80);bus_run=0;command(1,8'hfe);
+85:    if(dut.u_reset_trial.command_epoch!=3||por)$fatal(1,"Stopped AHB lost warm reset");
+86:    #50200000;if(por||!done)$fatal(1,"Stopped AHB release/qualification invalid");bus_run=1;await_release();
+87:    // Capture a LOCK loss even while the reference clock and qualifier are stopped.
+88:    case_id=14;@(negedge clk);ref_run=0;#6;locked=0;#8;locked=1;#2000;
+89:    if(por||dut.trial_request)$fatal(1,"Stopped reference lost asynchronous invalidation");ref_run=1;await_release();
+90:    loss(15,6,8,1);
+91:   end
+92:   if(releases!=(quick?3:15))$fatal(1,"Coverage release count mismatch %0d",releases);
+93:   $fwrite(result_fd,"PASS,%0d,%0d,%0d\n",phase_ps,quick,releases);$fflush(result_fd);
+94:   $display("INVARIANTS_PASS phase_ps=%0d quick=%0d releases=%0d",phase_ps,quick,releases);$fclose(result_fd);$finish;
+95:  end
+96:  initial begin #1200000000;$fatal(1,"Global1.2s timeout");end
+97: endmodule
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/candidate_manifest.json
+SHA256 3a212107fd1965fc70a3f6c14a640a5099861cc6a2256b70fd5f243abdeb53d2
+1: {
+2:   "hardware_access": false,
+3:   "production_modified": false,
+4:   "candidate_only": true,
+5:   "parent_build": "tang/impl/console_neo_n56r21r1_capture_memory",
+6:   "candidate_files": {
+7:     "neo_reset_trial.v": "caf346369c7aa2ec10bbd2342dc32ffabc09d4973476619e27a17dffddd914f3",
+8:     "console_neo.v": "3401c1fa6b3067a53d8e503d1741d5fad36f21671e8c1bae75e2fa2d183cf69a",
+9:     "exact_chain.sv": "ac88f206678f60fbe671055a5811ecdb5f40964304909033cc0e55e0cf97e590",
+10:     "neo_reset_trial_rx.v": "599ce905f84a6a4d55373cd0f8cd276136ae5c31124e6b6d7f717dca6b161625",
+11:     "candidate.diff": "bb3880ea562a5958e504f8294db5e40ae7d5c7b834348c46071e9372c89f6bbb"
+12:   },
+13:   "parent_source_hashes": {
+14:     "tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo_reset_trial.v": "6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3",
+15:     "tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/console_neo.v": "ac0f0244c40784e9ce0cd82eed7d754d948a14c404b4a55b13f04caa5fa03364"
+16:   },
+17:   "mode0": "fresh2.08ms interval after availability and warm hold; no unsafe bypass",
+18:   "mode1": "fresh50ms interval"
+19: }
+
+FILE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo_reset_trial.v
+SHA256 6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3
+1: // Neo-only experiment. This module never drives a PLL or DDR reset.
+2: // The existing AE350 two-flop reset synchronizer remains downstream.
+3: `default_nettype none
+4: module neo_reset_trial #(
+5:     parameter integer WAIT_CYCLES = 2500000, // user-selected 50 ms at 50 MHz
+6:     parameter integer HOLD_CYCLES = 1000,    // common 20 us warm-reset hold
+7:     parameter integer GAP_CYCLES = 100000,
+8:     parameter integer UART_DIV = 25         // existing BL616 relay: 2 Mbit/s
+9: ) (
+10:     input wire clk_ref, ahb_clk, rtc_clk, serial_rx,
+11:     input wire ddr_ready, pll_ready, cpu_reset_n,
+12:     output wire release_request,
+13:     output reg delay_mode = 1'b1,
+14:     output reg [3:0] command_epoch = 0,
+15:     output reg holding = 0,
+16:     output reg delay_done = 0,
+17:     output wire ahb_tick, rtc_tick
+18: );
+19:     localparam integer WAIT_WIDTH = WAIT_CYCLES > 1 ? $clog2(WAIT_CYCLES) : 1;
+20:     localparam integer HOLD_WIDTH = HOLD_CYCLES > 1 ? $clog2(HOLD_CYCLES) : 1;
+21:     localparam integer GAP_WIDTH = GAP_CYCLES > 1 ? $clog2(GAP_CYCLES) : 1;
+22:     // Independent activity witnesses: never reset by the CPU/bus under test.
+23:     reg [7:0] ahb_div = 0, rtc_div = 0;
+24:     always @(posedge ahb_clk) ahb_div <= ahb_div + 1'b1;
+25:     always @(posedge rtc_clk) rtc_div <= rtc_div + 1'b1;
+26:     assign ahb_tick = ahb_div[7];
+27:     assign rtc_tick = rtc_div[7];
+28: 
+29:     reg [2:0] up = 0;
+30:     always @(posedge clk_ref) up <= {up[1:0], 1'b1};
+31:     wire [7:0] rx_byte;
+32:     wire rx_valid;
+33:     neo_reset_trial_rx #(.DIV_WIDTH(16)) u_rx (
+34:         .clk(clk_ref), .rst(!up[2]), .clk_div(16'(UART_DIV)),
+35:         .rx(serial_rx), .data(rx_byte), .valid(rx_valid));
+36: 
+37:     // A5 5A 52 31 35 mode complement 0D. Only mode 0/1 is accepted.
+38:     // Parser timeout prevents unrelated console bytes completing a stale command.
+39:     reg [2:0] parse_state = 0;
+40:     reg pending_mode = 0;
+41:     reg [GAP_WIDTH-1:0] gap_count = 0;
+42:     reg command_valid = 0, command_mode = 0;
+43:     always @(posedge clk_ref) begin
+44:         command_valid <= 0;
+45:         if (!up[2]) begin parse_state <= 0; gap_count <= 0; end
+46:         else if (parse_state != 0 && gap_count == GAP_WIDTH'(GAP_CYCLES-1)) begin
+47:             parse_state <= 0; gap_count <= 0;
+48:         end else if (rx_valid) begin
+49:             gap_count <= 0;
+50:             case (parse_state)
+51:                 0: parse_state <= rx_byte == 8'ha5 ? 1 : 0;
+52:                 1: parse_state <= rx_byte == 8'h5a ? 2 : 0;
+53:                 2: parse_state <= rx_byte == 8'h52 ? 3 : 0;
+54:                 3: parse_state <= rx_byte == 8'h31 ? 4 : 0;
+55:                 4: parse_state <= rx_byte == 8'h35 ? 5 : 0;
+56:                 5: begin
+57:                     if (rx_byte < 2) begin pending_mode <= rx_byte[0]; parse_state <= 6; end
+58:                     else parse_state <= 0;
+59:                 end
+60:                 6: parse_state <= rx_byte == (pending_mode ? 8'hfe : 8'hff) ? 7 : 0;
+61:                 7: begin
+62:                     parse_state <= 0;
+63:                     if (rx_byte == 8'h0d) begin command_valid <= 1; command_mode <= pending_mode; end
+64:                 end
+65:             endcase
+66:         end else if (parse_state != 0) gap_count <= gap_count + 1'b1;
+67:     end
+68: 
+69:     reg [1:0] ready_meta = 0, reset_meta = 0;
+70:     always @(posedge clk_ref) begin
+71:         ready_meta <= {ready_meta[0], ddr_ready && pll_ready};
+72:         reset_meta <= {reset_meta[0], cpu_reset_n};
+73:     end
+74:     reg [WAIT_WIDTH-1:0] wait_count = 0;
+75:     reg [HOLD_WIDTH-1:0] hold_count = 0;
+76:     always @(posedge clk_ref) begin
+77:         if (command_valid) begin
+78:             delay_mode <= command_mode;
+79:             command_epoch <= command_epoch + 1'b1;
+80:             holding <= 1;
+81:             hold_count <= 0;
+82:             wait_count <= 0;
+83:             delay_done <= 0;
+84:         end else begin
+85:             if (holding) begin
+86:                 // Do not lose a reset request while AHB is stopped: wait until
+87:                 // the existing two-flop synchronizer has actually asserted reset.
+88:                 if (reset_meta[1]) hold_count <= 0;
+89:                 else if (hold_count == HOLD_WIDTH'(HOLD_CYCLES-1)) begin
+90:                     holding <= 0; hold_count <= 0;
+91:                 end else hold_count <= hold_count + 1'b1;
+92:             end
+93:             if (!ready_meta[1] || holding) begin wait_count <= 0; delay_done <= 0; end
+94:             else if (!delay_done) begin
+95:                 if (wait_count == WAIT_WIDTH'(WAIT_CYCLES-1)) delay_done <= 1;
+96:                 else wait_count <= wait_count + 1'b1;
+97:             end
+98:         end
+99:     end
+100:     // In short mode the original DDR-ready level is passed to the unchanged
+101:     // two AHB flops. All modes still honor calibration loss; no force-to-one.
+102:     assign release_request = ddr_ready && !holding && (!delay_mode || delay_done);
+103: endmodule
+104: `default_nettype wire
+
+FILE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/console_neo.v
+SHA256 ac0f0244c40784e9ce0cd82eed7d754d948a14c404b4a55b13f04caa5fa03364
+140:         .enclk0  (1'b1), .enclk1 (1'b1), .enclk2 (1'b1), .enclk3 (1'b1), .enclk4 (1'b1)
+141:     );
+142:     // ahb_clk/apb_clk : DÉJÀ déclarés ligne 232 (wire) : NE PAS redéclarer ici !
+143:     // (EX2830 : « Second declaration of 'ahb_clk' is ignored » : le wire local était ignoré,
+144:     //  l'entrée AHB_CLK du SoC restait non câblée → bus APB mort → CPU figé au 1er accès APB.)
+145:     assign ahb_clk = bus80_clk;
+146:     assign apb_clk = ahb_clk;   // APB = net de l'AHB (1:1 exigé par le SoC, en-tête du socle)
+147:     // Reset du CPU : attend le LOCK de la PLL AE350 (schéma de l'analyseur : rst = sync ~lock)
+148:     reg [1:0] ae350_rst_sync = 2'b11;
+149:     always @(posedge bus80_clk or negedge pll_ae350_lock)
+150:         if (!pll_ae350_lock) ae350_rst_sync <= 2'b11;
+151:         else ae350_rst_sync <= {ae350_rst_sync[0], 1'b0};
+152:     wire ae350_por_n = ~ae350_rst_sync[1];
+153: 
+154:     // SoC AE350 + DDR3 standalone + pont Sipeed (socle analyseur, validé V3)
+155:     wire core_wfi_w;                 // CORE0_WFI_MODE du cœur (preuve de vie sans bus)
+156:     // Isolated startup experiment: default 50 ms, UART mode 0/1 for A/B.
+157:     wire trial_request, trial_mode, trial_holding, trial_done;
+158:     wire trial_ahb_tick, trial_rtc_tick;
+159:     wire [3:0] trial_epoch;
+160:     neo_reset_trial u_reset_trial (
+161:         .clk_ref(clk), .ahb_clk(bus80_clk), .rtc_clk(rtc_clk), .serial_rx(uart_rx),
+162:         .ddr_ready(ddr_init), .pll_ready(pll_ae350_lock), .cpu_reset_n(soc_dbg[0]),
+163:         .release_request(trial_request), .delay_mode(trial_mode), .command_epoch(trial_epoch),
+164:         .holding(trial_holding), .delay_done(trial_done),
+165:         .ahb_tick(trial_ahb_tick), .rtc_tick(trial_rtc_tick));
+166:     ae350_soc u_soc (
+167:         .trial_release(trial_request),
+168:         .clk50(clk),
+169:         .rst_key_n(ae350_por_n),
+170:         .core_clk(core_clk), .ahb_clk(ahb_clk), .apb_clk(apb_clk), .rtc_clk(rtc_clk),
+171:         .ddr_bank(ddr_bank), .ddr_cs(ddr_cs), .ddr_ras(ddr_ras), .ddr_cas(ddr_cas), .ddr_we(ddr_we),
+172:         .ddr_ck(ddr_ck), .ddr_ck_n(ddr_ck_n), .ddr_cke(ddr_cke), .ddr_reset_n(ddr_reset_n), .ddr_odt(ddr_odt),
+173:         .ddr_addr(ddr_addr), .ddr_dm(ddr_dm), .ddr_dq(ddr_dq), .ddr_dqs(ddr_dqs), .ddr_dqs_n(ddr_dqs_n),
+174:         .tck(ae350_tck), .tms(ae350_tms), .tdi(ae350_tdi), .tdo(ae350_tdo),
+175:         .uart2_tx(ae350_tx), .uart2_rx(ae350_rx), .ddr_init(ddr_init), .dbg(soc_dbg),
+176:         .sd_clk(sd_clk), .sd_cmd(sd_cmd), .sd_miso(sd_d0), .sd_cs_n(sd_d3), .sd_detect(1'b0),
+177:         .ahb_dbg(soc_ahb_dbg), .ddr_dbg(soc_ddr_dbg), .core_wfi_dbg(core_wfi_w),
+178:         // Legacy acquisition inputs are inactive; video uses its own DDR port.
+179:         .ev_clk(clk), .ev_valid(1'b0), .ev_data(64'd0),
+
+FILE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/ae350_soc.v
+SHA256 e811670991b885d4a613322ca5713539d8955a62a06b5fe195048c0ff82a1009
+151:     reg  [1:0] init_sync = 2'b00;
+152:     always @(posedge ahb_clk or negedge rst_key_n)
+153:         if (!rst_key_n) init_sync <= 2'b00;
+154:         else init_sync <= {init_sync[0], trial_release};
+155:     wire ae350_rstn = init_sync[1];
+156:     assign ddr_init = ddr3_init_completed;
+157:     assign dbg = {1'b1, ddr3_stop, ddr3_lock, ae350_rstn};
+
+FILE tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo.sdc
+SHA256 c8da535e839157a361e78b06b2f65b2912891f8e9dc48b02d5b315ae9f953113
+1: // Tang Console PG484C: constrain every fabric clock, including HDMI x5.
+2: create_clock -name clk50 -period 20 -waveform {0 10} [get_ports {clk}]
+3: create_clock -name bus80_clk -period 12.5 -waveform {0 6.25} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT0}]
+4: create_clock -name core_clk -period 1.25 -waveform {0 0.625} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT1}]
+5: create_clock -name rtc_clk -period 100 -waveform {0 50} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT4}]
+6: create_clock -name ddr3_mem_clk -period 3.333 -waveform {0 1.667} [get_pins {u_soc/u_pll_ddr3/u_pll/PLL_inst/CLKOUT2}]
+7: create_clock -name ddr3_sys_clk -period 13.333 -waveform {0 6.667} [get_pins {u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT}]
+8: create_generated_clock -name vid_clk5x -source [get_ports {clk}] -multiply_by 119 -divide_by 16 [get_pins {u_video_pll/PLL_inst/CLKOUT0}]
+9: create_generated_clock -name vid_pclk -source [get_ports {clk}] -multiply_by 119 -divide_by 80 [get_pins {u_video_pll/PLL_inst/CLKOUT2}]
+10: // Only macro-owned core/RTC crossings are excluded. Fabric mailboxes, dual
+11: // clock RAMs and FIFO Gray pointers stay visible with explicit delay bounds.
+12: set_clock_groups -asynchronous -group [get_clocks {core_clk}] -group [get_clocks {rtc_clk}] -group [get_clocks {clk50 bus80_clk ddr3_mem_clk ddr3_sys_clk vid_pclk vid_clk5x}]
+13: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]
+14: set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]
+15: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]
+16: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]
+17: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]
+18: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]
+19: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]
+20: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]
+21: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]
+22: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]
+23: set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]
+24: set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]
+25: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]
+26: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]
+27: set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]
+28: set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]
+29: // clk50 and bus80 also exchange asynchronous FIFO pointers/reset releases.
+30: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+31: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]
+32: set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+33: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]
+34: // No phase-based hold requirement exists between independent clocks. Maximum
+35: // delay bounds remain active; all intra-domain setup/hold paths stay checked.
+36: // Asynchronous assertion only: deassertion is synchronized in these flops.
+37: set_false_path -to [get_pins {ae350_rst_sync_*/PRESET}]
+38: set_false_path -to [get_pins {u_hdmi/g_reset*.reset_sync*/PRESET}]
+39: // Asynchronous serial input: only the first synchronizer D is exempt.
+40: set_false_path -from [get_ports {uart_rx}] -to [get_pins {u_console_input/u_debug_rx/rx_sync_0_s1/D}]
+41: set_false_path -to [get_pins {u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/UART2_RXD}]
+42: // USB HS: qualified Pro Dock reference, adapted to Neo's top-level pins.
+43: create_generated_clock -name CLK_48M -source [get_ports {clk}] -master_clock clk50 -divide_by 50 -multiply_by 48 [get_pins {u_pll_f/PLL_inst/CLKOUT0}]
+44: create_generated_clock -name PHY_CLKOUT -source [get_pins {u_pll_f/PLL_inst/CLKOUT0}] -master_clock CLK_48M -divide_by 4 -multiply_by 5 [get_pins {u_pll_b/PLL_inst/CLKOUT1}]
+45: create_generated_clock -name fclk_960M -source [get_pins {u_pll_f/PLL_inst/CLKOUT0}] -master_clock CLK_48M -divide_by 2 -multiply_by 40 [get_pins {u_pll_b/PLL_inst/CLKOUT0}]
+46: create_clock -name sclk -period 8.333 -waveform {0 4.166} [get_nets {u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk}] -add
+47: // Inside the encrypted SoftPHY these domains follow the vendor constraints.
+48: set_clock_groups -asynchronous -group [get_clocks {PHY_CLKOUT}] -group [get_clocks {sclk}] -group [get_clocks {fclk_960M}]
+49: // Fabric mailboxes/FIFO pointers remain bounded, including USB status/MSC.
+50: set_max_delay 8 -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {bus80_clk}]
+51: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {PHY_CLKOUT}]
+52: set_false_path -hold -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {bus80_clk}]
+53: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {PHY_CLKOUT}]
+54: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {PHY_CLKOUT}]
+55: set_max_delay 8 -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {clk50}]
+56: set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {PHY_CLKOUT}]
+57: set_false_path -hold -from [get_clocks {PHY_CLKOUT}] -to [get_clocks {clk50}]
+58: set_false_path -to [get_pins {u_console_input/u_bridge/rx_sync_0_s0/D}]
+59: set_false_path -to [get_pins {u_console_output/u_rx/rx_sync_0_s1/D}]
+60: // Only the first serial input synchronizers are asynchronous; their second
+61: // stage and all host logic remain timed at 80 MHz (no broad host exception).
+62: set_false_path -to [get_pins {u_gamepads/g_port*.u_pad/u_host/dp_sync_0*/D}]
+63: set_false_path -to [get_pins {u_gamepads/g_port*.u_pad/u_host/dm_sync_0*/D}]
+64: // N14 registers the host ROM output on every 80 MHz edge before decode.
+65: // Its value is unchanged at each 3/20 CE. ROM and interpreter paths are
+66: // therefore timed at one bus cycle; the earlier 6/5 exception is removed.
+67: // Local timing origins; common HDMI phase and distribution arcs remain checked.
+68: set_clock_latency -source 0 [get_clocks {vid_pclk vid_clk5x PHY_CLKOUT fclk_960M}]
+69: report_timing -setup -max_paths 1000 -max_common_paths 1
+70: report_timing -hold -max_paths 200 -max_common_paths 1
+71: report_timing -recovery -max_paths 10000 -max_common_paths 3
+72: report_timing -removal -max_paths 10000 -max_common_paths 3
+73: report_timing -recovery -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3
+74: report_timing -removal -to [get_pins {u_hdmi/g_ser[0].u_ser/RESET u_hdmi/g_ser[1].u_ser/RESET u_hdmi/g_ser[2].u_ser/RESET}] -max_paths 32 -max_common_paths 3
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/result.json
+SHA256 afb4f30c5733d35edad1cdeb8359d89a9319e091500dc578c9dc112caf7cf450
+1: {
+2:   "passed": true,
+3:   "hardware_access": false,
+4:   "scope": "Additional ideal-clock RTL invariant tests, not physical qualification",
+5:   "inputs": {
+6:     "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/obj_candidate_v2/Vtb": "27613c85523bd09f1cc57e625780cb1b9ed7652a4ca66c00286151cdfa27496b",
+7:     "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/obj_candidate_v2/Vtb__verFiles.dat": "ffdaeb6dc91f0856ea445e80c04751f08e5d4d91a122284668ed8a1ba09675b6",
+8:     "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/run_root_phase_sweep.py": "c4b55846020d16b719fa03b4f141056c37bd39a7c503b49df0940eb45a2df2b0",
+9:     "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/invariants_tb.sv": "2117d4ddb45012d473107e7a9a2992fb152964d9a449a9a4af7e0ecbcef85538",
+10:     "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/exact_chain.sv": "ac88f206678f60fbe671055a5811ecdb5f40964304909033cc0e55e0cf97e590",
+11:     "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/neo_reset_trial.v": "caf346369c7aa2ec10bbd2342dc32ffabc09d4973476619e27a17dffddd914f3",
+12:     "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/neo_reset_trial_rx.v": "599ce905f84a6a4d55373cd0f8cd276136ae5c31124e6b6d7f717dca6b161625"
+13:   },
+14:   "started_unix": 1793097391.3114192,
+15:   "phases": [
+16:     {
+17:       "phase_ps": 9000,
+18:       "passed": true,
+19:       "returncode": 0,
+20:       "log_sha256": "dcb9f341f5eb28bc5bcffcec13a2518eda401c67c6cfd63f7af6cf406b778018",
+21:       "events_sha256": "08974f4b8f10a8d4cc2b92dde3b79d553a2bc095ff0c11c91594b5466a3fd70c"
+22:     },
+23:     {
+24:       "phase_ps": 9500,
+25:       "passed": true,
+26:       "returncode": 0,
+27:       "log_sha256": "8d96b4401453ebd69ec3ccf6bd7b34386a3868247539af784ef5be13c7aa18a2",
+28:       "events_sha256": "57115404fe2ebe008feeaaec62d73922150cce043e293de66c3cb943648e17f3"
+29:     },
+30:     {
+31:       "phase_ps": 10000,
+32:       "passed": true,
+33:       "returncode": 0,
+34:       "log_sha256": "369dc0ccf190885a68e86148515d9770ba265b531ba7ece188be7eef224a1b8a",
+35:       "events_sha256": "727c78f636801b01ee43b8b8669a0652067ea6159cdfdcd1017837d4058860e4"
+36:     },
+37:     {
+38:       "phase_ps": 10001,
+39:       "passed": true,
+40:       "returncode": 0,
+41:       "log_sha256": "b9ad7c04c52668725a08745a953be0b2fa088a324651a0e1801dc963be27d021",
+42:       "events_sha256": "8ec77b5780a25206e28428354153447efd42d0a56542a6b9b3b9fd2a6ccca656"
+43:     }
+44:   ],
+45:   "finished_unix": 1793097446.1812637
+46: }
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/phase_9000/simulation.log
+SHA256 dcb9f341f5eb28bc5bcffcec13a2518eda401c67c6cfd63f7af6cf406b778018
+1: INVARIANTS_PASS phase_ps=9000 quick=0 releases=15
+2: - TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/invariants_tb.sv:94: Verilog $finish
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/phase_9000/events.csv
+SHA256 08974f4b8f10a8d4cc2b92dde3b79d553a2bc095ff0c11c91594b5466a3fd70c
+1: RELEASE,0,50000434.000,50000223.000,50000046.000,1,1
+2: RELEASE,1,100000496.500,50000042.500,50000042.500,1,1
+3: CASE,1,6.000,8.000,0
+4: RELEASE,2,150000584.000,50000060.000,50000060.000,1,1
+5: CASE,2,16.000,8.000,0
+6: RELEASE,3,200000659.000,50000056.000,50000056.000,1,1
+7: CASE,3,2.000,1.000,0
+8: RELEASE,4,250000721.500,50000053.500,50000053.500,1,1
+9: CASE,4,4.000,4.000,0
+10: RELEASE,5,300000796.500,50000038.500,50000038.500,1,1
+11: CASE,5,12.000,6.000,0
+12: RELEASE,6,350000884.000,50000051.000,50000051.000,1,1
+13: CASE,6,3.000,30.000,0
+14: RELEASE,7,400501159.000,50000045.000,50000045.000,1,1
+15: RELEASE,8,500501259.000,50000045.000,50000045.000,1,1
+16: RELEASE,10,504723996.500,54222782.500,2080016.500,0,1
+17: RELEASE,11,506804059.000,2080045.000,2080045.000,0,1
+18: CASE,11,6.000,8.000,0
+19: RELEASE,12,556864084.000,52140070.000,50000024.000,1,1
+20: RELEASE,13,607104465.250,102380451.250,50180365.250,1,1
+21: RELEASE,14,657106527.750,50002043.750,50002043.750,1,1
+22: RELEASE,15,707106590.250,100002106.250,50000046.250,1,1
+23: CASE,15,6.000,8.000,1
+24: PASS,9000,0,15
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/phase_9500/simulation.log
+SHA256 8d96b4401453ebd69ec3ccf6bd7b34386a3868247539af784ef5be13c7aa18a2
+1: INVARIANTS_PASS phase_ps=9500 quick=0 releases=15
+2: - TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/invariants_tb.sv:94: Verilog $finish
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/phase_9500/events.csv
+SHA256 57115404fe2ebe008feeaaec62d73922150cce043e293de66c3cb943648e17f3
+1: RELEASE,0,50000434.500,50000223.500,50000046.500,1,1
+2: RELEASE,1,100000497.000,50000043.000,50000043.000,1,1
+3: CASE,1,6.000,8.000,0
+4: RELEASE,2,150000584.500,50000060.500,50000060.500,1,1
+5: CASE,2,16.000,8.000,0
+6: RELEASE,3,200000659.500,50000056.500,50000056.500,1,1
+7: CASE,3,2.000,1.000,0
+8: RELEASE,4,250000722.000,50000054.000,50000054.000,1,1
+9: CASE,4,4.000,4.000,0
+10: RELEASE,5,300000797.000,50000039.000,50000039.000,1,1
+11: CASE,5,12.000,6.000,0
+12: RELEASE,6,350000884.500,50000051.500,50000051.500,1,1
+13: CASE,6,3.000,30.000,0
+14: RELEASE,7,400501159.500,50000045.500,50000045.500,1,1
+15: RELEASE,8,500501259.500,50000045.500,50000045.500,1,1
+16: RELEASE,10,504723997.000,54222783.000,2080017.000,0,1
+17: RELEASE,11,506804059.500,2080045.500,2080045.500,0,1
+18: CASE,11,6.000,8.000,0
+19: RELEASE,12,556864084.500,52140070.500,50000024.500,1,1
+20: RELEASE,13,607104465.750,102380451.750,50180365.750,1,1
+21: RELEASE,14,657106528.250,50002044.250,50002044.250,1,1
+22: RELEASE,15,707106590.750,100002106.750,50000046.750,1,1
+23: CASE,15,6.000,8.000,1
+24: PASS,9500,0,15
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/phase_10000/simulation.log
+SHA256 369dc0ccf190885a68e86148515d9770ba265b531ba7ece188be7eef224a1b8a
+1: INVARIANTS_PASS phase_ps=10000 quick=0 releases=15
+2: - TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/invariants_tb.sv:94: Verilog $finish
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/phase_10000/events.csv
+SHA256 727c78f636801b01ee43b8b8669a0652067ea6159cdfdcd1017837d4058860e4
+1: RELEASE,0,50000435.000,50000224.000,50000047.000,1,1
+2: RELEASE,1,100000497.500,50000043.500,50000043.500,1,1
+3: CASE,1,6.000,8.000,0
+4: RELEASE,2,150000585.000,50000061.000,50000061.000,1,1
+5: CASE,2,16.000,8.000,0
+6: RELEASE,3,200000660.000,50000057.000,50000057.000,1,1
+7: CASE,3,2.000,1.000,0
+8: RELEASE,4,250000735.000,50000047.000,50000047.000,1,1
+9: CASE,4,4.000,4.000,0
+10: RELEASE,5,300000797.500,50000039.500,50000039.500,1,1
+11: CASE,5,12.000,6.000,0
+12: RELEASE,6,350000885.000,50000052.000,50000052.000,1,1
+13: CASE,6,3.000,30.000,0
+14: RELEASE,7,400501160.000,50000046.000,50000046.000,1,1
+15: RELEASE,8,500501285.000,50000051.000,50000051.000,1,1
+16: RELEASE,10,504724022.500,54222788.500,2080022.500,0,1
+17: RELEASE,11,506804097.500,2080043.500,2080043.500,0,1
+18: CASE,11,6.000,8.000,0
+19: RELEASE,12,556864122.500,52140068.500,50000022.500,1,1
+20: RELEASE,13,607104485.000,102380431.000,50180365.000,1,1
+21: RELEASE,14,657106547.500,50002043.500,50002043.500,1,1
+22: RELEASE,15,707106610.000,100002106.000,50000046.000,1,1
+23: CASE,15,6.000,8.000,1
+24: PASS,10000,0,15
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/phase_10001/simulation.log
+SHA256 b9ad7c04c52668725a08745a953be0b2fa088a324651a0e1801dc963be27d021
+1: INVARIANTS_PASS phase_ps=10001 quick=0 releases=15
+2: - TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_01/invariants_tb.sv:94: Verilog $finish
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/root_phase_sweep_01/phase_10001/events.csv
+SHA256 8ec77b5780a25206e28428354153447efd42d0a56542a6b9b3b9fd2a6ccca656
+1: RELEASE,0,50000435.001,50000224.001,50000047.001,1,1
+2: RELEASE,1,100000497.501,50000043.501,50000043.501,1,1
+3: CASE,1,6.000,8.000,0
+4: RELEASE,2,150000572.501,50000048.501,50000048.501,1,1
+5: CASE,2,16.000,8.000,0
+6: RELEASE,3,200000635.001,50000052.001,50000052.001,1,1
+7: CASE,3,2.000,1.000,0
+8: RELEASE,4,250000697.501,50000049.501,50000049.501,1,1
+9: CASE,4,4.000,4.000,0
+10: RELEASE,5,300000760.001,50000042.001,50000042.001,1,1
+11: CASE,5,12.000,6.000,0
+12: RELEASE,6,350000860.001,50000047.001,50000047.001,1,1
+13: CASE,6,3.000,30.000,0
+14: RELEASE,7,400501135.001,50000041.001,50000041.001,1,1
+15: RELEASE,8,500501235.001,50000041.001,50000041.001,1,1
+16: RELEASE,10,504723972.501,54222778.501,2080012.501,0,1
+17: RELEASE,11,506804035.001,2080041.001,2080041.001,0,1
+18: CASE,11,6.000,8.000,0
+19: RELEASE,12,556864060.001,52140066.001,50000020.001,1,1
+20: RELEASE,13,607104422.501,102380428.501,50180362.501,1,1
+21: RELEASE,14,657106485.001,50002041.001,50002041.001,1,1
+22: RELEASE,15,707106547.501,100002103.501,50000043.501,1,1
+23: CASE,15,6.000,8.000,1
+24: PASS,10001,0,15

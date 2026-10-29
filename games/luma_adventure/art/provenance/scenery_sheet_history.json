@@ -1,0 +1,196 @@
+{
+  "prompt": [
+    2,
+    "18fa6a05-9d3f-4c9b-bd79-845c9132e2b6",
+    {
+      "unet": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "clip": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        }
+      },
+      "vae": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "qwen_image_vae.safetensors"
+        }
+      },
+      "shift": {
+        "class_type": "ModelSamplingAuraFlow",
+        "inputs": {
+          "model": [
+            "lora",
+            0
+          ],
+          "shift": 3.0
+        }
+      },
+      "latent": {
+        "class_type": "EmptySD3LatentImage",
+        "inputs": {
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1
+        }
+      },
+      "positive": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "text": "Professional original cozy top-down adventure videogame environment prop sprite sheet, exactly 4 columns and 4 rows, sixteen equal square cells, one complete isolated prop centered per cell. Same slightly overhead 3/4 camera for every prop, charming hand-painted pixel art, crisp readable pixel clusters, amber upper-left sunlight, deep teal soft shadows, copper and cream highlights, elaborate but readable at 64px. Row1: round lush moss green tree with visible trunk; pink flowering orchard tree; blue-green pine; rounded cluster of slate rocks. Row2: mossy stone shrine holding a hovering cyan memory orb; elegant circular stone and copper portal with luminous blue aperture; closed wooden treasure chest with copper corners; cluster of three glowing cyan crystals. Row3: carved wooden directional signpost; tiny cream cottage with teal curved roof and round copper chimney; tiny glass greenhouse with plants inside; round old ivory observatory with copper dome and small telescope. Row4: cluster of delicate cream flowers with apricot centers; clump of marsh reeds; small rustic arched wooden footbridge; round stone wishing well with teal roof. All props fully inside separate cells, generous empty margin. Entire canvas uniform pure saturated MAGENTA #ff00ff, objects contain NO magenta. No landscape, no ground square, no floor tile, no cast shadow outside object, no text, no letters, no labels, no borders, no visible grid, no watermark. Asset sheet, not a scene."
+        }
+      },
+      "negative": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "text": ""
+        }
+      },
+      "sample": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": [
+            "shift",
+            0
+          ],
+          "seed": 2310261004,
+          "steps": 4,
+          "cfg": 1.0,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "positive": [
+            "positive",
+            0
+          ],
+          "negative": [
+            "negative",
+            0
+          ],
+          "latent_image": [
+            "latent",
+            0
+          ],
+          "denoise": 1.0
+        }
+      },
+      "decode": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "sample",
+            0
+          ],
+          "vae": [
+            "vae",
+            0
+          ]
+        }
+      },
+      "save": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "decode",
+            0
+          ],
+          "filename_prefix": "luma_scenery_sheet"
+        }
+      },
+      "lora": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "model": [
+            "unet",
+            0
+          ],
+          "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+          "strength_model": 1.0
+        }
+      }
+    },
+    {
+      "client_id": "luma-art-20261023",
+      "create_time": 1792792895912
+    },
+    [
+      "save"
+    ]
+  ],
+  "outputs": {
+    "save": {
+      "images": [
+        {
+          "filename": "luma_scenery_sheet_00001_.png",
+          "subfolder": "",
+          "type": "output",
+          "metadata": {
+            "kind": "image",
+            "width": 1024,
+            "height": 1024
+          },
+          "id": "3c625490-171a-454c-b95c-d1a4f0460232"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "18fa6a05-9d3f-4c9b-bd79-845c9132e2b6",
+          "timestamp": 1792792895912
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "unet",
+            "clip",
+            "vae",
+            "shift",
+            "latent",
+            "negative",
+            "lora"
+          ],
+          "prompt_id": "18fa6a05-9d3f-4c9b-bd79-845c9132e2b6",
+          "timestamp": 1792792895913
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "18fa6a05-9d3f-4c9b-bd79-845c9132e2b6",
+          "timestamp": 1792792903797
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "save": {
+      "node_id": "save",
+      "display_node": "save",
+      "parent_node": null,
+      "real_node_id": "save"
+    }
+  }
+}

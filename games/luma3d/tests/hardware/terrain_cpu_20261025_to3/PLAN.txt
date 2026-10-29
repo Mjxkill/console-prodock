@@ -1,0 +1,79 @@
+Tri terrain et cache CPU statique : comparaison art3 / candidat, Pro Dock uniquement
+
+But : réduire le coût d’une image en conservant exactement le monde art3,
+les textures, habitants, eau, arbres, oiseaux, caméra et scénario. Aucun
+changement FPGA, noyau, flash ou SD ; fichiers temporaires sous /tmp.
+
+Candidat : build/living_order_cpu_20261025_r1, ELF
+b18bbdc7df441ce267b6db6cfbfd346990e2d9a100e70b187a15f3ff3b76c327.
+Témoin et unique repli : art3, /tmp/luma3d-vl2, ELF
+7fa1062373664d977c26bf6df2a4a5075d64061b967fc3d6d9b831a841302882.
+Précondition : to2 clôturé et art3 réellement restauré. Si to2 a été promu,
+ce paquet est inapplicable sans adaptation explicite et nouvelle revue.
+Le jeu actuellement visible est conservé jusqu’à la fin du transfert et
+la vérification de toutes les ressources. PID et startticks sont relus
+sous le verrou, puis comparés juste avant l’arrêt ; aucun ancien PID imposé.
+
+Différences : src/render.c et include/luma3d_render.h. Tri stable terrain
+et retrait SCISSOR comme to2, puis cache CPU des transformations/bornes et
+lumières statiques. Les arbres proches, le moulin et les acteurs restent
+animés. Cache indexé par indice original, jamais par rang trié. Aucun ajout
+visuel ou de gameplay. CAMERA reste après TARGET. Cache CPU 20 988 octets,
+sans nouvel upload GPU ; le flux GPU est identique au tri seul.
+
+Preuves locales : scénario ASan/UBSan, contrats renderer/CLI 600 états
+800×480 et 400 états 1280×720 PASS ; 10 captures fixes et 52 positions du
+parcours exactes face au tri seul (41 basse résolution, 11 haute résolution),
+flux GPU, ressources et HUD identiques. L’égalité art3 est composée avec
+le précédent contrôle art3→tri ; les deux rapports d’origine sont inclus.
+1 980 caméras/LOD/focales supplémentaires ont des flux et mémoires exacts. Ce sont des échantillons, pas une preuve pour toute caméra.
+La campagne commune 11/11 PASS est conservée séparément sous
+TESTS/dual_board/20261025_luma_terrain_order/result.json.
+
+Transport : nouveau helper déjà qualifié (221088 octets) et delta compressé
+art3→candidat (taille exacte dans le manifeste). Ancien ELF jamais modifié.
+Références pixels/HUD vl2-p1..p6, vl2-h1..h6 et vl2-complete réutilisées
+seulement après vérification CRC de leur contenu décompressé. Copies et SHA
+conservés dans le paquet. Récepteur relu intégralement avant transfert.
+Durée transfert estimée de l’ordre d’une minute au débit précédent, hors les
+commandes lentes de vérification UART. Une défaillance de transfert conserve
+art3 et remet le terminal au shell. Aucun nouveau benchmark opportuniste.
+
+Mesures prescrites : poses0,90,1450,2330,3200,3800 ; ordre AB/BA alterné.
+Chaque lancement chauffe3 images puis mesure30 images à pose/animations
+figées. Attente du marqueur EXIT sans commande UART pendant la mesure.
+Après chaque scène : code0, compteurs G3D, commandes et batches attendus,
+96 000 pixels de la page0 exacts et deux banques HUD exactes ; DISPLAY sans
+erreur/underflow/couche invalide/sprite invalide/fault. Ces CRC valident les
+banques, pas une photographie composite de l’écran physique.
+Retour témoin art3 sur pose0 à la fin, mêmes3+30 images, pour mesurer dérive.
+
+Commandes/batches par image en régime établi (art3→candidat) :
+  arrivée0 : 419/7 →413/7 ; Maëlle90 :182/3 →180/3 ;
+  Silo1450 :167/3 →164/3 ; relais2330 :133/3 →128/2 ;
+  Iria3200 :95/2 →94/2 ; retour3800 :375/6 →369/6.
+DRAW et faces identiques sur chaque paire. Cycles GPU et feed/wait/cache/
+present sont relevés ; ces durées imbriquées ne doivent pas être additionnées.
+
+Critères prédéfinis : médiane des six gains de débit >=5 %, aucune pose
+moins bonne de plus de3 %, dérive du témoin initial/final <=3 % en valeur
+absolue. Calcul depuis durée réelle/30 images, pas le FPS arrondi. Chaque
+pose, y compris régressive, est conservée. Un échec de critère n’est pas un
+échec d’exécution ; il interdit simplement la promotion du candidat.
+30 images ne prouvent ni percentile stable ni intervalle de confiance.
+
+Si critères refusés : art3 relancé, progression PRESENT et identité vérifiées,
+ancre /tmp/luma3d-live.pid publiée. Pas d’endurance inutile.
+Si critères acceptés :120 secondes de vraie visite automatique sans écriture
+UART après démarrage. Vivant au terme, parcours terminé, 4 lettres, 3 relais,
+lieu découvert, dialogues achevés, erreurs nulles ; le candidat est alors
+relancé et laissé visible. Le temps de parcours reste celui du petit scénario,
+aucune promesse de campagne de plusieurs heures.
+
+Tout échec après arrêt déclenche repli art3. Chaque lancement a son PID
+propre, armé avant envoi ; un PID non publié bloque tout second lancement.
+Ctrl-C/SIGTERM/SIGHUP et interruption de transfert sont pris en compte.
+NEBULA n’est jamais relancé. Le verrou et le port sont libérés à la sortie.
+Annonce root au moins10 secondes avant la première apparition du candidat.
+Accès matériel uniquement après clôture de to2, constat art3 actif,
+revue et GO root de ce nouveau paquet. Aucun lancement concurrent.

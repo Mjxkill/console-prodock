@@ -9,7 +9,7 @@ static void text_changed(struct prodock_gpu *p)
 }
 static bool text_rect(u32 x, u32 y, u32 w, u32 h)
 {
-    return x < 100 && y < 30 && w <= 100 - x && h <= 30 - y;
+    return x < PD_CELL_STRIDE && y < PD_CELL_ROWS && w <= PD_CELL_STRIDE - x && h <= PD_CELL_ROWS - y;
 }
 static void text_font(struct fb_info *info, struct fb_tilemap *map)
 {
@@ -33,8 +33,8 @@ static void text_copy(struct fb_info *info, struct fb_tilearea *a)
     spin_lock_irqsave(&p->text_lock, flags);
     for (i = 0; i < a->height; ++i) {
         row = a->dy > a->sy ? a->height - 1 - i : i;
-        memmove(p->cells + (a->dy + row) * 100 + a->dx,
-                p->cells + (a->sy + row) * 100 + a->sx, a->width * sizeof(u16));
+        memmove(p->cells + (a->dy + row) * PD_CELL_STRIDE + a->dx,
+                p->cells + (a->sy + row) * PD_CELL_STRIDE + a->sx, a->width * sizeof(u16));
     }
     text_changed(p); spin_unlock_irqrestore(&p->text_lock, flags);
 }
@@ -47,7 +47,7 @@ static void text_fill(struct fb_info *info, struct fb_tilerect *r)
     if (!text_rect(r->sx,r->sy,r->width,r->height)) return;
     spin_lock_irqsave(&p->text_lock, flags);
     for (y = 0; y < r->height; ++y) for (x = 0; x < r->width; ++x)
-        p->cells[(r->sy + y) * 100 + r->sx + x] = cell;
+        p->cells[(r->sy + y) * PD_CELL_STRIDE + r->sx + x] = cell;
     text_changed(p); spin_unlock_irqrestore(&p->text_lock, flags);
 }
 static void text_blit(struct fb_info *info, struct fb_tileblit *b)
@@ -60,7 +60,7 @@ static void text_blit(struct fb_info *info, struct fb_tileblit *b)
     spin_lock_irqsave(&p->text_lock, flags);
     for (y = 0; y < b->height && i < b->length; ++y)
         for (x = 0; x < b->width && i < b->length; ++x)
-            p->cells[(b->sy + y) * 100 + b->sx + x] = colour | (b->indices[i++] & 255);
+            p->cells[(b->sy + y) * PD_CELL_STRIDE + b->sx + x] = colour | (b->indices[i++] & 255);
     text_changed(p); spin_unlock_irqrestore(&p->text_lock, flags);
 }
 static void text_cursor(struct fb_info *info, struct fb_tilecursor *c)
@@ -69,7 +69,7 @@ static void text_cursor(struct fb_info *info, struct fb_tilecursor *c)
     unsigned long flags;
     spin_lock_irqsave(&p->text_lock, flags);
     p->cursor_x = c->sx; p->cursor_y = c->sy;
-    p->cursor_on = c->mode && c->shape != FB_TILE_CURSOR_NONE && c->sx < 100 && c->sy < 30;
+    p->cursor_on = c->mode && c->shape != FB_TILE_CURSOR_NONE && c->sx < p->columns && c->sy < p->rows;
     text_changed(p); spin_unlock_irqrestore(&p->text_lock, flags);
 }
 static int text_max(struct fb_info *info) { return 256; }
@@ -84,8 +84,8 @@ static int text_present(struct prodock_gpu *p)
     struct prodock_scene s = p->scene;
     unsigned long flags;
     unsigned i, bank = p->map_bank, atlas = p->atlas_bank;
-    unsigned cols = p->layout == PRODOCK_TERMINAL ? 100 : 50;
-    unsigned rows = p->layout == PRODOCK_TERMINAL ? 30 : 15;
+    unsigned cols = p->layout == PRODOCK_TERMINAL ? p->columns : p->columns / 2;
+    unsigned rows = p->layout == PRODOCK_TERMINAL ? p->rows : p->height / 32;
     int ret, cursor;
     bool dirty, font_dirty;
     u32 palette[16];
@@ -97,12 +97,12 @@ static int text_present(struct prodock_gpu *p)
     dirty = p->text_dirty; font_dirty = p->font_dirty;
     if (dirty) {
         memcpy(p->snapshot, p->cells, sizeof(p->cells));
-        memcpy(p->snapshot + 3000, p->debug_cells, sizeof(p->debug_cells));
+        memcpy(p->snapshot + PD_CELLS, p->debug_cells, sizeof(p->debug_cells));
         if (font_dirty) memcpy(p->font_snapshot, p->font, sizeof(p->font));
         memcpy(palette, p->text_palette, sizeof(palette));
         p->text_dirty = false; p->font_dirty = false;
     }
-    cursor = p->cursor_on ? p->cursor_y * 100 + p->cursor_x : -1;
+    cursor = p->cursor_on ? p->cursor_y * PD_CELL_STRIDE + p->cursor_x : -1;
     spin_unlock_irqrestore(&p->text_lock, flags);
     if (dirty) {
         bank ^= 1;
@@ -114,29 +114,31 @@ static int text_present(struct prodock_gpu *p)
         {
             unsigned part,x,y,half;
             bool full = !p->map_valid[bank] || p->map_columns[bank] != cols || p->map_rows[bank] != rows;
-            u16 *old = p->cell_shadow + bank * 4500;
-            void __iomem *dst = p->text_io + PD_MAP_OFFSET + bank * PD_MAP_BANK_BYTES;
+            u16 *old = p->cell_shadow + bank * PD_SNAPSHOT_CELLS;
+            void __iomem *dst = p->text_io + PD_MAP_OFFSET + bank * 4 * p->map_bytes;
             if (full) {
-                pd_text_map(p->maps, p->maps + PD_MAP_BYTES / 2, p->snapshot, cols, rows, cursor);
-                pd_text_map(p->maps + PD_MAP_BYTES, p->maps + PD_MAP_BYTES * 3 / 2,
-                            p->snapshot + 3000, 100, 15, -1);
-                memcpy_toio(dst, p->maps, PD_MAP_BANK_BYTES);
+                pd_text_map_sized(p->maps, p->maps + p->map_bytes / 2, p->snapshot, cols, rows, cursor,
+                                  PD_CELL_STRIDE, p->map_width, p->map_height);
+                pd_text_map_sized(p->maps + p->map_bytes, p->maps + p->map_bytes * 3 / 2,
+                            p->snapshot + PD_CELLS, p->columns, p->debug_rows, -1,
+                            PD_CELL_STRIDE, p->map_width, p->map_height);
+                memcpy_toio(dst, p->maps, (4 * p->map_bytes));
             }
             /* Compare character pairs, not entire 64 KiB tile maps. Each
              * bank keeps its OWN effective cells (including the cursor).
              * A changed pair needs four aligned DDR writes, no readback. */
             for (part = 0; part < 2; ++part) {
-                unsigned base = part ? 3000 : 0;
-                unsigned width = part ? 100 : cols, height = part ? 15 : rows;
+                unsigned base = part ? PD_CELLS : 0;
+                unsigned width = part ? p->columns : cols, height = part ? p->debug_rows : rows;
                 for (y = 0; y < height; ++y) for (x = 0; x < width; x += 2) {
-                    unsigned index = base + y * 100 + x;
-                    u16 a = pd_text_cell(p->snapshot[index], !part && cursor == (int)(y * 100 + x));
-                    u16 b = pd_text_cell(p->snapshot[index + 1], !part && cursor == (int)(y * 100 + x + 1));
+                    unsigned index = base + y * PD_CELL_STRIDE + x;
+                    u16 a = pd_text_cell(p->snapshot[index], !part && cursor == (int)(y * PD_CELL_STRIDE + x));
+                    u16 b = pd_text_cell(p->snapshot[index + 1], !part && cursor == (int)(y * PD_CELL_STRIDE + x + 1));
                     if (!full && old[index] == a && old[index + 1] == b) continue;
                     if (!full) for (half = 0; half < 2; ++half) {
-                        unsigned off = part * 2 * PD_MAP_BYTES + ((y * 2 + half) * 128 + x) * 2;
+                        unsigned off = part * 2 * p->map_bytes + ((y * 2 + half) * p->map_width + x) * 2;
                         writel_relaxed(pd_text_pair(a,b,half,0), dst + off);
-                        writel_relaxed(pd_text_pair(a,b,half,1), dst + off + PD_MAP_BYTES);
+                        writel_relaxed(pd_text_pair(a,b,half,1), dst + off + p->map_bytes);
                     }
                     old[index] = a; old[index + 1] = b;
                 }
@@ -152,13 +154,15 @@ static int text_present(struct prodock_gpu *p)
     memset(s.layers + 12, 0, 4 * sizeof(s.layers[0]));
     if (p->layout != PRODOCK_GAME) {
         if (s.format == 7) s.format = 3;
-        pd_text_layer(s.layers[12], bank, 0, atlas, p->layout == PRODOCK_SPLIT ? 400 : 0,
-                       0, cols * 8, rows * 16);
-        pd_text_layer(s.layers[13], bank, 1, atlas, p->layout == PRODOCK_SPLIT ? 400 : 0,
-                       0, cols * 8, rows * 16);
+        pd_text_layer_sized(s.layers[12], bank, 0, atlas, p->layout == PRODOCK_SPLIT ? p->width / 2 : 0,
+                       0, cols * 8, p->layout == PRODOCK_TERMINAL ? p->height : p->height / 2,
+                       p->map_w_log2, p->map_h_log2);
+        pd_text_layer_sized(s.layers[13], bank, 1, atlas, p->layout == PRODOCK_SPLIT ? p->width / 2 : 0,
+                       0, cols * 8, p->layout == PRODOCK_TERMINAL ? p->height : p->height / 2,
+                       p->map_w_log2, p->map_h_log2);
         if (p->layout == PRODOCK_SPLIT) {
-            pd_text_layer(s.layers[14], bank, 2, atlas, 0, 240, 800, 240);
-            pd_text_layer(s.layers[15], bank, 3, atlas, 0, 240, 800, 240);
+            pd_text_layer_sized(s.layers[14], bank, 2, atlas, 0, p->height / 2, p->width, p->height / 2, p->map_w_log2, p->map_h_log2);
+            pd_text_layer_sized(s.layers[15], bank, 3, atlas, 0, p->height / 2, p->width, p->height / 2, p->map_w_log2, p->map_h_log2);
         }
     }
     s.layers_enabled = 1;
@@ -199,12 +203,14 @@ static long desktop_ioctl(struct file *file, unsigned int cmd, unsigned long arg
     void __user *user = (void __user *)arg;
     unsigned long flags;
     int ret = 0;
+    if (cmd == PRODOCK_DISPLAY_GEOMETRY)
+        return copy_to_user(user, &p->geometry, sizeof(p->geometry)) ? -EFAULT : 0;
     if (cmd == PRODOCK_DISPLAY_INFO) {
         struct prodock_display_info s;
         mutex_lock(&p->lock);
         s = (struct prodock_display_info){ .mode = p->layout,
-            .columns = p->layout == PRODOCK_TERMINAL ? 100 : 50,
-            .rows = p->layout == PRODOCK_TERMINAL ? 30 : 15,
+            .columns = p->layout == PRODOCK_TERMINAL ? p->columns : p->columns / 2,
+            .rows = p->layout == PRODOCK_TERMINAL ? p->rows : p->height / 32,
             .text_updates = p->text_updates, .game_presents = p->game_presents,
             .sent_lo = (u32)p->sent, .sent_hi = p->sent >> 32,
             .frames = readl(p->display + 24), .done = readl(p->accel + 8),
@@ -223,7 +229,15 @@ static long desktop_ioctl(struct file *file, unsigned int cmd, unsigned long arg
         struct prodock_debug_text *s = memdup_user(user, sizeof(*s));
         if (IS_ERR(s)) return PTR_ERR(s);
         spin_lock_irqsave(&p->text_lock, flags);
-        memcpy(p->debug_cells, s->cells, sizeof(p->debug_cells)); text_changed(p);
+        /* ABI 1 dashboard remains 100x15. Centre it in the wider native
+         * debug panel; the surrounding cells stay opaque black. */
+        {
+            unsigned x, y, ox = (p->columns - 100) / 2, oy = (p->debug_rows - 15) / 2;
+            for (y = 0; y < PD_DEBUG_CELLS; ++y) p->debug_cells[y] = 0x0720;
+            for (y = 0; y < 15; ++y) for (x = 0; x < 100; ++x)
+                p->debug_cells[(y + oy) * PD_CELL_STRIDE + x + ox] = s->cells[y * 100 + x];
+        }
+        text_changed(p);
         spin_unlock_irqrestore(&p->text_lock, flags);
         kfree(s); return 0;
     }
@@ -236,8 +250,8 @@ static long desktop_ioctl(struct file *file, unsigned int cmd, unsigned long arg
         console_lock();
         lock_fb_info(p->fb);
         v = p->fb->var;
-        v.xres = v.xres_virtual = s.mode == PRODOCK_TERMINAL ? 800 : 400;
-        v.yres = v.yres_virtual = s.mode == PRODOCK_TERMINAL ? 480 : 240;
+        v.xres = v.xres_virtual = s.mode == PRODOCK_TERMINAL ? p->width : p->width / 2;
+        v.yres = v.yres_virtual = s.mode == PRODOCK_TERMINAL ? p->height : p->height / 2;
         v.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_ALL;
         ret = fbcon_modechange_possible(p->fb, &v);
         if (!ret) ret = fb_set_var(p->fb, &v);
@@ -272,15 +286,17 @@ static int text_init(struct prodock_gpu *p, struct platform_device *pdev)
         0x5555ff,0xff55ff,0x55ffff,0xffffff};
     if (!f || f->width != 8 || f->height != 16) return -ENODEV;
     p->text_io = devm_ioremap(&pdev->dev, PD_TEXT_BASE, 0x200000);
-    p->usb = devm_platform_ioremap_resource(pdev, 2);
-    if (IS_ERR(p->usb)) return PTR_ERR(p->usb);
-    if (readl(p->usb) != 0x554d5343) return -ENODEV;
-    p->atlas = vzalloc(PD_ATLAS_BYTES); p->maps = vzalloc(PD_MAP_BANK_BYTES);
-    p->cell_shadow = vzalloc(2 * 4500 * sizeof(u16));
+    if (platform_get_resource(pdev, IORESOURCE_MEM, 2)) {
+        p->usb = devm_platform_ioremap_resource(pdev, 2);
+        if (IS_ERR(p->usb)) return PTR_ERR(p->usb);
+        if (readl(p->usb) != 0x554d5343) return -ENODEV;
+    }
+    p->atlas = vzalloc(PD_ATLAS_BYTES); p->maps = vzalloc((4 * p->map_bytes));
+    p->cell_shadow = vzalloc(2 * PD_SNAPSHOT_CELLS * sizeof(u16));
     if (!p->text_io || !p->atlas || !p->maps || !p->cell_shadow) return -ENOMEM;
     memcpy(p->font, f->data, sizeof(p->font));
-    for (i = 0; i < 3000; ++i) p->cells[i] = 0x0720;
-    for (i = 0; i < 1500; ++i) p->debug_cells[i] = 0x0720;
+    for (i = 0; i < PD_CELLS; ++i) p->cells[i] = 0x0720;
+    for (i = 0; i < PD_DEBUG_CELLS; ++i) p->debug_cells[i] = 0x0720;
     for (i = 0; i < 16; ++i) {
         u32 c = colours[i];
         p->text_palette[i] = ((c >> 18) << 12) | (((c >> 10) & 63) << 6) | ((c >> 2) & 63);

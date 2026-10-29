@@ -1,0 +1,157 @@
+**Analyse statique uniquement** : aucun test exécuté, aucune modification appliquée. Le candidat R6 n’est pas touché ; les patches ci-dessous sont des propositions pour une copie d’audit.
+
+## 1. Faits confirmés par le packet
+
+| Point | Verdict | Preuves |
+|---|---|---|
+| `mini_bytes` est cumulatif sur la vie du renderer, pas par frame | Confirmé. Le delta par frame est bien calculé. | `mini_ui.c:262-272` incrémente `r->mini_bytes` uniquement lors d’uploads réels ; `main.c:173,183` capture `bytes_before` puis ajoute `renderer.mini_bytes-bytes_before`. |
+| `ui_bytes` ne couvre que les plans mini UI | Confirmé. | `mini_ui.c:12-13,262-272` ; les préchargements shooter sont hors `mini_bytes` (`render.c:154`). `hud_bytes` existe (`render.h:51`) mais n’est pas dans `LUMA3D_ACTIVITY_COST`. |
+| SUBMIT et PRESENT sont des timers disjoints | Confirmé. | `render.c:36-39` pour `feed_seconds` autour de `PRODOCK_SUBMIT` ; `render.c:310,446` pour `present_seconds` autour de `PRODOCK_PRESENT`. `main.c:171-182` soustrait les deux du temps de préparation. |
+| `triangles` est remis à zéro à chaque frame | Confirmé. | `render.c:300` branche arcade, `render.c:312` branche monde ; `main.c:186` ajoute la valeur par frame. |
+| Les logs/pauses utilisateur restent comptés dans l’intervalle completion-to-completion | Confirmé pour `frame`, l’histogramme, `frame_sum`, `max_frame`, `slow_frames`. | `main.c:194-198` calcule `frame_done-last_frame_done` ; `last_frame_done` est mis à jour avant les logs (`main.c:200`), donc les logs de la frame N tombent dans l’intervalle de la frame N+1 (`main.c:201-217`). |
+| Bornes d’histogramme | Confirmé. | `main.c:195` : bin `k<255` = `[4k,4k+4)` ms ; bin 255 = `[1020 ms, +∞)`. `p95/p99` sont des bornes supérieures nearest-rank (`main.c:219-225`) ; `p95==1024` est le sentinelle overflow, avec flags séparés. |
+| 16 layers UAPI, 12 comptés | UAPI : 16 (`prodock-uapi.h:19`). `main.c:189` compte seulement 0..11. Les producteurs fournis utilisent 0..3 (`mini_ui.c:293`, `shooter_render.c:49,58-59,85`). Donc pas de sous-comptage pour le code fourni. |
+| Accumulateurs d’activité | `bytes`, `commands`, `batches`, `triangles` sont en `unsigned long long` (`main.c:90-91`) et alimentés par des deltas de 32 bits par frame (`main.c:183-186`) : correct sur RV32, y compris après wrap, tant qu’un delta de frame reste < 2³². |
+| `frames`/histogramme total | 32 bits, mais `--frames` et `warmup` sont plafonnés à 1 000 000 (`main.c:23,36`) ; pas d’overflow dans le mode benchmark supporté. |
+
+## 2. Hypothèses contredites à écarter
+
+- **« `mini_bytes` est un compteur par frame, donc double comptage »** : faux. C’est un cumul ; le delta est explicitement pris (`main.c:173,183`). Le wrap modulo 2³² de la soustraction est correct pour un delta de frame normal, puis additionné en 64 bits.
+- **« SUBMIT et PRESENT se chevauchent »** : faux. Les deux timers sont autour d’appels distincts et `prepare` soustrait les deux (`main.c:171-182`).
+- **« `triangles` est cumulatif entre frames »** : faux. Reset aux deux entrées de `l3_render_frame` (`render.c:300,312`).
+- **« Les logs sont exclus des compteurs »** : faux pour `frame`/histogramme/`max_frame`. Nuance importante : ils ne sont pas dans la ventilation `simulation+preparation+submit+present` (voir §3.2).
+- **« `ui_bytes` mesure toute la DDR ou tous les HUD »** : faux. Seuls les uploads mini UI sont comptés.
+- **« La sauvegarde contamine PP1 `--showcase` »** : non applicable. `--showcase` interdit `--save` et `--benchmark` (`main.c:41`) ; la sauvegarde est de toute façon exclue du benchmark (`main.c:42`).
+- **« 16 layers UAPI ⇒ `max_layers` est faux »** : non pour les producteurs fournis, qui utilisent 0..3. La propriété « 0..11 application-owned » n’est pas démontrée par le packet seul ; c’est une convention externe.
+
+## 3. Défauts réels ou conditionnels
+
+### 3.1 Overflow 32 bits des compteurs finaux — réel mais conditionnel
+
+Les accumulateurs par activité sont sûrs, mais deux sorties finales ne le sont pas :
+
+- `LUMA3D_RESULT` calcule `renderer.total_commands-measured_commands` et `renderer.total_flushes-measured_batches` en 32 bits (`main.c:243`). Si le total mesuré dépasse 2³², le résultat est tronqué modulo 2³².
+- `LUMA3D_BENCHMARK_COUNTERS` (`main.c:233-234`) imprime des deltas 32 bits depuis `benchmark_gpu`/`benchmark_display` pour vertices, triangles, culled, intersections, slivers, feed/wait/cache/present. Seuls les cycles sont accumulés en 64 bits par intervalle (`main.c:214,233`). Un benchmark long peut dépasser 2³² pour les autres compteurs.
+
+**Patch minimal, copie d’audit uniquement** :
+
+```c
+/* main.c, état d'audit */
+uint64_t session_commands = 0, session_batches = 0;
+uint64_t vertices_total = 0, triangles_total = 0, culled_total = 0;
+uint64_t intersections_total = 0, slivers_total = 0;
+uint64_t feed_us_total = 0, wait_us_total = 0, cache_us_total = 0, present_us_total = 0;
+
+/* après un l3_render_frame réussi */
+session_commands += (uint32_t)(renderer.total_commands - commands_before);
+session_batches  += (uint32_t)(renderer.total_flushes  - batches_before);
+
+/* dans le bloc LUMA3D_WINDOW, après les cycles */
+vertices_total      += (uint32_t)(gpu.vertices      - previous_gpu.vertices);
+triangles_total     += (uint32_t)(gpu.triangles     - previous_gpu.triangles);
+culled_total        += (uint32_t)(gpu.culled        - previous_gpu.culled);
+intersections_total += (uint32_t)(gpu.intersections - previous_gpu.intersections);
+slivers_total       += (uint32_t)(gpu.slivers       - previous_gpu.slivers);
+feed_us_total       += (uint32_t)(display.feed_us   - previous_display.feed_us);
+wait_us_total       += (uint32_t)(display.wait_us   - previous_display.wait_us);
+cache_us_total      += (uint32_t)(display.cache_us  - previous_display.cache_us);
+present_us_total    += (uint32_t)(display.present_us- previous_display.present_us);
+
+/* au warmup benchmark : remettre aussi session_* et *_total à zéro */
+
+/* au final benchmark : ajouter le dernier intervalle depuis previous_*, pas depuis benchmark_* */
+vertices_total += (uint32_t)(gpu.vertices - previous_gpu.vertices);
+/* ... idem pour les autres ... */
+printf("LUMA3D_BENCHMARK_COUNTERS ... vertices=%llu ...",
+       (unsigned long long)vertices_total /* ... */);
+
+/* LUMA3D_RESULT */
+printf("... commands=%llu batches=%llu ...",
+       (unsigned long long)session_commands,
+       (unsigned long long)session_batches);
+```
+
+Limite résiduelle : si un **intervalle de 5 s** contient lui-même plus de 2³² incréments, le delta 32 bits est encore ambigu. Pour être totalement robuste, échantillonner plus souvent ou accumuler par frame. Pour le FPGA visé, l’accumulation par intervalle est déjà un correctif minimal raisonnable.
+
+### 3.2 Ventilation incomplète des pauses — conditionnel selon la sémantique
+
+Les pauses sont bien dans `frame`/histogramme, mais pas dans les quatre composantes :
+
+- `sim_elapsed` commence après l’entrée terminale (`main.c:155`) ;
+- `prepare` commence à `render_started` (`main.c:171,181`) ;
+- les logs de la frame précédente (`main.c:201-217`) et l’entrée clavier (`main.c:109-154`) sont donc **hors** de `simulation`, `preparation`, `submit`, `present`.
+
+Conséquence : `simulation + preparation + submit + present < frame_sum`, l’écart étant les logs/input/report. Ce n’est pas un bug de l’histogramme, mais c’est un piège si la ventilation est censée partitionner le frame.
+
+**Patch minimal** : ajouter un champ `residual` ou intégrer le pré-sim dans `preparation`.
+
+```c
+double frame_total = frame_done - last_frame_done;
+double prepare = frame_done - render_started - feed_delta - present_delta;
+/* ... */
+activity_cost[mode_cost].residual +=
+    frame_total - sim_elapsed - prepare - feed_delta - present_delta;
+/* puis double frame = frame_total; pour l'histogramme */
+```
+
+À imprimer sous le nom `other_or_input_ms` ou `residual`. Ne pas modifier R6 ; c’est un ajout d’audit.
+
+### 3.3 Attribution au frame de transition — limite confirmée
+
+`mode_cost` est lu après la simulation et avant le rendu (`main.c:173`). Si l’activité change pendant `l3_game_step`/`l3_showcase_step`, tout le temps de simulation du frame est attribué au **mode final**, et le rendu au mode final. C’est correct en régime stable, mais pas si la spec exige une attribution par intervalle d’activité. En non-host, plusieurs sous-pas de 1/60 s peuvent traverser une transition (`main.c:161`) : tout est agrégé au mode final.
+
+Ce n’est pas un défaut à corriger dans R6 sans décision de spec. Si nécessaire, le correctif minimal est de chronométrer chaque sous-pas et de l’attribuer au mode actif avant le pas, ou au moins de compter `transition_frames`.
+
+### 3.4 `adviser` est inclus dans `simulation`
+
+`sim_started` précède le pas de showcase (`main.c:155`), et `adviser` mesure une partie de ce même pas (`main.c:180`). Donc `adviser` est un sous-ensemble de `simulation`. Ce n’est pas un double comptage dans le code, mais toute somme naïve des champs est fausse. Une ligne de documentation ou un champ `simulation_excl_adviser` suffit.
+
+### 3.5 `over_33ms` n’est pas exactement 33 ms
+
+`slow_frames` utilise `frame > 1.0/30`, soit > 33,333 ms (`main.c:197`), alors que le champ s’appelle `over_33ms`. Écart de nom, pas de compteur. À renommer `over_33_3ms` ou à changer le seuil si le contrat est 33,0 ms.
+
+## 4. Tests déterministes fake-clock utiles
+
+### T1 — Overflow final des commandes/benchmark
+
+But : prouver que les sorties finales ne tronquent pas.
+
+- Remplacer `seconds()` par une horloge scriptée qui déclenche deux fenêtres de rapport (`0`, `5.1`, `10.2` s).
+- Stubber les compteurs : `total_commands` passe de `0` à `0xFFFFFF00`, puis à `0x00000200` ; de même pour `gpu.vertices` et `display.present_us`.
+- Vérifier que `session_commands`/`vertices_total` valent la somme 64 bits attendue, alors que l’ancien calcul `total_commands-measured_commands` imprimerait `0x200`.
+- Aucun matériel nécessaire.
+
+### T2 — Pause hors ventilation
+
+But : prouver l’écart `frame_sum - (sim+prepare+submit+present)`.
+
+- Horloge scriptée : frame N à `t=0.010`, log post-frame jusqu’à `t=0.110`, frame N+1 jusqu’à `t=0.126`.
+- Vérifier que l’histogramme de la frame N+1 tombe dans le bin attendu et que `residual` vaut ≈ 0,100 s après patch. Avant patch, le test doit constater que la somme des quatre composantes est inférieure de 0,100 s au `frame`.
+- C’est le test discriminant du §3.2.
+
+### T3 — Transition d’activité
+
+Uniquement si la spec exige une attribution infra-frame :
+
+- Horloge scriptée, deux sous-pas de 1/60 s ; le premier en mode A, le second en mode B.
+- Vérifier la répartition A/B. Le code actuel mettra tout le temps de simulation dans B. Sans cette exigence de spec, ne pas ajouter de test : c’est une limite documentée, pas un bug.
+
+### T4 — Bornes d’histogramme
+
+Pas de test nécessaire pour un défaut actuel : par lecture, les bornes sont cohérentes. Si on touche au calcul, ajouter un garde-fou minimal avec des deltas de `3,999 ms`, `4,000 ms`, `1019,999 ms`, `1020,000 ms` et vérifier bins `0,1,254,255` + `p95_overflow`.
+
+## 5. Preuves manquantes
+
+- `luma3d_activities.h` absent : impossible de confirmer que `active` ne peut jamais valoir 9 ; `main.c:177` ignorerait alors la frame.
+- `hud.c` absent : `main.c:189` lit `renderer.last_scene`, mis à jour dans `mini_ui.c:293` pour l’arcade, mais l’origine du `last_scene` en mode monde n’est pas fournie. Donc `max_layers` monde n’est pas vérifiable.
+- `luma3d_showcase.h`/`showcase.c` absents : sémantique exacte de `adviser_seconds` et de `l3_showcase_presented` non vérifiable.
+- Contrat noyau/driver absent : « layers 0..11 application-owned » et signification exacte de `layers[][6]&1` non démontrées.
+- Pas de preuve d’exécution : aucun résultat de test réel n’est revendiqué ici.
+
+## 6. Conclusion
+
+- Les soupçons sur `mini_bytes`, le chevauchement SUBMIT/PRESENT, le cumul de `triangles`, l’exclusion des logs de l’histogramme et le périmètre des `ui_bytes` sont **contredits** par le code fourni.
+- Le défaut concret le plus net est l’**overflow 32 bits des compteurs finaux** (`main.c:233-234,243`), corrigeable sans toucher R6 par des accumulateurs 64 bits dans une copie d’audit.
+- La ventilation `simulation/preparation/submit/present` ne partitionne pas le frame à cause des logs/input hors composantes ; à corriger seulement si cette partition est contractuelle.
+- L’attribution par activité est correcte en régime stable, mais frame-level au voisinage des transitions.
+- Le FPS imprimé (`main.c:243`) est un débit wall-clock incluant les logs et les rapports ; il ne doit pas être utilisé comme preuve de FPS de rendu pur. Aucune conclusion FPS arbitraire n’est tirée de ce packet.

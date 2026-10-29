@@ -1,0 +1,97 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "yue2_3b_int8_convrot.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "YuE2GenerateMusic",
+    "inputs": {
+      "clip": [
+        "1",
+        1
+      ],
+      "style": "Original instrumental fantasy adventure game soundtrack, intimate acoustic ensemble, warm living world, tender curiosity and ancient mystery, expressive human phrasing, organic room acoustics, clear melody with space between phrases, restrained dynamics, no vocals, no singing, no speech, no choir, no cinematic trailer hits. soft clarinet, nylon guitar, mellow vibraphone, muted hand percussion, tidal islands, gently rocking phrases, horizon and salt air, sparse alternate arrangement, long breathing spaces, melody passed between instruments, quiet contrasting middle section",
+      "lyrics": "",
+      "abc": "X:1\nT:L'Archipel des Marées — chemins lointains\nM:4/4\nL:1/8\nQ:1/4=72\nK:G\n\"G\"G2 d2 e2 g2 | \"C\"e3 d c2 A2 | \"G\"B2 d2 g3 d | \"D\"A4 z4 |\n\"Em\"e2 g2 a2 g2 | \"C\"e3 d c2 A2 | \"D\"B2 A2 G2 A2 | \"G\"G6 z2 |]\n",
+      "seed": 2026102307,
+      "mode": "full",
+      "max_duration": 96,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 100,
+      "repetition_penalty": 1.2,
+      "cfg_scale": 1.0
+    }
+  },
+  "3": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "2",
+        0
+      ]
+    }
+  },
+  "4": {
+    "class_type": "EmptyYuE2LatentAudio",
+    "inputs": {
+      "seconds": [
+        "2",
+        1
+      ],
+      "batch_size": 1
+    }
+  },
+  "5": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "4",
+        0
+      ],
+      "seed": 2026102307,
+      "steps": 32,
+      "cfg": 1.0,
+      "sampler_name": "dpm_2",
+      "scheduler": "sgm_uniform",
+      "denoise": 1.0
+    }
+  },
+  "6": {
+    "class_type": "VAEDecodeAudio",
+    "inputs": {
+      "samples": [
+        "5",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    }
+  },
+  "7": {
+    "class_type": "SaveAudio",
+    "inputs": {
+      "audio": [
+        "6",
+        0
+      ],
+      "filename_prefix": "luma_yue2/marees_explore_b"
+    }
+  }
+}

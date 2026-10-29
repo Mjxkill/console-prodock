@@ -1,0 +1,59 @@
+LUMA r3 — essai Pro Dock borné, 24 octobre 2026
+
+Résultat : 600 images après 120 images d’échauffement, 14,318 s,
+41,90 FPS moyens. Aucun trafic UART pendant la fenêtre mesurée.
+p95 <= 37,4 ms ; p99 <= 47,9 ms ; maximum 73,306 ms.
+164/600 images dépassent 33,333 ms. La cible de cadence régulière
+à 30 FPS reste NON atteinte selon ce seuil ; la moyenne seule ne suffit pas.
+
+Le décor, le héros et l’interface correspondent au village_r6 PC : terrains
+et silhouettes ComfyUI, routes courbes, arbres au premier plan, HUD compact.
+Les couches 12..15 et les indices de palette 240..255 restent réservés
+à Linux. Le jeu emploie les couches 0..11 et les priorités sprites <12.
+
+Couverture réelle de cet essai
+- Région 0, déplacement automatique et tirs dans le moteur de jeu réel.
+- 860 pas de simulation, 4 474 commandes, maximum 20 sprites matériels.
+- Campagne de 16 cartes compilée, mais seul le paquet de la région 0 a
+  été transféré. Les missions/sanctuaires n’ont pas été joués sur carte.
+- Aucun son matériel : backend Linux silencieux.
+- Aucune validation visuelle humaine de l’écran LCD encore recueillie.
+- La Neo n’a pas été utilisée ; tous ses essais matériels restent en attente.
+
+Chargement (avant mesure)
+Commun : 0,311 s CPU, 0,309 s copie + vérification VRAM.
+Région 0 : 6,816 s CPU (lecture 0,616 ; décompression 4,880 ; CRC 1,284),
+puis 5,809 s copie + vérification VRAM. LZ4HC réduit le transport à
+1 578 989 octets sans modifier les pixels décompressés.
+
+Temps de phases, cumulés sur les 600 images
+Simulation 0,632347 s ; fond 0,056766 s ; scène 0,284896 s ;
+HUD 0,184025 s ; dernier submit 6,573875 s ; present 6,067593 s.
+Les phases peuvent inclure un flush interne si une future scène dépasse
+64 commandes ; le compteur LUMA_FLUSH suit tous les appels séparément.
+Deltas pilote : feed 143645 us ; wait 4664958 us ; cache 552783 us ;
+present 5002481 us ; text 306300 us. cache_us couvre submit, pas le cache
+interne de present dans R17.
+
+Identités immuables
+ELF : 52230d198966b174820ba5523747498bcb9905ac9ca6aa90c22b1e0c25b21a85
+Commun : 076a12da0adf27ced0f26f76285bb6c9f80e3c2b93ed3593a9051fcca756423d
+Région 0 : b95935d168e1b214a1f73d52076a6cd5341f2911016a40e4911c889ceadc010c
+FPGA de référence G22r0 :
+fbbea9c357d0c4d5b33c3c4a7e54f9ed0ff8e31cc3fad1ac9dc1771f8e8cba5f
+Linux : 6.12.112-prodock / NEBULA R17, ABI 1, caps 0x1ff.
+L’identité FPGA active repose sur la continuité de la restauration connue
+et le hash de sa référence ; aucun registre de hash matériel n’est lu.
+
+Conservation de la carte
+Verrou /tmp/prodock-diagnostic.lock + ouverture série exclusive.
+Tous les fichiers du jeu sont dans /tmp ; aucune écriture SD, aucun flash,
+aucun remplacement FPGA/noyau/golden. Transferts avec CRC par bloc et final.
+NEBULA a été arrêté seulement après les transferts complets et vérifiés.
+Après l’essai, NEBULA a été relancé et son processus vérifié après 5 s.
+L’état final confirme mode=1, errors=0, uf=0, invalid=0, sprites=0, fault=0.
+
+Preuves : manifest.json, sources.tar.gz, generated_source_manifest.json,
+results/result.json, results/poll_00.log, results/gpu_after.log et
+results/verify_nebula.log. Le code courant peut contenir des corrections
+ultérieures : ne pas lui attribuer automatiquement cette qualification.

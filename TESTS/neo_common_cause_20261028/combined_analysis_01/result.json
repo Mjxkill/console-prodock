@@ -1,0 +1,168 @@
+{
+  "hardware_access": false,
+  "original_result_changed": false,
+  "original_protocol_passed": false,
+  "original_qualification_status": "FAIL",
+  "original_errors": [
+    "MATRIX counters_or_completion",
+    "Matrix counters failed"
+  ],
+  "finding": "The matrix counter FAIL is a host diagnostic bug: received was read from the old snapshot before requesting the next capture.",
+  "local_command_observation_supported": true,
+  "properties": {
+    "live_host_increment8": true,
+    "fresh_snapshot_received_increment8": true,
+    "fresh_snapshot_done_increment1": true,
+    "no_command_bad_or_lost": true,
+    "final_counters_stable": true,
+    "matrix_header_observed": true,
+    "all_engine_resets_released_at_snapshots": true,
+    "stale_received_matches_previous_capture": true
+  },
+  "gpu_snapshots": {
+    "GPU_BEFORE": {
+      "sequence": 1,
+      "host_words": 0,
+      "received_words": 0,
+      "last_received_word": 0,
+      "done": 0,
+      "engine_resetn": 15,
+      "child_resetn": 255,
+      "mrst": 3,
+      "command_word": 0,
+      "queue_valid": false,
+      "queue_pop": true,
+      "command_we": false,
+      "command_full": false,
+      "blitter_busy": false,
+      "ext_start": false,
+      "ext_active": false,
+      "command_bad": 0,
+      "command_lost": 0,
+      "blitter_wp": 0,
+      "blitter_rp": 0,
+      "opcode": 0,
+      "blitter_reset": false,
+      "blitter_cmd_we": false,
+      "blitter_full": false,
+      "blitter_available": false,
+      "state": 1,
+      "state_bits": [
+        0
+      ],
+      "queue_data": 0,
+      "extended_word0": 0
+    },
+    "GPU_AFTER_MATRIX": {
+      "sequence": 2,
+      "host_words": 8,
+      "received_words": 8,
+      "last_received_word": 0,
+      "done": 1,
+      "engine_resetn": 15,
+      "child_resetn": 255,
+      "mrst": 3,
+      "command_word": 0,
+      "queue_valid": false,
+      "queue_pop": true,
+      "command_we": false,
+      "command_full": false,
+      "blitter_busy": false,
+      "ext_start": false,
+      "ext_active": false,
+      "command_bad": 0,
+      "command_lost": 0,
+      "blitter_wp": 8,
+      "blitter_rp": 8,
+      "opcode": 31,
+      "blitter_reset": false,
+      "blitter_cmd_we": false,
+      "blitter_full": false,
+      "blitter_available": false,
+      "state": 1,
+      "state_bits": [
+        0
+      ],
+      "queue_data": 0,
+      "extended_word0": 520093696
+    },
+    "GPU_FINAL": {
+      "sequence": 3,
+      "host_words": 8,
+      "received_words": 8,
+      "last_received_word": 0,
+      "done": 1,
+      "engine_resetn": 15,
+      "child_resetn": 255,
+      "mrst": 3,
+      "command_word": 0,
+      "queue_valid": false,
+      "queue_pop": true,
+      "command_we": false,
+      "command_full": false,
+      "blitter_busy": false,
+      "ext_start": false,
+      "ext_active": false,
+      "command_bad": 0,
+      "command_lost": 0,
+      "blitter_wp": 8,
+      "blitter_rp": 8,
+      "opcode": 31,
+      "blitter_reset": false,
+      "blitter_cmd_we": false,
+      "blitter_full": false,
+      "blitter_available": false,
+      "state": 1,
+      "state_bits": [
+        0
+      ],
+      "queue_data": 0,
+      "extended_word0": 520093696
+    }
+  },
+  "scan_snapshots": {
+    "SCAN_BEFORE": {
+      "sequence": 1,
+      "accepted_by_queue": 0,
+      "accepted_by_arbiter": 0,
+      "returned": 0,
+      "last_address": 0,
+      "flags_hex": "0x53434e15"
+    },
+    "SCAN_FINAL": {
+      "sequence": 2,
+      "accepted_by_queue": 0,
+      "accepted_by_arbiter": 0,
+      "returned": 0,
+      "last_address": 0,
+      "flags_hex": "0x53434e15"
+    }
+  },
+  "video_frames_delta_T0_T1200": 89,
+  "host_usb": {
+    "devices": [],
+    "host_time_ns": 1793191143688240907,
+    "usb_io_attempted": false,
+    "hs_present": false,
+    "diag_status": "NO_DEVICE",
+    "physical_identity_not_attested": true
+  },
+  "utw1_all_four_coherent": true,
+  "limits": [
+    "No GPU rendering, DDR transfer, Linux boot, or USB functionality is qualified.",
+    "Reset release is observed at three snapshots, not proven continuously.",
+    "No USB sysfs device was observed; this does not establish a reset cause.",
+    "Global STA remains FAIL; local command completion does not waive it.",
+    "Video frame counter advancement does not attest the HDMI picture or physical clock frequency.",
+    "The original failed result is preserved; this is a separate interpretation with provenance."
+  ],
+  "inputs": {
+    "TESTS/neo_common_cause_20261028/combined_gpu_usb_prepared_01/combined_20261028_133840/result.json": "8d32a697110990d3185d0e43f041c4903624339892223d0bc7af8771d05e2649",
+    "TESTS/neo_common_cause_20261028/combined_gpu_usb_prepared_01/combined_20261028_133840/candidate_utw1_capture.log": "83f3afc8ee8db0ceb1c974d1bf7fa4902ed9072046bda68bf93697961bfde425",
+    "tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/boards/neo/neo_gpu_debug.v": "e4fe28e1aac8386e31fde8b2c3ec1087dbe37dcd712c23b96684ac9dd1b4857c",
+    "tools/neo/probe_gpu_debug.py": "9890305efe6a1ae7207b364f3f1c4fb0a7a2d8a4011fbe975557dbfacb5b9c21",
+    "tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/boards/neo/neo_scan_observe.v": "482e7c61b6b20397de70fced65b5e23fce6ed94b22f761acaa62069cc50f2aee",
+    "tang/impl/console_neo_n56r22r1_utw1_reports/source/tang/rtl/video/gpu_accel.v": "0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e",
+    "TESTS/neo_common_cause_20261028/combined_analysis_01/analyze.py": "041d53dd8ff2460efc7939b58179fab436ea8e1a3616ae009f75987948eb286c"
+  }
+}

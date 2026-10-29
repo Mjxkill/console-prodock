@@ -46,7 +46,10 @@ module gpu_accel #(
         else if(read_wait)read_wait<=0;
         else if(hready)read_wait<=hsel && htrans[1] && !hwrite;
     end
-    wire write_fire = bus_write && hready && hresetn;
+    // Used only at font addresses 14/18, which cannot be a FIFO command.
+    // Queue fullness therefore cannot stall these writes. Keeping FULL out
+    // of this enable avoids a long path across the AHB/font regions.
+    wire write_fire = bus_write && !read_wait && hresetn;
     reg [11:0] font_write_addr;
     always @(posedge hclk) begin
         if (!hresetn) begin bus_addr <= 0; bus_write <= 0; bus_command<=0; font_write_addr <= 0; end
@@ -106,7 +109,9 @@ module gpu_accel #(
     generate for(reg_index=0;reg_index<104;reg_index=reg_index+1)begin: read_decode
         always @(posedge hclk)
             if(!hresetn)read_select[reg_index]<=(reg_index%26==0);
-            else if(hready)read_select[reg_index]<=(haddr[7:0]==(reg_index%26)*4);
+            // Only reads need this selector held through their data wait.
+            // A stalled FIFO write has no CSR response to preserve.
+            else if(!read_wait)read_select[reg_index]<=(haddr[7:0]==(reg_index%26)*4);
     end endgenerate
     // Comme HREADY, le statut utilise FULL enregistré. Le maître partage
     // HRESETn : toute lecture valide voit FULL == !READY, sans propager
@@ -175,9 +180,17 @@ module gpu_accel #(
     // The opcode is stable before ext_start; latch ownership outside a command.
     // This keeps opcode decode off the arbiter READY feedback path.
     reg v1_select;
-    always @(posedge mem_clk)
-        if(!mrst[1])v1_select<=0;
-        else if(!ext_active)v1_select<=ext_command[31:24]>=22;
+    // Keep raster control separate from the wide payload mux. N29 routed
+    // v1_select to 487 loads and across the device before raster CE decode.
+    // This is the complementary value at the same cycle, not another stage.
+    reg raster_selected /* synthesis syn_preserve=1 */;
+    always @(posedge mem_clk)begin
+        if(!mrst[1])begin v1_select<=0;raster_selected<=1;end
+        else if(!ext_active)begin
+            v1_select<=ext_command[31:24]>=22;
+            raster_selected<=ext_command[31:24]<22;
+        end
+    end
     wire old_done,v1_done,v1_valid,v1_write,v1_request;
     reg v1_accepted,v1_pending,v1_tx_write,v1_rx_valid;
     reg [28:0] v1_tx_addr;
@@ -232,10 +245,10 @@ module gpu_accel #(
     assign wr_data=ext_active ? v1_tx_data:legacy_data;
     assign wr_mask=ext_active ? v1_tx_mask:legacy_mask;
     gpu_raster u_raster (
-        .clk(mem_clk),.rst(!engine_resetn[1]),.start(ext_start && !v1_select),.command(ext_command),.busy(),.done(old_done),
+        .clk(mem_clk),.rst(!engine_resetn[1]),.start(ext_start && raster_selected),.command(ext_command),.busy(),.done(old_done),
         .rejected(raster_rejected),.fragments(raster_fragments),.passed(raster_passed),
         .valid(raster_valid),.write(raster_write),.addr(raster_addr),.wr_data(raster_data),.wr_mask(raster_mask),
-        .ready(v1_accepted && !v1_select),.rd_data(v1_rx_data),.rd_valid(v1_rx_valid && !v1_select));
+        .ready(v1_accepted && raster_selected),.rd_data(v1_rx_data),.rd_valid(v1_rx_valid && raster_selected));
     blitter u_blitter (
         .clk(mem_clk), .rst(!engine_resetn[0]), .cmd_we(command_we), .cmd_data(queue_data), .cmd_full(command_full),
         .err_cmd_lost(command_lost), .err_cmd_bad(command_bad), .cmd_done(done_count), .busy(blitter_busy),

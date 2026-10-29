@@ -61,10 +61,12 @@ static void pd_quantity(char *out,size_t n,uint64_t sectors)
     else if(kib>=1024)snprintf(out,n,"%.1f Mio",kib/1024);
     else snprintf(out,n,"%.1f Kio",kib);
 }
-static void pd_dashboard(struct prodock_debug_text *t,const struct prodock_display_info *s,
+static void pd_dashboard_geometry(struct prodock_debug_text *t,const struct prodock_display_info *s,
                          const struct prodock_display_info *before,const struct pd_sd_stats *sd,
-                         const struct pd_sd_stats *old_sd,double dt)
+                         const struct pd_sd_stats *old_sd,double dt,const struct prodock_display_geometry *geometry)
 {
+    unsigned budget=geometry && geometry->line_budget?geometry->line_budget:2556;
+    int neo=geometry && geometry->board==PRODOCK_BOARD_NEO;
     for(unsigned i=0;i<1500;++i)t->cells[i]=0x0720;
     int measured=dt>0 && dt<3600;
     double fps=measured?(uint32_t)(s->game_presents-before->game_presents)/dt:0;
@@ -73,9 +75,9 @@ static void pd_dashboard(struct prodock_debug_text *t,const struct prodock_displ
     uint64_t old=(uint64_t)before->sent_hi<<32|before->sent_lo;
     int commands_known=measured && sent>=old;
     double commands=commands_known?(sent-old)/dt:0;
-    double line=100.*s->line_cycles/2556.;
+    double line=100.*s->line_cycles/(double)budget;
     int gpu_bad=s->errors || s->faulted || s->underflows || s->invalid_layers || s->invalid_sprites ||
-                s->line_cycles>=2556 || (measured && hz<1);
+                s->line_cycles>=budget || (measured && hz<1);
     int gpu_warn=!measured || line>=80 || (fps>0 && hz>0 && fps<hz*.8);
     unsigned gpu_colour=gpu_bad?PD_RED:gpu_warn?PD_AMBER:fps>0?PD_GREEN:PD_DIM;
     int usb_known=s->usb_status!=0xffffffffU;
@@ -85,7 +87,7 @@ static void pd_dashboard(struct prodock_debug_text *t,const struct prodock_displ
     unsigned usb_colour=usb_bad?PD_RED:usb_warn?PD_AMBER:PD_GREEN;
     unsigned sd_colour=sd->present && sd->counters_valid?PD_GREEN:PD_AMBER;
     unsigned overall=gpu_bad||usb_bad?PD_RED:gpu_warn||usb_warn||sd_colour==PD_AMBER?PD_AMBER:PD_GREEN;
-    pd_label(t,2,0,60,PD_CYAN,0,"PRO DOCK  /  TABLEAU DE BORD");
+    pd_label(t,2,0,60,PD_CYAN,0,neo?"TANG NEO  /  TABLEAU DE BORD":"PRO DOCK  /  TABLEAU DE BORD");
     pd_light(t,79,0,overall,19,overall==PD_RED?"ALERTE":overall==PD_AMBER?"VIGILANCE":"SYSTEME OK");
     pd_label(t,2,1,65,PD_GREY,0,"LINUX + GPU   |   MESURES EN DIRECT   |   ACTUALISATION 1 s");
     pd_label(t,79,1,19,PD_GREY,0,"MODE %s",s->mode==0?"PARTAGE":s->mode==1?"JEU":"CONSOLE");
@@ -98,8 +100,8 @@ static void pd_dashboard(struct prodock_debug_text *t,const struct prodock_displ
     pd_bar(t,3,6,37,fps,hz,gpu_colour,measured);
     if(commands_known)pd_label(t,3,7,38,PD_WHITE,0,"Commandes %10.0f /s",commands);
     else pd_label(t,3,7,38,PD_GREY,0,"Commandes         -- /s");
-    pd_label(t,3,8,38,PD_GREY,0,"Ligne max %4u/2556 cycles  %3.0f %%",s->line_cycles,line);
-    pd_bar(t,3,9,37,s->line_cycles,2556,line>=90?PD_RED:line>=80?PD_AMBER:PD_GREEN,1);
+    pd_label(t,3,8,38,PD_GREY,0,"Ligne max %4u/%4u cycles  %3.0f %%",s->line_cycles,budget,line);
+    pd_bar(t,3,9,37,s->line_cycles,budget,line>=90?PD_RED:line>=80?PD_AMBER:PD_GREEN,1);
     pd_label(t,3,10,38,s->errors||s->faulted?PD_RED:PD_GREY,0,"Defauts GPU %08x   Faute %u",s->errors,s->faulted);
     pd_label(t,3,11,38,s->underflows||s->invalid_layers||s->invalid_sprites?PD_RED:PD_GREY,0,
              "Sous-alim %u  Inv. C/S %u/%u",s->underflows,s->invalid_layers,s->invalid_sprites);
@@ -108,7 +110,7 @@ static void pd_dashboard(struct prodock_debug_text *t,const struct prodock_displ
     pd_light(t,46,3,usb_colour,23,usb_state);
     pd_label(t,46,4,23,PD_WHITE,0,"Lien      %s",!usb_known?"--":!(s->usb_status&32)?"--":s->usb_status&64?"480 Mbit/s":"12 Mbit/s");
     pd_label(t,46,5,23,PD_GREY,0,"Console   CDC / UART2");
-    pd_label(t,46,6,23,PD_GREY,0,"Serie     115200 bauds");
+    pd_label(t,46,6,23,PD_GREY,0,neo?"Debug BL616 2 Mbauds":"Serie     115200 bauds");
     const char *names[]={"FIFO MSC","Reset USB","Reset MSC"};
     const unsigned bits[]={128,4,8};
     for(unsigned i=0;i<3;++i) {
@@ -153,4 +155,8 @@ static void pd_dashboard(struct prodock_debug_text *t,const struct prodock_displ
     }
     pd_label(t,2,14,96,PD_GREY,0,"AFFICHAGE  prodockctl layout split | game | console      JEU  A/D ou fleches  /  Q quitter");
 }
+static inline void pd_dashboard(struct prodock_debug_text *t,const struct prodock_display_info *s,
+                         const struct prodock_display_info *before,const struct pd_sd_stats *sd,
+                         const struct pd_sd_stats *old_sd,double dt)
+{ pd_dashboard_geometry(t,s,before,sd,old_sd,dt,NULL); }
 #endif

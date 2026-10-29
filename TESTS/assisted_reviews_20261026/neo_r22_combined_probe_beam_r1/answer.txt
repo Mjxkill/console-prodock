@@ -1,0 +1,221 @@
+## Avis borné — contre-analyse A/B/A/B et prochaine sonde combinée
+
+### 1. Verdict court
+
+La preuve fournie établit un fait robuste : avec le jeu A/B/A/B, le `bank_version` suit la build testée, pas un état hardware transitoire. R19 renvoie `0` à chaque phase ; R22r1 renvoie `1` au bank et au witness dans toutes les phases. Il n’y a pas de désaccord capturé entre witness et bank (`result.json`, conclusion). Aucune cause n’est établie (`not_established`). Le routeur R22r1 est techniquement routé mais **non qualifié globalement** (`postroute_summary.global_timing_qualification = FAIL`), avec des chemins négatifs sur la branche reset/capture vidéo, sans chemin négatif listé dans UTNA/UTW1.
+
+Donc la prochaine sonde doit être un **diagnostic borné sur bitstream déjà qualifié HBO, avec CPU arrêté, sans Linux ni DMA**, et avec une hypothèse nulle simple : si la version reste `1` pendant capture cohérente, commande GPU monocouche et absence physique USB, alors le phénomène est **stable et indépendant** du trafic CPU/DDR, de la commande GPU simple et de l’énumération hôte. Ce n’est pas une preuve de cause racine, ni une qualification matérielle.
+
+---
+
+### 2. Faits établis dans le packet
+
+| Objet | Fait | Référence |
+|---|---|---|
+| A/B/A/B | R19 = bank version 0 dans ARM/DISARM/STOPPED/STABLE ; R22r1 = 1 dans les 4 phases | `result.json`, table `results` |
+| Restauration | `restored_exact_R19: true` toutes phases | `result.json`, `results[].restored_exact_R19` |
+| Witness | raw witness = raw alias = 1 pour R22r1 ; frames/tags/counters cohérents, `outside_busy=0` | `result.json`, R22r1 rows |
+| Cause | Aucun désaccord witness/bank ; cause non établie | `result.json`, `conclusion`, `not_established` |
+| Build R22r1 | bitstream SHA `55601256...`; structure passée ; 402 helper FF + 32 mux hrdata | `postroute_summary`, champs `bitstream_sha256`, `helper_ff`, target |
+| Timing R22r1 | cibles UTW/hrdata non négatives ; global FAIL ; 9 endpoints violés : 1 setup (`-1.013 ns`) et 8 recovery (`-0.212 ns` à `-0.207 ns`) | `postroute_summary`, `negative_paths`, `global_summary_caveat` |
+| Reset | source commune AE350 HRESETN échantillonnée par `vid_hrstn_r` sur `vid_hclk`; branche GPU capture reçoit un CLEAR asynchrone sous `gpu_clk`; UTNA utilise `rst_usb OR !vid_hrstn`; UTW/hrdata utilise `hreset` synchroné sous `vid_hclk` | `postroute_summary`, `reset_relationship`, `reset_and_clock_netlist_facts` |
+| Bornes d’interprétation | `witness=0/bank=0` ne distingue pas zéro amont d’un défaut witness ; `witness=1/bank=0` n’est valable que si witness/read-path valides | `postroute_summary`, `interpretation_bounds` |
+
+### 3. Hypothèses à discriminer
+
+1. **H1 — défaut stable de la chaîne version/reporting** : la constance sur 4 phases et deux runs suggère un datapath ou une logique de bank/version constamment présente, pas un événement isolé.
+2. **H2 — dépendance au reset/reset-release** : la branche capture vidéo a des recovery négatifs très petits ; une absence USB, qui agit sur `rst_usb`, peut faire varier les synchroniseurs UTNA.
+3. **H3 — dépendance à la lecture/snapshot** : si le bank change après un snapshot cohérent, la faute est côté frontière échantillonnée/read path.
+4. **H4 — dépendance à la charge GPU** : si la version change après `matrix_row0`, la faute est liée au domaine GPU ou aux retours reset/busy.
+5. **H5 — faute FIFO/data indémontrée** : ce packet ne suffit pas à distinguer FIFO fault de bank validity/data fault.
+
+Hypothèse la plus utile à éliminer : **H2/H3/H4 sous condition USB absent**. Si rien ne varie, il reste H1, mais non qualifié matérielle.
+
+---
+
+### 4. Preuves manquantes
+
+- Adresse exacte du bank version / raw witness dans la carte mémoire et méthode de lecture JTAG/documentée. Le supplied packet ne donne pas de pointeur registre pour l’activité bank ; ne pas en inventer.
+- Sémantique réelle du registre `0xe9001004` : le garde actuel suppose qu’`idle != 0` est une erreur, mais le packet ne définit pas l’encodage idle/busy.
+- Cartographie complète des quatre adresses scanout DMA (`0xe900000c`, `0x...14`, `0x...34`, `0x...44`) et preuve qu’elles sont les seuls bits DMA.
+- Preuve mécanique que le CPU est réellement parké et qu’il n’y a aucun écrit DDR ; le packet ne donne pas de registre/compteur de writes.
+- Profil temporel réel des resets externes et fréquences physiques, explicitement non établi (`not_established`).
+- Identité physique attestée de l’interface USB : le script Python impose `physical_identity_not_attested=True`, donc même une lecture EP0 réussie ne qualifie pas le silicium.
+- Portée exacte des 9 endpoints négatifs : aucun ne se termine dans UTNA/UTW1 ; cela n’exclut pas un CDC/metastability.
+
+---
+
+### 5. Expérience la plus discriminante recommandée
+
+**Condition principale : USB physiquement déconnecté pendant toute la run R22r1.**  
+But : supprimer host enumeration/EP0 et exercer directement la branche `rst_usb OR !vid_hrstn` par l’absence physique.
+
+Séquence proposée :
+
+1. Programmer R22r1 et vérifier SHA bitstream/netlist ; exécuter le script host sysfs **avant ARM** : attendu `NO_DEVICE` ou absence exacte.
+2. Arrêter CPU, vérifier que les 4 adresses DMA restent à 0.
+3. `T0` : `cv_video`, puis snapshots `0xe9005000` et `0xe9006000`.
+4. Lancer UTW1 ARM.
+5. Inventory host immédiatement après ARM : en l’absence physique, attendu `NO_DEVICE`. Si enumeration inattendue, arrêt.
+6. `T100`, `T200` : snapshots avant/après chaque intervalle + `cv_video`.
+7. `cv_matrix` une seule fois, opcode 31 / 8 words, registre uniquement.
+8. `T1200` : snapshot final + `cv_video`.
+9. Second inventory host après matrix : attendu encore `NO_DEVICE`.
+10. Désarmer UTW1.
+11. Restaurer exact R19 et vérifier SHA.
+
+Cette run isole déjà les hypothèses H3/H4 sous condition H2. Une run R19 de contrôle avec le même sous-ensemble non mutatif (`cv_video` + snapshots si supportés) est recommandée avant ou après pour vérifier que les gardes ne provoquent pas un faux positif ; toutefois la priorité est la run R22, car le packet a déjà établi R19 = version 0.
+
+---
+
+### 6. Gardes et critères d’arrêt
+
+#### Gardes obligatoires
+
+- **Build** : bitstream SHA doit rester `55601256120915adbb08279c0b6bd42caabf8deff261bf87b8a7b8d8cbf9c8aa`; netlist SHA `0eb5638a...`.
+- **No DMA** : les 4 adresses scanout DMA doivent être `0` avant commande et après.
+- **Snapshot** : bases uniquement `0xe9005000` ou `0xe9006000`; id `0x4e474442`; `(status & 5) == 4`; trigger puis status `6` avec même séquence dans 50 ms.
+- **Matrix** : `idle` doit avoir la sémantique attendue ; avant commande `sent == received` et `sent` multiple de 8 ; après, `done +1`, `sent/received +8`, `errors` et `rejected` inchangés.
+- **USB absence** : `inventory()` doit donner soit `[]` soit au moins un statut `NO_DEVICE`/`PATH_NOT_AUTHORIZED` ; aucun IO EP0 si `allowed_path` absent.
+- **Un seul IO maximum** : la garde Python déjà limite à une tentative ; ne pas la contourner.
+- **Restauration** : désarmement, puis programmation exact R19, SHA vérifié.
+
+#### Arrêts automatiques
+
+| Condition | Statut |
+|---|---|
+| source snapshot id/status invalide | `COMBINED_GPU_FAIL source_not_ready` → arrêt, pas de matrix |
+| timeout snapshot | `snapshot_timeout` → arrêt |
+| DMA non zéro | `Scanout DMA must be disabled` → arrêt |
+| GPU non idle ou incohérence sent/received | `MATRIX not_idle` ou `counters mismatch` → arrêt, pas d’écriture |
+| done n’incrément pas | `MATRIX counters_or_completion` → arrêt |
+| USB ambiguity (`len(devices) > 1`) | `AMBIGUOUS` → pas d’EP0, run invalide |
+| USB non-HS | `NON_HS_REFUSED` |
+| identité changée avant IO | `ValueError`, run arrêtée |
+| transfer EP0 en échec | `TRANSFER_FAILED`, arrêt et restauration |
+| restore exact R19 échoué | escalade, pas de retour à l’état nominal |
+
+---
+
+### 7. Patch minimal recommandé sur le code fourni
+
+Ce patch ne modifie pas la logique FPGA, n’ajoute pas de compilation ; il rend la run réellement exécutive et bornée.
+
+#### 7.1 Orchestration TCL
+
+Problème actuel : le tail fourni ne montre que `cv_video` et déclare `cv_snapshot`/`cv_matrix` sans les appeler. Même si les procs existent, la run ne produira pas les observations demandées.
+
+Patch minimal — remplacer le tail par une séquence fail-fast :
+
+```tcl
+set dma_guard {0xe900000c 0xe9000014 0xe9000034 0xe9000044}
+
+proc assert_dma_disabled {} {
+    foreach a $::dma_guard {
+        if {[lindex [read_memory $a 32 1] 0] != 0} {
+            error "Scanout DMA must be disabled at $a"
+        }
+    }
+}
+
+proc run_combined {} {
+    assert_dma_disabled
+    cv_video T0
+    foreach base {0xe9005000 0xe9006000} {
+        if {![cv_snapshot $base T0]} { error "snapshot failed at $base" }
+    }
+
+    cv_matrix
+
+    foreach label {T100 T200} {
+        sleep 100
+        assert_dma_disabled
+        cv_video $label
+        foreach base {0xe9005000 0xe9006000} {
+            if {![cv_snapshot $base $label]} { error "snapshot failed at $base" }
+        }
+    }
+
+    sleep 1000
+    assert_dma_disabled
+    cv_video T1200
+    foreach base {0xe9005000 0xe9006000} {
+        if {![cv_snapshot $base T1200]} { error "snapshot failed at $base" }
+    }
+}
+
+run_combined
+```
+
+**Discrimination ajoutée** : on n’exécute `cv_matrix` qu’après un snapshot cohérent, et on relit après l’intervalle. Cela isole H3 de H4. Si `cv_snapshot` retourne 0, le script s’arrête au lieu de continuer et de masquer l’échec.
+
+#### 7.2 Sémantique idle — à vérifier, pas à présumer
+
+Le garde actuel :
+
+```tcl
+if {$idle!=0 || ($sent&7)!=0 || $sent!=$received} {...}
+```
+
+doit être validé contre la documentation du registre. Si `idle=1` signifie réellement “idle”, ce garde est inversé. **Preuve manquante à fermer avant run** : nom/encodage du bit `0xe9001004`. Ne pas “corriger” par intuition.
+
+#### 7.3 Python absence USB
+
+Le code actuel fournit déjà une bonne garde de sécurité (`allowed_path` exact, vitesse 480, regex, recheck identité, au plus un IO). Patch minimal pour l’exigence `absenceUSB` : expliciter le résultat d’absence sans transformer la run en échec matériel :
+
+```python
+result = dict(
+    devices=devices,
+    ...,
+    absence_verified=(len(devices) == 0),
+    physical_identity_not_attested=True,
+    no_reset_or_detach_performed=True,
+)
+```
+
+Pour la branche USB absente, exécuter :
+
+```bash
+python3 sample_usb.py
+```
+
+sans `--allowed-path`. Attendu : `diag_status: "NO_DEVICE"` ou `devices: []`.
+
+Pour la branche éventuellement connectée, n’utiliser qu’un chemin explicitement autorisé et vérifier l’invariant avant IO :
+
+```bash
+python3 sample_usb.py --allowed-path /sys/bus/usb/devices/X-Y
+```
+
+Attendu selon le cas : `READ_32_BYTES` ou `PATH_NOT_AUTHORIZED`. Ne jamais ajouter de deuxième appel EP0, ni de reset, ni de detach.
+
+#### 7.4 Publication de bank/witness
+
+Si le collector/bank version et le raw witness sont lus par mémoire, il faut ajouter des lectures uniformes aux labels `T0`, après snapshot, après matrix et `T1200`. Le packet ne fournit pas ces adresses ; toute constante inventée serait non justifiée. Donc le patch doit se limiter à utiliser l’outil collector existant et à archiver ses JSON. Si les adresses existent dans la doc registre, les rajouter sans changer de logique.
+
+---
+
+### 8. Matrice de discrimination
+
+| Observation | Interprétation bornée |
+|---|---|
+| USB absent, version reste `1`, snapshots cohérents, matrix +8/erreur inchangée | Le phénomène survit à l’absence d’énumération hôte et à une commande GPU simple ; cela n’exclut pas le reset commun ni la branche timing |
+| Version change après déconnexion physique USB | Forte suggestion que la branche `rst_usb`/synchroniseurs UTNA est impliquée |
+| Désaccord witness/bank après snapshot | Faute possible après frontière échantillonnée / chemin de lecture, conditionnel à la validité witness |
+| `witness=0/bank=0` | Ambigu ; ne prouve ni FIFO ni bank/data fault |
+| Échec matrix ou recovery négatif | Le timing reset à -0.212 ns devient plus plausible, mais non prouvé |
+| Version reste `0` sur R19 sous même garde | Règle de contrôle consistante ; sinon le garde/procédure est en cause |
+
+---
+
+### 9. Risques résiduels
+
+- Le diagnostic utilise un build déjà **non qualifié globalement** ; il est acceptable comme test borné, mais pas comme preuve d’absence de défaut.
+- Le snapshot/write status peut être mutatif ; même avec une valeur simple `1`, il peut modifier la cadence d’observation. D’où la comparaison systématique before/after.
+- Le CPU “parked” reste une condition opératoire non mécaniquement attestée dans le packet.
+- Le passage R22→R19 est obligatoire ; si la restauration échoue, le système test reste sur un candidat non qualifié.
+- Aucune conclusion spirolatérale sur USB PHY, horloges, DDR, GPU fonctionnel ou erratum silicium ne doit être tirée.
+
+### 10. Conclusion bornée
+
+La prochaine sonde la plus discriminante est **R22r1 + CPU arrêté + USB physiquement absent + snapshots avant/après matrix + matrix_row0 unique**, restaurée vers exact R19. Elle doit tester trois choses précisément : cohérence snapshot, commande GPU monocouche et absence USB. Sa valeur informative maximale vient des **transitions**, pas de la valeur constante `1` seule. Même avec toutes les gardes vertes, le résultat restera un diagnostic borné ; il ne corrigera ni la cause, ni la qualification globale.

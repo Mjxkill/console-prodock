@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "prodock_r5_usb_diff_deepseek_01",
+  "domain": "fpga",
+  "task_type": "netlist_comparison",
+  "difficulty": "hard",
+  "inputs": [
+    "CONTRACT.md",
+    "context/PROVENANCE.json",
+    "context/changed_cones.json",
+    "context/critical_cells.json",
+    "context/official_models.v",
+    "context/result.json",
+    "owned/REPORT.md",
+    "owned/analyze.py",
+    "validate.py"
+  ],
+  "owned": [
+    "owned/analyze.py",
+    "owned/REPORT.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "validate.py"
+    ]
+  ],
+  "timeout_seconds": 30,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "acceptance_criteria": "Actual Boolean comparisons and mutation checks, exact critical parameters, no physical equivalence or causal claim from equal logic; no hardware",
+  "prompt": "Read CONTRACT.md. Run official tests before edits. Implement the bounded analyzer using actual cells/official equations and write a concise technical report. Run official tests after final report edit. No general refactor, RTL, constraints or hardware."
+}

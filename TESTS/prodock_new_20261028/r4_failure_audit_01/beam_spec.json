@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "prodock_r4_sta_failure_beam_01",
+  "parent_task_id": "prodock_sd_boot_r4",
+  "domain": "fpga",
+  "task_type": "diagnostic_analysis",
+  "difficulty": "medium",
+  "inputs": [
+    "CONTRACT.md",
+    "PROTECTED.json",
+    "context/R2_build.tcl",
+    "context/R2_cmd.do",
+    "context/R2_pnr.log",
+    "context/R2_timing.sdc",
+    "context/R3_build.tcl",
+    "context/R3_cmd.do",
+    "context/R3_pnr.log",
+    "context/R3_timing.sdc",
+    "context/R4_build.tcl",
+    "context/R4_cmd.do",
+    "context/R4_pnr.log",
+    "context/R4_timing.sdc",
+    "context/facts.json",
+    "context/official_tcl_excerpt.txt",
+    "context/resume_sd_fpga.py",
+    "owned/REPORT.md",
+    "owned/analyse.py",
+    "validate.py"
+  ],
+  "owned": [
+    "owned/analyse.py",
+    "owned/REPORT.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "validate.py"
+    ]
+  ],
+  "timeout_seconds": 30,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "acceptance_criteria": "Actual analysis code and independent report correctly distinguish R2SIGSEGV,R4genericerror,R3confound; no asserted hardwarecause, no rerun; exact existing netlist/PR strategy with STA gates",
+  "prompt": "Read CONTRACT.md and only relevant small context. Run official baseline; implement analyse plus reasoned report; rerun official tests after last mutation. Do not reproduce long logs or merely answer chat. No Gowin/hardware/network commands."
+}

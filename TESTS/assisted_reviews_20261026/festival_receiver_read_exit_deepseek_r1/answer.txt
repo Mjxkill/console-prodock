@@ -1,0 +1,139 @@
+Aucun test, outil ou accès matériel n’a été utilisé. Le paquet ne fournit qu’un bloc source, sans nom de fichier ni numérotation de lignes ; je cite donc les ancres exactes du code. La chaîne `LMA_RX_EXIT_f9c-helper:1` n’apparaît pas dans cette source : elle vient d’un wrapper non fourni.
+
+## 1. Faits établis par la source
+
+- `result` vaut `1` à l’entrée (`int result=1`). Seul le chemin `answer('D',total); result=0;` le passe à `0`.
+- `answer('R',0)` est émis **avant** toute lecture de trame.
+- Après `R`, les seuls `goto done` silencieux sont les quatre échecs de `io` :
+  1. `if(io(0,0,&byte,1))goto done;` — recherche du magic `LMA1` ;
+  2. `if(io(0,0,h,sizeof(h)))goto done;` — lecture de l’en-tête `seq,len,hash` ;
+  3. `if(io(0,0,block,len))goto done;` — lecture du payload ;
+  4. `if(io(1,fd,block,len))goto done;` — écriture du payload dans le fichier.
+- `answer()` ignore complètement le retour de `io(1,1,...)`. Un ACK peut donc être **tenté mais non observé** si l’écriture sur `fd1` échoue.
+- Le CRC n’est vérifié qu’après lecture complète du payload. Un CRC faux exécute `answer('N',expect);continue;` : **ce n’est pas un chemin de sortie en erreur**.
+- Le chemin `if(len>sizeof(block)){answer('N',expect);continue;}` émet un `N` mais **ne consomme pas** les `len` octets du payload. C’est une désynchronisation de trame.
+- Le chemin `if(!len)` émet `D` et sort `0` si `seq==expect && hash==~checksum`; sinon il émet `F` et sort `1`. Un `F` non observé peut donc être dû à un échec d’écriture de l’ACK, pas à une absence d’émission dans le code.
+- Il n’y a **aucun timeout** dans cette source. Si `fd0` est bloquant et qu’aucune donnée n’arrive, le processus ne sort pas `1` tout seul : il attend. Un retour `1` implique donc soit un échec de lecture/écriture, soit une terminaison externe non représentée dans le paquet.
+
+## 2. Énumération des sorties `1` sans `N/F` après `R`
+
+| Ancre exacte | Condition | ACK binaire | Sortie |
+|---|---|---|---|
+| `if(io(0,0,&byte,1))goto done;` | échec de lecture pendant la recherche de `LMA1` | aucun | `1` |
+| `if(io(0,0,h,sizeof(h)))goto done;` | échec de lecture de l’en-tête, éventuellement après avoir lu une partie du magic | aucun | `1` |
+| `if(io(0,0,block,len))goto done;` | échec de lecture du payload, éventuellement après lecture partielle | aucun | `1` |
+| `if(io(1,fd,block,len))goto done;` | échec d’écriture dans `/tmp/...` après payload CRC valide, avant `answer('A',...)` | aucun | `1` |
+| `if(len>sizeof(block)){answer('N',expect);continue;}` | `len>1024` : `N` émis, payload non drainé ; une lecture ultérieure peut ensuite échouer et sortir `1` sans nouvel ACK | `N` tenté, pas de `A/D/F` final | `1` plus tard |
+| `if(~crc(...)!=hash){answer('N',expect);continue;}` | CRC faux : `N` émis, pas de sortie immédiate | `N` | pas de sortie |
+| `if(seq<expect){answer('A',seq);continue;}` | doublon : `A` émis | `A` | pas de sortie |
+| `if(seq!=expect){answer('N',expect);continue;}` | hors séquence : `N` émis | `N` | pas de sortie |
+| `if(!len)` + hash faux : `answer('F',total);break;` | fin de flux incohérente | `F` | `1` |
+| `if(!len)` + hash bon : `answer('D',total);result=0;` | fin de flux valide | `D` | `0` |
+| `answer(...)` quelconque | échec d’écriture de l’ACK, retour ignoré | ACK potentiellement absent à l’observation | dépend du prochain `io` |
+
+Conclusion factuelle : après `R`, **le seul chemin direct vers `1` sans ACK est un échec de `io`** sur lecture ou écriture fichier. Un CRC faux, un doublon ou un hors-séquence ne sortent pas : ils émettent un ACK applicatif. Une absence de `N/F` observée ne prouve donc pas l’absence d’un CRC ; elle oriente plutôt vers un échec avant l’émission de l’ACK, ou vers un ACK émis mais non observé.
+
+## 3. Sémantique exacte de `io`, EAGAIN, EOF, EIO
+
+Le receiver fourni est freestanding : il n’utilise pas de libc, mais directement `call(63,...)` pour `read` et `call(64,...)` pour `write` (`writing?64:63`). La logique est :
+
+```c
+long k=call(writing?64:63,fd,(long)p,n,0);
+if(k==-4)continue;
+if(k<=0)return -1;
+```
+
+Donc :
+
+- `k > 0` : lecture/écriture partielle acceptée ; `io` boucle jusqu’à `n` octets.
+- `k == -4` : `EINTR` uniquement, réessayé.
+- `k == -11` : `EAGAIN`/`EWOULDBLOCK` — **fatal**, transformé en `-1`, puis `goto done`, sans ACK.
+- `k == 0` : EOF — **fatal**, même chemin silencieux.
+- `k == -5` : `EIO` — **fatal**, même chemin silencieux.
+- tout autre `k < 0` : fatal aussi.
+
+Le code ne distingue donc **pas** EAGAIN, EOF, EIO et les autres erreurs : tous deviennent `result=1` sans `N/F`. En particulier, une lecture partielle peut réussir, puis la lecture suivante échouer en EAGAIN au milieu d’un en-tête ou d’un payload : le receiver sort `1` sans ACK, après avoir consommé une partie de la trame. Cela peut aussi laisser des octets binaires au shell, ce qui est compatible avec l’observation r2 au seq 376, mais ne la prouve pas.
+
+Le CRC, lui, est purement applicatif et intervient **après** une lecture complète :
+
+```c
+if(io(0,0,block,len))goto done;
+if(~crc(~0U,block,len)!=hash){answer('N',expect);continue;}
+```
+
+Un CRC faux émet `N` et continue. Il ne peut pas, à lui seul, produire un `exit 1` immédiat sans ACK. Il pourrait seulement s’inscrire dans une chaîne : `N` non observé, puis désynchronisation, puis échec de lecture. Ce n’est pas la même hypothèse.
+
+## 4. `O_NONBLOCK` hérité, indépendant de `VMIN`
+
+La source configure les champs termios :
+
+```c
+((u32 *)raw)[2]|=48;
+raw[17+5]=0;
+raw[17+6]=1;
+```
+
+Sous l’ABI Linux asm-generic cohérente avec `saved[36]`, `c_cc` commence à l’offset 17, `VTIME` est l’index 5 et `VMIN` l’index 6. Le code met donc `VTIME=0`, `VMIN=1`.
+
+Mais `O_NONBLOCK` est un **drapeau d’état de fichier** de la description de fichier ouverte, pas un champ termios. `tcsetattr()` ne le change pas. `VMIN=1` n’est utilisé par la discipline de ligne que lorsque l’appel `read` serait bloquant. Si `fd0` porte `O_NONBLOCK` :
+
+- une lecture sans donnée disponible retourne immédiatement `-1/EAGAIN`, même avec `VMIN=1` ;
+- une lecture avec données disponibles retourne ce qui est disponible, éventuellement moins que demandé ;
+- après consommation du buffer, la lecture suivante peut retourner EAGAIN au milieu d’une trame.
+
+C’est un mécanisme compatible avec « `R` reconnu, puis sortie `1` immédiate avant l’ACK de seq0 » : le receiver imprime `R`, entre dans la boucle, ne trouve encore aucun octet, et `io` transforme EAGAIN en échec fatal. Mais **ce n’est pas établi par la seule absence d’ACK** : EOF, EIO, une erreur d’écriture fichier ou un ACK non observé produisent le même symptôme externe.
+
+Si un programme statique lié à la libc lit ce même descripteur, `read()` reste l’appel système : en mode non bloquant sans donnée, il retourne `-1` avec `errno=EAGAIN` ; il ne retourne pas `0` (EOF) et ne se met pas à attendre à cause de `VMIN=1`. La libc ne transforme pas EAGAIN en attente bloquante. Dans le receiver fourni, il n’y a de toute façon pas de libc : le retour négatif est directement l’errno Linux.
+
+Point secondaire : le mode « raw » n’est pas complet. Les bits effacés dans `((u32 *)raw)[0]&=~(2U|16U|32U|256U|1024U)` sont, sous asm-generic, `BRKINT`, `INPCK`, `ISTRIP`, `ICRNL`, `IXON`. Ne sont pas effacés notamment `PARMRK`, `INLCR`, `IGNCR`, `IUCLC`, `IXOFF`, et côté `c_lflag` `ECHONL` reste possible. Si le termios hérité avait `INLCR`/`IGNCR`, des octets binaires `0x0A`/`0x0D` peuvent être altérés ou supprimés dans l’en-tête ou le payload, ce qui peut provoquer un CRC faux, un `len` faux ou une désynchronisation. C’est une hypothèse secondaire, pas la cause démontrée de la sortie immédiate.
+
+## 5. Hypothèses classées, sans conclusion abusive
+
+1. **H1 — EAGAIN sur `O_NONBLOCK` hérité** : forte compatibilité avec la sortie immédiate après `R`. Le receiver n’attend pas seq0. Non prouvée sans inspection de `fcntl(F_GETFL)`.
+2. **H2 — EOF/EIO** : un EOF (`k==0`) ou un EIO (`k==-5`) sur le tty/pty produit exactement le même `goto done` silencieux. À distinguer par le retour brut de `read` et l’état du pair.
+3. **H3 — lecture partielle puis EAGAIN** : peut expliquer une sortie sans ACK après consommation partielle, et des octets binaires laissés au shell. Compatible avec r2, non prouvé pour r3.
+4. **H4 — `len` de seq0 égal à 1464** : si « 1464byte » désigne la longueur du bloc et non la taille totale du helper, alors `len>sizeof(block)` est vrai : `N` est émis, le payload de 1464 octets n’est pas drainé, puis le parser se désynchronise. Le code devrait envoyer `N` ; une absence totale de `N` observé exige alors une explication supplémentaire (échec d’écriture de l’ACK, mauvaise observation, ou autre erreur). C’est un défaut réel à tester en priorité, car il est indépendant de la cause de la sortie.
+5. **H5 — échec d’écriture fichier** : `io(1,fd,...)` peut échouer après un payload valide. Moins probable pour un petit fichier `/tmp`, mais possible et silencieux.
+6. **H6 — ACK émis mais non observé** : `answer()` ignore les erreurs d’écriture. `N/F/A` peuvent avoir été tentés sans apparaître. Il faut capturer le port série brut et le code de sortie réel.
+7. **H7 — CRC** : faible comme cause directe de sortie `1`. Un CRC faux émet `N` et continue.
+
+## 6. Diagnostic read-only borné recommandé
+
+À planifier, **sans exécution matérielle dans cette revue** :
+
+1. **Inspecter les drapeaux du descripteur exact** passé au receiver : `fcntl(0,F_GETFL)` avant `exec`, puis si possible après `R`. Noter `O_NONBLOCK` (`0x800` sur Linux asm-generic). C’est une lecture de métadonnées, sans écriture sur la carte.
+2. **Reproduire localement sur pty**, sans matériel :
+   - ouvrir un pty, mettre l’esclave en `O_NONBLOCK`, lancer le receiver avec cet esclave en `fd0/fd1` ;
+   - lire `R`, attendre volontairement 100–200 ms avant d’envoyer la trame seq0 ;
+   - attendre : la source actuelle doit sortir `1` avant la trame si H1 est vraie.
+   - refaire le même test avec `O_NONBLOCK` effacé : le receiver doit attendre puis émettre `A`.
+   Ce test discrimine H1 de H2/H3 sans carte.
+3. **Test EOF/EIO** : fermer le maître du pty après `R`. La source actuelle doit sortir `1` sans `N/F`. Cela montre que le même symptôme est produit par EOF/EIO ; il ne faut donc pas conclure à EAGAIN sans le retour de `read`.
+4. **Test CRC** : envoyer une trame complète avec un `hash` faux. Attendu : `N`, pas de sortie. Si le receiver sort `1`, le problème est en amont du CRC (lecture, framing, termios), pas le CRC lui-même.
+5. **Test `len=1464`** : envoyer un en-tête `seq=0,len=1464`. Attendu actuel : `N` puis désynchronisation. Vérifier si le « 1464byte » du rapport est la taille totale du helper ou le champ `len` de seq0. C’est une preuve discriminante.
+6. **Journaliser le statut de sortie** : wrapper ou build diagnostic avec codes distincts pour EAGAIN, EOF, EIO, échec d’écriture fichier, échec d’écriture ACK. Un simple `1` ne permet pas de distinguer les chemins ci-dessus.
+
+## 7. Correctif minimal et robuste
+
+Correctif minimal immédiat, avant `answer('R',0)` :
+
+```c
+long fl = call(25, 0, 3, 0, 0);              /* F_GETFL */
+if (fl < 0) goto done;
+if (call(25, 0, 4, fl & ~0x800L, 0) < 0)     /* F_SETFL, O_NONBLOCK=0x800 */
+    goto done;
+```
+
+Cela rend `fd0` bloquant et permet à `VMIN=1` de faire son travail. Attention : `O_NONBLOCK` appartient à la description de fichier ouverte ; si `fd0` est partagé avec le wrapper, ce changement peut affecter le wrapper. Une variante plus propre est de garder le mode non bloquant et de traiter `EAGAIN` comme « pas encore de données » avec `poll`/`ppoll` et un timeout borné ; EOF/EIO restent fatals. Ne pas utiliser `shutdown()` : sur un tty ou un pipe, il retourne `ENOTSOCK` et ne remplace ni `fcntl` ni `poll`.
+
+Correctifs robustes minimaux :
+
+- faire remonter l’errno exact de `io` au lieu de tout écraser en `-1` ;
+- ne pas ignorer le retour de `answer()` : un ACK non écrit doit être une erreur visible ;
+- pour `len>sizeof(block)`, soit drainer exactement `len` octets avec une borne, soit terminer explicitement après `N` ; ne jamais `continue` en laissant le payload dans le flux ;
+- compléter le mode raw : effacer aussi `INLCR`, `IGNCR`, `PARMRK`, `IUCLC`, `IXOFF`, et vérifier `PARENB`/`CSTOPB`/`CRTSCTS` ;
+- ajouter un timeout global pour ne pas confondre attente bloquante et sortie.
+
+Test de non-régression minimal : pty avec `O_NONBLOCK`, `R` puis trame seq0 valide retardée → le receiver doit attendre, émettre `A`, écrire le fichier ; même test avec CRC faux → `N`, pas de sortie ; même test avec `len=1465` → comportement borné et documenté, sans désynchronisation silencieuse.
+
+En résumé : le chemin direct `R` → `1` sans `N/F` est un échec de `io` sur lecture ou écriture fichier. `EAGAIN` sur `O_NONBLOCK` hérité est l’hypothèse la plus compatible avec l’immédiateté, mais EOF, EIO, une lecture partielle, un échec d’écriture fichier ou un ACK non observé restent possibles. Le CRC n’est pas un chemin de sortie direct. La seule absence d’ACK ne permet pas d’établir la cause.

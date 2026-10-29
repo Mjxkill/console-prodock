@@ -1,0 +1,138 @@
+Revue de direction artistique du parcours, à partir du seul paquet fourni, sans image vue.
+
+## Faits, hypothèses, preuves manquantes
+
+**Faits tirés du paquet.**
+- Le matériel échantillonne en nearest, sans bilinéaire ni sélection automatique de mip. R1 et R2 utilisent uniquement mip0 (`G22R0_FEATURE_AUDIT.md:27`). Le cache texture fait 32 KiB en lignes de 32 octets (`:26`). L'éclairage est plat par face, avec brouillard (`:19`, `:22`). Le rendu est fait en 400×240 puis affiché ×2, ou 640×360 vers 1280×720 (`:22`, `art_refresh/PLAN.md:17`).
+- Le budget R7 est de 38 textures pour 4 194 304 octets RGB565, avec 25 atlas vallée, un atlas d'objets et 4 atlas Amber inchangés (`world_materials_r7/README.md:16-18`, `:30-31`). Le filtrage est fait à la préparation, dans `tools/prepare_materials.py` (`:15-21`).
+- Le jugement R7 : bruit réduit, mais les diagonales des triangles deviennent visibles de près ; la variante 1 a été rejetée comme trop lisse et froide (`README.md:60-64`). Le plan candidat demande d'éviter à la fois le bruit R6 et le lissage R7 sur chemins et bois (`art_refresh/PLAN.md:7`).
+- Les compteurs fragments et hits/misses du cache existent en MMIO mais ne sont pas exposés par le noyau (`G22R0_FEATURE_AUDIT.md:36`).
+- Aucune revue Fable antérieure n'existe : `review_fable_r2.json:1` contient uniquement une erreur réseau. Le présent texte est donc la première contribution.
+- Les recettes figées du comparatif sont Qwen 2512 en 32 pas CFG 4 et Flux2 Dev en 28 pas guidance 4, mêmes seeds et dimensions (`art_refresh/PLAN.md:13`).
+
+**Hypothèses de travail.** Avec nearest et mip0 seul, tout détail dont la période est inférieure à deux texels à l'écran scintille et se lit comme du bruit, ce qui explique probablement le ressenti R6. À l'inverse, une texture sans variation de moyenne fréquence laisse la lumière par face dominer, ce qui fait ressortir les diagonales en R7. La zone utile se situe donc dans les fréquences moyennes, entre un huitième et un trente-deuxième de la tuile.
+
+**Preuves manquantes.** Le découpage des atlas et la taille des cellules UV par matière, la liste des textures en 128² et 256², la palette réelle d'Amber, le détail des filtres de `prepare_materials.py`, et les images elles-mêmes. Les seuils chiffrés ci-dessous sont à calibrer, pas à appliquer tels quels.
+
+## Six familles de prompts ComfyUI
+
+Base commune à placer devant chaque prompt, pour les deux modèles, en 1024×1024 puis réduction par 8 ou par 4 :
+
+```
+top-down orthographic texture of a material surface, seamless tileable,
+uniform flat diffuse lighting, no horizon, no perspective, no vanishing point,
+no cast shadows, no directional light, no vignette, no borders, no text,
+hand-painted stylized game texture, clean readable shapes, medium detail,
+muted harmonious palette, even distribution, no single dominant feature
+```
+
+Négatif pour Qwen avec CFG 4. Pour Flux2 Dev en guidance, je ne garantis pas qu'un négatif soit pris en compte : reformuler ces termes en positif dans le prompt, comme ci-dessus.
+
+```
+photograph, photorealistic, noise, grain, film grain, blur, bokeh, depth of field,
+landscape, horizon, sky, perspective, shadows, lens, watermark, text, frame,
+glossy, specular highlights, HDR, oversaturated
+```
+
+1. **Herbe et prairie**
+```
+short meadow grass seen from directly above, soft green blades painted in
+clumps, gentle tonal variation between yellow-green and blue-green,
+occasional tiny flat pebbles, no flowers
+```
+Variante fleurs : `sparse small pale yellow and white wildflowers, never more than five per quarter, no large blossoms`.
+
+2. **Chemin de terre et galets**
+```
+packed dirt path surface from above, warm ochre and sienna soil, faint wheel
+ruts, scattered small rounded pebbles half buried, a few dry grass tufts at the
+edge, soft worn look
+```
+Variante transition : `half grass, half dirt, irregular soft boundary running diagonally, worn trampled grass in the middle zone`.
+
+3. **Pierre, calcaire et rochers**
+```
+limestone block wall from directly in front, large irregular cream and warm
+grey blocks, thin mortar joints, slight chipped edges, matte, painted rather
+than photographed
+```
+Variante roche : `stratified grey rock face with horizontal layers, warm highlights on ridges, cool shadows in crevices, no vegetation`.
+
+4. **Bois**
+```
+weathered wooden planks seen straight on, vertical boards with visible but
+soft grain, warm medium brown, slightly darker gaps between boards, a few
+knots, matte paint style
+```
+Variante poutre : `single old oak beam, horizontal grain, warm brown, no joints`.
+
+5. **Façades et toits**
+```
+plaster wall surface from directly in front, warm cream lime plaster with
+subtle mottling, faint hairline cracks, matte, no windows
+```
+Variante toit : `clay roof tiles from directly above, terracotta orange-brown, slightly irregular rows, soft tonal shifts between tiles, no moss`.
+
+6. **Feuillage**
+```
+dense leafy tree canopy seen from the side, clusters of broad painted leaves,
+mid green with warmer highlights on top and cooler shade below, solid
+background of pure magenta, no branches visible, no sky
+```
+Le magenta uni sert de couleur-clé pour les couches indexées ou de masque alpha ARGB4444 (`PLAN_REFONTE_20261027.md:73-76`). Le fond uni est plus facile à détourer qu'un fond blanc.
+
+Chaque famille reçoit trois seeds fixes, identiques entre modèles, comme le protocole en cours (`art_refresh/PLAN.md:13`). Je ne propose pas de relancer la comparaison déjà en file.
+
+## Critères de sélection lisibles à 128² et en RGB565
+
+Les seuils doivent être calibrés sur deux bornes déjà jugées : R6 trop bruyant, R7 variante 1 trop lisse. Un script `material_metrics.py`, exécuté en Python avec `-I`, calculerait par matière les métriques suivantes sur la version réduite à 128² avant et après RGB565.
+
+| Métrique | Calcul | Lecture |
+|---|---|---|
+| Énergie haute fréquence | Laplacien 3×3, moyenne du carré, divisée par la variance totale | R6 au-dessus, R7 r1 en dessous, cible entre les deux |
+| Contraste local | Écart-type de la luminance par blocs 8×8, médiane | Doit rester visible après réduction |
+| Planéité basse fréquence | Luminance floutée σ 8 px, écart max moins min | Faible, sinon la répétition 3×3 montre une grille |
+| Couture | Moyenne des écarts absolus entre colonnes 0 et 127, lignes 0 et 127 | Proche de l'écart entre colonnes voisines |
+| Scintillement | Sous-échantillonnage nearest à 32² avec deux décalages d'un demi-texel, moyenne des écarts | R6 élevé, cible proche de R7 |
+| Palette | Nombre de couleurs RGB565 distinctes et concentration de teinte | Une famille tient dans une plage de teinte étroite |
+| Banding | Nombre de paliers sur la version floutée après RGB565 | Faible, surtout dans les sombres |
+
+Critères visuels complémentaires, déjà prévus (`art_refresh/PLAN.md:17`) : répétition 3×3 sans motif reconnaissable, vue oblique au même ratio de minification que la crête ou l'arrivée, et capture dans le vrai renderer. Une planche jolie en 1024² qui échoue au scintillement est rejetée.
+
+## Palettes cohérentes
+
+Proposition d'un nuancier unique pour toute la vallée, exprimé comme contraintes plutôt qu'absolus, Amber restant inchangé tant que sa palette n'est pas documentée.
+
+- **Sols** : valeur moyenne à moyenne sombre, saturation modérée. Le héros et les personnages doivent rester plus clairs ou plus contrastés que le sol.
+- **Herbe** : vert tirant vers le jaune, jamais vers le cyan ; cela corrige le ressenti froid de R7 r1.
+- **Chemins** : ocre chaud, un ton plus clair que l'herbe, pour guider le regard.
+- **Calcaire et plâtre** : crème chaud, le matériau le plus clair de la scène, utile à la lecture des façades au loin.
+- **Bois et toits** : bruns et terracotta, saturés mais sombres, pour cadrer les façades sans concurrencer les personnages.
+- **Ombres peintes** : toujours dans la teinte voisine, jamais en gris neutre, ce qui évite les ternes de R7.
+
+Deux garde-fous : la couleur du brouillard et de la lumière, non modifiées en R7 (`README.md:27`), doivent être lues depuis `data.c` et comparées au nuancier, car une herbe chaude sous un brouillard froid redevient grise. Et les gradients longs sont bannis, le vert 6 bits et le rouge-bleu 5 bits les transforment en bandes.
+
+## Éviter bruit et flou dans la chaîne
+
+- **Demander du peint, pas du photo.** Le photoréalisme produit du grain qui devient du bruit à 128². Le style peint à formes nettes survit à la réduction.
+- **Réduire par moyenne de surface à ratio entier**, 1024 vers 128 ou 256, sans Lanczos qui crée des halos.
+- **Réaccentuer légèrement après réduction**, masque flou de rayon 1 et faible amplitude, pour rendre le contraste de moyenne fréquence perdu par la moyenne. C'est l'étape qui sépare R7 r1 d'un résultat lisible.
+- **Quantifier en RGB565 avec et sans tramage ordonné**, et trancher par matière : le tramage casse le banding mais peut scintiller en nearest avec affichage ×2.
+- **Tester la couture par décalage d'un demi-carreau** avant d'accepter ; si le modèle ne tuile pas, fondre les bords sur 8 px et remesurer la métrique de couture.
+- **Garder le 128² pour les sols.** Une texture 128² RGB565 fait exactement 32 KiB, soit la taille du cache (`G22R0_FEATURE_AUDIT.md:26`) ; le 256² ne se justifie que pour les façades vues de près, et le coût réel ne pourra être lu qu'avec un ioctl exposant les compteurs (`:36`).
+- **Mips explicites** : disponibles mais inutilisés (`:27`). Hypothèse : des niveaux 64² et 32² supprimeraient une grande part du scintillement lointain, au prix d'un tiers d'octets en plus par texture. Je n'invente pas ce budget ; c'est à mesurer dans le cadre de `PLAN_REFONTE_20261027.md:83`, éventuellement en réduisant la base de quelques matières lointaines.
+
+## Trois améliorations du village sans géométrie
+
+1. **Façades en kit peint.** Peindre dans les cellules d'atlas existantes les encadrements, volets, corniches et soubassements, au lieu d'un plâtre uniforme. Cela demande le relevé du découpage UV des façades, qui manque au paquet. Preuve attendue : captures `amber_entry` et `workshop_path` avant/après par `compare.py`, commandes et compteurs identiques comme pour R7 (`README.md:51-55`).
+
+2. **Bandes de transition sol.** Les masques de pentes, rives et chemins existent déjà (`README.md:16-17`). Remplacer le mélange binaire herbe/chemin par une troisième matière d'herbe piétinée, issue de la variante transition de la famille 2, appliquée sur la frontière du masque. Les 40 frontières d'atlas doivent rester exactement égales, ce qui est déjà vérifié (`:32`).
+
+3. **Harmonie tonale globale.** Ajouter dans `prepare_materials.py` une courbe de contraste et un verrouillage de teinte communs aux 25 atlas vallée et à l'atlas d'objets, calibrés sur le nuancier ci-dessus. Hypothèse associée : une variation de moyenne fréquence rétablie par la réaccentuation masque partiellement les diagonales de triangles révélées en R7 (`README.md:60-62`), sans toucher aux normales, qui restent un lot distinct. Test discriminant : la pose `lake_path` à 800×480, métrique de contraste de part et d'autre d'une diagonale connue, avant et après.
+
+## Prochaines étapes concrètes
+
+- Écrire `material_metrics.py` et le lancer sur les sources R6, R7 r1 et R7 r2 pour fixer les seuils avant d'évaluer la moindre nouvelle image.
+- À réception du comparatif Qwen/Flux2 en cours, classer les sorties par famille avec ces métriques, puis seulement par goût.
+- Documenter le découpage UV des façades et la palette Amber dans le candidat, condition de l'amélioration 1.
+- Toute matière retenue passe par les quatre poses et deux profils existants, avec empreintes et compteurs, avant tout jugement sur carte.

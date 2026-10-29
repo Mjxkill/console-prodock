@@ -1,0 +1,677 @@
+Review the REAL warm UART mode1 trial before execution. No hardware access allowed to reviewer or current subagent. Root owns hardware. Facts: exact R19 starts with internal bars and CPU ROM parking 0x80000004, GPU busy/done/rejected0, NCP counters0. Exact R21r1 twice configured DONE but no bars before DMI then correct TAP and DMI timeout; A/B/A at100kHz shows R19 restores immediately. Epoch internal, EP0 absent, GAO absent: a failed UART reset without independent epoch is inconclusive. Requested test: first on R19 arm/snap twice NCP2/2, separately reconnect+read to prove JTAG does not clear, send exactly A5 5A 52 31 35 01 FE 0D once via preserved BL616 route2Mbaud, then read NCP0/0 to show reset receipt. R21 load exact same FS, camera before DMI, ifDMI fails once sendmode1, camera, boundedretry. No mode0, newrouting, SD/flash/Linux, DDRrequest or functionalGPUcommand. On errors restoreR19 and verify. Hard reset is avoided; warm reset may naturally execute parkingROM. DO NOT claim proposed results observed. Focus: falsepositiveNCPreset, parser/release semantics, repeatedframe/serialrouting risks, fallback state bookkeeping. Tcl init/halt and readonly BASE_GUARD identifiesPC/mode/satp/GPU720p/bars. LastprogramSHA must persist immediately afterreportedDONE even if CPUguardfails. PySerial defaults DTR/RTSactive when opening; historicaldirectUARTtools usedsameconstructor, no evidence these lines resetFPGA. Flag concrete risks, distinguishhypothesis. 14mocktestsPASS; they are controllerlogic tests only, nothardware/protocolproof.
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/warm_mode1_trial.py SHA256 239c4b5d8417723abb8f3a239fd789aba9105c798b1f03d7a90849ffa4a49559
+1: #!/usr/bin/env python3
+2: """Prepare/run one reviewed Neo UART mode1 trial. Default: filesystem checks only."""
+3: import argparse
+4: import fcntl
+5: import json
+6: import re
+7: import signal
+8: import subprocess
+9: import sys
+10: import time
+11: from pathlib import Path
+12: import board_trial_r21 as t
+13: import serial
+14: HERE,ROOT,hw=t.HERE,t.ROOT,t.hw
+15: ANCHOR=HERE/'startup_100k_20261027_090320/result.json'
+16: ANCHOR_SHA='94ac7c893b75a60e8e0f3408013afaf24568db8654e4b7bc72267e2ad9a31b8f'
+17: PHOTO=ANCHOR.parent/'r19_after_check.jpg'
+18: PHOTO_SHA='5c9c34a42b7d8f8232c30c77a11aef605625f2f366489334957ea9704e1c4502'
+19: REVIEW=HERE/'root_route_review_01.json'
+20: UART=Path('/dev/serial/by-id/usb-SIPEED_USB_Debugger_2025041420-if01-port0')
+21: FRAME=bytes.fromhex('a55a52313501fe0d')
+22: 
+23: 
+24: def check_code(count):
+25:     assert count in (0,2)
+26:     return t.BASE_GUARD+f'''
+27: foreach {{addr expected}} {{
+28:   0xe9005080 0x4e435031 0xe9005088 {count} 0xe900508c {count}
+29:   0xe9001004 0 0xe9001008 0 0xe9001034 0
+30: }} {{
+31:   if {{[lindex [read_memory $addr 32 1] 0]!=$expected}} {{error "Unexpected idle GPU/NCP counters"}}
+32: }}
+33: echo "NCP_COUNTERS [read_memory 0xe9005088 32 2]"
+34: echo "WARM_CHECK_{count}"
+35: '''
+36: 
+37: 
+38: def seed_code():
+39:     # No GPU command or DDR transaction: two observer ARM/SNAP handshakes.
+40:     code=check_code(0)
+41:     for i in range(2):code+=t.ARM+t.CAPTURE
+42:     code+='''if {[word 0xe9005088]!=2 || [word 0xe900508c]!=2 || [word 0xe9001004]!=0 || [word 0xe9001008]!=0} {error "NCP witness not established"}
+43: echo NCP_WITNESS_2_2
+44: '''
+45:     assert set(re.findall(r'write_memory\s+(0x[0-9a-f]+)',code))=={'0xe9005084','0xe9005088'}
+46:     assert not any(s in code for s in ['load_image','dump_image','resume','reset halt','reset run','0xe9001010'])
+47:     return code
+48: 
+49: 
+50: def local_plan():
+51:     assert t.sha(ANCHOR)==ANCHOR_SHA and t.sha(PHOTO)==PHOTO_SHA
+52:     a=json.loads(ANCHOR.read_text())
+53:     assert a['left_startup_verified'] and a['last_programmed_sha256']==t.R19_SHA
+54:     assert a['left_state']=='R19 CPU halted; fresh GPU state; internal bars selected'
+55:     for name,digest in a['files'].items():assert t.sha(ANCHOR.parent/name)==digest,name
+56:     review,bit=t.route_review(REVIEW)
+57:     assert t.sha(t.R19/'impl/pnr/console_neo.fs')==t.R19_SHA
+58:     assert FRAME==bytes([0xa5,0x5a,0x52,0x31,0x35,1,0xfe,0x0d])
+59:     seed_code()
+60:     return dict(anchor_sha256=ANCHOR_SHA,anchor_photo_sha256=PHOTO_SHA,
+61:         route_review_sha256=t.sha(REVIEW),candidate_sha256=review['bitstream_sha256'],
+62:         r19_sha256=t.R19_SHA,controller_sha256=t.sha(Path(__file__)),
+63:         jtag_khz=100,frame_hex=FRAME.hex(),delay_mode=1,DDR_commands=False,
+64:         USB_relay_CLI=False,mode0=False,program_flash=False),bit
+65: 
+66: 
+67: class IO:
+68:     def __init__(self,out,report,save):self.out,self.r,self.save=out,report,save
+69:     def observe(self,name,code,marker):
+70:         script=self.out/(name+'.tcl');log=self.out/(name+'.log')
+71:         assert not script.exists() and not log.exists()
+72:         script.write_text(code+'\nshutdown\n')
+73:         hw.run_child(['/usr/local/bin/openocd','-f',str(ROOT/'tools/neo/ae350_espprog.cfg'),
+74:           '-c','adapter speed 100; gdb_port disabled; tcl_port disabled; telnet_port disabled',
+75:           '-f',str(script)],log,30)
+76:         text=log.read_text();assert re.search(r'^'+re.escape(marker)+r'\r?$',text,re.M),marker
+77:         return text
+78:     def program(self,name,path,digest):
+79:         assert t.sha(path)==digest
+80:         log=self.out/(name+'.log');assert not log.exists()
+81:         self.r['programming_attempted_sha256']=digest
+82:         self.r['last_programmed_sha256']=None;self.r['left_startup_verified']=False;self.save()
+83:         ident=hw.usb_identity();self.r['usb_identity']=ident
+84:         assert ident['neo']['serial']=='2025041420' and ident['neo']['path'].endswith('/3-4.4.1')
+85:         hw.run_child([str(Path.home()/'.local/bin/openFPGALoader'),'--busdev-num',ident['programmer_busdev'],
+86:           '-b','tangconsole','-m','--verbose','--freq','6000000',str(path)],log,120)
+87:         self.r[name+'_status']=hw.p.check_program_status(log.read_text())
+88:         # Persist immediately after valid DONE, before delay, photo or CPU guard.
+89:         self.r['last_programmed_sha256']=digest;self.save()
+90:         time.sleep(2)
+91:     def camera(self,name):
+92:         jpg=self.out/(name+'.jpg');log=self.out/(name+'_camera.log')
+93:         assert not jpg.exists() and not log.exists()
+94:         try:
+95:             hw.run_child(['/usr/bin/ffmpeg','-hide_banner','-loglevel','warning','-f','v4l2',
+96:               '-input_format','mjpeg','-video_size','1920x1080','-i','/dev/video0',
+97:               '-vf','select=gte(n\\,15)','-frames:v','1','-update','1','-n',str(jpg)],log,15)
+98:         except Exception as e:self.r[name+'_camera_error']=repr(e)
+99:         self.save()
+100:     def send(self,name):
+101:         # Preserve the current relay; entering BL616 CLI previously broke it.
+102:         real=UART.resolve(strict=True)
+103:         dev=(Path('/sys/class/tty')/real.name/'device').resolve(strict=True)
+104:         parents=[dev]+list(dev.parents)
+105:         interfaces=[p for p in parents if (p/'bInterfaceNumber').is_file()]
+106:         boards=[p for p in parents if (p/'serial').is_file()]
+107:         assert len(interfaces)==1 and (interfaces[0]/'bInterfaceNumber').read_text().strip()=='01'
+108:         assert any((p/'serial').read_text().strip()=='2025041420' for p in boards)
+109:         owners=subprocess.run(['fuser',str(real)],capture_output=True,text=True,timeout=5)
+110:         assert owners.returncode==1 and not owners.stdout.strip(),'UART already in use'
+111:         entry=dict(frame_hex=FRAME.hex(),bytes_written=0,receipt='unknown',UART=str(UART),resolved=str(real),started_unix=time.time())
+112:         self.r[name]=entry;self.save()
+113:         with serial.Serial(str(UART),2000000,timeout=.05,write_timeout=1,
+114:                            exclusive=True,xonxoff=False,rtscts=False,dsrdtr=False) as link:
+115:             entry['bytes_written']=link.write(FRAME);self.save()
+116:             assert entry['bytes_written']==len(FRAME),'Partial reset frame'
+117:             deadline=time.monotonic()+2
+118:             while link.out_waiting:
+119:                 if time.monotonic()>deadline:raise TimeoutError('UART transmit queue did not drain')
+120:                 time.sleep(.005)
+121:             time.sleep(.25)
+122:             # Bounded RX evidence only. No flush, CLI entry, line cancellation or retry.
+123:             data=link.read(4096)
+124:             (self.out/(name+'_rx.bin')).write_bytes(data)
+125:         entry['finished_unix']=time.time();self.save()
+126: 
+127: 
+128: def execute(io,report,save,bit):
+129:     mutated=False
+130:     def observe(name,count):return io.observe(name,check_code(count),'WARM_CHECK_'+str(count))
+131:     def restored():
+132:         io.program('restore_r19',t.R19/'impl/pnr/console_neo.fs',t.R19_SHA)
+133:         observe('restored_r19_guard',0)
+134:         report.update(left_startup_verified=True,left_state='R19 CPU halted; fresh GPU/NCP; internal bars')
+135:         save();io.camera('restored_r19_view')
+136:     try:
+137:         observe('r19_initial_guard',0)
+138:         mutated=True
+139:         io.observe('r19_seed_ncp',seed_code(),'NCP_WITNESS_2_2')
+140:         # Separate JTAG session proves reconnect/halt alone does not erase the witness.
+141:         observe('r19_witness_before_uart',2)
+142:         io.send('r19_mode1')
+143:         observe('r19_after_mode1',0)
+144:         report['r19_mode1']['receipt']='demonstrated_by_NCP_2_2_to_0_0'
+145:         report['r19_uart_reset_proved']=True;save()
+146:         io.camera('r19_warm_view')
+147:         io.program('program_r21',bit,report['candidate_sha256'])
+148:         io.camera('r21_before_initial_dmi')
+149:         try:
+150:             observe('r21_initial_dmi',0)
+151:         except Exception as e:
+152:             report['r21_initial_error']=repr(e);save()
+153:             io.send('r21_mode1')
+154:             io.camera('r21_after_uart_before_dmi')
+155:             try:
+156:                 observe('r21_after_mode1_dmi',0)
+157:             except Exception as second:
+158:                 report['r21_after_mode1_error']=repr(second)
+159:                 report['outcome']='R21_no_recovery_UART_receipt_unknown';save()
+160:                 restored();report['diagnostic_complete']=True;save();return
+161:             report['outcome']='R21_recovered_after_mode1'
+162:             # R21 had no readable pre-reset witness: recovery is not epoch proof.
+163:             report['r21_mode1']['receipt']='recovery_after_frame_no_independent_epoch'
+164:         else:report['outcome']='R21_started_without_UART_retry'
+165:         report.update(r21_startup_verified=True,left_startup_verified=True,
+166:                       left_state='R21r1 CPU halted; fresh GPU/NCP; internal bars',diagnostic_complete=True)
+167:         save();io.camera('r21_final_view')
+168:     except BaseException as e:
+169:         report['error']=repr(e);save()
+170:         if mutated:
+171:             # Restore only after the original parked-state guard was valid.
+172:             for sig in (signal.SIGINT,signal.SIGTERM,signal.SIGHUP):signal.signal(sig,signal.SIG_IGN)
+173:             try:restored()
+174:             except BaseException as fallback:report['fallback_error']=repr(fallback);save()
+175:         raise
+176: 
+177: 
+178: def main():
+179:     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--run',action='store_true');p.add_argument('--check-only',action='store_true')
+180:     args=p.parse_args();assert not(args.run and args.check_only)
+181:     plan,bit=local_plan()
+182:     if not args.run:
+183:         print(json.dumps(dict(local_plan_passed=True,hardware_access=False,**plan)));return
+184:     out=HERE/('warm_mode1_'+time.strftime('%Y%m%d_%H%M%S'))
+185:     report=dict(board='neo',candidate=True,qualification_status='FAIL',**plan,
+186:       diagnostic_complete=False,r19_uart_reset_proved=False,r21_startup_verified=False,
+187:       last_programmed_sha256=t.R19_SHA,left_startup_verified=False,
+188:       DDR_written=False,SD_written=False,flash_written=False,Linux_loaded=False,
+189:       CPU_resume_command=False,CPU_ROM_execution_after_reset=True)
+190:     def save():(out/'result.json').write_text(json.dumps(report,indent=2)+'\n')
+191:     def interrupt(sig,frame):raise KeyboardInterrupt('Signal '+str(sig))
+192:     for sig in (signal.SIGINT,signal.SIGTERM,signal.SIGHUP):signal.signal(sig,interrupt)
+193:     with (ROOT/'TESTS/neo_board.lock').open('a') as lock:
+194:         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+195:         active=subprocess.run(['ps','-C','openocd','-C','openFPGALoader','-C','gao_sh','-C','gao_analyzer','-C','jtagserver','-o','pid=,comm='],capture_output=True,text=True,timeout=5)
+196:         assert active.returncode==1 and not active.stdout.strip()
+197:         ident=hw.usb_identity()
+198:         assert ident['neo']['serial']=='2025041420' and ident['neo']['path'].endswith('/3-4.4.1') and ident['esp']['path'].endswith('/3-4.4.2')
+199:         out.mkdir();(out/'controller_used.py').write_bytes(Path(__file__).read_bytes())
+200:         report.update(identity=ident,started_unix=time.time());save()
+201:         try:execute(IO(out,report,save),report,save,bit)
+202:         finally:
+203:             report['finished_unix']=time.time()
+204:             report['files']={p.name:t.sha(p) for p in out.iterdir() if p.is_file() and p.name!='result.json'}
+205:             save();print(json.dumps(dict(output=str(out),**report)),flush=True)
+206: if __name__=='__main__':main()
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/test_warm_mode1_trial.py SHA256 6897429e8b89e28b41fe577afd3f2c1d9827ca81f6b5a2b69676094fbd6e2f4a
+1: #!/usr/bin/env python3
+2: """Control-flow and filesystem tests only; no devices opened or child executed."""
+3: import copy
+4: import json
+5: from pathlib import Path
+6: import re
+7: import signal
+8: import tempfile
+9: import unittest
+10: from unittest.mock import patch
+11: import warm_mode1_trial as w
+12: 
+13: 
+14: class FakeIO:
+15:     def __init__(self, report, fail=()):
+16:         self.report, self.fail, self.calls = report, set(fail), []
+17:     def called(self, kind, name):
+18:         self.calls.append((kind,name))
+19:         if name in self.fail:raise RuntimeError(name)
+20:     def observe(self, name, code, marker):self.called('observe',name);return marker
+21:     def camera(self, name):self.called('camera',name)
+22:     def send(self, name):
+23:         self.called('send',name);self.report[name]={'receipt':'unknown','frame_hex':w.FRAME.hex()}
+24:     def program(self, name, path, digest):
+25:         self.report['last_programmed_sha256']=None
+26:         self.report['left_startup_verified']=False
+27:         self.called('program',name)
+28:         self.report['last_programmed_sha256']=digest
+29: 
+30: 
+31: class TrialTests(unittest.TestCase):
+32:     def setUp(self):self.handlers={s:signal.getsignal(s) for s in (signal.SIGINT,signal.SIGTERM,signal.SIGHUP)}
+33:     def tearDown(self):
+34:         for sig,handler in self.handlers.items():signal.signal(sig,handler)
+35:     def trial(self,fail=()):
+36:         r={'candidate_sha256':'CANDIDATE','last_programmed_sha256':w.t.R19_SHA,
+37:            'left_startup_verified':False,'diagnostic_complete':False}
+38:         io=FakeIO(r,fail);saved=[];error=None
+39:         try:w.execute(io,r,lambda:saved.append(copy.deepcopy(r)),Path('candidate.fs'))
+40:         except BaseException as e:error=e
+41:         return r,io.calls,error,saved
+42:     def test_initial_guard_failure_never_mutates(self):
+43:         r,c,e,_=self.trial(['r19_initial_guard'])
+44:         self.assertIsNotNone(e);self.assertEqual(c,[('observe','r19_initial_guard')])
+45:         self.assertEqual(r['last_programmed_sha256'],w.t.R19_SHA)
+46:     def test_marker_failure_restores_without_uart_or_candidate(self):
+47:         for fail in ('r19_seed_ncp','r19_witness_before_uart'):
+48:             with self.subTest(fail=fail):
+49:                 r,c,e,_=self.trial([fail]);self.assertIsNotNone(e)
+50:                 self.assertFalse(any(k=='send' for k,_ in c))
+51:                 self.assertEqual([n for k,n in c if k=='program'],['restore_r19'])
+52:                 self.assertTrue(r['left_startup_verified'])
+53:     def test_r19_frame_or_receipt_failure_prevents_candidate(self):
+54:         for fail in ('r19_mode1','r19_after_mode1'):
+55:             with self.subTest(fail=fail):
+56:                 r,c,e,_=self.trial([fail]);self.assertIsNotNone(e)
+57:                 self.assertNotIn(('program','program_r21'),c)
+58:                 self.assertEqual([n for k,n in c if k=='program'],['restore_r19'])
+59:     def test_initial_candidate_success_has_no_second_uart(self):
+60:         r,c,e,_=self.trial();self.assertIsNone(e)
+61:         self.assertEqual([n for k,n in c if k=='send'],['r19_mode1'])
+62:         self.assertEqual(r['outcome'],'R21_started_without_UART_retry')
+63:         self.assertTrue(r['diagnostic_complete']);self.assertEqual(r['last_programmed_sha256'],'CANDIDATE')
+64:     def test_separate_marker_check_precedes_uart(self):
+65:         _,c,_,_=self.trial()
+66:         self.assertLess(c.index(('observe','r19_seed_ncp')),c.index(('observe','r19_witness_before_uart')))
+67:         self.assertLess(c.index(('observe','r19_witness_before_uart')),c.index(('send','r19_mode1')))
+68:         self.assertLess(c.index(('observe','r19_after_mode1')),c.index(('program','program_r21')))
+69:     def test_camera_precedes_each_candidate_dmi(self):
+70:         _,c,e,_=self.trial(['r21_initial_dmi']);self.assertIsNone(e)
+71:         self.assertLess(c.index(('camera','r21_before_initial_dmi')),c.index(('observe','r21_initial_dmi')))
+72:         self.assertLess(c.index(('camera','r21_after_uart_before_dmi')),c.index(('observe','r21_after_mode1_dmi')))
+73:     def test_warm_recovery_does_not_claim_epoch_receipt(self):
+74:         r,c,e,_=self.trial(['r21_initial_dmi']);self.assertIsNone(e)
+75:         self.assertEqual(r['outcome'],'R21_recovered_after_mode1')
+76:         self.assertEqual(r['r21_mode1']['receipt'],'recovery_after_frame_no_independent_epoch')
+77:         self.assertNotIn(('program','restore_r19'),c)
+78:     def test_no_recovery_restores_and_keeps_receipt_unknown(self):
+79:         r,c,e,_=self.trial(['r21_initial_dmi','r21_after_mode1_dmi']);self.assertIsNone(e)
+80:         self.assertEqual(r['outcome'],'R21_no_recovery_UART_receipt_unknown')
+81:         self.assertEqual(r['r21_mode1']['receipt'],'unknown')
+82:         self.assertEqual(r['last_programmed_sha256'],w.t.R19_SHA)
+83:         self.assertTrue(r['diagnostic_complete']);self.assertTrue(r['left_startup_verified'])
+84:     def test_uart_exception_after_candidate_restores(self):
+85:         r,c,e,_=self.trial(['r21_initial_dmi','r21_mode1']);self.assertIsNotNone(e)
+86:         self.assertEqual(r['last_programmed_sha256'],w.t.R19_SHA)
+87:         self.assertTrue(r['left_startup_verified'])
+88:     def test_restoration_guard_failure_never_marks_verified(self):
+89:         r,c,e,_=self.trial(['r19_seed_ncp','restored_r19_guard']);self.assertIsNotNone(e)
+90:         self.assertFalse(r['left_startup_verified']);self.assertIn('fallback_error',r)
+91:         self.assertEqual(r['last_programmed_sha256'],w.t.R19_SHA)
+92:     def test_seed_contains_only_ncp_writes(self):
+93:         code=w.seed_code()
+94:         writes=re.findall(r'write_memory\s+(0x[0-9a-f]+)',code)
+95:         self.assertEqual(writes,['0xe9005084','0xe9005088']*2)
+96:         self.assertFalse(any(x in code for x in ('load_image','dump_image','resume','0xe9001010')))
+97:         self.assertEqual(w.FRAME.hex(),'a55a52313501fe0d')
+98:     def test_program_persists_done_before_sleep_and_guard(self):
+99:         with tempfile.TemporaryDirectory() as d:
+100:             out=Path(d);bit=out/'candidate.fs';bit.write_text('fake bitstream')
+101:             digest=w.t.sha(bit);r={};saved=[]
+102:             def save():saved.append(copy.deepcopy(r))
+103:             def child(cmd,log,timeout):
+104:                 self.assertIn('-m',cmd);self.assertNotIn('-f',cmd)
+105:                 self.assertEqual(timeout,120)
+106:                 log.write_text('after program sram: displayReadReg 00026220\n')
+107:             def sleep(_):
+108:                 self.assertEqual(saved[-1]['last_programmed_sha256'],digest)
+109:                 self.assertFalse(saved[-1]['left_startup_verified'])
+110:                 raise RuntimeError('Interrupted after DONE')
+111:             identity={'neo':{'serial':'2025041420','path':'/sys/bus/usb/devices/3-4.4.1'},'programmer_busdev':'3:42'}
+112:             with patch.object(w.hw,'usb_identity',return_value=identity),patch.object(w.hw,'run_child',side_effect=child),patch.object(w.time,'sleep',side_effect=sleep):
+113:                 with self.assertRaisesRegex(RuntimeError,'Interrupted after DONE'):
+114:                     w.IO(out,r,save).program('program',bit,digest)
+115:             self.assertEqual(r['last_programmed_sha256'],digest)
+116:     def test_failed_done_never_records_candidate(self):
+117:         with tempfile.TemporaryDirectory() as d:
+118:             out=Path(d);bit=out/'candidate.fs';bit.write_text('fake');r={}
+119:             def child(cmd,log,timeout):log.write_text('after program sram: displayReadReg 00024220\n')
+120:             ident={'neo':{'serial':'2025041420','path':'/sys/bus/usb/devices/3-4.4.1'},'programmer_busdev':'3:42'}
+121:             with patch.object(w.hw,'usb_identity',return_value=ident),patch.object(w.hw,'run_child',side_effect=child):
+122:                 with self.assertRaises(Exception):w.IO(out,r,lambda:None).program('failed',bit,w.t.sha(bit))
+123:             self.assertIsNone(r['last_programmed_sha256']);self.assertFalse(r['left_startup_verified'])
+124:     def test_camera_file_names_are_distinct(self):
+125:         with tempfile.TemporaryDirectory() as d:
+126:             r={};out=Path(d)
+127:             def child(cmd,log,timeout):
+128:                 self.assertEqual(log.name,'capture_camera.log');self.assertEqual(Path(cmd[-1]).name,'capture.jpg')
+129:                 self.assertNotEqual(log,Path(cmd[-1]));raise RuntimeError('camera unavailable')
+130:             with patch.object(w.hw,'run_child',side_effect=child):w.IO(out,r,lambda:None).camera('capture')
+131:             self.assertIn('capture_camera_error',r)
+132: 
+133: 
+134: if __name__=='__main__':
+135:     result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(TrialTests))
+136:     report={'passed':result.wasSuccessful(),'tests':result.testsRun,'hardware_access':False,
+137:             'controller_sha256':w.t.sha(Path(w.__file__)),'test_sha256':w.t.sha(Path(__file__)),
+138:             'failures':len(result.failures),'errors':len(result.errors)}
+139:     (w.HERE/'warm_mode1_controller_test_01.json').write_text(json.dumps(report,indent=2)+'\n')
+140:     raise SystemExit(not result.wasSuccessful())
+
+FILE TESTS/neo_720p_20261012/local_capture_20261026/isolate_r19_clear.py SHA256 21b72fc7c7a0f6ca5b1b13608838b304bd013920f2687e9fa092feb2a8a8939e
+1: #!/usr/bin/env python3
+2: """Re-load the same R19; compare legacy, empty CLEAR, and one native burst."""
+3: import fcntl
+4: import json
+5: from pathlib import Path
+6: import re
+7: import shutil
+8: import struct
+9: import subprocess
+10: import time
+11: from board_trial_r19 import HERE, ROOT, BIT_SHA, BASE_GUARD, DISABLED, DEST, hw, sha, preflight
+12: from board_trial import decode
+13: from framebuffer_trial import CACHE
+14: from observe_r19_clear import GUARD as STALLED_GUARD, SNAPSHOT
+15: 
+16: ARM='''proc word {addr} {return [lindex [read_memory $addr 32 1] 0]}
+17: if {[word 0xe9005080]!=0x4e435031 || ([word 0xe9005084]&7)!=4} {error "Observer unavailable"}
+18: set arm [word 0xe9005088]
+19: set seq [word 0xe900508c]
+20: set epoch [expr {1-(([word 0xe9005084]>>5)&1)}]
+21: write_memory 0xe9005084 32 {1}
+22: set ok 0
+23: for {set i 0} {$i<100} {incr i} {
+24:     set status [word 0xe9005084]
+25:     if {($status&0x4f)==4 && (($status>>5)&1)==$epoch && [word 0xe9005088]==(($arm+1)&0xffffffff)} {set ok 1;break}
+26:     sleep 1
+27: }
+28: if {!$ok} {error "Observer arm timeout"}
+29: echo "ARM_EPOCH $epoch"
+30: '''
+31: CAPTURE='''write_memory 0xe9005088 32 {1}
+32: set ok 0
+33: for {set i 0} {$i<100} {incr i} {
+34:     if {([word 0xe9005084]&0x4f)==12 && [word 0xe900508c]==(($seq+1)&0xffffffff)} {set ok 1;break}
+35:     sleep 1
+36: }
+37: if {!$ok} {error "Observer snapshot timeout"}
+38: set first [read_memory 0xe9005080 32 6]
+39: set second [read_memory 0xe9005080 32 6]
+40: if {$first ne $second} {error "Unstable capture"}
+41: echo "NCP $first"
+42: '''
+43: PACKET='''proc packet {words} {
+44:     set before [read_memory 0xe9001000 32 26]
+45:     if {[lindex $before 1]!=0} {error "GPU busy before command"}
+46:     set next [expr {([lindex $before 2]+1)&65535}]
+47:     foreach w $words {
+48:         if {[lindex [read_memory 0xe9001004 32 1] 0]&2} {error "FIFO full"}
+49:         write_memory 0xe9001010 32 [list $w]
+50:     }
+51:     set completed 0
+52:     for {set i 0} {$i<100} {incr i} {
+53:         set after [read_memory 0xe9001000 32 26]
+54:         if {[lindex $after 1]==0 && [lindex $after 2]==$next} {set completed 1;break}
+55:         sleep 2
+56:     }
+57:     echo "GPU_BEFORE $before"
+58:     echo "GPU_AFTER $after"
+59:     echo "COMMAND_COMPLETE $completed"
+60: }
+61: '''
+62: 
+63: def main():
+64:     preflight();anchor=HERE/'r19_clear_observe_01/result.json';old=json.loads(anchor.read_text())
+65:     assert old['complete'] and old['bitstream_sha256']==BIT_SHA and old['gpu_final'][1:3]==[1,10]
+66:     for name,digest in old['files'].items():assert sha(anchor.parent/name)==digest,name
+67:     out=HERE/'r19_clear_isolate_01';assert not out.exists()
+68:     r=dict(bitstream_sha256=BIT_SHA,qualification='FAIL',anchor_sha256=sha(anchor),
+69:         scope='Same R19 SRAM reload; CPU halted; guarded volatile DDR; compare legacy and native CLEAR',
+70:         fpga_reloaded=False,measurements_complete=False,SD_written=False,flash_written=False,cases=[])
+71:     def save():(out/'result.json').write_text(json.dumps(r,indent=2)+'\n')
+72:     def run(name,code):
+73:         cfg=out/(name+'.tcl');cfg.write_text(code+'\nshutdown\n');log=out/(name+'.log')
+74:         hw.run_child(['/usr/local/bin/openocd','-f',str(ROOT/'tools/neo/ae350_espprog.cfg'),
+75:             '-c','adapter speed 1000; gdb_port disabled; tcl_port disabled; telnet_port disabled','-f',str(cfg)],log,40)
+76:         return log.read_text()
+77:     with (ROOT/'TESTS/neo_board.lock').open('a') as lock:
+78:         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+79:         active=subprocess.run(['ps','-C','openocd','-C','openFPGALoader','-C','gao_sh','-C','gao_analyzer','-C','jtagserver','-o','pid=,comm='],capture_output=True,text=True)
+80:         assert active.returncode==1 and not active.stdout.strip(),active.stdout
+81:         r['identity']=hw.usb_identity()
+82:         assert r['identity']['neo']['path'].endswith('/3-4.4.1') and r['identity']['esp']['path'].endswith('/3-4.4.2')
+83:         out.mkdir();shutil.copy2(Path(__file__),out/'controller.py');r['started_unix']=time.time();save()
+84:         try:
+85:             run('guard_stalled',STALLED_GUARD)
+86:             hw.Hardware(out,r).program('reload_r19',DEST/'impl/pnr/console_neo.fs',BIT_SHA)
+87:             r['fpga_reloaded']=True;save()
+88:             prefix='riscv expose_csrs 1994,1996,2000\n'+BASE_GUARD+CACHE
+89:             legacy=bytes((29*i+7)&255 for i in range(128))
+90:             seed=bytes((i*37+19)&255 for i in range(4160))
+91:             zseed=bytes((i*53+41)&255 for i in range(4160))
+92:             for name,data in [('legacy_seed',legacy),('color_seed',seed),('depth_seed',zseed)]: (out/(name+'.bin')).write_bytes(data)
+93:             code=prefix+'''foreach addr {0xe9001004 0xe9001008 0xe9001034 0xe9005088 0xe900508c} {
+94:     if {[lindex [read_memory $addr 32 1] 0]!=0} {error "R19 fresh state mismatch"}
+95: }
+96: '''
+97:             for name,addr in [('legacy_seed',0x800000),('color_seed',0x11ffffe0),('depth_seed',0x1200ffe0)]:
+98:                 code+=f'load_image {{{out/(name+".bin")}}} {addr:#x} bin\nverify_image {{{out/(name+".bin")}}} {addr:#x} bin\n'
+99:             assert 'SEEDS_READY' in run('seeds',code+'echo SEEDS_READY\n')
+100:             cases=[
+101:                 ('TARGET',[22<<24,0x12000000,0x12010000,(128<<16)|16,(256<<16)|256,0,0,0],True),
+102:                 ('LEGACY_32B',[0x0100a600,32<<16,(32<<16)|1,0,0,0,0,0],False),
+103:                 ('CLEAR_FLAGS_ZERO',[28<<24,0,0x5aa5,0x7bde,0,(16<<16)|1,0,0],True),
+104:                 ('CLEAR_EMPTY',[28<<24,3,0x5aa5,0x7bde,0,0,0,0],True),
+105:                 ('CLEAR_COLOR_16PX',[28<<24,1,0x5aa5,0x7bde,0,(16<<16)|1,0,0],True)]
+106:             for name,words,capture in cases:
+107:                 code=prefix+PACKET+SNAPSHOT+(ARM if capture else '')
+108:                 code+='packet {'+' '.join(hex(w) for w in words)+'}\n'
+109:                 code+=(CAPTURE if capture else '')+'gpu_snapshot after\n'
+110:                 for region,addr,size in [('legacy',0x800000,128),('color',0x11ffffe0,4160),('depth',0x1200ffe0,4160)]:
+111:                     code+=f'dump_image {{{out/(name+"_"+region+".bin")}}} {addr:#x} {size}\n'
+112:                 text=run(name,code+DISABLED+'echo CASE_OBSERVED\n')
+113:                 item=dict(name=name,words=words,completed=bool(int(re.search(r'^COMMAND_COMPLETE ([01])$',text,re.M)[1])))
+114:                 for key in ('BEFORE','AFTER'):item['gpu_'+key.lower()]=[int(w,0) for w in re.search(r'^GPU_'+key+r' (.+)$',text,re.M)[1].split()]
+115:                 item['error_deltas']={str(j):(item['gpu_after'][j]-item['gpu_before'][j])&0xffffffff for j in (3,7,9,13,19)}
+116:                 if capture:
+117:                     raw=[int(w,0) for w in re.search(r'^NCP (.+)$',text,re.M)[1].split()]
+118:                     epoch=int(re.search(r'^ARM_EPOCH ([01])$',text,re.M)[1]);item['capture_raw']=raw
+119:                     item['capture']=decode(raw[4]|raw[5]<<32,words[0]>>24,epoch)
+120:                 expected_legacy=legacy if name=='TARGET' else legacy[:32]+bytes([0xa6])*32+legacy[64:]
+121:                 for region,before,expected in [('legacy',legacy,expected_legacy),('color',seed,seed),('depth',zseed,zseed)]:
+122:                     got=(out/(name+'_'+region+'.bin')).read_bytes()
+123:                     if name=='CLEAR_COLOR_16PX' and region=='color':expected=seed[:32]+struct.pack('<H',0x5aa5)*16+seed[64:]
+124:                     item[region]=dict(bytes=len(got),unchanged=got==before,expected_matches=got==expected,
+125:                         different_offsets=[i for i,(a,b) in enumerate(zip(got,expected)) if a!=b][:32],
+126:                         guards_unchanged=got[:32]==before[:32] and got[-32:]==before[-32:])
+127:                 r['cases'].append(item);save();print(json.dumps(item),flush=True)
+128:                 if not item['completed'] or any(item['error_deltas'].values()):
+129:                     r['stopped_on']=name;r['measurements_complete']=True;break
+130:                 assert all(item[k]['expected_matches'] for k in ('legacy','color','depth')),'DDR mismatch'
+131:             else:r['measurements_complete']=True
+132:         except BaseException as exc:r['error']=repr(exc);raise
+133:         finally:
+134:             r['finished_unix']=time.time();r['files']={p.name:sha(p) for p in out.iterdir() if p.is_file() and p.name!='result.json'}
+135:             save();print(json.dumps({k:v for k,v in r.items() if k not in ('identity','files','cases')}),flush=True)
+136: 
+137: if __name__=='__main__':main()
+
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo_reset_trial.v SHA256 6aa906279b93986470afcb907d6058f59a50add224b47232a8817ee0bbc36bc3
+1: // Neo-only experiment. This module never drives a PLL or DDR reset.
+2: // The existing AE350 two-flop reset synchronizer remains downstream.
+3: `default_nettype none
+4: module neo_reset_trial #(
+5:     parameter integer WAIT_CYCLES = 2500000, // user-selected 50 ms at 50 MHz
+6:     parameter integer HOLD_CYCLES = 1000,    // common 20 us warm-reset hold
+7:     parameter integer GAP_CYCLES = 100000,
+8:     parameter integer UART_DIV = 25         // existing BL616 relay: 2 Mbit/s
+9: ) (
+10:     input wire clk_ref, ahb_clk, rtc_clk, serial_rx,
+11:     input wire ddr_ready, pll_ready, cpu_reset_n,
+12:     output wire release_request,
+13:     output reg delay_mode = 1'b1,
+14:     output reg [3:0] command_epoch = 0,
+15:     output reg holding = 0,
+16:     output reg delay_done = 0,
+17:     output wire ahb_tick, rtc_tick
+18: );
+19:     localparam integer WAIT_WIDTH = WAIT_CYCLES > 1 ? $clog2(WAIT_CYCLES) : 1;
+20:     localparam integer HOLD_WIDTH = HOLD_CYCLES > 1 ? $clog2(HOLD_CYCLES) : 1;
+21:     localparam integer GAP_WIDTH = GAP_CYCLES > 1 ? $clog2(GAP_CYCLES) : 1;
+22:     // Independent activity witnesses: never reset by the CPU/bus under test.
+23:     reg [7:0] ahb_div = 0, rtc_div = 0;
+24:     always @(posedge ahb_clk) ahb_div <= ahb_div + 1'b1;
+25:     always @(posedge rtc_clk) rtc_div <= rtc_div + 1'b1;
+26:     assign ahb_tick = ahb_div[7];
+27:     assign rtc_tick = rtc_div[7];
+28: 
+29:     reg [2:0] up = 0;
+30:     always @(posedge clk_ref) up <= {up[1:0], 1'b1};
+31:     wire [7:0] rx_byte;
+32:     wire rx_valid;
+33:     neo_reset_trial_rx #(.DIV_WIDTH(16)) u_rx (
+34:         .clk(clk_ref), .rst(!up[2]), .clk_div(16'(UART_DIV)),
+35:         .rx(serial_rx), .data(rx_byte), .valid(rx_valid));
+36: 
+37:     // A5 5A 52 31 35 mode complement 0D. Only mode 0/1 is accepted.
+38:     // Parser timeout prevents unrelated console bytes completing a stale command.
+39:     reg [2:0] parse_state = 0;
+40:     reg pending_mode = 0;
+41:     reg [GAP_WIDTH-1:0] gap_count = 0;
+42:     reg command_valid = 0, command_mode = 0;
+43:     always @(posedge clk_ref) begin
+44:         command_valid <= 0;
+45:         if (!up[2]) begin parse_state <= 0; gap_count <= 0; end
+46:         else if (parse_state != 0 && gap_count == GAP_WIDTH'(GAP_CYCLES-1)) begin
+47:             parse_state <= 0; gap_count <= 0;
+48:         end else if (rx_valid) begin
+49:             gap_count <= 0;
+50:             case (parse_state)
+51:                 0: parse_state <= rx_byte == 8'ha5 ? 1 : 0;
+52:                 1: parse_state <= rx_byte == 8'h5a ? 2 : 0;
+53:                 2: parse_state <= rx_byte == 8'h52 ? 3 : 0;
+54:                 3: parse_state <= rx_byte == 8'h31 ? 4 : 0;
+55:                 4: parse_state <= rx_byte == 8'h35 ? 5 : 0;
+56:                 5: begin
+57:                     if (rx_byte < 2) begin pending_mode <= rx_byte[0]; parse_state <= 6; end
+58:                     else parse_state <= 0;
+59:                 end
+60:                 6: parse_state <= rx_byte == (pending_mode ? 8'hfe : 8'hff) ? 7 : 0;
+61:                 7: begin
+62:                     parse_state <= 0;
+63:                     if (rx_byte == 8'h0d) begin command_valid <= 1; command_mode <= pending_mode; end
+64:                 end
+65:             endcase
+66:         end else if (parse_state != 0) gap_count <= gap_count + 1'b1;
+67:     end
+68: 
+69:     reg [1:0] ready_meta = 0, reset_meta = 0;
+70:     always @(posedge clk_ref) begin
+71:         ready_meta <= {ready_meta[0], ddr_ready && pll_ready};
+72:         reset_meta <= {reset_meta[0], cpu_reset_n};
+73:     end
+74:     reg [WAIT_WIDTH-1:0] wait_count = 0;
+75:     reg [HOLD_WIDTH-1:0] hold_count = 0;
+76:     always @(posedge clk_ref) begin
+77:         if (command_valid) begin
+78:             delay_mode <= command_mode;
+79:             command_epoch <= command_epoch + 1'b1;
+80:             holding <= 1;
+81:             hold_count <= 0;
+82:             wait_count <= 0;
+83:             delay_done <= 0;
+84:         end else begin
+85:             if (holding) begin
+86:                 // Do not lose a reset request while AHB is stopped: wait until
+87:                 // the existing two-flop synchronizer has actually asserted reset.
+88:                 if (reset_meta[1]) hold_count <= 0;
+89:                 else if (hold_count == HOLD_WIDTH'(HOLD_CYCLES-1)) begin
+90:                     holding <= 0; hold_count <= 0;
+91:                 end else hold_count <= hold_count + 1'b1;
+92:             end
+93:             if (!ready_meta[1] || holding) begin wait_count <= 0; delay_done <= 0; end
+94:             else if (!delay_done) begin
+95:                 if (wait_count == WAIT_WIDTH'(WAIT_CYCLES-1)) delay_done <= 1;
+96:                 else wait_count <= wait_count + 1'b1;
+97:             end
+98:         end
+99:     end
+100:     // In short mode the original DDR-ready level is passed to the unchanged
+101:     // two AHB flops. All modes still honor calibration loss; no force-to-one.
+102:     assign release_request = ddr_ready && !holding && (!delay_mode || delay_done);
+103: endmodule
+104: `default_nettype wire
+
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/boards/neo/neo_capture_bus.v SHA256 14ec9118516425b9cab52b1e02ec00b4a8a5a036e2f64f14e161ff0bf0acb50e
+1: // Extension inside the existing Neo diagnostic AHB slave. Its existing address
+2: // phase registers and wait state remain authoritative. No additional bus master.
+3: `default_nettype none
+4: module neo_capture_bus(
+5:     input wire clk, resetn, legacy_wait, write_pending, write_bit,
+6:     input wire [7:0] write_addr, read_addr,
+7:     input wire [31:0] legacy_data,
+8:     output wire [31:0] hrdata,
+9:     output reg arm_req=0, snap_req=0,
+10:     input wire arm_ack,snap_ack,ready,heartbeat,
+11:     input wire [63:0] held
+12: );
+13:     reg [1:0] up=0;
+14:     reg [1:0] arm_sync=0,snap_sync=0,ready_sync=0,beat_sync=0;
+15:     reg [63:0] shadow=0;
+16:     reg [31:0] sequence_id=0,arm_count=0,heartbeat_count=0;
+17:     reg arm_busy=0,snap_busy=0,snapshot_valid=0,rejected=0,beat_last=0;
+18:     reg [1:0] settle=0;
+19:     reg [7:0] read_latched=0;
+20:     reg [31:0] response=0;
+21:     assign hrdata=read_latched[7] ? response:legacy_data;
+22:     always @(posedge clk or negedge resetn)
+23:         if(!resetn)up<=0;else up<={up[0],1'b1};
+24:     always @(posedge clk or negedge resetn)begin
+25:         if(!resetn)begin
+26:             arm_sync<=0;snap_sync<=0;ready_sync<=0;beat_sync<=0;beat_last<=0;
+27:             arm_req<=0;snap_req<=0;arm_busy<=0;snap_busy<=0;snapshot_valid<=0;
+28:             rejected<=0;settle<=0;shadow<=0;sequence_id<=0;arm_count<=0;
+29:             heartbeat_count<=0;read_latched<=0;response<=0;
+30:         end else if(!up[1])begin
+31:             arm_sync<=0;snap_sync<=0;ready_sync<=0;beat_sync<=0;beat_last<=0;
+32:             arm_req<=0;snap_req<=0;arm_busy<=0;snap_busy<=0;snapshot_valid<=0;
+33:             rejected<=0;settle<=0;shadow<=0;sequence_id<=0;arm_count<=0;
+34:             heartbeat_count<=0;read_latched<=0;response<=0;
+35:         end else begin
+36:             arm_sync<={arm_sync[0],arm_ack};snap_sync<={snap_sync[0],snap_ack};
+37:             ready_sync<={ready_sync[0],ready};beat_sync<={beat_sync[0],heartbeat};
+38:             if(beat_sync[1]!=beat_last)begin heartbeat_count<=heartbeat_count+1'b1;beat_last<=beat_sync[1];end
+39:             if(arm_busy && arm_sync[1]==arm_req)arm_busy<=0;
+40:             if(snap_busy && snap_sync[1]==snap_req)begin
+41:                 // Two further AHB cycles after synchronized ACK before copying
+42:                 // held. Physical held->shadow delay must be audited after PNR.
+43:                 if(settle==2)begin
+44:                     shadow<=held;sequence_id<=sequence_id+1'b1;snapshot_valid<=1;snap_busy<=0;settle<=0;
+45:                 end else settle<=settle+1'b1;
+46:             end
+47:             if(write_pending && !legacy_wait && write_bit &&
+48:                (write_addr==8'h84 || write_addr==8'h88))begin
+49:                 if(!ready_sync[1] || arm_busy || snap_busy)rejected<=1;
+50:                 else if(write_addr==8'h84)begin
+51:                     arm_req<=~arm_req;arm_busy<=1;arm_count<=arm_count+1'b1;snapshot_valid<=0;rejected<=0;
+52:                 end else begin snap_req<=~snap_req;snap_busy<=1;settle<=0;snapshot_valid<=0;end
+53:             end
+54:             if(!legacy_wait)read_latched<=read_addr;
+55:             case(read_latched)
+56:                 8'h80:response<=32'h4e435031; // NCP1
+57:                 8'h84:response<={25'd0,rejected,arm_req,snap_req,snapshot_valid,ready_sync[1],snap_busy,arm_busy};
+58:                 8'h88:response<=arm_count;
+59:                 8'h8c:response<=sequence_id;
+60:                 8'h90:response<=shadow[31:0];
+61:                 8'h94:response<=shadow[63:32];
+62:                 8'h98:response<=heartbeat_count;
+63:                 default:response<=0;
+64:             endcase
+65:         end
+66:     end
+67: endmodule
+68: `default_nettype wire
+
+FILE TESTS/neo_720p_20261012/capture_memory_20261027/warm_mode1_controller_test_01.json SHA256 5de7314c14a09f03490f73c47c0220b4a1779c8c5636350e8aab016dace4a349
+1: {
+2:   "passed": true,
+3:   "tests": 14,
+4:   "hardware_access": false,
+5:   "controller_sha256": "239c4b5d8417723abb8f3a239fd789aba9105c798b1f03d7a90849ffa4a49559",
+6:   "test_sha256": "6897429e8b89e28b41fe577afd3f2c1d9827ca81f6b5a2b69676094fbd6e2f4a",
+7:   "failures": 0,
+8:   "errors": 0
+9: }

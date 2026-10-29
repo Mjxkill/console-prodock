@@ -1,0 +1,593 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-revue de cette correction concrète : temps restant consommé dans tickfixe60Hz, commandes légales à durée17/33/100ms, indépendancePRESENT pour jeux tempsréel seulement. Cherche blocage/reliquat perdu/cancellation ou test faussementPASS, avec témoinprécis. Ne recommandepas autrearchitecture générale niFPS. Lesmoteurs etrender ne changent pas.
+
+EVIDENCE PACKET:
+Concrete candidate not integrated or on hardware. Timed games must run continuously while rendering samples simulation, puzzles retain400ms visibility pacing. Engine functions and renderer unchanged. Focus bounded carry of17/33/100ms action durations inside60Hz simulation, terminal/release gate/cancellation, representable float remainder. Same8won-state codec CRC across5render cadences in tests. NoFPSclaim.
+FILE games/luma3d/candidates/motion_continuous_r1/src/showcase.c
+#define _POSIX_C_SOURCE 200809L
+#include "luma3d_showcase.h"
+#include "luma3d_activities.h"
+#include <math.h>
+#include <string.h>
+#include <time.h>
+static double diagnostic_clock(void){struct timespec t;if(clock_gettime(CLOCK_MONOTONIC,&t))return 0;return t.tv_sec+t.tv_nsec*1e-9;}
+
+typedef struct {float x,z;} Point;
+enum {AUTO,LOOK,TALK,PRESS1,PRESS2,ACTIVITY,RETURN,FINISH};
+typedef struct {const char *title;const Point *path;unsigned count,action,kind;} Stage;
+static const Point west[]={{220,58},{224,50},{224,42},{224,30},{232,24},{244,24},{250,24},{252,21.2f}};
+static const Point garden[]={{250,24},{244,24},{232,24},{224,30},{218,28},{212,24}};
+static const Point shortcut[]={{216,34},{216,40},{216,44},{220,48},{220,58},{224,54},{230,50}};
+static const Point valve[]={{236,46},{242,43}};
+static const Point water[]={{244,40},{244,28},{250,24},{252,21.2f}};
+static const Point numbers[]={{250,24},{256,28},{258,27}};
+static const Point blocks[]={{256,28},{250,24},{244,24},{232,24},{224,30},{224,40},{227,41}};
+static const Point circuit[]={{224,42},{224,50},{224,54},{229,57}};
+static const Point house[]={{224,54},{220,58},{218,62},{219,65},{219,68},{219,70.5f},{221,70.5f},{224,70.5f},{224,72}};
+static const Point secret[]={{224,70.5f},{221,70.5f},{219,72},{217,72},{215,72}};
+static const Point tower[]={{219,65},{220,58},{224,50},{224,42},{228,42},{231,42}};
+static const Point crystals[]={{231,46},{231,48},{230,50},{224,50},{224,42},{224,30},{222.5f,30},{220,32}};
+static const Point stars[]={{222.5f,30},{224,30},{232,24},{244,24},{250,24},{254,24},{256,22}};
+static const Point nora[]={{254,24},{250,24},{244,28},{244,40},{242,43},{236,46},{230,50},{224,54},{220,58},{218,57.2f}};
+static const Point back[]={{220,58},{214,62},{208,68},{204,70.8f}};
+#define ROUTE(p) p,sizeof(p)/sizeof(*p)
+static const Stage stages[]={
+ {"Courrier, relais, atelier : le voyage commence",NULL,0,AUTO,0},
+ {"Le sentier ouest : un autre chemin vers Nils",ROUTE(west),TALK,0},
+ {"Le jardin des formes : un détour récompensé",ROUTE(garden),ACTIVITY,L3_MINI_SHAPES},
+ {"Le portillon du jardin : retour par le raccourci",ROUTE(shortcut),PRESS1,0},
+ {"Les eaux : orienter la vanne et lever le pont",ROUTE(valve),PRESS2,0},
+ {"La passerelle : le deuxième chemin est ouvert",ROUTE(water),LOOK,0},
+ {"L'observatoire : réunir les nombres jusqu'à 1024",ROUTE(numbers),ACTIVITY,L3_MINI_MERGE1024},
+ {"L'atelier des blocs : compléter les lignes",ROUTE(blocks),ACTIVITY,L3_MINI_BLOCKS},
+ {"Les ruines : relier le circuit de lumière",ROUTE(circuit),ACTIVITY,L3_MINI_CIRCUIT},
+ {"La maison des lueurs : lanternes et fantômes",ROUTE(house),ACTIVITY,L3_MINI_MAZE},
+ {"La maison révèle son passage secret",ROUTE(secret),LOOK,0},
+ {"La tour des courroies : sauter, grimper, esquiver",ROUTE(tower),ACTIVITY,L3_ARCADE_PLATFORM},
+ {"Les quatre échos : retenir et répéter les couleurs",ROUTE(crystals),ACTIVITY,L3_ARCADE_SIMON},
+ {"Le simulateur des étoiles : le vaisseau et son boss",ROUTE(stars),ACTIVITY,L3_ARCADE_SHOOTER},
+ {"Retrouver Nora : les lieux sont désormais reliés",ROUTE(nora),TALK,0},
+ {"Le passage bleu : retour libre vers la vallée",ROUTE(back),RETURN,0},
+ {"Huit défis découverts : le voyage peut recommencer",NULL,0,FINISH,0}
+};
+unsigned l3_showcase_stages(void){return sizeof(stages)/sizeof(*stages);}
+const char *l3_showcase_title(unsigned n){return n<l3_showcase_stages()?stages[n].title:"Visite interrompue";}
+static void publish(L3Showcase *s,L3Game *g){
+ if(g->showcase_stage!=s->stage||g->showcase_status!=s->status){g->showcase_stage=s->stage;g->showcase_status=s->status;g->story.revision++;g->activities.revision++;}
+}
+static void fail(L3Showcase *s,L3Game *g){s->status=3;publish(s,g);}
+static void next(L3Showcase *s,L3Game *g){s->completed|=1u<<s->stage;s->stage++;s->mode=s->point=s->presses=0;s->stage_time=s->wait=s->cooldown=0;s->action_pending=0;s->event_frame=s->frames;publish(s,g);}
+void l3_showcase_init(L3Showcase *s,L3Game *g,int once){
+ memset(s,0,sizeof(*s));s->initial_world=g->world;s->once=!!once;s->status=1;publish(s,g);
+}
+void l3_showcase_presented(L3Showcase *s){if(s)s->frames++;}
+void l3_showcase_cancel(L3Showcase *s,L3Game *g){
+ if(!s||!g)return;s->status=0;g->showcase_status=g->showcase_stage=0;g->autopilot=0;g->story.revision++;g->activities.revision++;
+}
+static void advance(L3Showcase *s,L3Game *g,const L3Input *in,float dt){
+ l3_game_step(g,in,dt);
+ if(g->activities.arcade.active){
+  L3ArcadeView v;if(!l3_arcade_view(&g->activities.arcade,&v)){fail(s,g);return;}
+  s->visited|=1u<<v.kind;s->won=g->activities.arcade.won;
+  if(v.kind==L3_ARCADE_SHOOTER&&v.content.shooter.boss_hp)s->boss_seen=1;
+  if(v.kind==L3_ARCADE_PLATFORM&&v.content.platform.checkpoint_floor)s->checkpoint_seen=1;
+  if(v.kind==L3_ARCADE_SIMON&&v.content.simon.phase==L3_SIMON_SHOW&&v.content.simon.active_color<4)s->crystal_seen=1;
+ }
+}
+/* Consume the entire fixed tick for timed activities. An adviser command
+ * may end inside it (17/33ms platform commands, Simon phase boundaries).
+ * Engine steps remain legal positive durations; no PRESENT gates their time. */
+static void play_timed(L3Showcase *s,L3Game *g,float dt){
+ float remaining=dt;
+ for(unsigned i=0;i<32&&remaining>.000001f;i++){
+  L3ArcadeView v;if(!l3_arcade_view(&g->activities.arcade,&v)){fail(s,g);return;}
+  if(v.status!=L3_MINI_RUNNING)return;
+  if(!s->action_pending){
+   uint32_t ms=0;double started=diagnostic_clock();int advised=l3_arcade_demo_input(&g->activities.arcade,&s->action_pressed,&s->action_held,&ms);s->adviser_seconds+=diagnostic_clock()-started;s->adviser_calls++;
+   if(!advised||ms>250){fail(s,g);return;}
+   s->action_left=ms?ms/1000.f:1.f/60;s->action_pending=1;s->commands++;
+  }
+  float part=fminf(remaining,s->action_left);L3Input in={.mini_pressed=s->action_pressed,.mini_held=s->action_held};
+  advance(s,g,&in,part);s->action_pressed=0;s->action_left-=part;remaining-=part;
+  if(s->action_left<=.000001f){s->action_pending=0;s->event_frame=s->frames;}
+ }
+ if(remaining>.000001f)fail(s,g); /* bounded loop, never silently lose time */
+}
+static void play(L3Showcase *s,L3Game *g,float dt,unsigned kind){
+ L3ArcadeView v;if(!l3_arcade_view(&g->activities.arcade,&v)||v.kind!=kind){fail(s,g);return;}
+ if(v.status==L3_MINI_LOST){fail(s,g);return;}
+ if(v.status==L3_MINI_WON){
+  if(s->mode!=3){s->mode=3;s->wait=0;s->event_frame=s->frames;s->action_pending=0;}
+  s->wait+=dt;if(s->wait>=4&&s->frames>s->event_frame){L3Input in={.mini_pressed=L3_MINI_BACK};advance(s,g,&in,dt);if(g->activities.arcade.active){fail(s,g);return;}next(s,g);}return;
+ }
+ s->wait=0;
+ if(kind>=4){play_timed(s,g,dt);return;}
+ if(s->action_pending){
+  float part=fminf(dt,s->action_left);L3Input in={.mini_pressed=s->action_pressed,.mini_held=s->action_held};
+  advance(s,g,&in,part);s->action_pressed=0;s->action_left-=part;
+  if(s->action_left<=.000001f){s->action_pending=0;s->event_frame=s->frames;}
+  return;
+ }
+ /* Pause this demo's simulation until its last input has actually reached
+  * an image. At low FPS, commands become longer, never silently shorter. */
+ if(s->frames==s->event_frame)return;
+ if(s->cooldown>0){s->cooldown=fmaxf(0,s->cooldown-dt);return;}
+ uint32_t ms=0;double started=diagnostic_clock();int advised=l3_arcade_demo_input(&g->activities.arcade,&s->action_pressed,&s->action_held,&ms);s->adviser_seconds+=diagnostic_clock()-started;s->adviser_calls++;if(!advised){fail(s,g);return;}
+ s->action_left=ms?ms/1000.f:1.f/60;s->action_pending=1;s->commands++;
+ /* Board puzzles have no timed danger. Their zero-time adviser moves are
+  * executed with positive dt, then held on screen for at least400ms. */
+ s->cooldown=kind<4?.4f:0;
+}
+void l3_showcase_step(L3Showcase *s,L3Game *g,float dt){
+ if(!s||!g||s->status!=1||!isfinite(dt)||dt<=0)return;dt=fminf(dt,1.f/60);
+ s->elapsed+=dt;s->stage_time+=dt;
+ if(s->elapsed>1200||s->stage>=l3_showcase_stages()||s->stage_time>600){fail(s,g);return;}
+ const Stage *stage=stages+s->stage;L3Input in={0};
+ if(stage->action==AUTO){
+  if(g->story.region&&g->story.amber_phase==2&&g->story.dialogue<0){in.pressed=L3_TOGGLE_AUTO;advance(s,g,&in,dt);next(s,g);}
+  else advance(s,g,NULL,dt);return;
+ }
+ if(s->mode==0){
+  /* Intro/braking pause is part of the visible guided tour. */
+  s->wait+=dt;advance(s,g,NULL,dt);
+  if(s->wait>=2&&s->frames>s->event_frame){s->mode=1;s->wait=0;}
+  return;
+ }
+ if(s->point<stage->count){
+  Point p=stage->path[s->point];float dx=p.x-g->player.position.x,dz=p.z-g->player.position.z,d=hypotf(dx,dz);
+  if(d<.18f){s->point++;return;}
+  float scale=fminf(1,d*1.8f)/d,c=cosf(g->camera.yaw),sn=sinf(g->camera.yaw);
+  in.move_x=(-c*dx+sn*dz)*scale;in.move_z=(sn*dx+c*dz)*scale;advance(s,g,&in,dt);return;
+ }
+ if(stage->action==ACTIVITY){
+  if(s->mode==1){s->wait+=dt;advance(s,g,NULL,dt);if(s->wait>=3&&s->frames>s->event_frame){in.pressed=L3_INTERACT;advance(s,g,&in,dt);if(g->activities.arcade.active!=stage->kind+1){fail(s,g);return;}s->mode=2;s->wait=0;s->event_frame=s->frames;}return;}
+  play(s,g,dt,stage->kind);return;
+ }
+ if(stage->action==TALK){
+  if(!s->presses||g->story.dialogue>=0){
+   s->wait+=dt;if(s->wait>=(s->presses?5.f:2.f)&&s->frames>s->event_frame){in.pressed=L3_INTERACT;s->wait=0;s->presses++;s->event_frame=s->frames;}
+   advance(s,g,&in,dt);
+  }else next(s,g);return;
+ }
+ if(stage->action==PRESS1||stage->action==PRESS2||stage->action==RETURN){
+  unsigned count=stage->action==PRESS2?2:1;s->wait+=dt;
+  if(s->presses<count&&s->wait>=2&&s->frames>s->event_frame){in.pressed=L3_INTERACT;s->presses++;s->wait=0;s->event_frame=s->frames;}
+  advance(s,g,&in,dt);
+  if(s->presses==count&&s->wait>=3&&s->frames>s->event_frame){
+   if((stage->action==RETURN&&g->story.region)||(stage->action==PRESS1&&!g->story.amber_intake)||(stage->action==PRESS2&&g->story.amber_phase<3)){fail(s,g);return;}next(s,g);
+  }return;
+ }
+ /* Short panorama with real camera controls. The camera collision logic
+  * still clips against the terrain; no precomputed image/eye coordinates. */
+ s->wait+=dt;if(s->wait<1.2f)in.look_x=.45f;advance(s,g,&in,dt);
+ if(s->wait>=(stage->action==FINISH?8.f:4.f)&&s->frames>s->event_frame){
+  if(stage->action==FINISH){
+   if(s->won!=255||s->visited!=255||!s->boss_seen||!s->checkpoint_seen||!s->crystal_seen||g->story.region||g->story.amber_phase!=5){fail(s,g);return;}
+   s->completed|=1u<<s->stage;s->loops++;
+   if(s->once){s->status=2;publish(s,g);}else{
+    unsigned loops=s->loops;L3World w=s->initial_world;if(!l3_game_init(g,&w,1)){fail(s,g);return;}l3_showcase_init(s,g,0);s->loops=loops;
+   }
+  }else next(s,g);
+ }
+}
+
+FILE games/luma3d/candidates/motion_continuous_r1/source.patch
+--- R6/showcase.c
++++ motion/showcase.c
+@@ -68,6 +68,25 @@
+   if(v.kind==L3_ARCADE_SIMON&&v.content.simon.phase==L3_SIMON_SHOW&&v.content.simon.active_color<4)s->crystal_seen=1;
+  }
+ }
++/* Consume the entire fixed tick for timed activities. An adviser command
++ * may end inside it (17/33ms platform commands, Simon phase boundaries).
++ * Engine steps remain legal positive durations; no PRESENT gates their time. */
++static void play_timed(L3Showcase *s,L3Game *g,float dt){
++ float remaining=dt;
++ for(unsigned i=0;i<32&&remaining>.000001f;i++){
++  L3ArcadeView v;if(!l3_arcade_view(&g->activities.arcade,&v)){fail(s,g);return;}
++  if(v.status!=L3_MINI_RUNNING)return;
++  if(!s->action_pending){
++   uint32_t ms=0;double started=diagnostic_clock();int advised=l3_arcade_demo_input(&g->activities.arcade,&s->action_pressed,&s->action_held,&ms);s->adviser_seconds+=diagnostic_clock()-started;s->adviser_calls++;
++   if(!advised||ms>250){fail(s,g);return;}
++   s->action_left=ms?ms/1000.f:1.f/60;s->action_pending=1;s->commands++;
++  }
++  float part=fminf(remaining,s->action_left);L3Input in={.mini_pressed=s->action_pressed,.mini_held=s->action_held};
++  advance(s,g,&in,part);s->action_pressed=0;s->action_left-=part;remaining-=part;
++  if(s->action_left<=.000001f){s->action_pending=0;s->event_frame=s->frames;}
++ }
++ if(remaining>.000001f)fail(s,g); /* bounded loop, never silently lose time */
++}
+ static void play(L3Showcase *s,L3Game *g,float dt,unsigned kind){
+  L3ArcadeView v;if(!l3_arcade_view(&g->activities.arcade,&v)||v.kind!=kind){fail(s,g);return;}
+  if(v.status==L3_MINI_LOST){fail(s,g);return;}
+@@ -76,6 +95,7 @@
+   s->wait+=dt;if(s->wait>=4&&s->frames>s->event_frame){L3Input in={.mini_pressed=L3_MINI_BACK};advance(s,g,&in,dt);if(g->activities.arcade.active){fail(s,g);return;}next(s,g);}return;
+  }
+  s->wait=0;
++ if(kind>=4){play_timed(s,g,dt);return;}
+  if(s->action_pending){
+   float part=fminf(dt,s->action_left);L3Input in={.mini_pressed=s->action_pressed,.mini_held=s->action_held};
+   advance(s,g,&in,part);s->action_pressed=0;s->action_left-=part;
+
+FILE games/luma3d/candidates/motion_continuous_r1/tests/test_continuous.c
+#include "luma3d_render.h"
+#include "luma3d_showcase.h"
+#include <assert.h>
+#include <stdio.h>
+#include "luma3d_activities.h"
+#include <stdlib.h>
+#include <string.h>
+static unsigned state_crc(const void *data,size_t bytes){
+ const unsigned char *p=data;unsigned c=~0u;while(bytes--){c^=*p++;for(unsigned i=0;i<8;i++)c=(c>>1)^(0xedb88320u&-(c&1));}return ~c;
+}
+static unsigned elapsed(const L3ArcadeView *v){
+ if(v->kind<=L3_ARCADE_MAZE)return v->content.grid.elapsed_ms;
+ if(v->kind==L3_ARCADE_SIMON)return v->content.simon.grid.elapsed_ms;
+ if(v->kind==L3_ARCADE_SHOOTER)return v->content.shooter.elapsed_ms;
+ return v->content.platform.elapsed_ms;
+}
+int main(int argc,char **argv){
+ unsigned cadence=argc>1?(unsigned)strtoul(argv[1],NULL,10):10;assert(cadence&&cadence<=60);
+ L3World w;L3Game g;L3Showcase s;l3_world_init(&w);assert(l3_game_init(&g,&w,1));l3_showcase_init(&s,&g,1);
+ unsigned previous=999,cancelled=0,entries=0,wins=0;float begin=0,last_command=-1;unsigned last_count=0;
+ for(unsigned i=0;i<60*1202&&s.status==1;i++){
+  if(previous!=s.stage){printf("STAGE %u sim=%.3f previous=%.3f %s\n",s.stage,s.elapsed,s.elapsed-begin,l3_showcase_title(s.stage));fflush(stdout);begin=s.elapsed;previous=s.stage;}
+  if(!(cancelled&(1u<<s.stage))){
+   L3Showcase copy=s;L3Game manual=g;
+   l3_showcase_cancel(&copy,&manual);
+   assert(!manual.autopilot&&!manual.showcase_status&&copy.status==0);
+   assert(!memcmp(&manual.player,&g.player,sizeof(g.player))&&!memcmp(&manual.camera,&g.camera,sizeof(g.camera)));
+   assert(!memcmp(&manual.activities.arcade,&g.activities.arcade,sizeof(g.activities.arcade)));
+   L3Game after=manual;l3_showcase_step(&copy,&manual,1.f/60);assert(!memcmp(&after,&manual,sizeof(manual)));
+   cancelled|=1u<<s.stage;
+  }
+  if(g.activities.arcade.active&&g.activities.arcade.active<=4&&s.mode==2&&!s.action_pending&&s.frames==s.event_frame){
+   L3Showcase copy=s;L3Game frozen=g;
+   for(unsigned j=0;j<30;j++)l3_showcase_step(&copy,&frozen,1.f/60);
+   if(!(g.activities.arcade.won&(1u<<(g.activities.arcade.active-1)))) {
+    assert(!memcmp(&g.activities.arcade,&frozen.activities.arcade,sizeof(g.activities.arcade)));
+    assert(copy.commands==s.commands);
+   }
+  }
+  L3ArcadeView before,after;unsigned active=g.activities.arcade.active;
+  int timed=active>4&&s.mode==2&&!g.activities.arcade.release_inputs&&l3_arcade_view(&g.activities.arcade,&before)&&before.status==L3_MINI_RUNNING;
+  l3_showcase_step(&s,&g,1.f/60);if(!(i%cadence))l3_showcase_presented(&s);
+  if(timed&&g.activities.arcade.active==active&&l3_arcade_view(&g.activities.arcade,&after)&&after.status==L3_MINI_RUNNING){
+   if(!(elapsed(&after)>=elapsed(&before)+15&&elapsed(&after)<=elapsed(&before)+17))fprintf(stderr,"TIMED_DELTA active=%u before=%u after=%u pending=%u left=%.9f\n",active,elapsed(&before),elapsed(&after),s.action_pending,s.action_left);
+   assert(elapsed(&after)>=elapsed(&before)+15&&elapsed(&after)<=elapsed(&before)+17);
+  }
+  if(s.commands!=last_count){
+   if(g.activities.arcade.active&&g.activities.arcade.active<=4&&last_count&&s.commands>1&&last_command>=0)
+    assert(s.elapsed-last_command>=.399f);
+   last_count=s.commands;last_command=s.elapsed;
+  }
+  if(g.activities.arcade.active){
+   unsigned k=g.activities.arcade.active-1;
+   if(!(entries&(1u<<k))){printf("CAPTURE entry_%u %u\n",k,i+1);entries|=1u<<k;}
+   if((g.activities.arcade.won&(1u<<k))&&!(wins&(1u<<k))){printf("CAPTURE won_%u %u\n",k,i+1);wins|=1u<<k;unsigned char bytes[L3_ARCADE_SAVE_MAX];size_t n=l3_arcade_encode(&g.activities.arcade,bytes,sizeof bytes);assert(n);printf("WON_STATE kind=%u crc=%08x bytes=%zu\n",k,state_crc(bytes,n),n);}
+  }
+  if(cadence==10) {
+   static unsigned seen=0;
+   if(s.boss_seen&&!(seen&1)){puts("COVER boss=1");printf("CAPTURE boss %u\n",i+1);seen|=1;}
+   if(s.checkpoint_seen&&!(seen&2)){printf("CAPTURE checkpoint %u\n",i+1);seen|=2;}
+   if(s.crystal_seen&&!(seen&4)){printf("CAPTURE crystal %u\n",i+1);seen|=4;}
+  }
+ }
+ printf("END status=%u stage=%u time=%.3f loops=%u visited=%u won=%u commands=%u boss=%u checkpoint=%u crystals=%u position=%.3f,%.3f region=%u phase=%u\n",s.status,s.stage,s.elapsed,s.loops,s.visited,s.won,s.commands,s.boss_seen,s.checkpoint_seen,s.crystal_seen,g.player.position.x,g.player.position.z,g.story.region,g.story.amber_phase);fflush(stdout);
+ assert(s.status==2&&s.loops==1&&s.won==255&&s.visited==255&&s.completed==(1u<<l3_showcase_stages())-1);
+ L3Game stopped=g;l3_showcase_step(&s,&g,1.f/60);assert(!memcmp(&g,&stopped,sizeof(g)));
+ assert(entries==255&&wins==255&&cancelled==(1u<<l3_showcase_stages())-1);
+ if(cadence==10){
+  L3Game loop;L3Showcase demo;assert(l3_game_init(&loop,&w,1));l3_showcase_init(&demo,&loop,0);
+  unsigned resets=0;
+  for(unsigned i=0;i<150000&&resets<2;i++){
+   l3_showcase_step(&demo,&loop,1.f/60);if(!(i%10))l3_showcase_presented(&demo);
+   assert(demo.status==1);
+   if(demo.loops>resets){resets=demo.loops;assert(!loop.activities.arcade.won&&!loop.story.region&&!loop.collected_count);}
+  }assert(resets==2);puts("LOOP_PASS two complete cycles, fresh demo only");
+  L3Game uneven;L3Showcase irregular;assert(l3_game_init(&uneven,&w,1));l3_showcase_init(&irregular,&uneven,1);
+  const double intervals[]={1./60,1./8,1./3,.2,.05,.09};double wall=0,accumulator=0;unsigned pauses=0;
+  for(unsigned frame=0;frame<30000&&irregular.status==1;frame++){
+   double dt=frame==500?20:intervals[frame%6];wall+=dt;if(dt>.25)dt=.25;accumulator+=dt;
+   unsigned ticks=0,commands=irregular.commands;
+   while(accumulator>=1./60){l3_showcase_step(&irregular,&uneven,1.f/60);accumulator-=1./60;ticks++;}
+   if(frame==500){assert(ticks<=15);pauses++;}
+   assert(irregular.commands-commands<=(uneven.activities.arcade.active>4?16:1));l3_showcase_presented(&irregular);
+  }
+  assert(pauses==1&&irregular.status==2&&irregular.won==255&&wall>irregular.elapsed&&wall<3600);
+  printf("IRREGULAR_MAIN_SCHEDULE_PASS simulated=%.3f wall=%.3f long_pause=20 dt_cap=.25 board_commands_per_present_max=1 timed_commands_independent=1\n",irregular.elapsed,wall);
+
+ }
+ l3_showcase_cancel(&s,&g);assert(!g.showcase_status&&!g.autopilot&&s.status==0);return 0;
+}
+
+FILE games/luma3d/candidates/motion_continuous_r1/validate.py
+#!/usr/bin/env python3
+import argparse,hashlib,json,os,subprocess,re
+from pathlib import Path
+C=Path(__file__).resolve().parent;R=C.parents[3];S=R/'games/luma3d/build/arcade_polish_20261026_r6/source';G=S/'games/luma3d'
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--out',required=True,type=Path);a=p.parse_args();o=a.out.resolve();o.mkdir(parents=True,exist_ok=False)
+ names=['activities','amber','arcade_core','game','story','surface','workshop','world']
+ src=[C/'tests/test_continuous.c',C/'src/showcase.c',*[G/'src'/(n+'.c') for n in names],*sorted((G/'minigames').glob('*.c')),G/'world/data.c']
+ cmd=['cc','-std=c11','-O2','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-ffp-contract=off','-fsanitize=address,undefined,float-cast-overflow',*['-I'+str(p) for p in [G/'include',G/'world',G/'minigames',S/'fw_console',S/'linux/drivers']],*map(str,src),'-lm','-o',str(o/'test')]
+ with (o/'build.log').open('w') as f:subprocess.run(cmd,stdout=f,stderr=subprocess.STDOUT,check=True)
+ records=[];expected=None
+ for cadence in [1,2,6,10,20]:
+  run=subprocess.run([o/'test',str(cadence)],capture_output=True,env={**os.environ,'ASAN_OPTIONS':'detect_leaks=0','UBSAN_OPTIONS':'halt_on_error=1'});(o/('cadence_'+str(cadence)+'.log')).write_bytes(run.stdout+run.stderr);run.check_returncode()
+  states=re.findall(rb'^WON_STATE .+$',run.stdout,re.M);assert len(states)==8;expected=expected or states;assert states==expected
+  records.append(dict(cadence=cadence,passed=True,won_states=[x.decode() for x in states]));print('CONTINUOUS_PASS cadence='+str(cadence),flush=True)
+ report=dict(passed=True,hardware=False,cadences=records,inputs={str(p.relative_to(R)):hashlib.sha256(p.read_bytes()).hexdigest() for p in src},scope='All eight legal victories, fixed60Hz timed activities independent of presentation cadence, puzzle visibility waits preserved, cancellation, two loops and irregular wall intervals with20s pause; no rendering/FPS claim')
+ (o/'result.json').write_text(json.dumps(report,indent=2)+'\n')
+if __name__=='__main__':main()
+
+FILE games/luma3d/candidates/motion_continuous_r1/results_r5/result.json
+{
+  "passed": true,
+  "hardware": false,
+  "cadences": [
+    {
+      "cadence": 1,
+      "passed": true,
+      "won_states": [
+        "WON_STATE kind=2 crc=05e131c4 bytes=1136",
+        "WON_STATE kind=3 crc=5f027a48 bytes=2144",
+        "WON_STATE kind=1 crc=28871f45 bytes=3152",
+        "WON_STATE kind=0 crc=d6fbf903 bytes=4160",
+        "WON_STATE kind=4 crc=964e0ff1 bytes=5168",
+        "WON_STATE kind=7 crc=43e4029b bytes=5568",
+        "WON_STATE kind=5 crc=f22e37bd bytes=5696",
+        "WON_STATE kind=6 crc=5bb70bf6 bytes=7248"
+      ]
+    },
+    {
+      "cadence": 2,
+      "passed": true,
+      "won_states": [
+        "WON_STATE kind=2 crc=05e131c4 bytes=1136",
+        "WON_STATE kind=3 crc=5f027a48 bytes=2144",
+        "WON_STATE kind=1 crc=28871f45 bytes=3152",
+        "WON_STATE kind=0 crc=d6fbf903 bytes=4160",
+        "WON_STATE kind=4 crc=964e0ff1 bytes=5168",
+        "WON_STATE kind=7 crc=43e4029b bytes=5568",
+        "WON_STATE kind=5 crc=f22e37bd bytes=5696",
+        "WON_STATE kind=6 crc=5bb70bf6 bytes=7248"
+      ]
+    },
+    {
+      "cadence": 6,
+      "passed": true,
+      "won_states": [
+        "WON_STATE kind=2 crc=05e131c4 bytes=1136",
+        "WON_STATE kind=3 crc=5f027a48 bytes=2144",
+        "WON_STATE kind=1 crc=28871f45 bytes=3152",
+        "WON_STATE kind=0 crc=d6fbf903 bytes=4160",
+        "WON_STATE kind=4 crc=964e0ff1 bytes=5168",
+        "WON_STATE kind=7 crc=43e4029b bytes=5568",
+        "WON_STATE kind=5 crc=f22e37bd bytes=5696",
+        "WON_STATE kind=6 crc=5bb70bf6 bytes=7248"
+      ]
+    },
+    {
+      "cadence": 10,
+      "passed": true,
+      "won_states": [
+        "WON_STATE kind=2 crc=05e131c4 bytes=1136",
+        "WON_STATE kind=3 crc=5f027a48 bytes=2144",
+        "WON_STATE kind=1 crc=28871f45 bytes=3152",
+        "WON_STATE kind=0 crc=d6fbf903 bytes=4160",
+        "WON_STATE kind=4 crc=964e0ff1 bytes=5168",
+        "WON_STATE kind=7 crc=43e4029b bytes=5568",
+        "WON_STATE kind=5 crc=f22e37bd bytes=5696",
+        "WON_STATE kind=6 crc=5bb70bf6 bytes=7248"
+      ]
+    },
+    {
+      "cadence": 20,
+      "passed": true,
+      "won_states": [
+        "WON_STATE kind=2 crc=05e131c4 bytes=1136",
+        "WON_STATE kind=3 crc=5f027a48 bytes=2144",
+        "WON_STATE kind=1 crc=28871f45 bytes=3152",
+        "WON_STATE kind=0 crc=d6fbf903 bytes=4160",
+        "WON_STATE kind=4 crc=964e0ff1 bytes=5168",
+        "WON_STATE kind=7 crc=43e4029b bytes=5568",
+        "WON_STATE kind=5 crc=f22e37bd bytes=5696",
+        "WON_STATE kind=6 crc=5bb70bf6 bytes=7248"
+      ]
+    }
+  ],
+  "inputs": {
+    "games/luma3d/candidates/motion_continuous_r1/tests/test_continuous.c": "f00c667bd8bbd379c8b7f8f5d21c31527c4f05445218d6dae6bd18cb3d6131b6",
+    "games/luma3d/candidates/motion_continuous_r1/src/showcase.c": "48e0eecb2eb7c8eb7242212754eabc878a592ebbd78b3208a2f17b7e1ca585d4",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/activities.c": "b0296d680a8899580b6e10c8f24f50d2f745c4157bcc1aa5e30e274e7ffd9982",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/amber.c": "5fd8adf445103dec3fb0cf4da607ed5c82b34663483a9363498d92acc3478079",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/arcade_core.c": "be5789025f7131f9ae55493371c0f62f28a66466d70e84713e7e250bb8f983f6",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/game.c": "cdf2bf413cbec8e764be41d437e841fa9d62ac0fc87201bed77faf220614c274",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/story.c": "0e8d360df1542e7a52ff40fd842eabe83faf657eff079aaac2e298944df06be0",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/surface.c": "d3d11abf51ac4a0a651536fafc760e95c9eebd84d3057b8fcf7e5a3b2ed18c10",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/workshop.c": "929b9e87ac69c7142e1c989738b84c18500128c36c4f1960c9205e46cd047d4d",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/world.c": "408dba2fc40d2c5d742e4319c121f56ad74bf010d37491421becc262a089f8ad",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_minigames.c": "1b8538b6b037499a998facc16158d5fe3efd444bfdb03ae2eca5c2d27750682f",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_platform.c": "60c07d7264332c5d10b2f72bc7bb171de7facc546705841632da566a5855d00d",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_shooter.c": "79f9bb58448e0cdd1211bd54cd83e2ac0473c8487312121f609ab61204d45ea9",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/minigames/l3_simon.c": "94899e09081378c8692e470ae0e5c5c2974ff7dd7438942694f5c8fc0c43f252",
+    "games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/world/data.c": "6c613148018efb85765f8447ac436662fa60fcac41fd1adb32b0111ec40b2096"
+  },
+  "scope": "All eight legal victories, fixed60Hz timed activities independent of presentation cadence, puzzle visibility waits preserved, cancellation, two loops and irregular wall intervals with20s pause; no rendering/FPS claim"
+}
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/activities.c
+#include "luma3d_activities.h"
+#include <math.h>
+
+uint32_t l3_activity_id(unsigned k){return l3_arcade_id(k);}
+const char *l3_activity_name(unsigned k){
+ static const char *names[]={"Ruines des conduites","Atelier des pierres","Jardin des formes","Table de l'observatoire","Maison des lueurs","Clairière des quatre échos","Simulateur des étoiles","Tour des courroies"};
+ return k<L3_ARCADE_COUNT?names[k]:"";
+}
+const char *l3_activity_reward(unsigned k){
+ static const char *r[]={"Plan des conduites : prise ouverte + destination BASSIN","Sceau du bâtisseur : les terrasses ont deux chemins","Portillon du jardin ouvert pour toujours","Carte du ciel : souvenir de l'observatoire","Passage secret de la maison ouvert","Les quatre cristaux balisent le chemin du jardin","Balise du navigateur allumée à l'observatoire","Portillon de la tour ouvert : raccourci vers les eaux"};
+ return k<L3_ARCADE_COUNT?r[k]:"";
+}
+L3Vec3 l3_activity_site(const L3Game *g,unsigned k){
+ static const float p[][2]={{229,56},{227,40},{211,24},{258,26},{224,73},{220,32},{256,20},{231,42}};
+ if(k>=L3_ARCADE_COUNT)return g->world.spawn;
+ L3Vec3 r={p[k][0],0,p[k][1]};r.y=g->world.height(g->world.context,r.x,r.z);return r;
+}
+int l3_activity_won(const L3Game *g,unsigned k){return k<L3_ARCADE_COUNT&&!!(g->activities.arcade.won&(1u<<k));}
+int l3_activity_enter(L3Game *g,unsigned k){
+ L3Activities *a=&g->activities;
+ if(k>=L3_ARCADE_COUNT||a->arcade.active||!g->story.region||g->story.dialogue>=0||g->story.journal)return 0;
+ L3Vec3 p=l3_activity_site(g,k);if(hypotf(p.x-g->player.position.x,p.z-g->player.position.z)>2.5f||fabsf(p.y-g->player.position.y)>2)return 0;
+ if(!l3_arcade_enter(&a->arcade,k,1))return 0;
+ a->pending_us=0;a->revision++;
+ /* E takes manual control. World pose, time and mission remain untouched. */
+ g->autopilot=0;g->story.revision++;return 1;
+}
+void l3_activity_step(L3Game *g,const L3Input *in,float dt){
+ L3Activities *a=&g->activities;if(!a->arcade.active)return;
+ unsigned p=in?in->mini_pressed:0,h=in?in->mini_held:0;
+ /* BACK, restart and the release gate do not accumulate hidden elapsed time. */
+ unsigned us=0,ms=0;
+ if(!a->arcade.release_inputs&&!(p&(L3_MINI_BACK|L3_ARCADE_RESTART))){
+  if(!isfinite(dt))dt=0;
+  us=(unsigned)lroundf(fminf(.1f,fmaxf(0,dt))*1000000)+a->pending_us;ms=us/1000;a->pending_us=us%1000;
+ }
+ uint32_t e=l3_arcade_step(&a->arcade,p,h,ms);
+ if(e&L3_MINI_EVENT_EXIT||p&L3_ARCADE_RESTART)a->pending_us=0;
+ if(e&(L3_MINI_EVENT_CHANGED|L3_MINI_EVENT_EXIT|L3_ARCADE_REWARD)){a->revision++;g->story.revision++;}
+}
+int l3_activities_valid(const L3Game *g){
+ const L3Activities *a=&g->activities;
+ return a->pending_us<1000&&l3_arcade_validate(&a->arcade)&&
+  (!a->arcade.active||(g->story.region&&g->story.dialogue<0&&!g->story.journal));
+}
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/src/arcade_core.c
+#include "luma3d_arcade_core.h"
+#include <string.h>
+
+static uint32_t get32(const unsigned char *p){return p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
+static void put32(unsigned char *p,uint32_t v){for(unsigned i=0;i<4;i++)p[i]=(unsigned char)(v>>(8*i));}
+static uint32_t crc(const unsigned char *p,size_t n){uint32_t c=~0u;while(n--){c^=*p++;for(unsigned i=0;i<8;i++)c=(c>>1)^(0xedb88320u&-(c&1));}return ~c;}
+static const uint32_t ids[8]={0x43495231u,0x424c4b31u,0x53485031u,0x4d524731u,0x4d415a31u,0x53494d31u,0x53485431u,0x544f5731u};
+uint32_t l3_arcade_id(unsigned k){return k<8?ids[k]:0;}
+void l3_arcade_init(L3ArcadeState *s){if(s)memset(s,0,sizeof(*s));}
+static int engine_init(L3ArcadeState *s,unsigned k,uint32_t seed){
+ if(k<5)return l3_mini_init(&s->base[k],(L3MiniKind)k,seed);
+ if(k==5)return l3_simon_init(&s->simon,seed);
+ if(k==6)return l3_shooter_init(&s->shooter,seed);
+ return k==7&&l3_platform_init(&s->platform,seed);
+}
+static int engine_view(const L3ArcadeState *s,unsigned k,L3ArcadeView *v){
+ memset(v,0,sizeof(*v));v->kind=k;int ok=0;
+ if(k<5){ok=l3_mini_view(&s->base[k],&v->content.grid);v->status=v->content.grid.status;}
+ else if(k==5){ok=l3_simon_view(&s->simon,&v->content.simon);v->status=v->content.simon.grid.status;}
+ else if(k==6){ok=l3_shooter_view(&s->shooter,&v->content.shooter);v->status=v->content.shooter.status;}
+ else if(k==7){ok=l3_platform_view(&s->platform,&v->content.platform);v->status=v->content.platform.status;}
+ return ok;
+}
+static int metadata_ok(const L3ArcadeState *s){
+ if(!s||s->active>8||s->initialized>255||s->won>255||(s->won&~s->initialized)||s->release_inputs>1)return 0;
+ if(s->active&&!(s->initialized&(1u<<(s->active-1))))return 0;
+ return 1;
+}
+int l3_arcade_validate(const L3ArcadeState *s){
+ if(!metadata_ok(s))return 0;
+ for(unsigned k=0;k<8;k++)if(s->initialized&(1u<<k)){
+  int ok=k<5?l3_mini_validate(&s->base[k]):k==5?l3_simon_validate(&s->simon):k==6?l3_shooter_validate(&s->shooter):l3_platform_validate(&s->platform);
+  L3ArcadeView v;if(!ok||!engine_view(s,k,&v)||(v.status==L3_MINI_WON&&!(s->won&(1u<<k))))return 0;
+ }else if(s->seed[k])return 0;
+ return 1;
+}
+int l3_arcade_import_base(L3ArcadeState *s,const L3MiniState games[5],unsigned initialized,unsigned won,unsigned active,unsigned release_inputs){
+ if(!s||!games||initialized>31||won>31||active>5||release_inputs>1)return 0;
+ L3ArcadeState next;l3_arcade_init(&next);memcpy(next.base,games,sizeof(next.base));next.initialized=initialized;next.won=won;next.active=active;next.release_inputs=release_inputs;
+ for(unsigned k=0;k<5;k++)if(initialized&(1u<<k))next.seed[k]=1; /* r4's authored seeds */
+ if(!l3_arcade_validate(&next))return 0;*s=next;return 1;
+}
+int l3_arcade_enter(L3ArcadeState *s,unsigned k,uint32_t seed){
+ if(!l3_arcade_validate(s)||s->active||k>=8)return 0;
+ if(!(s->initialized&(1u<<k))){if(!engine_init(s,k,seed))return 0;s->seed[k]=seed;s->initialized|=1u<<k;}
+ s->active=k+1;s->release_inputs=1;return 1;
+}
+uint32_t l3_arcade_step(L3ArcadeState *s,uint32_t pressed,uint32_t held,uint32_t ms){
+ /* Each engine validates its own active state. Revalidating the seven
+  * paused engines and building all their views every tick is unnecessary. */
+ if(!metadata_ok(s)||!s->active)return L3_MINI_EVENT_INVALID;
+ unsigned k=s->active-1;
+ if(pressed&L3_MINI_BACK){s->active=0;s->release_inputs=1;return L3_MINI_EVENT_EXIT;}
+ if(s->release_inputs){if(!pressed&&!held)s->release_inputs=0;return 0;}
+ if(pressed&L3_ARCADE_RESTART){if(!engine_init(s,k,s->seed[k]))return L3_MINI_EVENT_INVALID;s->release_inputs=1;return L3_MINI_EVENT_CHANGED;}
+ if(ms>250)ms=250;pressed&=127;held&=127;uint32_t e;
+ if(k<5)e=l3_mini_step(&s->base[k],pressed,held,ms);
+ else if(k==5)e=l3_simon_step(&s->simon,pressed,held,ms);
+ else if(k==6)e=l3_shooter_step(&s->shooter,pressed,held,ms);
+ else e=l3_platform_step(&s->platform,pressed,held,ms);
+ if(e&L3_MINI_EVENT_WON){if(!(s->won&(1u<<k)))e|=L3_ARCADE_REWARD;s->won|=1u<<k;}
+ return e;
+}
+int l3_arcade_view(const L3ArcadeState *s,L3ArcadeView *v){return v&&metadata_ok(s)&&s->active&&engine_view(s,s->active-1,v);}
+int l3_arcade_demo_input(const L3ArcadeState *s,uint32_t *p,uint32_t *h,uint32_t *ms){
+ if(!p||!h||!ms||!metadata_ok(s)||!s->active)return 0;
+ if(s->release_inputs){*p=*h=*ms=0;return 1;}unsigned k=s->active-1;
+ if(k<5)return l3_mini_demo_input(&s->base[k],p,h,ms);
+ if(k==5)return l3_simon_demo_input(&s->simon,p,h,ms);
+ if(k==6)return l3_shooter_demo_input(&s->shooter,p,h,ms);
+ return l3_platform_demo_input(&s->platform,p,h,ms);
+}
+static size_t payload_size(unsigned k){return k<5?L3_MINI_SAVE_BYTES:k==5?L3_SIMON_SAVE_BYTES:k==6?L3_SHOOTER_SAVE_BYTES:L3_PLATFORM_SAVE_BYTES;}
+size_t l3_arcade_encode(const L3ArcadeState *s,void *output,size_t cap){
+ if(!output||!l3_arcade_validate(s))return 0;size_t bytes=32+8*12;
+ for(unsigned k=0;k<8;k++)if(s->initialized&(1u<<k))bytes+=payload_size(k);
+ if(bytes>cap||bytes>L3_ARCADE_SAVE_MAX)return 0;unsigned char *b=output;memset(b,0,bytes);
+ put32(b,0x31435241u);put32(b+4,(uint32_t)bytes);put32(b+8,1);put32(b+16,s->active);put32(b+20,s->initialized);put32(b+24,s->won);put32(b+28,s->release_inputs);
+ size_t at=32;
+ for(unsigned k=0;k<8;k++){
+  size_t n=s->initialized&(1u<<k)?payload_size(k):0;put32(b+at,ids[k]);put32(b+at+4,s->seed[k]);put32(b+at+8,(uint32_t)n);at+=12;
+  if(n){size_t actual=k<5?l3_mini_encode(&s->base[k],b+at,n):k==5?l3_simon_encode(&s->simon,b+at,n):k==6?l3_shooter_encode(&s->shooter,b+at,n):l3_platform_encode(&s->platform,b+at,n);if(actual!=n)return 0;at+=n;}
+ }
+ put32(b+12,crc(b+16,bytes-16));return bytes;
+}
+int l3_arcade_decode(L3ArcadeState *s,const void *input,size_t bytes){
+ if(!s||!input||bytes<128||bytes>L3_ARCADE_SAVE_MAX)return 0;const unsigned char *b=input;
+ if(get32(b)!=0x31435241u||get32(b+4)!=bytes||get32(b+8)!=1||get32(b+12)!=crc(b+16,bytes-16))return 0;
+ L3ArcadeState next;l3_arcade_init(&next);next.active=get32(b+16);next.initialized=get32(b+20);next.won=get32(b+24);next.release_inputs=get32(b+28);
+ if(next.active>8||next.initialized>255||next.won>255||next.release_inputs>1)return 0;
+ size_t at=32;unsigned seen=0;
+ for(unsigned i=0;i<8;i++){
+  if(bytes-at<12)return 0;unsigned k=0;for(;k<8&&ids[k]!=get32(b+at);k++);if(k==8||(seen&(1u<<k)))return 0;seen|=1u<<k;
+  next.seed[k]=get32(b+at+4);size_t n=get32(b+at+8);at+=12;
+  if(n!=(next.initialized&(1u<<k)?payload_size(k):0)||n>bytes-at)return 0;
+  if(n){int ok=k<5?l3_mini_decode(&next.base[k],b+at,n):k==5?l3_simon_decode(&next.simon,b+at,n):k==6?l3_shooter_decode(&next.shooter,b+at,n):l3_platform_decode(&next.platform,b+at,n);if(!ok)return 0;}at+=n;
+ }
+ if(at!=bytes||!l3_arcade_validate(&next))return 0;*s=next;return 1;
+}
+
+FILE games/luma3d/build/arcade_polish_20261026_r6/source/games/luma3d/include/luma3d_showcase.h
+#ifndef LUMA3D_SHOWCASE_H
+#define LUMA3D_SHOWCASE_H
+#include "luma3d_game.h"
+/* Demo controller owns only its schedule. Every movement/action reaches the
+ * ordinary game/engine API; the only new-game reset is the explicit loop. */
+typedef struct {
+ unsigned stage,mode,point,presses,loops,completed,visited,won;
+ unsigned frames,event_frame,commands,boss_seen,checkpoint_seen,crystal_seen;
+ unsigned status; /* 0 stopped, 1 running, 2 complete, 3 blocked */
+ float elapsed,stage_time,wait,action_left,cooldown;
+ uint32_t action_pressed,action_held;
+ double adviser_seconds; /* diagnostic only; excluded from all saves */
+ unsigned adviser_calls;
+ int action_pending,once;
+ L3World initial_world;
+} L3Showcase;
+void l3_showcase_init(L3Showcase *,L3Game *,int once);
+void l3_showcase_step(L3Showcase *,L3Game *,float dt);
+void l3_showcase_presented(L3Showcase *);
+void l3_showcase_cancel(L3Showcase *,L3Game *);
+const char *l3_showcase_title(unsigned stage);
+unsigned l3_showcase_stages(void);
+#endif

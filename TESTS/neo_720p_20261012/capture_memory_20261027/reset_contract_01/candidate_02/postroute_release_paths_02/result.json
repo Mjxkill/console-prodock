@@ -1,0 +1,467 @@
+{
+  "analysis_complete": true,
+  "hardware_access": false,
+  "timing_qualification": "FAIL retained",
+  "paths": {
+    "u_soc/init_sync_0_s0": [
+      [
+        [
+          "u_pll_ae350/u_pll_init/state_1_s0",
+          "Q"
+        ],
+        [
+          "u_pll_ae350/u_pll_init/pll_ae350_lock_s",
+          "I1->F"
+        ],
+        [
+          "neo_qualified_pll_lut",
+          "I0->F"
+        ],
+        [
+          "u_reset_trial/n261_s1",
+          "I1->F"
+        ],
+        [
+          "u_reset_trial/release_request_d_s",
+          "I1->F"
+        ],
+        [
+          "u_soc/neo_qualified_clear_lut",
+          "I1->F"
+        ]
+      ]
+    ],
+    "u_soc/init_sync_1_s0": [
+      [
+        [
+          "u_pll_ae350/u_pll_init/state_1_s0",
+          "Q"
+        ],
+        [
+          "u_pll_ae350/u_pll_init/pll_ae350_lock_s",
+          "I1->F"
+        ],
+        [
+          "neo_qualified_pll_lut",
+          "I0->F"
+        ],
+        [
+          "u_reset_trial/n261_s1",
+          "I1->F"
+        ],
+        [
+          "u_reset_trial/release_request_d_s",
+          "I1->F"
+        ],
+        [
+          "u_soc/neo_qualified_clear_lut",
+          "I1->F"
+        ]
+      ]
+    ]
+  },
+  "nodes": {
+    "neo_qualified_pll_lut": {
+      "kind": "LUT2",
+      "pins": {
+        "I0": "pll_ae350_lock",
+        "I1": "ae350_rst_sync[1]",
+        "F": "neo_qualified_pll_ready"
+      },
+      "params": {
+        "neo_qualified_pll_lut.INIT": "4'h2"
+      }
+    },
+    "u_pll_ae350/u_pll_init/pll_ae350_lock_s": {
+      "kind": "LUT4",
+      "pins": {
+        "I0": "state_178[0]",
+        "I1": "state_178[1]",
+        "I2": "state_178[2]",
+        "I3": "pll_lock",
+        "F": "pll_ae350_lock"
+      },
+      "params": {
+        "u_pll_ae350/u_pll_init/pll_ae350_lock_s.INIT": "16'h8000"
+      }
+    },
+    "u_pll_ae350/u_pll_init/state_1_s0": {
+      "kind": "DFFCE",
+      "pins": {
+        "D": "u_pll_ae350/u_pll_init/n516_11",
+        "CLK": "clk_d",
+        "CE": "VCC",
+        "CLEAR": "n20_6",
+        "Q": "state_178[1]"
+      },
+      "params": {
+        "u_pll_ae350/u_pll_init/state_1_s0.INIT": "1'b0"
+      }
+    },
+    "u_reset_trial/n261_s1": {
+      "kind": "LUT2",
+      "pins": {
+        "I0": "ddr_init",
+        "I1": "neo_qualified_pll_ready",
+        "F": "u_reset_trial/n261_5"
+      },
+      "params": {
+        "u_reset_trial/n261_s1.INIT": "4'h7"
+      }
+    },
+    "u_reset_trial/release_request_d_s": {
+      "kind": "LUT4",
+      "pins": {
+        "I0": "trial_holding",
+        "I1": "u_reset_trial/n261_5",
+        "I2": "u_reset_trial/ready_meta[1]",
+        "I3": "trial_done",
+        "F": "trial_request"
+      },
+      "params": {
+        "u_reset_trial/release_request_d_s.INIT": "16'h1000"
+      }
+    },
+    "u_soc/neo_qualified_clear_lut": {
+      "kind": "LUT2",
+      "pins": {
+        "I0": "ae350_rst_sync[1]",
+        "I1": "trial_request",
+        "F": "u_soc/neo_qualified_clear"
+      },
+      "params": {
+        "u_soc/neo_qualified_clear_lut.INIT": "4'hB"
+      }
+    }
+  },
+  "parent_clear": {
+    "u_soc/init_sync_0_s0": {
+      "pin": "ae350_rst_sync[1]",
+      "drivers": [
+        [
+          "ae350_rst_sync_1_s0",
+          "Q"
+        ]
+      ]
+    },
+    "u_soc/init_sync_1_s0": {
+      "pin": "ae350_rst_sync[1]",
+      "drivers": [
+        [
+          "ae350_rst_sync_1_s0",
+          "Q"
+        ]
+      ]
+    }
+  },
+  "reported_paths": [
+    {
+      "kind": "setup",
+      "slack_ns": -2.287,
+      "source": "u_pll_ae350/u_pll_init/state_1_s0/Q",
+      "destination": "u_soc/init_sync_0_s0/D",
+      "launch_clock": "clk50:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 8.0,
+      "skew_ns": 2.174,
+      "data_delay_ns": 8.021,
+      "line": 140
+    },
+    {
+      "kind": "recovery",
+      "slack_ns": -2.68,
+      "source": "u_pll_ae350/u_pll_init/state_1_s0/Q",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "launch_clock": "clk50:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 8.0,
+      "skew_ns": 2.174,
+      "data_delay_ns": 8.158,
+      "line": 1350
+    },
+    {
+      "kind": "recovery",
+      "slack_ns": -2.68,
+      "source": "u_pll_ae350/u_pll_init/state_1_s0/Q",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "launch_clock": "clk50:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 8.0,
+      "skew_ns": 2.174,
+      "data_delay_ns": 8.158,
+      "line": 1351
+    },
+    {
+      "kind": "recovery",
+      "slack_ns": -2.4,
+      "source": "u_pll_ae350/u_pll_init/state_2_s0/Q",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "launch_clock": "clk50:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 8.0,
+      "skew_ns": 2.174,
+      "data_delay_ns": 7.878,
+      "line": 1352
+    },
+    {
+      "kind": "recovery",
+      "slack_ns": -2.4,
+      "source": "u_pll_ae350/u_pll_init/state_2_s0/Q",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "launch_clock": "clk50:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 8.0,
+      "skew_ns": 2.174,
+      "data_delay_ns": 7.878,
+      "line": 1353
+    },
+    {
+      "kind": "recovery",
+      "slack_ns": -2.376,
+      "source": "u_pll_ae350/u_pll_init/state_0_s0/Q",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "launch_clock": "clk50:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 8.0,
+      "skew_ns": 2.19,
+      "data_delay_ns": 7.838,
+      "line": 1354
+    },
+    {
+      "kind": "recovery",
+      "slack_ns": -2.376,
+      "source": "u_pll_ae350/u_pll_init/state_0_s0/Q",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "launch_clock": "clk50:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 8.0,
+      "skew_ns": 2.19,
+      "data_delay_ns": 7.838,
+      "line": 1355
+    },
+    {
+      "kind": "removal",
+      "slack_ns": 1.458,
+      "source": "ae350_rst_sync_1_s0/Q",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 0.0,
+      "skew_ns": -0.015,
+      "data_delay_ns": 1.425,
+      "line": 11951
+    },
+    {
+      "kind": "removal",
+      "slack_ns": 1.458,
+      "source": "ae350_rst_sync_1_s0/Q",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 0.0,
+      "skew_ns": -0.015,
+      "data_delay_ns": 1.425,
+      "line": 11952
+    },
+    {
+      "kind": "removal",
+      "slack_ns": 2.871,
+      "source": "ae350_rst_sync_1_s0/Q",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 0.0,
+      "skew_ns": -0.015,
+      "data_delay_ns": 2.838,
+      "line": 16656
+    },
+    {
+      "kind": "removal",
+      "slack_ns": 2.871,
+      "source": "ae350_rst_sync_1_s0/Q",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 0.0,
+      "skew_ns": -0.015,
+      "data_delay_ns": 2.838,
+      "line": 16657
+    }
+  ],
+  "parent_reported_paths": [
+    {
+      "kind": "recovery",
+      "slack_ns": 8.851,
+      "source": "ae350_rst_sync_1_s0/Q",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 12.5,
+      "skew_ns": 0.098,
+      "data_delay_ns": 3.238,
+      "line": 7072
+    },
+    {
+      "kind": "recovery",
+      "slack_ns": 8.851,
+      "source": "ae350_rst_sync_1_s0/Q",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 12.5,
+      "skew_ns": 0.098,
+      "data_delay_ns": 3.238,
+      "line": 7073
+    },
+    {
+      "kind": "removal",
+      "slack_ns": 1.416,
+      "source": "ae350_rst_sync_1_s0/Q",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 0.0,
+      "skew_ns": 0.011,
+      "data_delay_ns": 1.357,
+      "line": 12062
+    },
+    {
+      "kind": "removal",
+      "slack_ns": 1.416,
+      "source": "ae350_rst_sync_1_s0/Q",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "launch_clock": "bus80_clk:[R]",
+      "latch_clock": "bus80_clk:[R]",
+      "relation_ns": 0.0,
+      "skew_ns": 0.011,
+      "data_delay_ns": 1.357,
+      "line": 12063
+    }
+  ],
+  "conservative_bounds": [
+    {
+      "source": "u_pll_ae350/u_pll_init/state_1_s0",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "source_clock": "clk_ibuf/O",
+      "destination_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+      "data_delay_by_corner_ns": [
+        3.441,
+        5.822,
+        8.197999999999999
+      ],
+      "source_clock_by_corner_ns": [
+        2.03,
+        3.516,
+        5.003
+      ],
+      "destination_clock_by_corner_ns": [
+        1.331,
+        2.387,
+        3.444
+      ],
+      "recovery_requirement_ns": 0.313,
+      "max_delay_bound_ns": 8,
+      "conservative_constraint_bound_ns": -4.182999999999999,
+      "claim": "Constraint-based bound only; not an asynchronous phase or metastability proof"
+    },
+    {
+      "source": "u_reset_trial/delay_done_s2",
+      "destination": "u_soc/init_sync_0_s0/CLEAR",
+      "source_clock": "clk_ibuf/O",
+      "destination_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+      "data_delay_by_corner_ns": [
+        0.9610000000000001,
+        1.6210000000000002,
+        2.278
+      ],
+      "source_clock_by_corner_ns": [
+        2.028,
+        3.516,
+        5.005
+      ],
+      "destination_clock_by_corner_ns": [
+        1.331,
+        2.387,
+        3.444
+      ],
+      "recovery_requirement_ns": 0.313,
+      "max_delay_bound_ns": 8,
+      "conservative_constraint_bound_ns": 1.7349999999999997,
+      "claim": "Constraint-based bound only; not an asynchronous phase or metastability proof"
+    },
+    {
+      "source": "u_pll_ae350/u_pll_init/state_1_s0",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "source_clock": "clk_ibuf/O",
+      "destination_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+      "data_delay_by_corner_ns": [
+        3.441,
+        5.822,
+        8.197999999999999
+      ],
+      "source_clock_by_corner_ns": [
+        2.03,
+        3.516,
+        5.003
+      ],
+      "destination_clock_by_corner_ns": [
+        1.331,
+        2.387,
+        3.444
+      ],
+      "recovery_requirement_ns": 0.313,
+      "max_delay_bound_ns": 8,
+      "conservative_constraint_bound_ns": -4.182999999999999,
+      "claim": "Constraint-based bound only; not an asynchronous phase or metastability proof"
+    },
+    {
+      "source": "u_reset_trial/delay_done_s2",
+      "destination": "u_soc/init_sync_1_s0/CLEAR",
+      "source_clock": "clk_ibuf/O",
+      "destination_clock": "u_pll_ae350/u_pll/PLL_inst/CLKOUT0",
+      "data_delay_by_corner_ns": [
+        0.9610000000000001,
+        1.6210000000000002,
+        2.278
+      ],
+      "source_clock_by_corner_ns": [
+        2.028,
+        3.516,
+        5.005
+      ],
+      "destination_clock_by_corner_ns": [
+        1.331,
+        2.387,
+        3.444
+      ],
+      "recovery_requirement_ns": 0.313,
+      "max_delay_bound_ns": 8,
+      "conservative_constraint_bound_ns": 1.7349999999999997,
+      "claim": "Constraint-based bound only; not an asynchronous phase or metastability proof"
+    }
+  ],
+  "truth_table_cases": 512,
+  "legal_startup_reasoning": [
+    "delay_done has INIT0 and remains0 until the full count expires after ready_meta[1] is high.",
+    "While delay_done=0, exact routed release_request LUT output is0 and both final CLEAR inputs are1 for every state/LOCK value. This proves combinational masking, not analog pulse capture.",
+    "The legal first release is caused by delay_done after qualification, with masked LOCK and ready_meta already stable.",
+    "On LOCK loss, asynchronous invalidation and first-chain coupling were tested in the exact mapped candidate. This does not prove a minimum silicon pulse width or discard the STA path."
+  ],
+  "limits": [
+    "Reported setup/recovery violations remain FAIL; no false_path or SDC change introduced.",
+    "CLK50 and bus80 are asynchronous in constraints; positive constraint-based bound does not establish phase relationship.",
+    "Initial-chain PRESET false paths, raw PLL LOCK analog behavior, hardCPU reset contract and metastability remain separate coverage limits."
+  ],
+  "inputs": {
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/analyze_release_paths.py": "bc0ea0c9903b7570273823111dd3cccc07130c9c7eac5bcb260841d722234e40",
+    "/home/michael/console/tang/impl/console_neo_n56r21r2_resetqual_coupled/impl/pnr/console_neo.vo": "1ed1aeae0b3830b20b2733a58a2d06e955ebfe252e7148479b900f1b44fda4a9",
+    "/home/michael/console/tang/impl/console_neo_n56r21r2_resetqual_coupled/impl/pnr/console_neo.sdf": "d6d259b8631bdff372468f55fe1ac92cc79043d44a700d37140e9da5a72f9de6",
+    "/home/michael/console/tang/impl/console_neo_n56r21r2_resetqual_coupled/impl/pnr/console_neo.tr": "c4dd44fe187666c9ec0907d1537353faaec9d510ff5f65ca5ad7ad062fa57f8d",
+    "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.vo": "14bb6ed3c5b803697b8c2591e00b70395936ff723b1f74bafe1a35f6502368e4",
+    "/home/michael/console/tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.tr": "e1ca2ac4bd2c9034d10cccfe94194455b9ab0b666f3ff3fcc6e65878c5608456",
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/neo_reset_trial.v": "caf346369c7aa2ec10bbd2342dc32ffabc09d4973476619e27a17dffddd914f3",
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/mapped_01/result.json": "898af9f48b4f0c026bc09c86be0ae4cc3cfcb4d15a27c52d0b89e8137cf6556c",
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/postroute_01/reset.json": "089466cd30fb5a665bd4749443aa32e03cbcbf1f7894ded2112c757c8caaa53f",
+    "/home/michael/console/TESTS/neo_720p_20261012/capture_memory_20261027/reset_contract_01/candidate_02/postroute_release_paths_02/truth_table.json": "b54b31cf263995e9e2a0b2595002ab89f0bc1ccee96f9c06665776af98a321a6"
+  }
+}

@@ -1,0 +1,216 @@
+tang/rtl/usb/usb_device_controller.v
+     1 //
+     2 //Written by GowinSynthesis
+     3 //Tool Version "V1.9.10.03 (64-bit)"
+     4 //Tue Nov 12 03:05:53 2024
+     5 
+     6 //Source file index table:
+     7 //file0 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/USB_DEVICE_CONTROLLER/data/usb_device_controller_top.v"
+     8 //file1 "\C:/Gowin/Gowin_V1.9.10.03_x64/IDE/ipcore/USB_DEVICE_CONTROLLER/data/usb_device_controller.v"
+     9 `timescale 100 ps/100 ps
+  6783 module USB_Device_Controller_Top (
+  6784   clk_i,
+  6785   reset_i,
+  6786   usbrst_o,
+  6787   highspeed_o,
+  6788   suspend_o,
+  6789   online_o,
+  6790   txdat_i,
+  6791   txval_i,
+  6792   txdat_len_i,
+  6793   txiso_pid_i,
+  6794   txcork_i,
+  6795   txpop_o,
+  6796   txact_o,
+  6797   txpktfin_o,
+  6798   rxdat_o,
+  6799   rxval_o,
+  6800   rxrdy_i,
+  6801   rxact_o,
+  6802   rxpktval_o,
+  6803   setup_o,
+  6804   endpt_o,
+  6805   sof_o,
+  6806   inf_alter_i,
+  6807   inf_alter_o,
+  6808   inf_sel_o,
+  6809   inf_set_o,
+  6810   descrom_raddr_o,
+  6811   desc_index_o,
+  6812   desc_type_o,
+  6813   descrom_rdata_i,
+  6814   desc_dev_addr_i,
+  6815   desc_dev_len_i,
+  6816   desc_qual_addr_i,
+  6817   desc_qual_len_i,
+  6818   desc_fscfg_addr_i,
+  6819   desc_fscfg_len_i,
+  6820   desc_hscfg_addr_i,
+  6821   desc_hscfg_len_i,
+  6822   desc_oscfg_addr_i,
+  6823   desc_hidrpt_addr_i,
+  6824   desc_hidrpt_len_i,
+  6825   desc_bos_addr_i,
+  6826   desc_bos_len_i,
+  6827   desc_strlang_addr_i,
+  6828   desc_strvendor_addr_i,
+  6829   desc_strvendor_len_i,
+  6830   desc_strproduct_addr_i,
+  6831   desc_strproduct_len_i,
+  6832   desc_strserial_addr_i,
+  6833   desc_strserial_len_i,
+  6834   desc_have_strings_i,
+  6835   utmi_dataout_o,
+  6836   utmi_txvalid_o,
+  6837   utmi_txready_i,
+  6838   utmi_datain_i,
+  6839   utmi_rxactive_i,
+  6840   utmi_rxvalid_i,
+  6841   utmi_rxerror_i,
+  6842   utmi_linestate_i,
+  6843   utmi_opmode_o,
+  6844   utmi_xcvrselect_o,
+  6845   utmi_termselect_o,
+  6846   utmi_reset_o
+  6847 )
+  6848 ;
+  6849 input clk_i;
+  6850 input reset_i;
+  6851 output usbrst_o;
+  6852 output highspeed_o;
+  6853 output suspend_o;
+  6854 output online_o;
+  6855 input [7:0] txdat_i;
+  6856 input txval_i;
+  6857 input [11:0] txdat_len_i;
+  6858 input [3:0] txiso_pid_i;
+  6859 input txcork_i;
+  6860 output txpop_o;
+  6861 output txact_o;
+  6862 output txpktfin_o;
+  6863 output [7:0] rxdat_o;
+  6864 output rxval_o;
+  6865 input rxrdy_i;
+  6866 output rxact_o;
+  6867 output rxpktval_o;
+  6868 output setup_o;
+  6869 output [3:0] endpt_o;
+  6870 output sof_o;
+  6871 input [7:0] inf_alter_i;
+  6872 output [7:0] inf_alter_o;
+  6873 output [7:0] inf_sel_o;
+  6874 output inf_set_o;
+  6875 output [15:0] descrom_raddr_o;
+  6876 output [7:0] desc_index_o;
+  6877 output [7:0] desc_type_o;
+  6878 input [7:0] descrom_rdata_i;
+  6879 input [15:0] desc_dev_addr_i;
+  6880 input [15:0] desc_dev_len_i;
+  6881 input [15:0] desc_qual_addr_i;
+  6882 input [15:0] desc_qual_len_i;
+  6883 input [15:0] desc_fscfg_addr_i;
+  6884 input [15:0] desc_fscfg_len_i;
+  6885 input [15:0] desc_hscfg_addr_i;
+  6886 input [15:0] desc_hscfg_len_i;
+  6887 input [15:0] desc_oscfg_addr_i;
+  6888 input [15:0] desc_hidrpt_addr_i;
+  6889 input [15:0] desc_hidrpt_len_i;
+  6890 input [15:0] desc_bos_addr_i;
+  6891 input [15:0] desc_bos_len_i;
+  6892 input [15:0] desc_strlang_addr_i;
+  6893 input [15:0] desc_strvendor_addr_i;
+  6894 input [15:0] desc_strvendor_len_i;
+  6895 input [15:0] desc_strproduct_addr_i;
+  6896 input [15:0] desc_strproduct_len_i;
+  6897 input [15:0] desc_strserial_addr_i;
+  6898 input [15:0] desc_strserial_len_i;
+  6899 input desc_have_strings_i;
+  6900 output [7:0] utmi_dataout_o;
+  6901 output utmi_txvalid_o;
+  6902 input utmi_txready_i;
+  6903 input [7:0] utmi_datain_i;
+  6904 input utmi_rxactive_i;
+  6905 input utmi_rxvalid_i;
+  6906 input utmi_rxerror_i;
+  6907 input [1:0] utmi_linestate_i;
+  6908 output [1:0] utmi_opmode_o;
+  6909 output [1:0] utmi_xcvrselect_o;
+  6910 output utmi_termselect_o;
+  6911 output utmi_reset_o;
+  6912 wire VCC;
+  6913 wire GND;
+  6914   \~usb_device_controller.USB_Device_Controller_Top  u_usb_device_controller (
+  6915     .rxrdy_i(rxrdy_i),
+  6916     .clk_i(clk_i),
+  6917     .reset_i(reset_i),
+  6918     .txcork_i(txcork_i),
+  6919     .desc_have_strings_i(desc_have_strings_i),
+  6920     .utmi_txready_i(utmi_txready_i),
+  6921     .utmi_rxactive_i(utmi_rxactive_i),
+  6922     .utmi_rxvalid_i(utmi_rxvalid_i),
+  6923     .utmi_rxerror_i(utmi_rxerror_i),
+  6924     .txval_i(txval_i),
+  6925     .txdat_len_i(txdat_len_i[11:0]),
+  6926     .desc_oscfg_addr_i(desc_oscfg_addr_i[15:0]),
+  6927     .desc_qual_addr_i(desc_qual_addr_i[15:0]),
+  6928     .desc_hidrpt_addr_i(desc_hidrpt_addr_i[15:0]),
+  6929     .desc_bos_len_i(desc_bos_len_i[15:0]),
+  6930     .desc_fscfg_addr_i(desc_fscfg_addr_i[15:0]),
+  6931     .desc_dev_addr_i(desc_dev_addr_i[15:0]),
+  6932     .desc_bos_addr_i(desc_bos_addr_i[15:0]),
+  6933     .desc_hscfg_addr_i(desc_hscfg_addr_i[15:0]),
+  6934     .desc_strproduct_addr_i(desc_strproduct_addr_i[15:0]),
+  6935     .desc_strserial_addr_i(desc_strserial_addr_i[15:0]),
+  6936     .desc_strlang_addr_i(desc_strlang_addr_i[15:0]),
+  6937     .desc_strvendor_addr_i(desc_strvendor_addr_i[15:0]),
+  6938     .desc_strserial_len_i(desc_strserial_len_i[15:0]),
+  6939     .desc_hidrpt_len_i(desc_hidrpt_len_i[15:0]),
+  6940     .desc_hscfg_len_i(desc_hscfg_len_i[15:0]),
+  6941     .desc_fscfg_len_i(desc_fscfg_len_i[15:0]),
+  6942     .desc_dev_len_i(desc_dev_len_i[15:0]),
+  6943     .desc_qual_len_i(desc_qual_len_i[15:0]),
+  6944     .desc_strvendor_len_i(desc_strvendor_len_i[15:0]),
+  6945     .desc_strproduct_len_i(desc_strproduct_len_i[15:0]),
+  6946     .utmi_linestate_i(utmi_linestate_i[1:0]),
+  6947     .utmi_datain_i(utmi_datain_i[7:0]),
+  6948     .txdat_i(txdat_i[7:0]),
+  6949     .descrom_rdata_i(descrom_rdata_i[7:0]),
+  6950     .inf_alter_i(inf_alter_i[7:0]),
+  6951     .rxpktval_o(rxpktval_o),
+  6952     .txact_o(txact_o),
+  6953     .utmi_txvalid_o(utmi_txvalid_o),
+  6954     .rxact_o(rxact_o),
+  6955     .setup_o(setup_o),
+  6956     .txpktfin_o(txpktfin_o),
+  6957     .rxval_o(rxval_o),
+  6958     .usbrst_o(usbrst_o),
+  6959     .highspeed_o(highspeed_o),
+  6960     .suspend_o(suspend_o),
+  6961     .utmi_termselect_o(utmi_termselect_o),
+  6962     .sof_o(sof_o),
+  6963     .txpop_o(txpop_o),
+  6964     .online_o(online_o),
+  6965     .inf_set_o(inf_set_o),
+  6966     .descrom_raddr_o(descrom_raddr_o[15:0]),
+  6967     .utmi_dataout_o(utmi_dataout_o[7:0]),
+  6968     .utmi_opmode_o(utmi_opmode_o[1:0]),
+  6969     .rxdat_o(rxdat_o[7:0]),
+  6970     .utmi_xcvrselect_o(utmi_xcvrselect_o[0]),
+  6971     .endpt_o(endpt_o[3:0]),
+  6972     .inf_alter_o(inf_alter_o[7:0]),
+  6973     .inf_sel_o(inf_sel_o[7:0]),
+  6974     .desc_index_o(desc_index_o[7:0]),
+  6975     .desc_type_o(desc_type_o[7:0])
+  6976 );
+  6977   VCC VCC_cZ (
+  6978     .V(VCC)
+  6979 );
+  6980   GND GND_cZ (
+  6981     .G(GND)
+  6982 );
+  6983   GSR GSR (
+  6984     .GSRI(VCC) 
+  6985 );
+  6986 assign utmi_xcvrselect_o[1] = GND;
+  6987 assign utmi_reset_o = usbrst_o;
+  6988 endmodule /* USB_Device_Controller_Top */

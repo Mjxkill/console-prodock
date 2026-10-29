@@ -1,0 +1,545 @@
+{
+  "backend": "nextpnr",
+  "status": "COMPILED",
+  "project": {
+    "top": "top",
+    "device": "GW5AST-LV138PG484AC1/I0",
+    "family": "GW5AST-138C",
+    "synth_family": "gw5a",
+    "frequency_mhz": 50,
+    "sources": [
+      "top.v"
+    ],
+    "cst": "pins.cst",
+    "description": "Compile-only Neo 138K probe: LUT/FF + signed multiplier + synchronous RAM"
+  },
+  "inputs": {
+    "rtl_000.v": {
+      "origin": "/home/michael/console/optimizer/examples/neo_probe/top.v",
+      "sha256": "28d3bf06fa760934c3eb95f2bc0be6f4ed14746e2b8e8b4e09f3c391cc3a99b5"
+    },
+    "pins.cst": {
+      "origin": "pins.cst",
+      "sha256": "89a29af034d75ee5add92d61fd5d154ef908896e60f1fbf2e726c1f0031b3eec"
+    }
+  },
+  "seeds": [
+    1,
+    7,
+    42
+  ],
+  "strategies": {
+    "placer": "heap",
+    "router": "router1"
+  },
+  "toolchain": {
+    "release": "2026-10-13",
+    "platform": "linux-x64",
+    "url": "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-10-13/oss-cad-suite-linux-x64-20261013.tgz",
+    "bytes": 747823634,
+    "sha256": "8f6dbbc0050e7f6ad13fc0f220ef683ae4705f7ee16f5c7c9940c3b55cba2ddd",
+    "source": "https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/tags/2026-10-13"
+  },
+  "candidates": [
+    {
+      "seed": 1,
+      "status": "COMPILED",
+      "clock_mhz": 50,
+      "pnr": {
+        "tool": "nextpnr-himbaechel",
+        "argv": [
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+          "--inhibit-cache",
+          "--inhibit-rpath",
+          "",
+          "--library-path",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/nextpnr-himbaechel",
+          "--device",
+          "GW5AST-LV138PG484AC1/I0",
+          "--vopt",
+          "family=GW5AST-138C",
+          "--vopt",
+          "cst=../source/pins.cst",
+          "--json",
+          "../netlist.json",
+          "--write",
+          "routed.json",
+          "--report",
+          "timing.json",
+          "--detailed-timing-report",
+          "--freq",
+          "50",
+          "--seed",
+          "1",
+          "--placer",
+          "heap",
+          "--router",
+          "router1"
+        ],
+        "log": "/home/michael/console/optimizer/runs/neo_probe_001/seed_1/pnr.log",
+        "timeout_s": 1800,
+        "returncode": 0,
+        "elapsed_s": 5.473
+      },
+      "timing": {
+        "fmax": {
+          "clk_IBUF_I_O": {
+            "achieved": 96.92739868164062,
+            "constraint": 50
+          }
+        },
+        "utilization": {
+          "ALU": {
+            "available": 103680,
+            "used": 56
+          },
+          "BSRAM": {
+            "available": 340,
+            "used": 2
+          },
+          "BUFG": {
+            "available": 1,
+            "used": 1
+          },
+          "DFF": {
+            "available": 138240,
+            "used": 196
+          },
+          "GND": {
+            "available": 1,
+            "used": 1
+          },
+          "GSR": {
+            "available": 1,
+            "used": 1
+          },
+          "IOB": {
+            "available": 324,
+            "used": 2
+          },
+          "IOLOGICI": {
+            "available": 326,
+            "used": 0
+          },
+          "IOLOGICO": {
+            "available": 326,
+            "used": 0
+          },
+          "LUT4": {
+            "available": 138240,
+            "used": 2008
+          },
+          "MULT12X12": {
+            "available": 596,
+            "used": 0
+          },
+          "MULTADDALU12X12": {
+            "available": 298,
+            "used": 0
+          },
+          "MULTALU27X18": {
+            "available": 298,
+            "used": 0
+          },
+          "MUX2_LUT5": {
+            "available": 69120,
+            "used": 691
+          },
+          "MUX2_LUT6": {
+            "available": 34560,
+            "used": 255
+          },
+          "MUX2_LUT7": {
+            "available": 17280,
+            "used": 107
+          },
+          "MUX2_LUT8": {
+            "available": 17280,
+            "used": 36
+          },
+          "PINCFG": {
+            "available": 1,
+            "used": 1
+          },
+          "RAM16SDP4": {
+            "available": 17280,
+            "used": 0
+          },
+          "SPINE_SELECT": {
+            "available": 0,
+            "used": 1
+          },
+          "VCC": {
+            "available": 1,
+            "used": 1
+          }
+        }
+      },
+      "pack": {
+        "tool": "gowin_pack",
+        "argv": [
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+          "--inhibit-cache",
+          "--inhibit-rpath",
+          "",
+          "--library-path",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/python3.11",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/gowin_pack",
+          "-d",
+          "GW5AST-138C",
+          "-o",
+          "design.fs",
+          "routed.json"
+        ],
+        "log": "/home/michael/console/optimizer/runs/neo_probe_001/seed_1/pack.log",
+        "timeout_s": 1800,
+        "returncode": 0,
+        "elapsed_s": 14.241
+      },
+      "bitstream_sha256": "bec86f7e59780f911aca45f342b0b010e1179660e3a785a167b26be9ed7bb924"
+    },
+    {
+      "seed": 7,
+      "status": "COMPILED",
+      "clock_mhz": 50,
+      "pnr": {
+        "tool": "nextpnr-himbaechel",
+        "argv": [
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+          "--inhibit-cache",
+          "--inhibit-rpath",
+          "",
+          "--library-path",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/nextpnr-himbaechel",
+          "--device",
+          "GW5AST-LV138PG484AC1/I0",
+          "--vopt",
+          "family=GW5AST-138C",
+          "--vopt",
+          "cst=../source/pins.cst",
+          "--json",
+          "../netlist.json",
+          "--write",
+          "routed.json",
+          "--report",
+          "timing.json",
+          "--detailed-timing-report",
+          "--freq",
+          "50",
+          "--seed",
+          "7",
+          "--placer",
+          "heap",
+          "--router",
+          "router1"
+        ],
+        "log": "/home/michael/console/optimizer/runs/neo_probe_001/seed_7/pnr.log",
+        "timeout_s": 1800,
+        "returncode": 0,
+        "elapsed_s": 4.973
+      },
+      "timing": {
+        "fmax": {
+          "clk_IBUF_I_O": {
+            "achieved": 95.32888793945312,
+            "constraint": 50
+          }
+        },
+        "utilization": {
+          "ALU": {
+            "available": 103680,
+            "used": 56
+          },
+          "BSRAM": {
+            "available": 340,
+            "used": 2
+          },
+          "BUFG": {
+            "available": 1,
+            "used": 1
+          },
+          "DFF": {
+            "available": 138240,
+            "used": 196
+          },
+          "GND": {
+            "available": 1,
+            "used": 1
+          },
+          "GSR": {
+            "available": 1,
+            "used": 1
+          },
+          "IOB": {
+            "available": 324,
+            "used": 2
+          },
+          "IOLOGICI": {
+            "available": 326,
+            "used": 0
+          },
+          "IOLOGICO": {
+            "available": 326,
+            "used": 0
+          },
+          "LUT4": {
+            "available": 138240,
+            "used": 2006
+          },
+          "MULT12X12": {
+            "available": 596,
+            "used": 0
+          },
+          "MULTADDALU12X12": {
+            "available": 298,
+            "used": 0
+          },
+          "MULTALU27X18": {
+            "available": 298,
+            "used": 0
+          },
+          "MUX2_LUT5": {
+            "available": 69120,
+            "used": 691
+          },
+          "MUX2_LUT6": {
+            "available": 34560,
+            "used": 255
+          },
+          "MUX2_LUT7": {
+            "available": 17280,
+            "used": 107
+          },
+          "MUX2_LUT8": {
+            "available": 17280,
+            "used": 36
+          },
+          "PINCFG": {
+            "available": 1,
+            "used": 1
+          },
+          "RAM16SDP4": {
+            "available": 17280,
+            "used": 0
+          },
+          "SPINE_SELECT": {
+            "available": 0,
+            "used": 1
+          },
+          "VCC": {
+            "available": 1,
+            "used": 1
+          }
+        }
+      },
+      "pack": {
+        "tool": "gowin_pack",
+        "argv": [
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+          "--inhibit-cache",
+          "--inhibit-rpath",
+          "",
+          "--library-path",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/python3.11",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/gowin_pack",
+          "-d",
+          "GW5AST-138C",
+          "-o",
+          "design.fs",
+          "routed.json"
+        ],
+        "log": "/home/michael/console/optimizer/runs/neo_probe_001/seed_7/pack.log",
+        "timeout_s": 1800,
+        "returncode": 0,
+        "elapsed_s": 15.441
+      },
+      "bitstream_sha256": "ed9eec10c766bcebc6b172557723c8999a2a688d497255c55844f20cca61c8e8"
+    },
+    {
+      "seed": 42,
+      "status": "COMPILED",
+      "clock_mhz": 50,
+      "pnr": {
+        "tool": "nextpnr-himbaechel",
+        "argv": [
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+          "--inhibit-cache",
+          "--inhibit-rpath",
+          "",
+          "--library-path",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/nextpnr-himbaechel",
+          "--device",
+          "GW5AST-LV138PG484AC1/I0",
+          "--vopt",
+          "family=GW5AST-138C",
+          "--vopt",
+          "cst=../source/pins.cst",
+          "--json",
+          "../netlist.json",
+          "--write",
+          "routed.json",
+          "--report",
+          "timing.json",
+          "--detailed-timing-report",
+          "--freq",
+          "50",
+          "--seed",
+          "42",
+          "--placer",
+          "heap",
+          "--router",
+          "router1"
+        ],
+        "log": "/home/michael/console/optimizer/runs/neo_probe_001/seed_42/pnr.log",
+        "timeout_s": 1800,
+        "returncode": 0,
+        "elapsed_s": 4.972
+      },
+      "timing": {
+        "fmax": {
+          "clk_IBUF_I_O": {
+            "achieved": 96.03380584716797,
+            "constraint": 50
+          }
+        },
+        "utilization": {
+          "ALU": {
+            "available": 103680,
+            "used": 56
+          },
+          "BSRAM": {
+            "available": 340,
+            "used": 2
+          },
+          "BUFG": {
+            "available": 1,
+            "used": 1
+          },
+          "DFF": {
+            "available": 138240,
+            "used": 196
+          },
+          "GND": {
+            "available": 1,
+            "used": 1
+          },
+          "GSR": {
+            "available": 1,
+            "used": 1
+          },
+          "IOB": {
+            "available": 324,
+            "used": 2
+          },
+          "IOLOGICI": {
+            "available": 326,
+            "used": 0
+          },
+          "IOLOGICO": {
+            "available": 326,
+            "used": 0
+          },
+          "LUT4": {
+            "available": 138240,
+            "used": 2004
+          },
+          "MULT12X12": {
+            "available": 596,
+            "used": 0
+          },
+          "MULTADDALU12X12": {
+            "available": 298,
+            "used": 0
+          },
+          "MULTALU27X18": {
+            "available": 298,
+            "used": 0
+          },
+          "MUX2_LUT5": {
+            "available": 69120,
+            "used": 691
+          },
+          "MUX2_LUT6": {
+            "available": 34560,
+            "used": 255
+          },
+          "MUX2_LUT7": {
+            "available": 17280,
+            "used": 107
+          },
+          "MUX2_LUT8": {
+            "available": 17280,
+            "used": 36
+          },
+          "PINCFG": {
+            "available": 1,
+            "used": 1
+          },
+          "RAM16SDP4": {
+            "available": 17280,
+            "used": 0
+          },
+          "SPINE_SELECT": {
+            "available": 0,
+            "used": 1
+          },
+          "VCC": {
+            "available": 1,
+            "used": 1
+          }
+        }
+      },
+      "pack": {
+        "tool": "gowin_pack",
+        "argv": [
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+          "--inhibit-cache",
+          "--inhibit-rpath",
+          "",
+          "--library-path",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/python3.11",
+          "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/gowin_pack",
+          "-d",
+          "GW5AST-138C",
+          "-o",
+          "design.fs",
+          "routed.json"
+        ],
+        "log": "/home/michael/console/optimizer/runs/neo_probe_001/seed_42/pack.log",
+        "timeout_s": 1800,
+        "returncode": 0,
+        "elapsed_s": 15.492
+      },
+      "bitstream_sha256": "e20c203c8671a578ca636f293a36051107adf4d96c45899a33257ddc2a80f260"
+    }
+  ],
+  "synthesis": {
+    "tool": "yosys",
+    "argv": [
+      "/home/michael/console/optimizer/.tools/oss-cad-suite/lib/ld-linux-x86-64.so.2",
+      "--inhibit-cache",
+      "--inhibit-rpath",
+      "",
+      "--library-path",
+      "/home/michael/console/optimizer/.tools/oss-cad-suite/lib",
+      "/home/michael/console/optimizer/.tools/oss-cad-suite/libexec/yosys",
+      "-Q",
+      "-T",
+      "-s",
+      "synth.ys"
+    ],
+    "log": "/home/michael/console/optimizer/runs/neo_probe_001/synth.log",
+    "timeout_s": 1800,
+    "returncode": 0,
+    "elapsed_s": 3.62
+  },
+  "netlist_sha256": "c9307f30d89b9d464379dc8847c48ef1bc1c3d66b7c459553caaff043354b7d1",
+  "compatibility_key": "89a29af034d75ee5add92d61fd5d154ef908896e60f1fbf2e726c1f0031b3eec:c9307f30d89b9d464379dc8847c48ef1bc1c3d66b7c459553caaff043354b7d1",
+  "validation_scope": "Compile-only; no hardware test, no Gowin STA equivalence or console IP qualification"
+}

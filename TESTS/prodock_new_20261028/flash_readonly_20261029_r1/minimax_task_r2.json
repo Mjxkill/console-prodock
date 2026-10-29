@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "prodock_flash_readonly",
+  "domain": "tooling",
+  "task_type": "transfer_preparation",
+  "difficulty": "medium",
+  "task_family": "fpga_flash_backup",
+  "dataset": "openfpgaloader_24e46d13_new_prodock",
+  "inputs": [
+    "CONTRACT.md",
+    "flash_readonly.py",
+    "test_owned.py",
+    "REPORT.md",
+    "test_contract.py",
+    "reference/target_guard.py",
+    "reference/README.md",
+    "reference/load_fpga.py",
+    "REPAIR.md",
+    "FIRST_ATTEMPT_FAILURE.txt",
+    "test_review.py"
+  ],
+  "owned": [
+    "flash_readonly.py",
+    "test_owned.py",
+    "REPORT.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "test_contract.py"
+    ],
+    [
+      "/usr/bin/python3",
+      "-B",
+      "test_owned.py"
+    ],
+    [
+      "/usr/bin/python3",
+      "-B",
+      "test_review.py"
+    ]
+  ],
+  "timeout_seconds": 45,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "acceptance_criteria": "Root-only detect then two independent exact dumps; serial+host+lock+toolSHA; refuse ambiguous logs and unproven capacity; no flash writes; failure evidence preserved; protected and real orchestration fake tests pass; originals unchanged.",
+  "prompt": "Read REPAIR.md first, then CONTRACT.md. Complete the partial coordinator and the missing owned integration tests/report. First run tests to reproduce the supplied failures. Use taskbox tools to edit owned files only and finish concrete code. Runtime guard paths/identification/proof preservation must be corrected. Do not re-read references repeatedly. Run final complete tests after report. No hardware or network. You have a bounded900s run; use tools efficiently; this is execution, not a textual plan.",
+  "parent_task_id": "prodock_flash_readonly"
+}

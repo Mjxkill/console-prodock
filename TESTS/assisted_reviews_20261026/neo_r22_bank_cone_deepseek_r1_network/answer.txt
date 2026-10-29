@@ -1,0 +1,214 @@
+Analyse statique du paquet uniquement ; aucun test, aucune programmation, aucune action matérielle n’a été exécutée ici.
+
+## 1. Verdict court
+
+- Le **chemin legacy bank/validité → `n558_9` → `hrdata_0_s0`** est, dans les deux netlists fournies, **identique nœud par nœud** pour les nœuds bank/validité listés.
+- Le **cône complet `hrdata0` n’est pas identique** : R22 insère `utw_mux_0`, qui remplace `n558_9` par `utw_read_data[0]` lorsque `utw_read_hit=1`.
+- Pour les adresses bank `0x40..0xBC`, `utw_read_hit=0` d’après le décodage netlist : le mux witness est donc transparent sur cette fenêtre.
+- Conséquence : **le paquet ne démontre pas une modification du chemin bank/validité**. Il démontre seulement l’ajout d’un chemin witness sélectionné à partir de `0xC0`.
+- **Aucun patch RTL n’est justifié** par les preuves fournies. Aucune cause FIFO, timing ou silicium n’est démontrée.
+
+## 2. Faits établis
+
+- A/B/A/B : A1 et A2, construits avec R19, retournent `bank_version=0` à chaque phase ; B1 et B2, construits avec R22r1, retournent `bank_version=1` et `raw_witness=1` à chaque phase (`result.json`, entrées A1/A2/B1/B2).
+- `restored_exact_R19=true` pour les quatre entrées ; le retour à R19 est donc rapporté comme frais.
+- A1/A2 échouent le contrat local avec `Version0: ...` ; B1/B2 n’ont pas d’erreur locale (`error: null`) mais restent `qualification_status: FAIL`. Le `global_qualification` vaut `FAIL` et `hardware_qualified=false`.
+- B1/B2 ne montrent **aucun désaccord** entre `raw_witness` et `bank_version` : les deux valent 1. Cela ne prouve pas que les deux observations soient indépendantes.
+- Le source RTL fourni contient bien la constante `32'd1` dans le snapshot : `usb_idle_trace.v:158` — `command,32'd1,32'h55544e41};`. Avec l’ordre de concaténation Verilog, `bank[0]=32'h55544e41`, `bank[1]=32'd1` après un snapshot complet.
+- Le source RTL ne contient **aucun** `utw_observer`, `utw_read_hit`, `utw_read_data` ni `utw_read_mux`. Pourtant la netlist R22 contient `u_usb_idle_trace/utw_observer/*` et `u_usb_idle_trace/utw_mux_0`. Le source fourni n’est donc pas le source complet du bitstream R22.
+- `postroute_summary` indique `target_slacks_nonnegative=true` pour witness et hrdata, avec pire setup hrdata `2.828 ns` et pire hold hrdata `0.559 ns`. Le global reste `FAIL`, avec un setup `-1.013 ns` sur `u_accel/u_blitter/wp_2_s0 → u_accel/busy_sync_0_s0` et des recovery `-0.212 ns` sur `u_soc/vid_hrstn_r_s0 → u_accel/u_v1/u_pixels/u_capture/*`. Ces chemins ne traversent pas le cône étudié.
+
+## 3. Comparaison exacte des cônes `hrdata0`
+
+### 3.1 Racine `hrdata_0_s0`
+
+Dans les deux `.vo` :
+
+- type `DFFRE`
+- `CLK=vid_hclk`
+- `CE=read_pending`
+- `RESET=hreset`
+- `INIT=1'b0`
+
+Seule différence :
+
+- R19 : `D=u_usb_idle_trace/n558_9`
+- R22 : `D=u_usb_idle_trace/utw_read_mux[0]`
+
+Fichiers :
+- `tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.vo`, nœud `u_usb_idle_trace/hrdata_0_s0`
+- `tang/impl/console_neo_n56r22r1_utw1_reports/impl/pnr/console_neo.vo`, nœud `u_usb_idle_trace/hrdata_0_s0`
+
+### 3.2 Chemin legacy bank/validité
+
+Les nœuds suivants sont identiques dans les deux `.vo` : mêmes types, mêmes `INIT`, mêmes connexions.
+
+- `u_usb_idle_trace/n558_s5` : `LUT3`, `INIT=8'h8F`, entrées `n511_19`, `snapshot_count[0]`, `n558_10`
+- `u_usb_idle_trace/n558_s6` : `LUT4`, `INIT=16'h0007`
+- `u_usb_idle_trace/n558_s8` : `LUT4`, `INIT=16'h6000`, entrées `address[6]`, `address[7]`, `bank_ER`, `bank_ER_init_71`
+- `u_usb_idle_trace/n511_s12/s10/s9/s13`
+- `u_usb_idle_trace/n35_s1/s2`
+- `u_usb_idle_trace/n557_s9`
+- `u_usb_idle_trace/snapshot_count_0_s0`
+- `u_usb_idle_trace/busy_s0`
+- `u_usb_idle_trace/bank_ER_init_s10/s9/s1/s`
+- `u_usb_idle_trace/bank_ER_RS_s158/s133/s162/s168/s41/s39/s167/s37/s35/s161/s170/s49/s47/s169/s45/s43/s118/s117/s132/s160/s166/s165/s159/s164/s163/s137/s154/s153/s136/s152/s135/s134/s151`
+- `u_usb_idle_trace/bank_ER_RS_bank_ER_RS_0_0_s2/s1/s0`
+- `u_usb_idle_trace/bank_DOL_0_G[0]_s0`
+- `u_usb_idle_trace/bank_bank_0_0_s`, `u_usb_idle_trace/bank_bank_1_0_s`
+- `u_usb_idle_trace/receive_index_4_s0/3_s0/2_s0/1_s0/0_s0`
+- `u_usb_idle_trace/u_replies/head_valid_s5`, `u_usb_idle_trace/u_replies/head_valid_s1`
+- `u_usb_idle_trace/add_25_s8`
+- `u_usb_idle_trace/address_7_s0/6_s0/5_s0/4_s0/3_s0/2_s0/1_s0/0_s0`
+- `u_usb_idle_trace/hreset_s0`, `uh_1_s0`, `hr_2_s0`, `read_pending_s0`
+
+Autrement dit, le fanin legacy de `n558_9` est identique dans le paquet. Le source confirme la structure attendue :
+- `usb_idle_trace.v:40` : `reg [31:0] bank[0:31];`
+- `usb_idle_trace.v:41` : `bank_index=address[6:2]-5'd16`
+- `usb_idle_trace.v:56-82` : always AHB, écriture bank et lecture `hrdata`
+- `usb_idle_trace.v:60` : reset bank à 0
+- `usb_idle_trace.v:69-71` : écriture `bank[receive_index]<=reply`
+- `usb_idle_trace.v:78` : `default:hrdata<=address>=8'h40 && address<8'hc0 ? bank[bank_index] : 32'd0;`
+
+### 3.3 Mux witness ajouté en R22
+
+R22 ajoute :
+
+- `u_usb_idle_trace/utw_mux_0` : `LUT3`, `INIT=8'hca`
+  - `I0=u_usb_idle_trace/n558_9`
+  - `I1=u_usb_idle_trace/utw_read_data[0]`
+  - `I2=u_usb_idle_trace/utw_read_hit`
+  - `F=u_usb_idle_trace/utw_read_mux[0]`
+
+La table `8'hca` correspond au mux `I2 ? I1 : I0`. Donc :
+
+```text
+hrdata0_D = utw_read_hit ? utw_read_data[0] : n558_9
+```
+
+Le décodage netlist de `utw_read_hit` est :
+
+- `read_hit_LUT2_F` : `INIT=4'h8`, `I0=utw_net_865`, `I1=utw_net_1444` → ET
+- `utw_net_865` : `INIT=4'h8`, `I0=address[7]`, `I1=address[6]` → `address[7] & address[6]`
+- `utw_net_1444` : `INIT=4'h1`, `I0=address[1]`, `I1=address[0]` → vrai seulement si `address[1:0]=00`
+
+Soit :
+
+```text
+utw_read_hit = address[7] & address[6] & ~address[1] & ~address[0]
+```
+
+Pour la fenêtre bank `0x40..0xBC`, `address[7:6]` n’est jamais `11` : `utw_read_hit=0`. Donc le mux sélectionne `n558_9`. **Le chemin legacy est fonctionnellement équivalent pour ces adresses.**
+
+### 3.4 Ce qui n’est pas équivalent
+
+- Le **cône complet `hrdata0`** n’est pas équivalent : R22 ajoute le mux, le décodeur `read_hit`, l’arbre `read_data_MUX2_LUT5_*`, et de nombreuses cellules `utw_observer/utw_cell_*`.
+- Le **source RTL fourni** n’est pas équivalent à la netlist R22 : le witness n’apparaît pas dans `usb_idle_trace.v`. On ne peut donc pas comparer le witness RTL ↔ netlist, ni prouver sa sémantique à partir du source.
+- La **fenêtre d’adresse de `bank_version`** n’est pas documentée dans `result.json`. Si le collecteur R22 lit `bank_version` à une adresse `>=0xC0`, alors il lit le witness, pas `bank[1]`. Dans ce cas, le 1 observé ne prouve rien sur le chemin bank.
+- Les **collecteurs et cadences diffèrent** : `changed_variables` indique explicitement « R22 collector also reads extension words; read cadence differs from R19 activity collector ». A/B/A/B n’est donc pas une comparaison à variable unique.
+
+## 4. Hypothèses et preuves manquantes
+
+### Hypothèses
+
+- H1 : `bank_version` correspond à `bank[1]`, donc à l’adresse `0x44` via `bank_index=address[6:2]-16`. C’est cohérent avec `usb_idle_trace.v:41,78,158`, mais **non documenté dans le paquet**.
+- H2 : le collecteur R22 lit peut-être `bank_version` dans la fenêtre witness `>=0xC0`. Le `1` serait alors `utw_read_data[0]`, pas la bank. Cette hypothèse expliquerait directement 0 vs 1 sans modifier le chemin bank.
+- H3 : la différence observable vient du collecteur, de l’adresse ou de la cadence, pas du cône bank. Le paquet ne permet pas de trancher.
+- H4 : le witness R22 et la bank R22 pourraient partager une source ou un mot constant ; `raw_witness=1` et `bank_version=1` ne sont pas démontrés indépendants.
+
+### Preuves manquantes
+
+- Source ou binaire du collecteur, avec l’adresse exacte lue pour `bank_version`, `raw_witness` et `raw_alias`.
+- Trace AHB des lectures : `haddr`, `hwrite`, `hready`, `hrdata`, nombre de wait-states.
+- Dump complet des 32 mots bank `0x40..0xBC` pour A1/A2/B1/B2.
+- RTL du witness R22 (`utw_observer`, `utw_read_hit`, `utw_read_data`, `utw_read_mux`), absent du source fourni.
+- Définition de `flags=4128775`, `raw_alias`, `tags`, `outside_busy`.
+- Preuve que les phases ARM ne sont pas déjà après snapshot : B1/B2 ont `frames=1`, `total=32` dès ARM.
+- Preuve d’indépendance entre `raw_witness` et bank.
+
+## 5. Tests discriminants sans nouveau bitstream
+
+### T0 — Identifier l’adresse exacte de `bank_version`
+
+Avant toute conclusion bank : instrumenter ou relire le collecteur pour consigner l’adresse AHB de `bank_version`.
+
+- Si R19 lit `0x44` et R22 lit `0x44` : la comparaison bank est valide.
+- Si R22 lit `0xC0`/`0xC4` et R19 lit `0x44` : la comparaison est invalide ; le `1` R22 est probablement le witness.
+
+C’est le test le plus discriminant et il ne demande aucun bitstream.
+
+### T1 — Diff statique des cônes legacy
+
+Sur les deux `.vo` fournis :
+
+1. Extraire récursivement le fanin de `u_usb_idle_trace/n558_9`.
+2. Canonicaliser chaque nœud : type, `INIT`, connexions de pins.
+3. Comparer les ensembles.
+4. Vérifier que `hrdata_0_s0` ne diffère que par `D` et par les nœuds witness ajoutés.
+
+Résultat attendu d’après le paquet : **identique** pour le legacy. Si un nœud legacy diffère, le test le nomme précisément.
+
+### T2 — Même collecteur, même séquence, uniquement bank
+
+Utiliser un collecteur minimal identique sur R19 et R22 qui lit uniquement `0x40..0xBC`, dans le même ordre, avec les mêmes wait-states, CPU parked, sans lecture d’extension.
+
+- Si R19=0 et R22=1 à `0x44` avec ce même collecteur : la différence est interne au FPGA ou au contenu du snapshot.
+- Si les deux donnent le même résultat : la différence A/B précédente venait du collecteur ou de la cadence.
+
+### T3 — Dump complet des 32 mots bank
+
+Lire `0x40,0x44,...,0xBC` dans un même snapshot.
+
+Attendu d’après `usb_idle_trace.v:158` :
+
+- `bank[0]` à `0x40` = `0x55544e41`
+- `bank[1]` à `0x44` = `0x00000001`
+- les mots non utilisés = 0
+
+Discrimination :
+
+- Si R22 seul `bank[1]=1` et `bank[0]` correct : anomalie ciblée sur le mot 1.
+- Si R22 retourne 1 sur tous les mots : stuck-at-1 ou lecture witness/alias, pas bank.
+- Si R19 `bank[1]=0` mais `bank[0]=0x55544e41` : le mot 1 est spécifiquement affecté, ou l’adresse lue n’est pas `0x44`.
+
+### T4 — Lecture avant tout snapshot
+
+Après reset propre, sans commande de snapshot, lire `0x40..0xBC`.
+
+Attendu : **tous les mots à 0**, car `bank` est remis à 0 (`usb_idle_trace.v:60`) et les RAM ont `INIT_0=16'h0000` dans les deux `.vo`.
+
+Si R22 retourne déjà `1` à `0x44` avant snapshot, alors la valeur ne vient pas de la bank legacy : chercher witness, alias ou collecteur.
+
+### T5 — Test d’aliasing et d’ordre
+
+Sur R22 :
+
+1. Lire `0x44` seul.
+2. Lire `0xC4` ou `0xC0` (witness).
+3. Relire immédiatement `0x44`.
+
+Attendu : `0x44` inchangé, car `utw_read_hit=0` pour `0x44`. Si `0x44` change après une lecture witness, le problème est dans le chemin de lecture ou le collecteur, pas dans le mux bank.
+
+### T6 — Witness vs bank dans la même phase
+
+Lire dans le même snapshot :
+
+- `bank[1]` à `0x44`
+- un mot bank attendu à 0, par exemple `bank[2]` à `0x48`
+- l’adresse witness documentée
+
+Si `0x44=1`, `0x48=0`, witness=1 : les deux observations sont distinctes.
+Si `0x48=1` aussi : valeur 1 généralisée, probable stuck-at-1 ou mauvaise adresse.
+Si `0x44=1` et witness=1 mais `0x48=0` : impossible de conclure sans T0/T2.
+
+## 6. Patch minimal
+
+**Aucun patch RTL n’est justifié par le paquet.**
+
+- Le mux witness R22 est transparent pour `0x40..0xBC` ; le corriger ne changerait pas une lecture bank à `0x44`.
+- Le chemin legacy bank/validité est identique dans les deux netlists fournies.
+- Le défaut R19 (`bank_version=0` malgré la constante 1) n’est pas localisé par les cônes fournis.
+- Si T0 montre que R22 lit `0xC4` au lieu de `0x44`, le correctif est **logiciel** : corriger l’adresse du collecteur, pas le RTL.
+- Si T2 montre une différence à `0x44` avec le même collecteur, il faudra alors fournir le cône d’écriture `reply → bank[1][0]` et le cône de lecture complet, puis patcher le nœud divergent. Le paquet actuel ne contient pas ce cône d’écriture.
+
+En l’état, la seule action documentaire minimale serait d’ajouter au paquet le RTL witness manquant et la carte d’adresses du collecteur. Ce n’est pas un patch de logique FPGA.

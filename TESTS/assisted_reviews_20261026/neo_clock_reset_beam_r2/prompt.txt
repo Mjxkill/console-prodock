@@ -1,0 +1,219 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-vérifier votre hypothèse false_path init_sync à partir des chemins réels. Ne pas masquer un contrôle correct. Donner une conclusion quantitative et un test réfutable, sans confondre LW avec défaut, ni absence SDF avec absence libSTA interne.
+
+EVIDENCE PACKET:
+Contre-vérification ciblée de votre réponse Beam r1 : vous avez proposé une omission false_path sur init_sync/CLEAR. Les preuves ci-dessous montrent source synchrone au même bus80, recovery+8.851 etremoval+1.416. Reconsidérez ce point ; une exception en plus supprimerait une vérification correcte. Aucun présupposéLWdéfectueux : LW est une ressource légitime. Aucun nouveauPnR ni changementRTL. Rédiger <=1500mots : disposition de votre proposition, preuve restantequantitative auhardCPUreset, modèle minimal de test horscarte falsifiable. Ne pas générerpatchsansspecfabricant.
+
+tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/console_neo.v
+135:     Gowin_PLL_AE350 u_pll_ae350 (
+136:         .lock    (pll_ae350_lock),
+137:         .clkin   (clk),
+138:         .init_clk (clk),
+139:         .clkout0 (bus80_clk), .clkout1 (core_clk), .clkout2 (), .clkout3 (), .clkout4 (rtc_clk),
+140:         .enclk0  (1'b1), .enclk1 (1'b1), .enclk2 (1'b1), .enclk3 (1'b1), .enclk4 (1'b1)
+141:     );
+142:     // ahb_clk/apb_clk : DÉJÀ déclarés ligne 232 (wire) : NE PAS redéclarer ici !
+143:     // (EX2830 : « Second declaration of 'ahb_clk' is ignored » : le wire local était ignoré,
+144:     //  l'entrée AHB_CLK du SoC restait non câblée → bus APB mort → CPU figé au 1er accès APB.)
+145:     assign ahb_clk = bus80_clk;
+146:     assign apb_clk = ahb_clk;   // APB = net de l'AHB (1:1 exigé par le SoC, en-tête du socle)
+147:     // Reset du CPU : attend le LOCK de la PLL AE350 (schéma de l'analyseur : rst = sync ~lock)
+148:     reg [1:0] ae350_rst_sync = 2'b11;
+149:     always @(posedge bus80_clk or negedge pll_ae350_lock)
+150:         if (!pll_ae350_lock) ae350_rst_sync <= 2'b11;
+151:         else ae350_rst_sync <= {ae350_rst_sync[0], 1'b0};
+152:     wire ae350_por_n = ~ae350_rst_sync[1];
+153: 
+154:     // SoC AE350 + DDR3 standalone + pont Sipeed (socle analyseur, validé V3)
+155:     wire core_wfi_w;                 // CORE0_WFI_MODE du cœur (preuve de vie sans bus)
+156:     // Isolated startup experiment: default 50 ms, UART mode 0/1 for A/B.
+157:     wire trial_request, trial_mode, trial_holding, trial_done;
+158:     wire trial_ahb_tick, trial_rtc_tick;
+159:     wire [3:0] trial_epoch;
+160:     neo_reset_trial u_reset_trial (
+161:         .clk_ref(clk), .ahb_clk(bus80_clk), .rtc_clk(rtc_clk), .serial_rx(uart_rx),
+162:         .ddr_ready(ddr_init), .pll_ready(pll_ae350_lock), .cpu_reset_n(soc_dbg[0]),
+163:         .release_request(trial_request), .delay_mode(trial_mode), .command_epoch(trial_epoch),
+164:         .holding(trial_holding), .delay_done(trial_done),
+165:         .ahb_tick(trial_ahb_tick), .rtc_tick(trial_rtc_tick));
+
+
+tang/impl/console_neo_n56r21r1_capture_memory/source/tang/rtl/board/ae350_soc.v
+145:         .enclk2  (ddr3_stop)
+146:     );
+147: 
+148:     // --- Resets -----------------------------------------------------------------------------
+149:     wire ddr3_init_completed;
+150:     wire ddr3_init_ip;                // état de calibration réel de l'IP (diag : ddr3_init_completed peut être forcé)
+151:     reg  [1:0] init_sync = 2'b00;
+152:     always @(posedge ahb_clk or negedge rst_key_n)
+153:         if (!rst_key_n) init_sync <= 2'b00;
+154:         else init_sync <= {init_sync[0], trial_release};
+155:     wire ae350_rstn = init_sync[1];
+156:     assign ddr_init = ddr3_init_completed;
+157:     assign dbg = {1'b1, ddr3_stop, ddr3_lock, ae350_rstn};
+158:     assign ddr_addr[15] = 1'b0;
+159: 
+160:     // --- Bus mémoire de données du SoC (AHB 64 bits) -> pont Sipeed -> IP DDR3 -----------------
+375:         .SPI_HOLDN_OUT(), .SPI_HOLDN_OE(), .SPI_WPN_OUT(), .SPI_WPN_OE(),
+376:         .SPI_CLK_OUT(spi_clk_out), .SPI_CLK_OE(spi_clk_oe), .SPI_CSN_OUT(spi_csn_out), .SPI_CSN_OE(spi_csn_oe),
+377:         .SPI_MISO_OUT(), .SPI_MISO_OE(), .SPI_MOSI_OUT(spi_mosi_out), .SPI_MOSI_OE(spi_mosi_oe),
+378:         .CORE0_WFI_MODE(core0_wfi), .RTC_WAKEUP(),
+379:         .CORE_CLK(core_clk), .DDR_CLK(ddr3_clk_in), .AHB_CLK(ahb_clk), .APB_CLK(apb_clk), .RTC_CLK(rtc_clk),
+380:         .POR_RSTN(ae350_rstn), .HW_RSTN(ae350_rstn)
+381:     );
+
+
+tang/impl/console_neo_n56r21r1_capture_memory/source/tang/boards/neo/neo.sdc
+1: // Tang Console PG484C: constrain every fabric clock, including HDMI x5.
+2: create_clock -name clk50 -period 20 -waveform {0 10} [get_ports {clk}]
+3: create_clock -name bus80_clk -period 12.5 -waveform {0 6.25} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT0}]
+4: create_clock -name core_clk -period 1.25 -waveform {0 0.625} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT1}]
+5: create_clock -name rtc_clk -period 100 -waveform {0 50} [get_pins {u_pll_ae350/u_pll/PLL_inst/CLKOUT4}]
+6: create_clock -name ddr3_mem_clk -period 3.333 -waveform {0 1.667} [get_pins {u_soc/u_pll_ddr3/u_pll/PLL_inst/CLKOUT2}]
+7: create_clock -name ddr3_sys_clk -period 13.333 -waveform {0 6.667} [get_pins {u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT}]
+8: create_generated_clock -name vid_clk5x -source [get_ports {clk}] -multiply_by 119 -divide_by 16 [get_pins {u_video_pll/PLL_inst/CLKOUT0}]
+9: create_generated_clock -name vid_pclk -source [get_ports {clk}] -multiply_by 119 -divide_by 80 [get_pins {u_video_pll/PLL_inst/CLKOUT2}]
+10: // Only macro-owned core/RTC crossings are excluded. Fabric mailboxes, dual
+11: // clock RAMs and FIFO Gray pointers stay visible with explicit delay bounds.
+12: set_clock_groups -asynchronous -group [get_clocks {core_clk}] -group [get_clocks {rtc_clk}] -group [get_clocks {clk50 bus80_clk ddr3_mem_clk ddr3_sys_clk vid_pclk vid_clk5x}]
+13: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]
+14: set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {ddr3_sys_clk}]
+15: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]
+16: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {clk50}]
+17: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]
+18: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {ddr3_sys_clk}]
+19: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]
+20: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {bus80_clk}]
+21: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]
+22: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {vid_pclk}]
+23: set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]
+24: set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {bus80_clk}]
+25: set_max_delay 8 -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]
+26: set_false_path -hold -from [get_clocks {ddr3_sys_clk}] -to [get_clocks {vid_pclk}]
+27: set_max_delay 8 -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]
+28: set_false_path -hold -from [get_clocks {vid_pclk}] -to [get_clocks {ddr3_sys_clk}]
+29: // clk50 and bus80 also exchange asynchronous FIFO pointers/reset releases.
+30: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+31: set_max_delay 8 -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]
+32: set_false_path -hold -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+33: set_false_path -hold -from [get_clocks {bus80_clk}] -to [get_clocks {clk50}]
+34: // No phase-based hold requirement exists between independent clocks. Maximum
+35: // delay bounds remain active; all intra-domain setup/hold paths stay checked.
+36: // Asynchronous assertion only: deassertion is synchronized in these flops.
+37: set_false_path -to [get_pins {ae350_rst_sync_*/PRESET}]
+38: set_false_path -to [get_pins {u_hdmi/g_reset*.reset_sync*/PRESET}]
+39: // Asynchronous serial input: only the first synchronizer D is exempt.
+40: set_false_path -from [get_ports {uart_rx}] -to [get_pins {u_console_input/u_debug_rx/rx_sync_0_s1/D}]
+41: set_false_path -to [get_pins {u_soc/u_ae350/u_RiscV_AE350_SOC/u_AE350_SOC/UART2_RXD}]
+
+
+tang/impl/console_neo_n56r21r1_capture_memory/impl/pnr/console_neo.tr
+317709: Path Summary:
+317710: Slack             : 8.851
+317711: Data Arrival Time : 6.788
+317712: Data Required Time: 15.639
+317713: From              : ae350_rst_sync_1_s0
+317714: To                : u_soc/init_sync_1_s0
+317715: Launch Clk        : bus80_clk:[R]
+317716: Latch Clk         : bus80_clk:[R]
+317717: 
+317718: Data Arrival Path:
+317719:    AT     DELAY   TYPE   RF   FANOUT       LOC                       NODE                 
+317720:  ======= ======= ====== ==== ======== ============== ==================================== 
+317721:   0.000   0.000                                       active clock edge time              
+317722:   0.000   0.000                                       bus80_clk                           
+317723:   0.000   0.000   tCL    RR   5155     PLL_R[0]       u_pll_ae350/u_pll/PLL_inst/CLKOUT0  
+317724:   3.550   3.550   tNET   RR   1        R79C91[2][B]   ae350_rst_sync_1_s0/CLK             
+317725:   3.881   0.331   tC2Q   RF   43       R79C91[2][B]   ae350_rst_sync_1_s0/Q               
+317726:   6.788   2.907   tNET   FF   1        R94C36[3][A]   u_soc/init_sync_1_s0/CLEAR          
+317727: 
+317728: Data Required Path:
+317729:     AT     DELAY    TYPE   RF   FANOUT       LOC                       NODE                 
+317730:  ======== ======== ====== ==== ======== ============== ==================================== 
+317731:   12.500   12.500                                       active clock edge time              
+317732:   12.500   0.000                                        bus80_clk                           
+317733:   12.500   0.000    tCL    RR   5155     PLL_R[0]       u_pll_ae350/u_pll/PLL_inst/CLKOUT0  
+317734:   15.952   3.452    tNET   RR   1        R94C36[3][A]   u_soc/init_sync_1_s0/CLK            
+317735:   15.639   -0.313   tSu         1        R94C36[3][A]   u_soc/init_sync_1_s0                
+317736: 
+317737: Path Statistics:
+317738: Clock Skew: -0.098
+317739: Setup Relationship: 12.500
+317740: Logic Level: 1
+317741: Arrival Clock Path delay: (cell: 0.000 0.000%, 
+317742:                      route: 3.550 100.000%)
+530852: Path Summary:
+530853: Slack             : 1.416
+530854: Data Arrival Time : 2.704
+530855: Data Required Time: 1.287
+530856: From              : ae350_rst_sync_1_s0
+530857: To                : u_soc/init_sync_1_s0
+530858: Launch Clk        : bus80_clk:[R]
+530859: Latch Clk         : bus80_clk:[R]
+530860: 
+530861: Data Arrival Path:
+530862:    AT     DELAY   TYPE   RF   FANOUT       LOC                       NODE                 
+530863:  ======= ======= ====== ==== ======== ============== ==================================== 
+530864:   0.000   0.000                                       active clock edge time              
+530865:   0.000   0.000                                       bus80_clk                           
+530866:   0.000   0.000   tCL    RR   5155     PLL_R[0]       u_pll_ae350/u_pll/PLL_inst/CLKOUT0  
+530867:   1.346   1.346   tNET   RR   1        R79C91[2][B]   ae350_rst_sync_1_s0/CLK             
+530868:   1.476   0.130   tC2Q   RR   43       R79C91[2][B]   ae350_rst_sync_1_s0/Q               
+530869:   2.704   1.228   tNET   RR   1        R94C36[3][A]   u_soc/init_sync_1_s0/CLEAR          
+530870: 
+530871: Data Required Path:
+530872:    AT     DELAY    TYPE   RF   FANOUT       LOC                       NODE                 
+530873:  ======= ======== ====== ==== ======== ============== ==================================== 
+530874:   0.000   0.000                                        active clock edge time              
+530875:   0.000   0.000                                        bus80_clk                           
+530876:   0.000   0.000    tCL    RR   5155     PLL_R[0]       u_pll_ae350/u_pll/PLL_inst/CLKOUT0  
+530877:   1.335   1.335    tNET   RR   1        R94C36[3][A]   u_soc/init_sync_1_s0/CLK            
+530878:   1.287   -0.048   tHld        1        R94C36[3][A]   u_soc/init_sync_1_s0                
+530879: 
+530880: Path Statistics:
+530881: Clock Skew: -0.011
+530882: Hold Relationship: 0.000
+530883: Logic Level: 1
+530884: Arrival Clock Path delay: (cell: 0.000 0.000%, 
+530885:                      route: 1.346 100.000%)
+735355: 
+735356: Timing Path Constraint[9]: set_max_delay 8 -from [get_clocks {clk50}] -to [get_clocks {bus80_clk}]
+735357: 						Path1						
+735358: Path Summary:
+735359: Slack             : 4.515
+735360: Data Arrival Time : 6.844
+735361: Data Required Time: 11.360
+735362: From              : u_reset_trial/holding_s8
+735363: To                : u_soc/init_sync_0_s0
+735364: Launch Clk        : clk50:[R]
+735365: Latch Clk         : bus80_clk:[R]
+735366: 
+735367: Data Arrival Path:
+735368:    AT     DELAY   TYPE   RF   FANOUT       LOC                        NODE                  
+735369:  ======= ======= ====== ==== ======== ============== ====================================== 
+735370:   0.000   0.000                                       active clock edge time                
+735371:   0.000   0.000                                       clk50                                 
+735372:   0.000   0.000   tCL    RR   1        IOB104[B]      clk_ibuf/I                            
+735373:   0.614   0.614   tINS   RR   972      IOB104[B]      clk_ibuf/O                            
+735374:   5.627   5.013   tNET   RR   1        R96C37[0][A]   u_reset_trial/holding_s8/CLK          
+735375:   5.971   0.344   tC2Q   RR   13       R96C37[0][A]   u_reset_trial/holding_s8/Q            
+735376:   6.324   0.352   tNET   RR   1        R94C36[2][B]   u_reset_trial/release_request_d_s/I2  
+735377:   6.845   0.521   tINS   RR   1        R94C36[2][B]   u_reset_trial/release_request_d_s/F   
+735378:   6.845   0.000   tNET   RR   1        R94C36[2][B]   u_soc/init_sync_0_s0/D                
+735379: 
+735380: Data Required Path:
+735381:     AT     DELAY    TYPE   RF   FANOUT       LOC                       NODE                 
+735382:  ======== ======== ====== ==== ======== ============== ==================================== 
+735383:   8.000    8.000                                        active clock edge time              
+735384:   8.000    0.000                                        bus80_clk                           
+735385:   8.000    0.000    tCL    RR   5155     PLL_R[0]       u_pll_ae350/u_pll/PLL_inst/CLKOUT0  
+735386:   11.452   3.452    tNET   RR   1        R94C36[2][B]   u_soc/init_sync_0_s0/CLK            
+735387:   11.417   -0.035   tUnc                                u_soc/init_sync_0_s0                
+735388:   11.360   -0.057   tSu         1        R94C36[2][B]   u_soc/init_sync_0_s0                
+735389: 
+735390: Path Statistics:
+
+Faits complémentaires vérifiés localement : SDF AE350730 SETUPHOLD mais zéroPOR_N/HW_RSTN etzéroRECOVERY/REMOVAL/WIDTH/PERIOD ; cela ne prouve PAS que libSTAinterne ne possède pas exigences. La bibliothèque officielle prim_sim.v gw5a fournit pourAE350_SOC uniquement déclarationsdeports, sanscomportement, donc benchglobalCPUavecstubs ne peutprouver son startup. CORE_CLK est route dédiée seloncommentairevendor; noFmaxpathdansTR ne prouvepas absencehorloge. TMS/TDI setupholdvsDBG_TCK existentmaisaucunclockTCK niinput/outputdelaySDC. R19/R21 ne sontpasSTAglobalPASS.

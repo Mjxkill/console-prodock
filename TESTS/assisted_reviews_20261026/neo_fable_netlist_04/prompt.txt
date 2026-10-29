@@ -1,0 +1,666 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Prochaine tâche indépendante utile : vérifier les fonctions b_grant et take_blitter dans les LUT/INIT post-routage exactes R19. La preuve existante des quatre fonctions du slot prenait b_grant comme feuille. Vérifie donc cette frontière avec priorité RESET du DFFRE et CE. Produis une comparaison booléenne bornée (script local ou formule+table exhaustive) contre le RTL ddr_gpu_arb fourni, pas un modèle de protocole inventé. Identifie tous les cut signals et leur justification ; évite hypothèse one-hot sur les états DMA sauf preuve explicite. Aucune conclusion physique/STA. Ne régénère pas un framework entier.
+
+EVIDENCE PACKET:
+Next finite task: independently extend actual netlist Boolean equivalence proof to b_grant and take_blitter next-state (including synchronous RESET priority), since previous proof cut b_grant as a leaf. No hardware/PnR/source modification. Existing exact RTL bench CLEAR and COPY pass; physical R19 still stalls color/Z CLEAR. Do not confuse Boolean equality with routing proof. Propose small local checker or exact truth table, using actual routed INIT/pins below and actual RTL. Reference arbitrary Boolean leaves; avoid one-hot assumptions unless explicitly proved. Prefer a bounded proof over generic advice.
+
+FILE TESTS/neo_720p_20261012/local_capture_20261026/check_handshake_truth.py SHA256 fdfb464cded30c221ad3ce11ec16d3e40e4d054c16b0642ecd3873cf628ec83d
+
+#!/usr/bin/env python3
+"""Exhaustive bit-parallel truth tables; no SAT search or timing inference."""
+from functools import lru_cache
+import json
+import re
+import signal
+from pathlib import Path
+from prepare_memory_observer import HERE, PARENT, sha, block, pins
+
+def main():
+    signal.alarm(60)
+    net=PARENT/'console_neo.vg';text=net.read_text();results=[]
+    def test(mod,name,roots,reference_leaves,actual,expected,cut=()):
+        b=block(text,mod);drivers={}
+        for m in re.finditer(r'^\s*(\w+)\s+(\\?\S+)\s+\((.*?)\);',b,re.M|re.S):
+            ps=dict(re.findall(r'\.(\w+)\(([^()]*)\)',m[3]));q=ps.get('F',ps.get('Q',''))
+            if q:drivers[q]=(m[1],m[2],ps)
+        leaves=set(reference_leaves)
+        @lru_cache(None)
+        def collect(n):
+            if n in ('VCC','GND'):return
+            if n in cut or n not in drivers or drivers[n][0].startswith('DFF'):
+                leaves.add(n);return
+            typ,inst,ps=drivers[n];assert re.fullmatch(r'LUT[1-4]',typ),(n,typ)
+            for i in range(int(typ[-1])):collect(ps['I'+str(i)])
+        for n in roots:collect(n)
+        names=sorted(leaves);assert len(names)<=24
+        combinations=1<<len(names);mask=(1<<combinations)-1;bytes_count=(combinations+7)//8
+        values={}
+        for i,n in enumerate(names):
+            if i<3:data=bytes([((0xaa,0xcc,0xf0)[i])])*bytes_count
+            else:
+                run=1<<(i-3);data=(bytes(run)+b'\xff'*run)*(bytes_count//(2*run))
+            values[n]=int.from_bytes(data,'little')&mask
+        @lru_cache(None)
+        def E(n):
+            if n=='VCC':return mask
+            if n=='GND':return 0
+            if n in values:return values[n]
+            typ,inst,ps=drivers[n];count=int(typ[-1])
+            p=re.search(r'defparam '+re.escape(inst)+r"\.INIT\s*=\s*(\d+)'h([0-9a-fA-F]+);",b);assert p
+            assert int(p[1])==1<<count
+            init=int(p[2],16);args=[E(ps['I'+str(i)]) for i in range(count)];answer=0
+            for index in range(1<<count):
+                if not init>>index&1:continue
+                term=mask
+                for i,x in enumerate(args):term &= x if index>>i&1 else ~x
+                answer |= term
+            return answer
+        got=actual(E)&mask;wanted=expected(E)&mask;difference=got^wanted
+        r=dict(name=name,variables=len(names),combinations=combinations,equivalent=difference==0,
+            leaves=names,cut_signals=list(cut))
+        if difference:
+            first=(difference&-difference).bit_length()-1
+            r['counterexample']={n:bool(first>>i&1) for i,n in enumerate(names)}
+        results.append(r);print(json.dumps({k:v for k,v in r.items() if k!='leaves'}),flush=True)
+    def OR(E,names):
+        result=0
+        for n in names:result |= E(n)
+        return result
+    def issue(E):
+        alpha256=E('alpha[8]')&~OR(E,[f'alpha[{i}]' for i in range(8)])
+        background=~alpha256|E('flags[5]')|(E('flags[0]')&E('tex_argb'))
+        return (E('state[14]')&background)|(E('state[16]')&E('flags[1]'))|(
+            E('state[28]')&E('chunk_dirty'))|E('state[30]')|(
+            E('state[36]')&E('clear_flags[0]'))|(E('state[38]')&E('clear_flags[1]'))
+    refs=[f'alpha[{i}]' for i in range(9)]+[f'state[{i}]' for i in (14,16,28,30,36,38)]+[
+        'flags[0]','flags[1]','flags[5]','tex_argb','chunk_dirty','clear_flags[0]','clear_flags[1]']
+    test('gpu_v1','native_issue',['native_issue'],refs,lambda E:E('native_issue'),issue)
+    assert results[-1]['equivalent'],'Do not use an unproved cut signal'
+    b=block(text,'gpu_v1');ff=pins(b,'native_valid_s1')
+    refs=['native_issue','native_valid','fetch_valid','v1_accepted','v1_select']+[f'state[{i}]' for i in (15,17,29,31,37,39)]
+    test('gpu_v1','native_valid_next_without_reset',[ff['CE'],ff['D']],refs,
+        lambda E:(E(ff['CE'])&E(ff['D']))|(~E(ff['CE'])&E('native_valid')),
+        lambda E:E('native_issue')|(E('native_valid')&OR(E,[f'state[{i}]' for i in (15,17,29,31,37,39)])&
+            ~(E('v1_accepted')&E('v1_select')&~E('fetch_valid'))),cut=('native_issue',))
+    b=block(text,'gpu_accel');pending=pins(b,'v1_pending_s2');accepted=pins(b,'v1_accepted_s0')
+    assert pending['CE']==accepted['CE']=='VCC'
+    refs=['v1_select','native_valid','copy_valid','cache_valid','fetch_valid','raster_valid','v1_pending','v1_accepted','b_grant']
+    def pending_next(E):
+        request=(E('v1_select')&OR(E,['native_valid','copy_valid','cache_valid','fetch_valid']))|(~E('v1_select')&E('raster_valid'))
+        return (E('v1_pending')&~E('b_grant'))|(~E('v1_pending')&request&~E('v1_accepted'))
+    test('gpu_accel','pending_next_without_reset',[pending['D']],refs,lambda E:E(pending['D']),pending_next)
+    test('gpu_accel','accepted_next_without_reset',[accepted['D']],['v1_pending','b_grant'],lambda E:E(accepted['D']),lambda E:E('v1_pending')&E('b_grant'))
+    result=dict(passed=all(r['equivalent'] for r in results),proofs=results,
+        method='Exhaustive bit-parallel truth-table equality; native_issue cut used only after separate exhaustive equivalence',
+        inputs={str(net):sha(net),str(Path(__file__)):sha(Path(__file__))},
+        assumptions=['Reset inactive; documented D/CE flip-flop behavior.', 'Arbitrary Boolean leaves, no one-hot assumption.'],
+        limits=['No clock, propagation delay, physical connectivity or metastability model.',
+                'No complete GPU or memory-address/payload qualification.'])
+    out=HERE/'handshake_truth_proof.json';assert not out.exists();out.write_text(json.dumps(result,indent=2)+'\n')
+    if not result['passed']:raise SystemExit(1)
+
+if __name__=='__main__':main()
+
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v SHA256 b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5
+
+// Shared native DDR3 UI: CPU adapter, scanout reads and blitter reads/writes.
+// Addresses are 32-bit words, aligned to eight words (32 bytes).
+// CPU upstream issues command+data pulses only when ready; capture them in a
+// one-entry buffer to break the ready chain through the legacy CPU adapter.
+// Scanout has priority for bounded line fetches; CPU/blitter alternate otherwise.
+// Their grant is registered, so changing clients may insert an idle cycle.
+`default_nettype none
+module ddr_gpu_arb (
+    input wire clk, rst_n,
+    input wire c_en,
+    input wire [2:0] c_cmd,
+    input wire [28:0] c_addr,
+    output wire c_ready,
+    input wire c_wr_en, c_wr_end,
+    input wire [255:0] c_wr_data,
+    input wire [31:0] c_wr_mask,
+    output wire c_wr_ready,
+    output wire [255:0] c_rd_data,
+    output wire c_rd_valid, c_rd_end,
+    input wire g_valid,
+    input wire [28:0] g_addr,
+    output wire g_ready,
+    output wire [255:0] g_data,
+    output wire g_data_valid,
+    input wire b_valid, b_write,
+    input wire [28:0] b_addr,
+    input wire [255:0] b_wr_data,
+    input wire [31:0] b_wr_mask,
+    output wire b_ready,
+    output wire [255:0] b_rd_data,
+    output wire b_rd_valid,
+    output wire m_en,
+    output wire [2:0] m_cmd,
+    output wire [28:0] m_addr,
+    input wire m_ready,
+    output wire m_wr_en, m_wr_end,
+    output wire [255:0] m_wr_data,
+    output wire [31:0] m_wr_mask,
+    input wire m_wr_ready,
+    input wire [255:0] m_rd_data,
+    input wire m_rd_valid, m_rd_end
+);
+    reg [1:0] tags [0:15]; // 0 CPU, 1 scanout, 2 blitter
+    reg [4:0] wp = 0, rp = 0;
+    reg full = 0;
+    wire empty = wp == rp;
+    wire issue = rst_n && !full;
+    reg cpu_pending = 0;
+    reg [2:0] cpu_cmd;
+    reg [28:0] cpu_addr;
+    reg [255:0] cpu_data;
+    reg [31:0] cpu_mask;
+    reg prefer_blitter = 1;
+    reg take_blitter = 0;
+    // Two scanout request slots isolate its distant owner/request decode
+    // from DDR arbitration. READY acknowledges enqueueing; responses still
+    // follow DDR issue order. The FIFO sustains one request per cycle when
+    // DDR accepts continuously, and never depends on DDR READY at its input.
+    reg [28:0] scan_addresses [0:1];
+    reg scan_wp=0,scan_rp=0;
+    reg [1:0] scan_count=0;
+    wire scan_valid=scan_count!=0;
+    wire [28:0] scan_addr=scan_addresses[scan_rp];
+    assign g_ready = rst_n && scan_count!=2;
+    wire scan_enqueue=g_valid && g_ready;
+    wire scan_issue=scan_valid && issue && m_ready;
+    always @(posedge clk)begin
+        if(!rst_n)begin scan_wp<=0;scan_rp<=0;scan_count<=0;end
+        else begin
+            if(scan_enqueue)begin scan_addresses[scan_wp]<=g_addr;scan_wp<=!scan_wp;end
+            if(scan_issue)scan_rp<=!scan_rp;
+            case({scan_enqueue,scan_issue})
+                2'b10:scan_count<=scan_count+1'b1;
+                2'b01:scan_count<=scan_count-1'b1;
+                default:;
+            endcase
+        end
+    end
+    // b_grant est gardé tel quel par la synthèse (syn_keep) : sans cela, la LUT de b_ready était partagée
+    // avec m_wr_en, qui dépend de b_valid, et l'analyse de timing comptait une boucle combinatoire
+    // b_valid -> arbitre -> b_ready -> blitter/V1 qui n'existe pas logiquement (r600, -0,47 ns).
+    wire b_grant /* synthesis syn_keep=1 */ = issue && !scan_valid && take_blitter && m_ready && (!b_write || m_wr_ready);
+    assign b_ready = b_grant;
+    assign c_ready = rst_n && !cpu_pending;
+    assign c_wr_ready = c_ready;
+    wire cpu_fire = issue && !scan_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);
+    assign m_en = scan_issue || (b_valid && b_ready) || cpu_fire;
+    assign m_cmd = scan_valid ? 3'b001 : take_blitter ? {2'b0,!b_write} : cpu_cmd;
+    assign m_addr = scan_valid ? scan_addr : take_blitter ? b_addr : cpu_addr;
+    assign m_wr_en = (b_valid && b_ready && b_write) || (cpu_fire && cpu_cmd == 0);
+    assign m_wr_end = m_wr_en;
+    assign m_wr_data = take_blitter ? b_wr_data : cpu_data;
+    assign m_wr_mask = take_blitter ? b_wr_mask : cpu_mask;
+    wire push = scan_issue || (b_valid && b_ready && !b_write) || (cpu_fire && cpu_cmd == 1);
+    wire pop = m_rd_valid && !empty;
+    wire [4:0] next_wp = wp + {4'b0, push};
+    wire [4:0] next_rp = rp + {4'b0, pop};
+    wire [4:0] incremented_wp = wp + 5'd1;
+    wire one_slot_left = incremented_wp == {~rp[4],rp[3:0]};
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            wp <= 0; rp <= 0; full <= 0; prefer_blitter <= 1;
+            take_blitter<=0;
+            cpu_pending <= 0; cpu_cmd <= 0; cpu_addr <= 0; cpu_data <= 0; cpu_mask <= 32'hffffffff;
+        end
+        else begin
+            // Cut the valid -> arbitration -> ready round trip. A stale grant
+            // can only insert a bubble: native commands still require valid.
+            // Acknowledgement remains the actual DDR command/data acceptance.
+            if(b_valid && b_ready) take_blitter<=0;
+            else take_blitter<=b_valid && (prefer_blitter || !cpu_pending);
+            // While empty, sample the payload independently of the late
+            // upstream request. The acceptance cycle captures the same words;
+            // once pending, every word remains held until DDR accepts it.
+            // This leaves c_en driving only the valid bit, not 320 payload CEs.
+            if (!cpu_pending) begin
+                cpu_cmd <= c_cmd; cpu_addr <= c_addr;
+                cpu_data <= c_wr_data; cpu_mask <= c_wr_mask;
+            end
+            if (c_en && c_ready) cpu_pending <= 1;
+            else if (cpu_fire) cpu_pending <= 0;
+            if (!scan_valid) begin
+                if (b_valid && b_ready) prefer_blitter <= 0;
+                else if (cpu_fire) prefer_blitter <= 1;
+            end
+            if (push) tags[wp[3:0]] <= scan_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;
+            wp <= next_wp; rp <= next_rp;
+            // Compare stable pointers before the late command acceptance.
+            // Simultaneous push/pop leaves occupancy unchanged.
+            if(push && !pop)full<=one_slot_left;
+            else if(pop && !push)full<=0;
+        end
+    end
+    assign c_rd_data = m_rd_data;
+    assign g_data = m_rd_data;
+    assign c_rd_valid = pop && tags[rp[3:0]] == 0;
+    assign c_rd_end = c_rd_valid && m_rd_end;
+    assign g_data_valid = pop && tags[rp[3:0]] == 1;
+    assign b_rd_data = m_rd_data;
+    assign b_rd_valid = pop && tags[rp[3:0]] == 2;
+endmodule
+`default_nettype wire
+
+FILE tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_blit_dma.v SHA256 2118e643422cc732d3e8f52afb6115baeb81683f999df0affbc482a09113f20d
+
+// Packs the blitter's halfwords/byte enables into aligned DDR3 BL8 transfers.
+// One transaction at a time. DDR write command and data are accepted together;
+// the caller acknowledges only after the final native write is accepted.
+`default_nettype none
+module gpu_blit_dma (
+    input wire clk, rst,
+    input wire s_req,
+    input wire [23:0] s_addr,
+    input wire [9:0] s_len,
+    output wire s_valid,
+    output wire [15:0] s_data,
+    output wire s_done,
+    input wire w_req,
+    input wire [23:0] w_addr,
+    input wire [9:0] w_len,
+    input wire [15:0] w_data,
+    input wire [1:0] w_mask,
+    output wire w_ready,
+    output reg w_done,
+    input wire f_req,
+    input wire [24:0] f_addr,
+    input wire [10:0] f_len,
+    input wire [7:0] f_color,
+    output reg f_done,
+    input wire c_req,
+    input wire [23:0] c_addr,
+    input wire [15:0] c_wdata,
+    input wire [1:0] c_wmask,
+    output reg c_ack,
+    output reg valid=0,
+    output wire write,
+    output reg [28:0] addr,
+    output reg [255:0] wr_data,
+    output reg [31:0] wr_mask,
+    input wire ready,
+    input wire [255:0] rd_data,
+    input wire rd_valid
+);
+    localparam IDLE=0, W_PACK=1, W_SEND=2, R_SEND=3, R_WAIT=4, R_UNPACK=5, F_PREP=6, F_MASK=7;
+    reg [2:0] state;
+    reg [23:0] position;
+    reg [9:0] remaining;
+    reg pixel_write,fill_write;
+    reg [10:0] fill_left;
+    reg [4:0] fill_offset;
+    reg [5:0] fill_low,fill_high;
+    wire [5:0] fill_room=6'd32-{1'b0,fill_offset};
+    wire [5:0] fill_take=fill_left>{5'd0,fill_room} ? fill_room:fill_left[5:0];
+    integer byte_lane;
+    reg [255:0] read_buffer;
+    reg [28:0] write_follow_addr;
+    reg write_accepted;
+    wire [3:0] lane = position[3:0];
+    // Keep the global reset/state decode off the arbiter's ready/tag paths.
+    // This register changes on the same edges as entry/exit of SEND states.
+    assign write = state == W_SEND;
+    // Predict W_PACK on the same edge as the state transition. The blitter
+    // shares this synchronous reset, so it never consumes READY during reset.
+    // Do not put the high-fanout reset net back into the line-RAM address path.
+    reg write_active /* synthesis syn_preserve=1 */;
+    always @(posedge clk)begin
+        if(rst)write_active<=0;
+        else write_active<=
+            (state==IDLE && !c_req && !(f_req && f_len!=0) && w_req && w_len!=0) ||
+            (state==W_PACK && lane!=15 && remaining!=1) ||
+            (state==W_SEND && ready && !fill_write && remaining!=0);
+    end
+    assign w_ready = write_active;
+    // Acknowledge on the cycle AFTER native acceptance. This cuts the long
+    // scanout valid -> DDR ready -> blitter next-state path. Completion still
+    // means the final DDR write was accepted; no buffered write is hidden.
+    always @(posedge clk) begin
+        write_accepted <= !rst && state == W_SEND && ready;
+        w_done <= !rst && state == W_SEND && ready && !pixel_write && !fill_write && remaining == 0;
+        f_done <= !rst && state == W_SEND && ready && fill_write && fill_left == 0;
+        c_ack <= !rst && state == W_SEND && ready && pixel_write;
+    end
+    // Predict entry/exit of UNPACK and its last halfword on the same edge
+    // as the state/counter updates. No extra transfer cycle: this removes
+    // binary state and remaining-count decoding from the blitter's inputs.
+    reg read_active /* synthesis syn_preserve=1 */;
+    reg read_last /* synthesis syn_preserve=1 */;
+    always @(posedge clk) begin
+        if(rst)begin read_active<=0;read_last<=0;end
+        else begin
+            read_active<=(state==R_WAIT && rd_valid) ||
+                         (state==R_UNPACK && remaining!=1 && lane!=15);
+            read_last<=(state==R_WAIT && rd_valid && remaining==1) ||
+                       (state==R_UNPACK && remaining==2 && lane!=15);
+        end
+    end
+    assign s_valid = !rst && read_active;
+    assign s_data = read_buffer[lane * 16 +: 16];
+    assign s_done = !rst && read_last;
+    always @(posedge clk) begin
+        if (rst) begin
+            state <= IDLE; valid<=0; position <= 0; remaining <= 0; pixel_write <= 0;fill_write<=0;fill_left<=0;fill_offset<=0;fill_low<=0;fill_high<=0;
+            addr <= 0; write_follow_addr<=0; wr_data <= 0; wr_mask <= 32'hffffffff; read_buffer <= 0;
+        end else begin
+          // After acceptance, valid is low while PACK/PREP prepares the
+          // next command. Advance the address in that existing cycle so the
+          // arbiter's combinational READY cannot drive this wide enable.
+          // A new IDLE request below takes priority over this deferred update.
+          if (write_accepted) addr <= write_follow_addr;
+          case (state)
+            IDLE: begin
+                wr_mask <= 32'hffffffff;fill_write<=0;
+                if (c_req) begin
+                    addr <= {6'b0, c_addr[23:4], 3'b0};
+                    write_follow_addr <= {6'b0, c_addr[23:4], 3'b0};
+                    wr_data <= {16{c_wdata}};
+                    wr_mask <= ~( {30'b0, c_wmask} << (c_addr[3:0] * 2));
+                    pixel_write <= 1; remaining <= 0; state <= W_SEND;valid<=1;
+                end else if(f_req && f_len!=0)begin
+                    addr<={6'b0,f_addr[24:5],3'b0};wr_data<={32{f_color}};
+                    fill_write<=1;pixel_write<=0;fill_offset<=f_addr[4:0];fill_left<=f_len;
+                    state<=F_PREP;
+                end else if (w_req && w_len != 0) begin
+                    addr <= {6'b0, w_addr[23:4], 3'b0};
+                    position <= w_addr; remaining <= w_len;
+                    pixel_write <= 0; state <= W_PACK;
+                end else if (s_req && s_len != 0) begin
+                    addr <= {6'b0, s_addr[23:4], 3'b0};
+                    position <= s_addr; remaining <= s_len; state <= R_SEND;valid<=1;
+                end
+            end
+            F_PREP:begin
+                fill_low<={1'b0,fill_offset};fill_high<={1'b0,fill_offset}+fill_take;
+                fill_left<=fill_left-{5'd0,fill_take};fill_offset<=0;state<=F_MASK;
+            end
+            F_MASK:begin
+                write_follow_addr<=fill_left==0 ? addr:addr+29'd8;
+                for(byte_lane=0;byte_lane<32;byte_lane=byte_lane+1)
+                    wr_mask[byte_lane]<=!(byte_lane>=fill_low && byte_lane<fill_high);
+                state<=W_SEND;valid<=1;
+            end
+            W_PACK: begin
+                // The final packed lane is either the last halfword or a
+                // native-word boundary. Decide the following address before
+                // W_SEND so DDR READY does not drive this branch/mux tree.
+                write_follow_addr<=remaining==1 ? addr:addr+29'd8;
+                wr_data[lane * 16 +: 16] <= w_data;
+                wr_mask[lane * 2 +: 2] <= ~w_mask;
+                position <= position + 1'b1;
+                remaining <= remaining - 1'b1;
+                if (lane == 15 || remaining == 1) begin state <= W_SEND;valid<=1;end
+            end
+            W_SEND: if (ready) begin
+                valid<=0;
+                wr_mask <= 32'hffffffff;
+                if(fill_write)begin
+                    if(fill_left==0)state<=IDLE;
+                    else begin state<=F_PREP;end
+                end else if (remaining == 0) state <= IDLE;
+                else begin
+                    state <= W_PACK;
+                end
+            end
+            R_SEND: if (ready) begin state <= R_WAIT;valid<=0;end
+            R_WAIT: if (rd_valid) begin read_buffer <= rd_data; state <= R_UNPACK; end
+            R_UNPACK: begin
+                position <= position + 1'b1; remaining <= remaining - 1'b1;
+                if (remaining == 1) state <= IDLE;
+                else if (lane == 15) begin
+                    addr <= addr + 29'd8; state <= R_SEND;valid<=1;
+                end
+            end
+            default: begin state <= IDLE;valid<=0;end
+          endcase
+        end
+    end
+endmodule
+`default_nettype wire
+
+=== Exact routed DFF/LUT primitives; upstream FF outputs are leaves [S17] ===
+LUT2 \u_accel/n4432_s0  (
+	.I0(v1_pending),
+	.I1(b_grant),
+	.F(\u_accel/n4432_3 )
+);
+defparam \u_accel/n4432_s0 .INIT=4'h8;
+LUT4 \u_accel/n4434_s1  (
+	.I0(\u_accel/fetch_valid ),
+	.I1(\u_accel/n5020_4 ),
+	.I2(\u_accel/raster_valid ),
+	.I3(\u_accel/v1_select ),
+	.F(\u_accel/n4434_4 )
+);
+defparam \u_accel/n4434_s1 .INIT=16'hBBF0;
+LUT4 \u_accel/n4434_s2  (
+	.I0(\u_accel/v1_accepted ),
+	.I1(v1_pending),
+	.I2(\u_accel/n4434_4 ),
+	.I3(\u_accel/n4432_3 ),
+	.F(\u_accel/n4434_6 )
+);
+defparam \u_accel/n4434_s2 .INIT=16'hFF10;
+LUT4 \u_accel/n5020_s0  (
+	.I0(\u_accel/n5020_4 ),
+	.I1(\u_accel/n5020_5 ),
+	.I2(\u_accel/raster_write ),
+	.I3(\u_accel/v1_select ),
+	.F(\u_accel/n5020_3 )
+);
+defparam \u_accel/n5020_s0 .INIT=16'h11F0;
+LUT3 \u_accel/n5020_s1  (
+	.I0(\u_accel/native_valid ),
+	.I1(\u_accel/cache_valid ),
+	.I2(\u_accel/copy_valid ),
+	.F(\u_accel/n5020_4 )
+);
+defparam \u_accel/n5020_s1 .INIT=8'h01;
+LUT4 \u_accel/n5020_s2  (
+	.I0(\u_accel/native_write ),
+	.I1(\u_accel/native_valid ),
+	.I2(\u_accel/copy_write ),
+	.I3(\u_accel/copy_sel [0]),
+	.F(\u_accel/n5020_5 )
+);
+defparam \u_accel/n5020_s2 .INIT=16'h0F77;
+LUT3 \u_accel/u_dma/n66_s3  (
+	.I0(\u_accel/u_dma/state [1]),
+	.I1(\u_accel/u_dma/state [0]),
+	.I2(\u_accel/u_dma/state [2]),
+	.F(n66_8)
+);
+defparam \u_accel/u_dma/n66_s3 .INIT=8'h02;
+LUT2 \u_accel/u_v1/u_pixels/n22708_s29  (
+	.I0(\u_accel/u_v1/u_pixels/flags [1]),
+	.I1(\u_accel/u_v1/u_pixels/state [16]),
+	.F(\u_accel/u_v1/u_pixels/n22708_33 )
+);
+defparam \u_accel/u_v1/u_pixels/n22708_s29 .INIT=4'h8;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s0  (
+	.I0(\u_accel/u_v1/u_pixels/native_issue_4 ),
+	.I1(\u_accel/u_v1/u_pixels/state [14]),
+	.I2(\u_accel/u_v1/u_pixels/state [30]),
+	.I3(\u_accel/u_v1/u_pixels/native_issue_5 ),
+	.F(\u_accel/u_v1/u_pixels/native_issue )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s0 .INIT=16'hF4FF;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s1  (
+	.I0(\u_accel/u_v1/u_pixels/flags [5]),
+	.I1(\u_accel/u_v1/u_pixels/unpack_r_4_4 ),
+	.I2(\u_accel/u_v1/u_pixels/alpha [8]),
+	.I3(\u_accel/u_v1/u_pixels/native_issue_6 ),
+	.F(\u_accel/u_v1/u_pixels/native_issue_4 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s1 .INIT=16'h1000;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s2  (
+	.I0(\u_accel/u_v1/u_pixels/chunk_dirty ),
+	.I1(\u_accel/u_v1/u_pixels/state [28]),
+	.I2(\u_accel/u_v1/u_pixels/n22708_33 ),
+	.I3(\u_accel/u_v1/u_pixels/native_issue_7 ),
+	.F(\u_accel/u_v1/u_pixels/native_issue_5 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s2 .INIT=16'h0700;
+LUT2 \u_accel/u_v1/u_pixels/native_issue_s3  (
+	.I0(\u_accel/u_v1/u_pixels/native_issue_8 ),
+	.I1(\u_accel/u_v1/u_pixels/native_issue_9 ),
+	.F(\u_accel/u_v1/u_pixels/native_issue_6 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s3 .INIT=4'h8;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s4  (
+	.I0(\u_accel/u_v1/u_pixels/state [38]),
+	.I1(\u_accel/u_v1/u_pixels/clear_flags [1]),
+	.I2(\u_accel/u_v1/u_pixels/state [36]),
+	.I3(\u_accel/u_v1/u_pixels/clear_flags [0]),
+	.F(\u_accel/u_v1/u_pixels/native_issue_7 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s4 .INIT=16'h0777;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s5  (
+	.I0(\u_accel/u_v1/u_pixels/alpha [0]),
+	.I1(\u_accel/u_v1/u_pixels/alpha [1]),
+	.I2(\u_accel/u_v1/u_pixels/alpha [2]),
+	.I3(\u_accel/u_v1/u_pixels/alpha [3]),
+	.F(\u_accel/u_v1/u_pixels/native_issue_8 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s5 .INIT=16'h0001;
+LUT4 \u_accel/u_v1/u_pixels/native_issue_s6  (
+	.I0(\u_accel/u_v1/u_pixels/alpha [4]),
+	.I1(\u_accel/u_v1/u_pixels/alpha [5]),
+	.I2(\u_accel/u_v1/u_pixels/alpha [6]),
+	.I3(\u_accel/u_v1/u_pixels/alpha [7]),
+	.F(\u_accel/u_v1/u_pixels/native_issue_9 )
+);
+defparam \u_accel/u_v1/u_pixels/native_issue_s6 .INIT=16'h0001;
+DFFRE \u_accel/u_v1/u_pixels/native_valid_s1  (
+	.D(\u_accel/u_v1/u_pixels/native_issue ),
+	.CLK(gpu_clk),
+	.CE(\u_accel/u_v1/u_pixels/native_valid_8 ),
+	.RESET(\u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2_onet ),
+	.Q(\u_accel/native_valid )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s1 .INIT=1'b0;
+LUT3 \u_accel/u_v1/u_pixels/native_valid_s3  (
+	.I0(\u_accel/u_v1/u_pixels/native_issue ),
+	.I1(\u_accel/u_v1/u_pixels/native_valid_13 ),
+	.I2(\u_accel/u_v1/u_pixels/native_valid_10 ),
+	.F(\u_accel/u_v1/u_pixels/native_valid_8 )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s3 .INIT=8'hFE;
+LUT4 \u_accel/u_v1/u_pixels/native_valid_s5  (
+	.I0(\u_accel/u_v1/u_pixels/state [15]),
+	.I1(\u_accel/u_v1/u_pixels/state [17]),
+	.I2(\u_accel/u_v1/u_pixels/state [39]),
+	.I3(\u_accel/u_v1/u_pixels/native_valid_11 ),
+	.F(\u_accel/u_v1/u_pixels/native_valid_10 )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s5 .INIT=16'h0100;
+LUT3 \u_accel/u_v1/u_pixels/native_valid_s6  (
+	.I0(\u_accel/u_v1/u_pixels/state [29]),
+	.I1(\u_accel/u_v1/u_pixels/state [31]),
+	.I2(\u_accel/u_v1/u_pixels/state [37]),
+	.F(\u_accel/u_v1/u_pixels/native_valid_11 )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s6 .INIT=8'h01;
+LUT3 \u_accel/u_v1/u_pixels/native_valid_s7  (
+	.I0(\u_accel/fetch_valid ),
+	.I1(\u_accel/v1_select ),
+	.I2(\u_accel/v1_accepted ),
+	.F(\u_accel/u_v1/u_pixels/native_valid_13 )
+);
+defparam \u_accel/u_v1/u_pixels/native_valid_s7 .INIT=8'h40;
+LUT2 \u_accel/u_v1/u_pixels/unpack_r_4_s1  (
+	.I0(\u_accel/u_v1/u_pixels/flags [0]),
+	.I1(\u_accel/u_v1/u_pixels/tex_argb ),
+	.F(\u_accel/u_v1/u_pixels/unpack_r_4_4 )
+);
+defparam \u_accel/u_v1/u_pixels/unpack_r_4_s1 .INIT=4'h8;
+DFFRE \u_accel/v1_accepted_s0  (
+	.D(\u_accel/n4432_3 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_accel/n249_5 ),
+	.Q(\u_accel/v1_accepted )
+);
+defparam \u_accel/v1_accepted_s0 .INIT=1'b0;
+DFFRE \u_accel/v1_pending_s2  (
+	.D(\u_accel/v1_tx_addr_27_9 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_accel/n249_5 ),
+	.Q(v1_pending)
+);
+defparam \u_accel/v1_pending_s2 .INIT=1'b0;
+LUT2 \u_accel/v1_tx_addr_27_s4  (
+	.I0(\u_accel/n4434_6 ),
+	.I1(v1_pending),
+	.F(\u_accel/v1_tx_addr_27_9 )
+);
+defparam \u_accel/v1_tx_addr_27_s4 .INIT=4'h6;
+DFFRE \u_accel/v1_tx_write_s0  (
+	.D(\u_accel/n5020_3 ),
+	.CLK(gpu_clk),
+	.CE(\u_accel/v1_tx_addr_27_12 ),
+	.RESET(GND),
+	.Q(v1_tx_write)
+);
+defparam \u_accel/v1_tx_write_s0 .INIT=1'b0;
+LUT3 \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s1  (
+	.I0(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_5 ),
+	.I1(\u_soc/g_ddr.u_ddr/m_wr_data_rdy ),
+	.I2(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_6 ),
+	.F(b_grant)
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s1 .INIT=8'hE0;
+LUT4 \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s2  (
+	.I0(legacy_valid),
+	.I1(n66_8),
+	.I2(v1_pending),
+	.I3(v1_tx_write),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_5 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s2 .INIT=16'h0777;
+LUT3 \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s3  (
+	.I0(\u_soc/g_ddr.u_ddr/full ),
+	.I1(\u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter ),
+	.I2(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_9 ),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_6 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s3 .INIT=8'h40;
+LUT4 \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s5  (
+	.I0(\u_soc/g_ddr.u_ddr/u_gpu_arb/full_149 ),
+	.I1(scan_count[0]),
+	.I2(scan_count[1]),
+	.I3(ddr_init),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_9 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s5 .INIT=16'h0100;
+LUT4 \u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_s2  (
+	.I0(ddr_init),
+	.I1(v1_pending),
+	.I2(legacy_valid),
+	.I3(b_grant),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_6 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_s2 .INIT=16'hFD55;
+LUT4 \u_soc/g_ddr.u_ddr/u_gpu_arb/n500_s0  (
+	.I0(\u_soc/g_ddr.u_ddr/u_gpu_arb/prefer_blitter ),
+	.I1(\u_soc/g_ddr.u_ddr/cpu_pending ),
+	.I2(v1_pending),
+	.I3(legacy_valid),
+	.F(\u_soc/g_ddr.u_ddr/u_gpu_arb/n500_3 )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/n500_s0 .INIT=16'hBBB0;
+DFFRE \u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0  (
+	.D(\u_soc/g_ddr.u_ddr/u_gpu_arb/n500_3 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_6 ),
+	.Q(\u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter )
+);
+defparam \u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0 .INIT=1'b0;

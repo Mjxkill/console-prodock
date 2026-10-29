@@ -1,0 +1,1599 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-vérifie seulement les preuves et le petit auditeur exécuté fournis. Pas de code complet à régénérer. Les 5 cônes ont des bornes setup positives mais le RESET du native_valid FF manque dans les INTERCONNECT SDF. Trouve un défaut concret éventuel dans le calcul (séquentiel, corners, clocks, arcs, reset) ou confirme ses limites précisément ; refuse toute qualification timing globale. Compare le pending self-loop à la ligne STA +1,780ns. Propose un seul check local minimal de la couverture reset manquante et un bloc Python de moins de 60 lignes si nécessaire. Distingue ce que .vo et SDF prouvent et ce que le matériel n’a pas encore observé. Ne lance aucun outil, ne suppose pas le RESET à zéro délai.
+
+EVIDENCE PACKET:
+R19 focused post-route audit review. No hardware. Original broad Fable review timed out; no conclusion from it. Orchestrator ran this conservative read-only audit. It reports raw setup bounds, NOT STA qualification: 114 paths to 5 FF; native_valid min3.336ns, pending1.773ns, accepted2.217ns, tx_write4.361ns, take_blitter6.689ns. Global R19 timing remains FAIL (-2.888ns setup, -0.239ns recovery). Critical unresolved frontier: native_valid_s1/RESET has no SDF INTERCONNECT although .vo connects it to a split inverter. Missing delay is NOT assumed zero. Inspect methodology, correlated corners, reset/clock/polarity blind spots, and propose one concrete local check without PnR. No broad code generation needed.
+
+FILE TESTS/assisted_reviews_20261026/neo_fable_netlist_01/audit_reviewed.py SHA256 86d84c2aa379df5b5a414512ca95a845cadd44082dd8dfdbe6f50a312fbe77ee
+
+#!/usr/bin/env python3
+"""Read-only pin-cone SDF inventory; conservative bounds, never STA approval."""
+import functools
+import hashlib
+import json
+from pathlib import Path
+import re
+import sys
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[2]
+BUILD = ROOT / 'tang/impl/console_neo_n56r19_capture_ce_local'
+sys.path.insert(0, str(ROOT / 'TESTS/neo_720p_20261012/reset_sequence_20261025'))
+from audit_routed import cells
+
+
+def sha(p):
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def norm(s):
+    return s.replace('\\', '')
+
+
+def triple(s):
+    v = tuple(float(x) for x in s.split(':'))
+    assert len(v) == 3
+    return v
+
+
+def main():
+    out = HERE / 'sdf_cones_01'
+    assert not out.exists()
+    vo = BUILD / 'impl/pnr/console_neo.vo'
+    sdf = BUILD / 'impl/pnr/console_neo.sdf'
+    cs, params = cells(vo)
+    source_hash = {str(p.relative_to(ROOT)): sha(p) for p in
+                   [vo, sdf, Path(__file__), ROOT / 'TESTS/neo_720p_20261012/reset_sequence_20261025/audit_routed.py']}
+    text = sdf.read_text()
+    assert '(TIMESCALE 1 ns)' in text
+    # Fail rather than silently ignore conditional or multi-delay timing arcs.
+    assert not any(re.search(r'\(' + word + r'\b', text) for word in ('COND', 'CONDELSE', 'RETAIN'))
+    incoming = {}
+    ctoq = {}
+    checks = {}
+    def edge(dst, src, delay):
+        incoming.setdefault(dst, []).append((src, delay))
+    known_comb = {'LUT1','LUT2','LUT3','LUT4','LUT5','LUT6','LUT7','LUT8',
+                  'MUX2','MUX4','MUX8','INV','BUF','IBUF','OBUF'}
+    ignored_cells = {}
+    for block in text.split('\n  (CELL\n')[1:]:
+        inst = re.search(r'\(INSTANCE ([^\s)]+)\)', block)
+        if not inst:
+            continue
+        n = norm(inst[1]); typ = re.search(r'\(CELLTYPE "([^"]+)"\)', block)[1]
+        if not typ.startswith('DFF') and typ not in known_comb:
+            ignored_cells[n] = typ
+            continue
+        arcs = re.findall(r'\(IOPATH (\S+) (\S+) \(([^)]+)\)\)', block)
+        assert len(arcs) == block.count('(IOPATH '), n
+        for a,b,v in arcs:
+            d = triple(v)
+            if typ.startswith('DFF'):
+                assert a in ('CLK','CLEAR','PRESET') and b == 'Q', (n,a,b)
+                if a == 'CLK':
+                    ctoq[n] = d
+                # Async control-to-Q is a distinct path class. Do not treat
+                # it as a combinational continuation through a register.
+            elif typ in known_comb:
+                edge(n+'/'+norm(b), n+'/'+norm(a), d)
+            else:
+                raise AssertionError((n,typ))
+        for kind,a,b,setup,hold in re.findall(
+                r'\((SETUPHOLD) \((pos|neg)edge (\w+)\) \(posedge CLK\) \(([^)]+)\) \(([^)]+)\)\)', block):
+            checks.setdefault(n+'/'+b, []).append(dict(edge=a, setup=triple(setup), hold=triple(hold)))
+    interconnects = re.findall(r'\(INTERCONNECT (\S+) (\S+) \(([^)]+)\)\)', text)
+    assert len(interconnects) == text.count('(INTERCONNECT ')
+    for a,b,v in interconnects:
+        edge(norm(b), norm(a), triple(v))
+    del text
+    active = set()
+    unresolved = set()
+    @functools.lru_cache(None)
+    def origins(pin):
+        cell, port = pin.rsplit('/',1)
+        if cell in ctoq and port == 'Q':
+            return {cell:(ctoq[cell],ctoq[cell])}
+        assert pin not in active, 'Combinational cycle: '+pin
+        active.add(pin)
+        result = {}
+        edges = incoming.get(pin, [])
+        if not edges:
+            net = cs.get(cell, [None,{}])[1].get(port)
+            if net not in ('VCC','GND',"1'b0","1'b1"):
+                unresolved.add(pin)
+        for source, delay in edges:
+            for origin,(lo,hi) in origins(source).items():
+                bounds = (tuple(x+y for x,y in zip(lo,delay)),tuple(x+y for x,y in zip(hi,delay)))
+                if origin in result:
+                    old_lo,old_hi=result[origin]
+                    bounds=(tuple(min(x,y) for x,y in zip(old_lo,bounds[0])),
+                            tuple(max(x,y) for x,y in zip(old_hi,bounds[1])))
+                result[origin]=bounds
+        active.remove(pin)
+        return result
+    targets = ['u_accel/u_v1/u_pixels/native_valid_s1','u_accel/v1_pending_s2',
+               'u_accel/v1_accepted_s0','u_accel/v1_tx_write_s0',
+               'u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0']
+    paths=[]; endpoint=[]
+    for target in targets:
+        assert cs[target][0].startswith('DFF')
+        clocks = incoming.get(target+'/CLK',[])
+        assert len(clocks)==1, (target,clocks)
+        endpoint.append(dict(cell=target,kind=cs[target][0],pins=cs[target][1],
+                             init=params.get(target+'.INIT'),clock=clocks[0]))
+        for pin in ('D','CE','RESET'):
+            if pin not in cs[target][1]:
+                continue
+            dst=target+'/'+pin; tc=checks.get(dst,[])
+            for origin,(lo,hi) in origins(dst).items():
+                src_clock=incoming.get(origin+'/CLK',[])
+                item=dict(source=origin,destination=dst,min_delay_ns=lo,max_delay_ns=hi,
+                          timing_checks=tc,source_clock=src_clock)
+                if len(src_clock)==1 and src_clock[0][0]==clocks[0][0] and tc:
+                    # Same modeled clock root. Per-corner skew retained.
+                    # Conservative edge aggregation; no path sensitization or
+                    # constraint exceptions, jitter or derating modeled.
+                    setup=tuple(max(c['setup'][k] for c in tc) for k in range(3))
+                    hold=tuple(max(c['hold'][k] for c in tc) for k in range(3))
+                    item['raw_setup_bound_ns']=tuple(13.333+clocks[0][1][k]-src_clock[0][1][k]-hi[k]-setup[k] for k in range(3))
+                    item['raw_hold_bound_ns']=tuple(src_clock[0][1][k]+lo[k]-clocks[0][1][k]-hold[k] for k in range(3))
+                else:
+                    item['bound_unavailable']='Different/unknown clock roots or timing check absent'
+                paths.append(item)
+    assert all(sha(ROOT/n)==v for n,v in source_hash.items())
+    result=dict(complete_inventory=not unresolved, hardware_access=False,
+                qualification='NOT_A_TIMING_QUALIFICATION', global_R19_status='FAIL',
+                inputs=source_hash,endpoints=endpoint,paths=paths,
+                unresolved_frontiers=sorted(unresolved),
+                untraversed_primitive_types=sorted(set(ignored_cells.values())),
+                limits=['Subset pin-cone bounds only, no STA signoff or causal hardware conclusion.',
+                        'Clock-root equality is required before computing a raw bound.',
+                        'Only DFF Q endpoints and explicit combinational IOPATHs are traversed.',
+                        'Recovery/removal, pulse width, signal integrity, derating and constraint exceptions are not proved.',
+                        'No claim of physical clock or CE polarity correctness from static net names.'])
+    out.mkdir();(out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
+    for t in targets:
+        p=[q for q in paths if q['destination'].startswith(t+'/') and 'raw_setup_bound_ns' in q]
+        print(t, 'origins',len(p),'raw setup minimum',min((min(q['raw_setup_bound_ns']) for q in p),default=None))
+    print('unresolved:',sorted(unresolved))
+
+
+if __name__=='__main__':
+    main()
+
+RESULT SUMMARY
+
+{
+  "inputs": {
+    "tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.vo": "c519aedf27fdd29151ee10a668dcc9577bee8546dac2bdd6d263a2040ec1b6a2",
+    "tang/impl/console_neo_n56r19_capture_ce_local/impl/pnr/console_neo.sdf": "f071a282b2dca30735a2f7c0daff2699a2881e4a627cdfdb3d94460068c1f707",
+    "TESTS/assisted_reviews_20261026/neo_fable_netlist_01/audit_reviewed.py": "86d84c2aa379df5b5a414512ca95a845cadd44082dd8dfdbe6f50a312fbe77ee",
+    "TESTS/neo_720p_20261012/reset_sequence_20261025/audit_routed.py": "546908e23fd42e5feebe33dcfd540938ed59242a89356f71aa731e58db0026ba"
+  },
+  "endpoints": [
+    {
+      "cell": "u_accel/u_v1/u_pixels/native_valid_s1",
+      "kind": "DFFRE",
+      "pins": {
+        "D": "u_accel/u_v1/u_pixels/native_issue",
+        "CLK": "gpu_clk",
+        "CE": "u_accel/u_v1/u_pixels/native_valid_8",
+        "RESET": "u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2_onet",
+        "Q": "u_accel/native_valid"
+      },
+      "init": "1'b0",
+      "clock": [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.268,
+          2.278,
+          3.288
+        ]
+      ]
+    },
+    {
+      "cell": "u_accel/v1_pending_s2",
+      "kind": "DFFRE",
+      "pins": {
+        "D": "u_accel/v1_tx_addr_27_9",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "RESET": "u_accel/n249_5",
+        "Q": "v1_pending"
+      },
+      "init": "1'b0",
+      "clock": [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.277,
+          2.312,
+          3.347
+        ]
+      ]
+    },
+    {
+      "cell": "u_accel/v1_accepted_s0",
+      "kind": "DFFRE",
+      "pins": {
+        "D": "u_accel/n4432_3",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "RESET": "u_accel/n249_5",
+        "Q": "u_accel/v1_accepted"
+      },
+      "init": "1'b0",
+      "clock": [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.295,
+          2.332,
+          3.369
+        ]
+      ]
+    },
+    {
+      "cell": "u_accel/v1_tx_write_s0",
+      "kind": "DFFRE",
+      "pins": {
+        "D": "u_accel/n5020_3",
+        "CLK": "gpu_clk",
+        "CE": "u_accel/v1_tx_addr_27_12",
+        "RESET": "GND",
+        "Q": "v1_tx_write"
+      },
+      "init": "1'b0",
+      "clock": [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.256,
+          2.244,
+          3.232
+        ]
+      ]
+    },
+    {
+      "cell": "u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0",
+      "kind": "DFFRE",
+      "pins": {
+        "D": "u_soc/g_ddr.u_ddr/u_gpu_arb/n500_3",
+        "CLK": "gpu_clk",
+        "CE": "VCC",
+        "RESET": "u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_6",
+        "Q": "u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter"
+      },
+      "init": "1'b0",
+      "clock": [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.268,
+          2.261,
+          3.253
+        ]
+      ]
+    }
+  ],
+  "unresolved_frontiers": [
+    "u_accel/u_v1/u_pixels/native_valid_s1/RESET"
+  ],
+  "untraversed_primitive_types": [
+    "AE350_SOC",
+    "ALU",
+    "CLKDIV",
+    "DCE",
+    "DDRDLL",
+    "DHCE",
+    "DPX9B",
+    "DQS",
+    "ELVDS_IOBUF",
+    "ELVDS_OBUF",
+    "IDES16",
+    "IDES8",
+    "IDES8_MEM",
+    "IOBUF",
+    "IODELAY",
+    "MULT12X12",
+    "MULT27X36",
+    "MULTADDALU12X12",
+    "MULTALU27X18",
+    "MUX2_LUT5",
+    "MUX2_LUT6",
+    "MUX2_LUT7",
+    "MUX2_LUT8",
+    "OSER10",
+    "OSER16",
+    "OSER8",
+    "OSER8_MEM",
+    "PLL",
+    "RAM16SDP1",
+    "RAM16SDP2",
+    "RAM16SDP4",
+    "SDPB",
+    "SDPX9B",
+    "SP",
+    "TBUF",
+    "pROM"
+  ],
+  "limits": [
+    "Subset pin-cone bounds only, no STA signoff or causal hardware conclusion.",
+    "Clock-root equality is required before computing a raw bound.",
+    "Only DFF Q endpoints and explicit combinational IOPATHs are traversed.",
+    "Recovery/removal, pulse width, signal integrity, derating and constraint exceptions are not proved.",
+    "No claim of physical clock or CE polarity correctness from static net names."
+  ]
+}
+WORST THREE PATHS FOR u_accel/u_v1/u_pixels/native_valid_s1
+
+[
+  {
+    "source": "u_accel/u_v1/u_pixels/alpha_4_s0",
+    "destination": "u_accel/u_v1/u_pixels/native_valid_s1/CE",
+    "min_delay_ns": [
+      4.0649999999999995,
+      6.911999999999999,
+      9.758000000000001
+    ],
+    "max_delay_ns": [
+      4.0649999999999995,
+      6.911999999999999,
+      9.758000000000001
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.28,
+          0.28,
+          0.28
+        ],
+        "hold": [
+          -0.062,
+          -0.062,
+          -0.062
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.287,
+          0.287,
+          0.287
+        ],
+        "hold": [
+          -0.056,
+          -0.056,
+          -0.056
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.27,
+          2.255,
+          3.24
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      8.979000000000001,
+      6.157000000000003,
+      3.3359999999999976
+    ],
+    "raw_hold_bound_ns": [
+      4.122999999999999,
+      6.944999999999998,
+      9.766
+    ]
+  },
+  {
+    "source": "u_accel/u_v1/u_pixels/alpha_7_s0",
+    "destination": "u_accel/u_v1/u_pixels/native_valid_s1/CE",
+    "min_delay_ns": [
+      4.047,
+      6.898,
+      9.749
+    ],
+    "max_delay_ns": [
+      4.047,
+      6.898,
+      9.749
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.28,
+          0.28,
+          0.28
+        ],
+        "hold": [
+          -0.062,
+          -0.062,
+          -0.062
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.287,
+          0.287,
+          0.287
+        ],
+        "hold": [
+          -0.056,
+          -0.056,
+          -0.056
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.27,
+          2.255,
+          3.24
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      8.997000000000002,
+      6.171000000000002,
+      3.344999999999998
+    ],
+    "raw_hold_bound_ns": [
+      4.105,
+      6.930999999999998,
+      9.757
+    ]
+  },
+  {
+    "source": "u_accel/u_v1/u_pixels/alpha_6_s0",
+    "destination": "u_accel/u_v1/u_pixels/native_valid_s1/CE",
+    "min_delay_ns": [
+      4.031,
+      6.885,
+      9.74
+    ],
+    "max_delay_ns": [
+      4.031,
+      6.885,
+      9.74
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.28,
+          0.28,
+          0.28
+        ],
+        "hold": [
+          -0.062,
+          -0.062,
+          -0.062
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.287,
+          0.287,
+          0.287
+        ],
+        "hold": [
+          -0.056,
+          -0.056,
+          -0.056
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.27,
+          2.255,
+          3.24
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      9.013,
+      6.184000000000002,
+      3.3539999999999983
+    ],
+    "raw_hold_bound_ns": [
+      4.089,
+      6.918,
+      9.748
+    ]
+  }
+]
+WORST THREE PATHS FOR u_accel/v1_pending_s2
+
+[
+  {
+    "source": "u_accel/v1_pending_s2",
+    "destination": "u_accel/v1_pending_s2/D",
+    "min_delay_ns": [
+      2.153,
+      3.8150000000000004,
+      5.477
+    ],
+    "max_delay_ns": [
+      4.846000000000001,
+      8.175,
+      11.503
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.057,
+          0.057,
+          0.057
+        ],
+        "hold": [
+          0.012,
+          0.012,
+          0.012
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.052,
+          0.052,
+          0.052
+        ],
+        "hold": [
+          0.022,
+          0.022,
+          0.022
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.277,
+          2.312,
+          3.347
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      8.429999999999998,
+      5.100999999999999,
+      1.7730000000000001
+    ],
+    "raw_hold_bound_ns": [
+      2.131,
+      3.793000000000001,
+      5.455
+    ]
+  },
+  {
+    "source": "u_accel/u_v1/u_pixels/u_copy/valid_s1",
+    "destination": "u_accel/v1_pending_s2/D",
+    "min_delay_ns": [
+      4.513999999999999,
+      7.9319999999999995,
+      11.349999999999998
+    ],
+    "max_delay_ns": [
+      4.513999999999999,
+      7.9319999999999995,
+      11.349999999999998
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.057,
+          0.057,
+          0.057
+        ],
+        "hold": [
+          0.012,
+          0.012,
+          0.012
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.052,
+          0.052,
+          0.052
+        ],
+        "hold": [
+          0.022,
+          0.022,
+          0.022
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.279,
+          2.29,
+          3.301
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      8.76,
+      5.3660000000000005,
+      1.9720000000000018
+    ],
+    "raw_hold_bound_ns": [
+      4.493999999999999,
+      7.888,
+      11.281999999999998
+    ]
+  },
+  {
+    "source": "u_accel/v1_select_s0",
+    "destination": "u_accel/v1_pending_s2/D",
+    "min_delay_ns": [
+      4.0200000000000005,
+      7.169999999999999,
+      10.318
+    ],
+    "max_delay_ns": [
+      4.0200000000000005,
+      7.169999999999999,
+      10.318
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.057,
+          0.057,
+          0.057
+        ],
+        "hold": [
+          0.012,
+          0.012,
+          0.012
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.052,
+          0.052,
+          0.052
+        ],
+        "hold": [
+          0.022,
+          0.022,
+          0.022
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.276,
+          2.309,
+          3.343
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      9.257,
+      6.108999999999999,
+      2.962
+    ],
+    "raw_hold_bound_ns": [
+      3.9970000000000003,
+      7.145,
+      10.292
+    ]
+  }
+]
+WORST THREE PATHS FOR u_accel/v1_accepted_s0
+
+[
+  {
+    "source": "u_accel/v1_pending_s2",
+    "destination": "u_accel/v1_accepted_s0/D",
+    "min_delay_ns": [
+      2.434,
+      4.308999999999999,
+      6.183
+    ],
+    "max_delay_ns": [
+      4.614,
+      7.848000000000001,
+      11.081
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.057,
+          0.057,
+          0.057
+        ],
+        "hold": [
+          0.012,
+          0.012,
+          0.012
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.052,
+          0.052,
+          0.052
+        ],
+        "hold": [
+          0.022,
+          0.022,
+          0.022
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.277,
+          2.312,
+          3.347
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      8.680000000000001,
+      5.447999999999999,
+      2.2170000000000027
+    ],
+    "raw_hold_bound_ns": [
+      2.3940000000000006,
+      4.266999999999999,
+      6.138999999999999
+    ]
+  },
+  {
+    "source": "u_accel/u_dma/state_0_s1",
+    "destination": "u_accel/v1_accepted_s0/D",
+    "min_delay_ns": [
+      4.049,
+      6.643000000000001,
+      9.235999999999999
+    ],
+    "max_delay_ns": [
+      4.049,
+      6.643000000000001,
+      9.235999999999999
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.057,
+          0.057,
+          0.057
+        ],
+        "hold": [
+          0.012,
+          0.012,
+          0.012
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.052,
+          0.052,
+          0.052
+        ],
+        "hold": [
+          0.022,
+          0.022,
+          0.022
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.256,
+          2.244,
+          3.232
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      9.266,
+      6.720999999999998,
+      4.177000000000003
+    ],
+    "raw_hold_bound_ns": [
+      3.988000000000001,
+      6.533,
+      9.077
+    ]
+  },
+  {
+    "source": "u_accel/u_dma/state_2_s1",
+    "destination": "u_accel/v1_accepted_s0/D",
+    "min_delay_ns": [
+      3.841,
+      6.285,
+      8.728
+    ],
+    "max_delay_ns": [
+      3.841,
+      6.285,
+      8.728
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.057,
+          0.057,
+          0.057
+        ],
+        "hold": [
+          0.012,
+          0.012,
+          0.012
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.052,
+          0.052,
+          0.052
+        ],
+        "hold": [
+          0.022,
+          0.022,
+          0.022
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.264,
+          2.253,
+          3.243
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      9.466,
+      7.0699999999999985,
+      4.674000000000001
+    ],
+    "raw_hold_bound_ns": [
+      3.7880000000000007,
+      6.184,
+      8.58
+    ]
+  }
+]
+WORST THREE PATHS FOR u_accel/v1_tx_write_s0
+
+[
+  {
+    "source": "u_accel/u_v1/u_pixels/u_copy/valid_s1",
+    "destination": "u_accel/v1_tx_write_s0/D",
+    "min_delay_ns": [
+      3.423,
+      6.032,
+      8.641
+    ],
+    "max_delay_ns": [
+      3.423,
+      6.032,
+      8.641
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.205,
+          0.205,
+          0.205
+        ],
+        "hold": [
+          -0.048,
+          -0.048,
+          -0.048
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.262,
+          0.262,
+          0.262
+        ],
+        "hold": [
+          -0.061,
+          -0.061,
+          -0.061
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.279,
+          2.29,
+          3.301
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      9.625,
+      6.9929999999999986,
+      4.361000000000001
+    ],
+    "raw_hold_bound_ns": [
+      3.4939999999999998,
+      6.1259999999999994,
+      8.758000000000001
+    ]
+  },
+  {
+    "source": "u_accel/u_v1/u_pixels/u_copy/write_s0",
+    "destination": "u_accel/v1_tx_write_s0/D",
+    "min_delay_ns": [
+      3.395,
+      5.749,
+      8.103
+    ],
+    "max_delay_ns": [
+      3.395,
+      5.749,
+      8.103
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.205,
+          0.205,
+          0.205
+        ],
+        "hold": [
+          -0.048,
+          -0.048,
+          -0.048
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.262,
+          0.262,
+          0.262
+        ],
+        "hold": [
+          -0.061,
+          -0.061,
+          -0.061
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.272,
+          2.279,
+          3.287
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      9.66,
+      7.287000000000001,
+      4.913000000000002
+    ],
+    "raw_hold_bound_ns": [
+      3.4589999999999996,
+      5.831999999999999,
+      8.206000000000001
+    ]
+  },
+  {
+    "source": "u_accel/v1_select_s0",
+    "destination": "u_accel/v1_tx_write_s0/D",
+    "min_delay_ns": [
+      2.996,
+      5.3740000000000006,
+      7.75
+    ],
+    "max_delay_ns": [
+      2.996,
+      5.3740000000000006,
+      7.75
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.205,
+          0.205,
+          0.205
+        ],
+        "hold": [
+          -0.048,
+          -0.048,
+          -0.048
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.262,
+          0.262,
+          0.262
+        ],
+        "hold": [
+          -0.061,
+          -0.061,
+          -0.061
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.276,
+          2.309,
+          3.343
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      10.055,
+      7.632,
+      5.210000000000001
+    ],
+    "raw_hold_bound_ns": [
+      3.064,
+      5.487,
+      7.909
+    ]
+  }
+]
+WORST THREE PATHS FOR u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0
+
+[
+  {
+    "source": "u_accel/v1_pending_s2",
+    "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0/RESET",
+    "min_delay_ns": [
+      1.787,
+      3.215,
+      4.641
+    ],
+    "max_delay_ns": [
+      2.4990000000000006,
+      4.312,
+      6.122999999999999
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.335,
+          0.335,
+          0.335
+        ],
+        "hold": [
+          -0.085,
+          -0.085,
+          -0.085
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.427,
+          0.427,
+          0.427
+        ],
+        "hold": [
+          -0.099,
+          -0.099,
+          -0.099
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.277,
+          2.312,
+          3.347
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      10.398000000000001,
+      8.543000000000003,
+      6.689
+    ],
+    "raw_hold_bound_ns": [
+      1.881,
+      3.350999999999999,
+      4.819999999999999
+    ]
+  },
+  {
+    "source": "u_accel/u_dma/state_0_s1",
+    "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0/RESET",
+    "min_delay_ns": [
+      1.934,
+      3.1069999999999998,
+      4.278
+    ],
+    "max_delay_ns": [
+      1.934,
+      3.1069999999999998,
+      4.278
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.335,
+          0.335,
+          0.335
+        ],
+        "hold": [
+          -0.085,
+          -0.085,
+          -0.085
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.427,
+          0.427,
+          0.427
+        ],
+        "hold": [
+          -0.099,
+          -0.099,
+          -0.099
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.256,
+          2.244,
+          3.232
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      10.984000000000002,
+      9.816000000000003,
+      8.649000000000001
+    ],
+    "raw_hold_bound_ns": [
+      2.007,
+      3.175,
+      4.342
+    ]
+  },
+  {
+    "source": "u_accel/v1_pending_s2",
+    "destination": "u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0/D",
+    "min_delay_ns": [
+      1.728,
+      3.117,
+      4.505
+    ],
+    "max_delay_ns": [
+      1.728,
+      3.117,
+      4.505
+    ],
+    "timing_checks": [
+      {
+        "edge": "pos",
+        "setup": [
+          0.057,
+          0.057,
+          0.057
+        ],
+        "hold": [
+          0.012,
+          0.012,
+          0.012
+        ]
+      },
+      {
+        "edge": "neg",
+        "setup": [
+          0.052,
+          0.052,
+          0.052
+        ],
+        "hold": [
+          0.022,
+          0.022,
+          0.022
+        ]
+      }
+    ],
+    "source_clock": [
+      [
+        "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT",
+        [
+          1.277,
+          2.312,
+          3.347
+        ]
+      ]
+    ],
+    "raw_setup_bound_ns": [
+      11.539000000000001,
+      10.108000000000002,
+      8.676999999999998
+    ],
+    "raw_hold_bound_ns": [
+      1.7149999999999999,
+      3.1460000000000004,
+      4.577
+    ]
+  }
+]
+POST-PNR CELL u_accel/u_v1/u_pixels/native_valid_s1
+
+DFFRE \u_accel/u_v1/u_pixels/native_valid_s1  (
+	.D(\u_accel/u_v1/u_pixels/native_issue ),
+	.CLK(gpu_clk),
+	.CE(\u_accel/u_v1/u_pixels/native_valid_8 ),
+	.RESET(\u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2_onet ),
+	.Q(\u_accel/native_valid )
+);
+SDF CELL
+
+(CELL
+   (CELLTYPE "DFFRE")
+   (INSTANCE u_accel\/u_v1\/u_pixels\/native_valid_s1)
+    (DELAY
+     (ABSOLUTE
+      (IOPATH CLK Q (0.127:0.236:0.344))
+     )
+    )
+    (TIMINGCHECK
+     (SETUPHOLD (posedge D) (posedge CLK) (0.057:0.057:0.057) (0.012:0.012:0.012))
+     (SETUPHOLD (negedge D) (posedge CLK) (0.052:0.052:0.052) (0.022:0.022:0.022))
+     (SETUPHOLD (posedge CE) (posedge CLK) (0.280:0.280:0.280) (-0.062:-0.062:-0.062))
+     (SETUPHOLD (negedge CE) (posedge CLK) (0.287:0.287:0.287) (-0.056:-0.056:-0.056))
+     (SETUPHOLD (posedge RESET) (posedge CLK) (0.335:0.335:0.335) (-0.085:-0.085:-0.085))
+     (SETUPHOLD (negedge RESET) (posedge CLK) (0.427:0.427:0.427) (-0.099:-0.099:-0.099))
+    )
+)
+SDF CONNECTIVITY
+
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_ip\/gw3_top\/u_ddr_phy_top\/fclkdiv/CLKOUT u_accel\/u_v1\/u_pixels\/native_valid_s1/CLK (1.268:2.278:3.288))
+       (INTERCONNECT u_accel\/u_v1\/u_pixels\/native_valid_s1/Q u_accel\/n5020_s1/I0 (0.086:0.122:0.157))
+       (INTERCONNECT u_accel\/u_v1\/u_pixels\/native_valid_s1/Q u_accel\/n5020_s2/I1 (0.312:0.475:0.638))
+       (INTERCONNECT u_accel\/u_v1\/u_pixels\/native_valid_s1/Q u_accel\/u_v1\/u_pixels\/u_cache\/n4242_s13/I0 (0.294:0.454:0.614))
+       (INTERCONNECT u_accel\/u_v1\/u_pixels\/native_issue_s0/F u_accel\/u_v1\/u_pixels\/native_valid_s1/D (0.858:1.514:2.170))
+       (INTERCONNECT u_accel\/u_v1\/u_pixels\/native_valid_s3/F u_accel\/u_v1\/u_pixels\/native_valid_s1/CE (0.451:0.890:1.329))
+POST-PNR CELL u_accel/v1_pending_s2
+
+DFFRE \u_accel/v1_pending_s2  (
+	.D(\u_accel/v1_tx_addr_27_9 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_accel/n249_5 ),
+	.Q(v1_pending)
+);
+SDF CELL
+
+(CELL
+   (CELLTYPE "DFFRE")
+   (INSTANCE u_accel\/v1_pending_s2)
+    (DELAY
+     (ABSOLUTE
+      (IOPATH CLK Q (0.127:0.236:0.344))
+     )
+    )
+    (TIMINGCHECK
+     (SETUPHOLD (posedge D) (posedge CLK) (0.057:0.057:0.057) (0.012:0.012:0.012))
+     (SETUPHOLD (negedge D) (posedge CLK) (0.052:0.052:0.052) (0.022:0.022:0.022))
+     (SETUPHOLD (posedge CE) (posedge CLK) (0.280:0.280:0.280) (-0.062:-0.062:-0.062))
+     (SETUPHOLD (negedge CE) (posedge CLK) (0.287:0.287:0.287) (-0.056:-0.056:-0.056))
+     (SETUPHOLD (posedge RESET) (posedge CLK) (0.335:0.335:0.335) (-0.085:-0.085:-0.085))
+     (SETUPHOLD (negedge RESET) (posedge CLK) (0.427:0.427:0.427) (-0.099:-0.099:-0.099))
+    )
+)
+SDF CONNECTIVITY
+
+       (INTERCONNECT u_accel\/v1_pending_s2/Q u_accel\/n4432_s0/I0 (1.379:2.473:3.567))
+       (INTERCONNECT u_accel\/v1_pending_s2/Q u_accel\/v1_tx_addr_27_s4/I1 (1.378:2.494:3.611))
+       (INTERCONNECT u_accel\/v1_pending_s2/Q u_accel\/n4434_s2/I1 (1.379:2.473:3.567))
+       (INTERCONNECT u_accel\/v1_pending_s2/Q u_accel\/v1_tx_addr_27_s6/I (0.000:0.000:0.000))
+       (INTERCONNECT u_accel\/v1_pending_s2/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/n500_s0/I2 (1.378:2.514:3.650))
+       (INTERCONNECT u_accel\/v1_pending_s2/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/n828_s2/I0 (1.383:2.524:3.665))
+       (INTERCONNECT u_accel\/v1_pending_s2/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/b_grant_s2/I2 (1.377:2.515:3.653))
+       (INTERCONNECT u_accel\/v1_pending_s2/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/n2632_s2/I1 (1.378:2.514:3.650))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_ip\/gw3_top\/u_ddr_phy_top\/fclkdiv/CLKOUT u_accel\/v1_pending_s2/CLK (1.277:2.312:3.347))
+       (INTERCONNECT VCC_cZ/V u_accel\/v1_pending_s2/CE (0.000:0.000:0.000))
+       (INTERCONNECT u_accel\/v1_tx_addr_27_s4/F u_accel\/v1_pending_s2/D (0.425:0.718:1.011))
+       (INTERCONNECT u_accel\/n249_s2/O u_accel\/v1_pending_s2/RESET (2.125:3.918:5.712))
+POST-PNR CELL u_accel/v1_accepted_s0
+
+DFFRE \u_accel/v1_accepted_s0  (
+	.D(\u_accel/n4432_3 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_accel/n249_5 ),
+	.Q(\u_accel/v1_accepted )
+);
+SDF CELL
+
+(CELL
+   (CELLTYPE "DFFRE")
+   (INSTANCE u_accel\/v1_accepted_s0)
+    (DELAY
+     (ABSOLUTE
+      (IOPATH CLK Q (0.127:0.236:0.344))
+     )
+    )
+    (TIMINGCHECK
+     (SETUPHOLD (posedge D) (posedge CLK) (0.057:0.057:0.057) (0.012:0.012:0.012))
+     (SETUPHOLD (negedge D) (posedge CLK) (0.052:0.052:0.052) (0.022:0.022:0.022))
+     (SETUPHOLD (posedge CE) (posedge CLK) (0.280:0.280:0.280) (-0.062:-0.062:-0.062))
+     (SETUPHOLD (negedge CE) (posedge CLK) (0.287:0.287:0.287) (-0.056:-0.056:-0.056))
+     (SETUPHOLD (posedge RESET) (posedge CLK) (0.335:0.335:0.335) (-0.085:-0.085:-0.085))
+     (SETUPHOLD (negedge RESET) (posedge CLK) (0.427:0.427:0.427) (-0.099:-0.099:-0.099))
+    )
+)
+SDF CONNECTIVITY
+
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_ip\/gw3_top\/u_ddr_phy_top\/fclkdiv/CLKOUT u_accel\/v1_accepted_s0/CLK (1.295:2.332:3.369))
+       (INTERCONNECT VCC_cZ/V u_accel\/v1_accepted_s0/CE (0.000:0.000:0.000))
+       (INTERCONNECT u_accel\/n4432_s0/F u_accel\/v1_accepted_s0/D (0.705:1.233:1.761))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/n4434_s2/I0 (0.575:1.156:1.737))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_v1\/n23950_s15/I1 (1.634:3.027:4.420))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_v1\/u_pixels\/native_valid_s7/I2 (1.134:1.982:2.829))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_v1\/u_pixels\/n22637_s33/I2 (1.042:1.824:2.607))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_v1\/u_pixels\/u_copy\/n4730_s59/I3 (0.626:1.141:1.656))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_v1\/u_pixels\/u_cache\/n4242_s13/I3 (0.390:0.877:1.365))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_raster\/n15544_s21/I0 (1.308:2.120:2.932))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_raster\/n15484_s30/I1 (0.769:1.275:1.782))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_raster\/n15448_s31/I2 (1.375:2.220:3.066))
+       (INTERCONNECT u_accel\/v1_accepted_s0/Q u_accel\/u_raster\/n15444_s35/I1 (1.078:1.762:2.446))
+       (INTERCONNECT u_accel\/n249_s2/O u_accel\/v1_accepted_s0/RESET (1.873:3.252:4.632))
+POST-PNR CELL u_accel/v1_tx_write_s0
+
+DFFRE \u_accel/v1_tx_write_s0  (
+	.D(\u_accel/n5020_3 ),
+	.CLK(gpu_clk),
+	.CE(\u_accel/v1_tx_addr_27_12 ),
+	.RESET(GND),
+	.Q(v1_tx_write)
+);
+SDF CELL
+
+(CELL
+   (CELLTYPE "DFFRE")
+   (INSTANCE u_accel\/v1_tx_write_s0)
+    (DELAY
+     (ABSOLUTE
+      (IOPATH CLK Q (0.127:0.236:0.344))
+     )
+    )
+    (TIMINGCHECK
+     (SETUPHOLD (posedge D) (posedge CLK) (0.205:0.205:0.205) (-0.048:-0.048:-0.048))
+     (SETUPHOLD (negedge D) (posedge CLK) (0.262:0.262:0.262) (-0.061:-0.061:-0.061))
+     (SETUPHOLD (posedge CE) (posedge CLK) (0.280:0.280:0.280) (-0.062:-0.062:-0.062))
+     (SETUPHOLD (negedge CE) (posedge CLK) (0.287:0.287:0.287) (-0.056:-0.056:-0.056))
+     (SETUPHOLD (posedge RESET) (posedge CLK) (0.335:0.335:0.335) (-0.085:-0.085:-0.085))
+     (SETUPHOLD (negedge RESET) (posedge CLK) (0.427:0.427:0.427) (-0.099:-0.099:-0.099))
+    )
+)
+SDF CONNECTIVITY
+
+       (INTERCONNECT u_accel\/v1_tx_write_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/b_grant_s2/I3 (0.170:0.257:0.343))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_ip\/gw3_top\/u_ddr_phy_top\/fclkdiv/CLKOUT u_accel\/v1_tx_write_s0/CLK (1.256:2.244:3.232))
+       (INTERCONNECT GND_cZ/G u_accel\/v1_tx_write_s0/RESET (0.000:0.000:0.000))
+       (INTERCONNECT u_accel\/n5020_s0/F u_accel\/v1_tx_write_s0/D (1.121:2.028:2.935))
+       (INTERCONNECT u_accel\/v1_tx_addr_27_s6/O u_accel\/v1_tx_write_s0/CE (1.276:2.315:3.353))
+POST-PNR CELL u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0
+
+DFFRE \u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter_s0  (
+	.D(\u_soc/g_ddr.u_ddr/u_gpu_arb/n500_3 ),
+	.CLK(gpu_clk),
+	.CE(VCC),
+	.RESET(\u_soc/g_ddr.u_ddr/u_gpu_arb/n2632_6 ),
+	.Q(\u_soc/g_ddr.u_ddr/u_gpu_arb/take_blitter )
+);
+SDF CELL
+
+(CELL
+   (CELLTYPE "DFFRE")
+   (INSTANCE u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0)
+    (DELAY
+     (ABSOLUTE
+      (IOPATH CLK Q (0.127:0.236:0.344))
+     )
+    )
+    (TIMINGCHECK
+     (SETUPHOLD (posedge D) (posedge CLK) (0.057:0.057:0.057) (0.012:0.012:0.012))
+     (SETUPHOLD (negedge D) (posedge CLK) (0.052:0.052:0.052) (0.022:0.022:0.022))
+     (SETUPHOLD (posedge CE) (posedge CLK) (0.280:0.280:0.280) (-0.062:-0.062:-0.062))
+     (SETUPHOLD (negedge CE) (posedge CLK) (0.287:0.287:0.287) (-0.056:-0.056:-0.056))
+     (SETUPHOLD (posedge RESET) (posedge CLK) (0.335:0.335:0.335) (-0.085:-0.085:-0.085))
+     (SETUPHOLD (negedge RESET) (posedge CLK) (0.427:0.427:0.427) (-0.099:-0.099:-0.099))
+    )
+)
+SDF CONNECTIVITY
+
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_ip\/gw3_top\/u_ddr_phy_top\/fclkdiv/CLKOUT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/CLK (1.268:2.261:3.253))
+       (INTERCONNECT VCC_cZ/V u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/CE (0.000:0.000:0.000))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/n500_s0/F u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/D (0.000:0.000:0.000))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/n2632_s2/F u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/RESET (0.059:0.098:0.136))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_255_s/I2 (0.512:0.801:1.090))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_254_s/I2 (0.493:0.791:1.088))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_253_s/I2 (0.206:0.325:0.444))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_252_s/I2 (0.600:0.940:1.279))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_251_s/I2 (0.748:1.192:1.637))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_250_s/I2 (0.849:1.375:1.901))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_249_s/I2 (1.227:1.993:2.758))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_248_s/I2 (1.162:1.871:2.580))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_247_s/I2 (0.201:0.315:0.429))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_246_s/I2 (0.588:1.019:1.451))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_245_s/I2 (0.491:0.783:1.074))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_244_s/I2 (0.588:1.019:1.451))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_243_s/I2 (0.448:0.718:0.988))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_242_s/I2 (0.944:1.536:2.128))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_241_s/I2 (0.384:0.607:0.830))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_240_s/I2 (0.602:0.945:1.287))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_239_s/I2 (0.849:1.375:1.901))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_238_s/I2 (0.849:1.375:1.901))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_237_s/I2 (0.473:0.740:1.006))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_236_s/I2 (1.039:1.698:2.356))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_235_s/I2 (1.038:1.690:2.342))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_234_s/I2 (1.227:1.993:2.758))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_233_s/I2 (0.870:1.490:2.110))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_232_s/I2 (0.448:0.706:0.964))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_231_s/I2 (0.777:1.337:1.897))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_230_s/I2 (0.778:1.342:1.906))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_229_s/I2 (0.437:0.673:0.909))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_228_s/I2 (0.769:1.237:1.705))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_227_s/I2 (0.671:1.070:1.469))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_226_s/I2 (0.574:0.904:1.233))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_225_s/I2 (0.206:0.325:0.444))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_224_s/I2 (0.671:1.070:1.469))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_223_s/I2 (0.572:0.912:1.251))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_222_s/I2 (0.296:0.469:0.641))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_221_s/I2 (0.199:0.309:0.420))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_220_s/I2 (1.135:1.859:2.583))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_219_s/I2 (1.135:1.859:2.583))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_218_s/I2 (0.671:1.070:1.469))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_217_s/I2 (0.188:0.285:0.381))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_216_s/I2 (0.199:0.309:0.420))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_215_s/I2 (0.201:0.315:0.429))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_214_s/I2 (0.551:0.878:1.205))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_213_s/I2 (0.095:0.131:0.167))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_212_s/I2 (0.188:0.285:0.381))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_211_s/I2 (0.201:0.307:0.413))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_210_s/I2 (0.095:0.131:0.167))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_209_s/I2 (0.201:0.315:0.429))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_208_s/I2 (0.188:0.285:0.381))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_207_s/I2 (0.742:1.176:1.610))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_206_s/I2 (0.103:0.148:0.192))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_205_s/I2 (0.103:0.148:0.192))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_204_s/I2 (0.276:0.423:0.570))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_203_s/I2 (0.199:0.309:0.420))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_202_s/I2 (0.109:0.159:0.208))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_201_s/I2 (0.201:0.315:0.429))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_200_s/I2 (0.195:0.292:0.389))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_199_s/I2 (0.199:0.309:0.420))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_198_s/I2 (0.649:1.020:1.392))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_197_s/I2 (0.379:0.589:0.799))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_196_s/I2 (0.296:0.469:0.641))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_195_s/I2 (0.840:1.341:1.842))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_194_s/I2 (0.602:0.945:1.287))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_193_s/I2 (0.849:1.375:1.901))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_192_s/I2 (0.572:0.912:1.251))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/take_blitter_s0/Q u_soc\/g_ddr\.u_ddr\/u_gpu_arb\/m_wr_data_Z_191_s/I2 (0.944:1.536:2.128))
+       (INTERCONNECT u_soc\/g_ddr\.u_ddr
+POST-PNR CELL u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2
+
+INV \u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2  (
+	.I(gpu_debug_state[48]),
+	.O(\u_accel/u_v1/u_pixels/gowin_split_inv_from_n1617_s2_onet )
+);
+SDF CELL
+
+(CELL
+   (CELLTYPE "INV")
+   (INSTANCE u_accel\/u_v1\/u_pixels\/gowin_split_inv_from_n1617_s2)
+    (DELAY
+     (ABSOLUTE
+      (IOPATH I O (0.000:0.000:0.000))
+     )
+    )
+)
+SDF CONNECTIVITY
+
+
+STA PENDING SELF-LOOP
+
+
+						Path592						
+Path Summary:
+Slack             : 1.780
+Data Arrival Time : 14.842
+Data Required Time: 16.622
+From              : u_accel/v1_pending_s2
+To                : u_accel/v1_pending_s2
+Launch Clk        : ddr3_sys_clk:[R]
+Latch Clk         : ddr3_sys_clk:[R]
+
+Data Arrival Path:
+    AT     DELAY   TYPE   RF   FANOUT       LOC                                   NODE                              
+ ======== ======= ====== ==== ======== ============== ============================================================= 
+  0.000    0.000                                       active clock edge time                                       
+  0.000    0.000                                       ddr3_sys_clk                                                 
+  0.000    0.000   tCL    RR   44293    LEFTSIDE[4]    u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT  
+  3.347    3.347   tNET   RR   1        R65C76[0][B]   u_accel/v1_pending_s2/CLK                                    
+  3.691    0.344   tC2Q   RR   324      R65C76[0][B]   u_accel/v1_pending_s2/Q                                      
+  7.344    3.653   tNET   RR   1        R69C26[1][B]   u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s2/I2                    
+  7.855    0.511   tINS   RR   4        R69C26[1][B]   u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s2/F                     
+  8.202    0.348   tNET   RR   1        R70C27[1][B]   u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s1/I0                    
+  8.723    0.521   tINS   RR   9        R70C27[1][B]   u_soc/g_ddr.u_ddr/u_gpu_arb/b_grant_s1/F                     
+  12.142   3.419   tNET   RR   1        R62C81[1][B]   u_accel/n4432_s0/I1                                          
+  12.663   0.521   tINS   RR   2        R62C81[1][B]   u_accel/n4432_s0/F                                           
+  12.667   0.005   tNET   RR   1        R62C81[3][A]   u_accel/n4434_s2/I3                                          
+  13.184   0.516   tINS   RR   1        R62C81[3][A]   u_accel/n4434_s2/F                                           
+  13.374   0.190   tNET   RR   1        R62C79[1][A]   u_accel/v1_tx_addr_27_s4/I0                                  
+  13.831   0.457   tINS   RR   1        R62C79[1][A]   u_accel/v1_tx_addr_27_s4/F                                   
+  14.842   1.011   tNET   RR   1        R65C76[0][B]   u_accel/v1_pending_s2/D                                      
+
+Data Required Path:
+    AT     DELAY    TYPE   RF   FANOUT       LOC                                   NODE                              
+ ======== ======== ====== ==== ======== ============== ============================================================= 
+  13.333   13.333                                       active clock edge time                                       
+  13.333   0.000                                        ddr3_sys_clk                                                 
+  13.333   0.000    tCL    RR   44293    LEFTSIDE[4]    u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/fclkdiv/CLKOUT  
+  16.680   3.347    tNET   RR   1        R65C76[0][B]   u_accel/v1_pending_s2/CLK                                    
+  16.622   -0.057   tSu         1        R65C76[0][B]   u_accel/v1_pending_s2                                        
+
+Path Statistics:
+Clock Skew: 0.000
+Setup Relationship: 13.333
+Logic Level: 6
+Arrival Clock Path delay: (cell: 0.000 0.000%, 

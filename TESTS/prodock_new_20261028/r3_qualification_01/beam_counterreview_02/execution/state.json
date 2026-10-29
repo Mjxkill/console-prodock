@@ -1,0 +1,1264 @@
+{
+  "schema": 1,
+  "task_id": "prodock_rom_verifier_counterreview_02",
+  "run_id": "prodock_rom_verifier_beam_20261029_03",
+  "status": "TESTS_FAILED",
+  "session_id": "ses_e79fb2217ffeCM2q05SCuMvwKO",
+  "attempts": [
+    {
+      "attempt": 0,
+      "returncode": 0,
+      "events_sha256": "e178e96da57a8ea0574d7b61ab2372e1e7f5c48016162d1d1d97874d0450a1b0",
+      "parsed": {
+        "session_id": "ses_e79fb2217ffeCM2q05SCuMvwKO",
+        "complete": true,
+        "errors": [],
+        "model_steps_started": 32,
+        "model_steps_finished": 32,
+        "tool_invocations_observed": 37,
+        "tools": [
+          {
+            "call_id": "call_01x7y9ja",
+            "name": "taskbox_exec",
+            "message_id": "msg_18604df0f001Ks1sWE6dHLG8RV",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "ls",
+                "-la"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.002262056921608746, \"stdout\": \"total 32\\ndrwxrwxr-x  4 1000 1000 4096 Oct 29 04:57 .\\ndrwxr-xr-x 11 1000 1000  240 Oct 29 04:57 ..\\n-r--------  1 1000 1000 2939 Oct 29 04:57 CONTRACT.md\\n-r--------  1 1000 1000 1300 Oct 29 04:57 INPUTS.json\\ndrwxrwxr-x  2 1000 1000 4096 Oct 29 04:57 context\\ndrwxrwxr-x  2 1000 1000 4096 Oct 29 04:57 owned\\n-r--------  1 1000 1000 5593 Oct 29 04:57 rom_check.py\\n-r--------  1 1000 1000  793 Oct 29 04:57 validate.py\\n\"}",
+            "time": {
+              "start": 1793249829561,
+              "end": 1793249829569
+            }
+          },
+          {
+            "call_id": "call_pttgze4i",
+            "name": "taskbox_exec",
+            "message_id": "msg_18604df0f001Ks1sWE6dHLG8RV",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "find",
+                ".",
+                "-maxdepth",
+                "3",
+                "-type",
+                "f",
+                "|",
+                "head",
+                "-100"
+              ]
+            },
+            "output": "{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.002751259016804397, \"stdout\": \"find: paths must precede expression: `|'\\n\"}",
+            "time": {
+              "start": 1793249829759,
+              "end": 1793249829765
+            }
+          },
+          {
+            "call_id": "call_ryquz9xa",
+            "name": "taskbox_exec",
+            "message_id": "msg_18604e3d9001ClZIXvGLDVeyWl",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "find",
+                ".",
+                "-maxdepth",
+                "4",
+                "-type",
+                "f"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.002000432927161455, \"stdout\": \"./owned/test_adversarial.py\\n./owned/REPORT.md\\n./rom_check.py\\n./CONTRACT.md\\n./INPUTS.json\\n./context/expected.bin\\n./context/SP_official.v\\n./context/itcm3\\n./context/itcm1\\n./context/itcm2\\n./context/r3_rom_cells.vo\\n./context/itcm0\\n./validate.py\\n\"}",
+            "time": {
+              "start": 1793249830478,
+              "end": 1793249830484
+            }
+          },
+          {
+            "call_id": "call_720bltdp",
+            "name": "taskbox_read_file",
+            "message_id": "msg_18604e69c001uivoBpVCrwX8Fw",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "CONTRACT.md"
+            },
+            "output": "{\"content\": \"# Independent ROM verifier counter-review\\n\\nYou own only owned/test_adversarial.py and owned/REPORT.md. The decoder is\\nread-only and may NOT be patched. Write a real unittest suite that imports\\nrom_check.decode/compare, exercises them, and can be rerun. No network, board,\\ncompiler, install, or modifications outside owned paths. Use /tmp for temporary\\nartifacts. No code file you write may exceed 1000 physical lines.\\n\\nRead the supplied official SP model and actual old R3 SP cell snapshot. That\\nsnapshot is an archive of generated vendor cells (>1000 lines), not a new\\nmaintained source. The actual R3 ROM contains G22 legacy data, whereas\\nexpected.bin and the 4 itcm files are the intended new SD bootstrap. Root did\\nnot load R3. A VO comparison is not a physical FPGA/bitstream readback.\\n\\nRequired behavioral tests: real old R3 rejected vs expected.bin (first byte\\nmismatch 41, 20556 mismatching bytes); all four lanes interleave to expected.bin;\\nan independently generated supported SP fixture with expected data is accepted;\\nbit/lane ordering at word and INIT boundaries; one-bit data mutation fails;\\nunknown AD/DO layouts, missing or duplicate output slices, wrong BIT_WIDTH,\\nunknown or duplicate INIT declarations and duplicate ports must be refused.\\nExercise compare invalid lengths and distinguish payload from padding.\\n\\nActively seek a counterexample: valid syntax but unsupported mapping that the\\nchecker accepts or wrong bytes it fails to detect. If found, preserve a minimal\\nreproducer and state the precise limit; do NOT loosen expected outcomes or edit\\nthe checker to obtain green. Absence of a new counterexample is not proof of\\ncomplete correctness. The report must distinguish source-ROM proof, VO proof,\\nand future physical readback, and explain omitted INIT zero defaults from SP.\\n\\nRun official taskbox_run_tests before editing. Implement actual assertions,\\nrun tests, fix YOUR test defects based on observed failures. Write REPORT.md\\nbefore your last official tests call (the last mutation must be validated).\\nNo need to spend requests artificially; finish after useful evidence exists.\\n\\n## Bounded continuation after an incomplete delivery\\n\\nThe previous independent session ended on finish_reason=length during its first\\nlarge writing response. No tests or report were written. Its 26 real API calls\\nand 34 tools are retained separately; this is not a successful review.\\nDo not repeat long hex dumps. Read the 140-line decoder, the SP address/INIT\\nsections and first 12 lines of actual cell syntax. Generate fixture INITs with\\na compact Python encoder from binary, never paste literal firmware hex. Write\\na working minimal suite early, then add concise mutation cases. Keep the entire\\nmodule around 300 lines or less, with parameterized cases where helpful.\\nUse several small write/exec operations rather than one huge literal response.\\nThe tests must remain independent of decoder internals. Preserve real failures.\\n\"}",
+            "time": {
+              "start": 1793249831062,
+              "end": 1793249831070
+            }
+          },
+          {
+            "call_id": "call_w5f5hpkk",
+            "name": "taskbox_read_file",
+            "message_id": "msg_18604e69c001uivoBpVCrwX8Fw",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "INPUTS.json"
+            },
+            "output": "{\"content\": \"{\\n  \\\"protected_sha256\\\": {\\n    \\\"rom_check.py\\\": \\\"cbf1f2fa8f8eea8f9e6b26d3a8ee9475bd55e199d6b83a5dc6a59b7ccea5c487\\\",\\n    \\\"CONTRACT.md\\\": \\\"b42139c77b1e0824ffd9bc2225a013d33ade77c0500a20a17c0769e70cd89330\\\",\\n    \\\"validate.py\\\": \\\"9add227138143ee97880120e181cc7701290158b97ef9308c7a2bdf2de03b341\\\",\\n    \\\"context/expected.bin\\\": \\\"d8ab75277c4cb4eb2a4123fbdf269d96fa8a5cd44cb84eaa11c8e3fdf66d8ae8\\\",\\n    \\\"context/SP_official.v\\\": \\\"da99f41cb54a323d5bf564fd412c0892b49bdac75699200dbf2267e10e9fc12d\\\",\\n    \\\"context/itcm3\\\": \\\"66a0a4e3b61b99cefefc30d4b9f50bb33d8c6a9cf7753ab5c0acdd98925ef7b1\\\",\\n    \\\"context/itcm1\\\": \\\"7a3f6b7cd37684caa0051913c178e0c056eddfbd1fdf77e868f040ab2adcd773\\\",\\n    \\\"context/itcm2\\\": \\\"17eacd72d09de96dc22f7a9e97076c5cb11ef162d45ff128debed98e4a6670b3\\\",\\n    \\\"context/r3_rom_cells.vo\\\": \\\"9711582e4fd772545c2b8597590c37aaa7e5cecc8d4cea95885073dbc5f4fba6\\\",\\n    \\\"context/itcm0\\\": \\\"1f8d4aebac42a5d9923278282ca6d599439d16f473bd3bfc7d9623c57ea174e0\\\"\\n  },\\n  \\\"origin\\\": {\\n    \\\"checker_sha256\\\": \\\"cbf1f2fa8f8eea8f9e6b26d3a8ee9475bd55e199d6b83a5dc6a59b7ccea5c487\\\",\\n    \\\"r3_vo_sha256\\\": \\\"753ee718dc02141ac174313687e129a8f7b4bb8928cc48841eb95c514e9e6a1c\\\",\\n    \\\"official_prim_sim_sha256\\\": \\\"7db6e9953af24f1233dbc8f58352a1673e91d01bb69656a16ae893a68089f85d\\\"\\n  },\\n  \\\"limits\\\": \\\"Context extracted exactly; no hardware evidence\\\"\\n}\\n\"}",
+            "time": {
+              "start": 1793249831068,
+              "end": 1793249831071
+            }
+          },
+          {
+            "call_id": "call_7vu66b5u",
+            "name": "taskbox_read_file",
+            "message_id": "msg_18604e8e00019Ew1DES5pnb21V",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "validate.py"
+            },
+            "output": "{\"content\": \"import pathlib,subprocess,sys,hashlib,json\\nroot=pathlib.Path(__file__).resolve().parent\\nbefore=json.loads((root/'INPUTS.json').read_text())['protected_sha256']\\nfor rel,expected in before.items():\\n assert hashlib.sha256((root/rel).read_bytes()).hexdigest()==expected,rel\\np=root/'owned/test_adversarial.py'\\nassert len(p.read_text().splitlines())<=1000\\nr=subprocess.run([sys.executable,'-B',str(p)],cwd=root,text=True,capture_output=True,timeout=50)\\nprint(r.stdout,end='');print(r.stderr,end='')\\nif r.returncode:raise SystemExit(r.returncode)\\nassert 'Ran ' in r.stderr and 'OK' in r.stderr,'Use actual unittest assertions and runner'\\nassert len((root/'owned/REPORT.md').read_text())>200,'Report not completed'\\nprint('Protected verifier and context hashes preserved; independent suite completed')\\n\"}",
+            "time": {
+              "start": 1793249832002,
+              "end": 1793249832008
+            }
+          },
+          {
+            "call_id": "call_p0as2v1f",
+            "name": "taskbox_read_file",
+            "message_id": "msg_18604e8e00019Ew1DES5pnb21V",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "rom_check.py"
+            },
+            "output": "{\"content\": \"#!/usr/bin/env python3\\n\\\"\\\"\\\"Read the published bit-sliced fabric ROM from a Gowin post-route VO.\\n\\nThis checks the netlist initialization, not FPGA configuration memory on a\\nphysical board. The supported layout is deliberately narrow: 32 SP primitives,\\neach 16K x 1, direct ILMADDR[15:2], one direct ILMRDATA output bit. Unsupported\\nlayouts fail instead of guessing lane ordering or interpreting encrypted data.\\n\\\"\\\"\\\"\\nimport argparse\\nimport hashlib\\nimport json\\nfrom pathlib import Path\\nimport re\\n\\n\\ndef sha(data):\\n    return hashlib.sha256(data).hexdigest()\\n\\n\\ndef decode(text):\\n    \\\"\\\"\\\"Return 64 KiB in CPU byte order, plus checked primitive metadata.\\n\\n    The official gw5a SP model initializes ram_MEM as INIT_RAM_3F through\\n    INIT_RAM_00, with omitted INIT parameters defaulting to zero. BIT_WIDTH=1\\n    reads ram_MEM[AD], so address k in each slice is bit k of that concatenation.\\n    \\\"\\\"\\\"\\n    params = {}\\n    pattern = r'^defparam (\\\\\\\\\\\\S+/u_vc_ilm_ram/\\\\S+)\\\\s*\\\\.(\\\\w+)\\\\s*=\\\\s*(.*?);'\\n    for m in re.finditer(pattern, text, re.M):\\n        key = (m[1], m[2])\\n        if key in params:\\n            raise ValueError('Duplicate ROM parameter: ' + repr(key))\\n        if key[1].startswith('INIT_RAM_') and not re.fullmatch(r'INIT_RAM_[0-3][0-9A-F]', key[1]):\\n            raise ValueError('Unsupported ROM INIT block: ' + repr(key))\\n        params[key] = m[3]\\n    cells = {}\\n    pattern = r'^SP (\\\\\\\\\\\\S+/u_vc_ilm_ram/\\\\S+)\\\\s*\\\\((.*?)\\\\);'\\n    for m in re.finditer(pattern, text, re.M | re.S):\\n        name = m[1]\\n        pairs = re.findall(r'\\\\.(\\\\w+)\\\\(([^()]*)\\\\)', m[2])\\n        ports = dict(pairs)\\n        if len(ports) != len(pairs):\\n            raise ValueError('Duplicate ROM port: ' + name)\\n        compact = {k: re.sub(r'\\\\s+', '', v) for k, v in ports.items()}\\n        width = params.get((name, 'BIT_WIDTH'))\\n        if width != '1':\\n            raise ValueError('Unsupported ROM width for ' + name)\\n        if not re.fullmatch(r'\\\\{\\\\\\\\\\\\S+/ILMADDR\\\\[15:2\\\\]\\\\}', compact.get('AD', '')):\\n            raise ValueError('ROM address mapping differs: ' + name)\\n        output = re.fullmatch(\\n            r'\\\\{\\\\\\\\\\\\S+/DO(?:_\\\\d+)?\\\\[31:1\\\\],\\\\\\\\\\\\S+/ILMRDATA\\\\[(\\\\d+)\\\\]\\\\}',\\n            compact.get('DO', ''))\\n        if not output:\\n            raise ValueError('ROM output mapping differs: ' + name)\\n        bit = int(output[1])\\n        if bit not in range(32) or bit in cells:\\n            raise ValueError('Duplicate or out-of-range ROM output bit')\\n        if compact.get('BLKSEL') != '{GND,GND,GND}':\\n            raise ValueError('Unsupported ROM bank selector')\\n        if params.get((name, 'BLK_SEL')) != \\\"3'b000\\\":\\n            raise ValueError('Unsupported ROM bank parameter')\\n        chunks = []\\n        for chunk in range(64):\\n            value = params.get((name, f'INIT_RAM_{chunk:02X}'), \\\"256'h0\\\")\\n            match = re.fullmatch(r\\\"256'h([0-9a-fA-F]{1,64})\\\", value)\\n            if not match:\\n                raise ValueError('Unknown ROM initialization: ' + name)\\n            chunks.append(int(match[1], 16))\\n        cells[bit] = dict(instance=name, chunks=chunks)\\n    if sorted(cells) != list(range(32)):\\n        raise ValueError('Expected exactly 32 distinct ROM output bits')\\n    image = bytearray(65536)\\n    for bit, cell in cells.items():\\n        for chunk, value in enumerate(cell['chunks']):\\n            for index in range(256):\\n                if (value >> index) & 1:\\n                    image[(chunk * 256 + index) * 4 + bit // 8] |= 1 << (bit % 8)\\n    details = [dict(output_bit=bit, instance=cells[bit]['instance']) for bit in range(32)]\\n    return bytes(image), details\\n\\n\\ndef compare(image, binary):\\n    \\\"\\\"\\\"Check exactly the payload extent; report padding separately, never hide it.\\\"\\\"\\\"\\n    if not binary or len(binary) > len(image):\\n        raise ValueError('Expected binary must fit the 64 KiB ROM and be nonempty')\\n    differences = [i for i, (a, b) in enumerate(zip(image, binary)) if a != b]\\n    return dict(\\n        passed=not differences, payload_bytes=len(binary),\\n        expected_sha256=sha(binary), observed_payload_sha256=sha(image[:len(binary)]),\\n        full_rom_sha256=sha(image), differing_payload_bytes=len(differences),\\n        first_difference=(dict(offset=differences[0],\\n                               byte_address=f'0x{0x80000000 + differences[0]:08x}',\\n                               expected=binary[differences[0]], observed=image[differences[0]])\\n                          if differences else None),\\n        padding_bytes=len(image)-len(binary),\\n        padding_nonzero_bytes=sum(x != 0 for x in image[len(binary):]),\\n        hardware_validated=False, qualification='POST_ROUTE_VO_ROM_INITIALIZATION_ONLY')\\n\\n\\ndef main():\\n    parser = argparse.ArgumentParser(description=__doc__)\\n    parser.add_argument('--vo', type=Path, required=True)\\n    parser.add_argument('--binary', type=Path, required=True)\\n    parser.add_argument('--out', type=Path, required=True)\\n    args = parser.parse_args()\\n    vo = args.vo.read_bytes()\\n    binary = args.binary.read_bytes()\\n    image, cells = decode(vo.decode())\\n    result = compare(image, binary)\\n    result.update(schema=1, inputs={str(args.vo): sha(vo), str(args.binary): sha(binary)},\\n                  decoder_sha256=sha(Path(__file__).read_bytes()), cells=cells)\\n    args.out.mkdir(parents=True, exist_ok=False)\\n    (args.out / 'rom_65536.bin').write_bytes(image)\\n    (args.out / 'result.json').write_text(json.dumps(result, indent=2)+'\\\\n')\\n    print(json.dumps({k: v for k, v in result.items() if k not in ('cells', 'inputs')}, indent=2))\\n    return 0 if result['passed'] else 1\\n\\n\\nif __name__ == '__main__':\\n    raise SystemExit(main())\\n\"}",
+            "time": {
+              "start": 1793249832019,
+              "end": 1793249832021
+            }
+          },
+          {
+            "call_id": "call_2oliayl9",
+            "name": "taskbox_exec",
+            "message_id": "msg_18604ecae0013PgIVx2Eolj9uZ",
+            "status": "error",
+            "exit_code": null,
+            "input": {
+              "argv": "[\"ls\", \"-la\", \"context\", \"owned\"; \"wc\", \"-l\", \"context/*\", \"owned/*\"]"
+            },
+            "output": null,
+            "time": {
+              "start": 1793249832872,
+              "end": 1793249832878
+            }
+          },
+          {
+            "call_id": "call_dtz2bi56",
+            "name": "taskbox_exec",
+            "message_id": "msg_18604f0010015b2K2jO5UGxZWg",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "ls",
+                "-la",
+                "context",
+                "owned"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0018955959239974618, \"stdout\": \"context:\\ntotal 528\\ndrwxrwxr-x 2 1000 1000   4096 Oct 29 04:57 .\\ndrwxrwxr-x 4 1000 1000   4096 Oct 29 04:57 ..\\n-r-------- 1 1000 1000  14736 Oct 29 04:57 SP_official.v\\n-r-------- 1 1000 1000  20936 Oct 29 04:57 expected.bin\\n-r-------- 1 1000 1000  20936 Oct 29 04:57 itcm0\\n-r-------- 1 1000 1000  20936 Oct 29 04:57 itcm1\\n-r-------- 1 1000 1000  20936 Oct 29 04:57 itcm2\\n-r-------- 1 1000 1000  20936 Oct 29 04:57 itcm3\\n-r-------- 1 1000 1000 391398 Oct 29 04:57 r3_rom_cells.vo\\n\\nowned:\\ntotal 16\\ndrwxrwxr-x 2 1000 1000 4096 Oct 29 04:57 .\\ndrwxrwxr-x 4 1000 1000 4096 Oct 29 04:57 ..\\n-rw------- 1 1000 1000   28 Oct 29 04:57 REPORT.md\\n-rw------- 1 1000 1000   81 Oct 29 04:57 test_adversarial.py\\n\"}",
+            "time": {
+              "start": 1793249833812,
+              "end": 1793249833817
+            }
+          },
+          {
+            "call_id": "call_9zg08zos",
+            "name": "taskbox_read_file",
+            "message_id": "msg_18604f3b0001x8olj6t8e0RGq9",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "owned/test_adversarial.py"
+            },
+            "output": "{\"content\": \"raise NotImplementedError('Implement independent behavioral and mutation tests')\\n\"}",
+            "time": {
+              "start": 1793249834705,
+              "end": 1793249834711
+            }
+          },
+          {
+            "call_id": "call_zayh070u",
+            "name": "taskbox_read_file",
+            "message_id": "msg_18604f3b0001x8olj6t8e0RGq9",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "owned/REPORT.md"
+            },
+            "output": "{\"content\": \"Pending independent review.\\n\"}",
+            "time": {
+              "start": 1793249834716,
+              "end": 1793249834720
+            }
+          },
+          {
+            "call_id": "call_wrkk28ox",
+            "name": "taskbox_run_tests",
+            "message_id": "msg_18604f3b0001x8olj6t8e0RGq9",
+            "status": "completed",
+            "exit_code": null,
+            "input": {},
+            "output": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.028556431992910802, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"/work/owned/test_adversarial.py\\\", line 1, in <module>\\n    raise NotImplementedError('Implement independent behavioral and mutation tests')\\nNotImplementedError: Implement independent behavioral and mutation tests\\n\"}], \"test_runs\": 1, \"test_failures\": 1, \"passed\": false}",
+            "time": {
+              "start": 1793249834718,
+              "end": 1793249834748
+            }
+          },
+          {
+            "call_id": "call_qhoiflrt",
+            "name": "taskbox_exec",
+            "message_id": "msg_18604f733001n67Oem30ZG9Ptt",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "sed",
+                "-n",
+                "1,40p",
+                "context/SP_official.v"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.002249662997201085, \"stdout\": \"module SP (DO, DI, BLKSEL, AD, WRE, CLK, CE, OCE, RESET);\\n\\nparameter READ_MODE = 1'b0; // 1'b0: bypass mode; 1'b1: pipeline mode\\nparameter WRITE_MODE = 2'b00; // 2'b00: normal mode; 2'b01: write-through mode; 2'b10: read-before-write mode\\nparameter BIT_WIDTH = 32; // 1, 2, 4, 8, 16, 32\\nparameter BLK_SEL = 3'b000;\\nparameter RESET_MODE = \\\"SYNC\\\"; // SYNC, ASYNC\\nparameter INIT_RAM_00 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_01 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_02 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_03 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_04 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_05 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_06 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_07 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_08 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_09 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_0A = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_0B = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_0C = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_0D = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_0E = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_0F = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_10 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_11 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_12 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_13 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_14 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_15 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_16 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_17 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_18 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_19 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_1A = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_1B = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_1C = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_1D = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_1E = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_1F = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\nparameter INIT_RAM_20 = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\n\"}",
+            "time": {
+              "start": 1793249837724,
+              "end": 1793249837780
+            }
+          },
+          {
+            "call_id": "call_0z80usod",
+            "name": "taskbox_exec",
+            "message_id": "msg_1860502e5001VhtvneuGVA90dK",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "grep",
+                "-n",
+                "ILMADDR\\|ILMRDATA\\|u_vc_ilm_ram\\|^SP \\|^endmodule\\|INIT_RAM_3F\\|BIT_WIDTH",
+                "context/SP_official.v",
+                "|",
+                "head",
+                "-40"
+              ]
+            },
+            "output": "{\"returncode\": 2, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0018935120897367597, \"stdout\": \"context/SP_official.v:5:parameter BIT_WIDTH = 32; // 1, 2, 4, 8, 16, 32\\n--\\ncontext/SP_official.v:71:parameter INIT_RAM_3F = 256'h0000000000000000000000000000000000000000000000000000000000000000;\\n--\\ncontext/SP_official.v:85:reg [16383:0] ram_MEM = {INIT_RAM_3F, INIT_RAM_3E, INIT_RAM_3D, INIT_RAM_3C,INIT_RAM_3B, INIT_RAM_3A, INIT_RAM_39, INIT_RAM_38,INIT_RAM_37, INIT_RAM_36, INIT_RAM_35, INIT_RAM_34,INIT_RAM_33, INIT_RAM_32, INIT_RAM_31, INIT_RAM_30,INIT_RAM_2F, INIT_RAM_2E, INIT_RAM_2D, INIT_RAM_2C,INIT_RAM_2B, INIT_RAM_2A, INIT_RAM_29, INIT_RAM_28,INIT_RAM_27, INIT_RAM_26, INIT_RAM_25, INIT_RAM_24,INIT_RAM_23, INIT_RAM_22, INIT_RAM_21, INIT_RAM_20,INIT_RAM_1F, INIT_RAM_1E, INIT_RAM_1D, INIT_RAM_1C,INIT_RAM_1B, INIT_RAM_1A, INIT_RAM_19, INIT_RAM_18,INIT_RAM_17, INIT_RAM_16, INIT_RAM_15, INIT_RAM_14,INIT_RAM_13, INIT_RAM_12, INIT_RAM_11, INIT_RAM_10,INIT_RAM_0F, INIT_RAM_0E, INIT_RAM_0D, INIT_RAM_0C, INIT_RAM_0B, INIT_RAM_0A, INIT_RAM_09, INIT_RAM_08,INIT_RAM_07, INIT_RAM_06, INIT_RAM_05, INIT_RAM_04,INIT_RAM_03, INIT_RAM_02, INIT_RAM_01, INIT_RAM_00};\\ncontext/SP_official.v:86:reg [BIT_WIDTH-1:0] mem_t;\\n--\\ncontext/SP_official.v:89:integer dwidth = BIT_WIDTH;\\n--\\ncontext/SP_official.v:164:\\t\\t\\t\\t{ram_MEM[addr+1],ram_MEM[addr]}<=DI[BIT_WIDTH-1:0];\\n--\\ncontext/SP_official.v:166:\\t\\t\\t\\t{ram_MEM[addr+3],ram_MEM[addr+2],ram_MEM[addr+1],ram_MEM[addr]}<=DI[BIT_WIDTH-1:0];\\n--\\ncontext/SP_official.v:211:\\t\\t\\t\\t\\tbp_reg_async[BIT_WIDTH-1:0] <= mem_t[BIT_WIDTH-1:0];\\n--\\ncontext/SP_official.v:213:\\t\\t\\t\\t\\t    bp_reg_async[BIT_WIDTH-1:0] <= DI[BIT_WIDTH-1:0]; \\n--\\ncontext/SP_official.v:232:\\t\\t\\t\\t\\tbp_reg_async[BIT_WIDTH-1:0] <= mem_t[BIT_WIDTH-1:0];\\n--\\ncontext/SP_official.v:236:\\t\\t\\t\\tbp_reg_async[BIT_WIDTH-1:0] <= mem_t[BIT_WIDTH-1:0];\\n--\\ncontext/SP_official.v:251:\\t\\t\\t\\t\\tbp_reg_sync[BIT_WIDTH-1:0] <= mem_t[BIT_WIDTH-1:0];\\n--\\ncontext/SP_official.v:253:\\t\\t\\t\\t\\t    bp_reg_sync[BIT_WIDTH-1:0] <= DI[BIT_WIDTH-1:0];                       \\n--\\ncontext/SP_official.v:272:\\t\\t\\t\\t\\tbp_reg_sync[BIT_WIDTH-1:0] <= mem_t[BIT_WIDTH-1:0];\\n--\\ncontext/SP_official.v:276:\\t\\t\\t\\tbp_reg_sync[BIT_WIDTH-1:0] <= mem_t[BIT_WIDTH-1:0];\\n--\\ncontext/SP_official.v:306:endmodule\\ngrep: |: No such file or directory\\ngrep: head: No such file or directory\\n\"}",
+            "time": {
+              "start": 1793249838813,
+              "end": 1793249838818
+            }
+          },
+          {
+            "call_id": "call_yn0epdhy",
+            "name": "taskbox_exec",
+            "message_id": "msg_186050722001VV2Y5adVAUTd6D",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "sed",
+                "-n",
+                "1,20p",
+                "context/r3_rom_cells.vo"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0018034720560535789, \"stdout\": \"SP \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s  (\\n\\t.CLK(vid_hclk),\\n\\t.OCE(GND),\\n\\t.CE(VCC),\\n\\t.RESET(GND),\\n\\t.WRE(\\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/ILMBYTEWR [0]),\\n\\t.BLKSEL({GND, GND, GND}),\\n\\t.DI({GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND, GND}),\\n\\t.AD({\\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/ILMADDR [15:2]}),\\n\\t.DO({\\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/DO [31:1], \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/ILMRDATA [0]})\\n);\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_00=256'h7FF1FBE8BFA48E7CF868D3309FFFF1411F5EBB0171D5FFBC17FE0B65BC37FF7F;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_01=256'h6E3825BCF1F79BF8FFFEBE0191F79FBD9DE03C4027E9EAFDFE7BD3577F8FDFFD;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_02=256'hC7FE00FBAF67F7846FF7FFFFE82B35AE5FEFFF9E25C09554E0AFEFE6FBDEEF63;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_03=256'h03F9E3704374BA061012151401000008E8878D900F00240509023A61703B0EFA;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_04=256'h61603FACA67CFE1830984CF5DF72C7FFFF1E3C78BFFFBDF0984C267AEFB03C60;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_05=256'h68543F39205F32F340FC9C03FEAE7F7F7CF8B5F700DCFFF1FE3800453B61FFB0;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_06=256'h8ED9BFE7549E82F76DDDED2A9FF9DCE817F37D4BFB7DB76FBEFBF39824BF5E97;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_07=256'hE31DE9601A31D620A8DEFFEE31E5D37F006AFDFFEA7A7FFF79DCD8FE27AC4167;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .INIT_RAM_08=256'hEFED44F96E0580703A05FF69C6DA21F7F9FC8034947B68C241168FFFABB430FF;\\n\"}",
+            "time": {
+              "start": 1793249839739,
+              "end": 1793249839743
+            }
+          },
+          {
+            "call_id": "call_ib07tt10",
+            "name": "taskbox_exec",
+            "message_id": "msg_186050722001VV2Y5adVAUTd6D",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "grep",
+                "-c",
+                "SP ",
+                "context/r3_rom_cells.vo"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0026810660492628813, \"stdout\": \"32\\n\"}",
+            "time": {
+              "start": 1793249839846,
+              "end": 1793249839851
+            }
+          },
+          {
+            "call_id": "call_bifbr6lf",
+            "name": "taskbox_exec",
+            "message_id": "msg_186050b47001REF4ULpfgouoGa",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "import rom_check; t=open('context/r3_rom_cells.vo').read(); img,d=rom_check.decode(t); b=open('context/expected.bin','rb').read(); print(len(img),len(b)); r=rom_check.compare(img,b); print(r)"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.059427488944493234, \"stdout\": \"65536 20936\\n{'passed': False, 'payload_bytes': 20936, 'expected_sha256': 'd8ab75277c4cb4eb2a4123fbdf269d96fa8a5cd44cb84eaa11c8e3fdf66d8ae8', 'observed_payload_sha256': '4e8fb93e0215d513e3a9c7ed7d3ca2b95dbff10716bf257a1962814959ad6b2f', 'full_rom_sha256': '11e18421c8f8a729a7fc7897d0a67e89328f110551de5a06b81d2bb6fbd89195', 'differing_payload_bytes': 20556, 'first_difference': {'offset': 41, 'byte_address': '0x80000029', 'expected': 34, 'observed': 162}, 'padding_bytes': 44600, 'padding_nonzero_bytes': 38122, 'hardware_validated': False, 'qualification': 'POST_ROUTE_VO_ROM_INITIALIZATION_ONLY'}\\n\"}",
+            "time": {
+              "start": 1793249841050,
+              "end": 1793249841112
+            }
+          },
+          {
+            "call_id": "call_t7x8y0iz",
+            "name": "taskbox_exec",
+            "message_id": "msg_186050fe0001NZB1ai0TflKv71",
+            "status": "error",
+            "exit_code": null,
+            "input": {
+              "argv": "[\"file\", \"context/itcm0\", \"context/itcm1\", \"context/itcm2\", \"context/itcm3\"]; [\"cmp\", \"-l\", \"context/itcm0\", \"context/expected.bin\", \"|\", \"head\"]"
+            },
+            "output": null,
+            "time": {
+              "start": 1793249842898,
+              "end": 1793249842904
+            }
+          },
+          {
+            "call_id": "call_oizf4soc",
+            "name": "taskbox_exec",
+            "message_id": "msg_186051715001a5CN4tnie98wfR",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "file",
+                "context/itcm0"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.004196083988063037, \"stdout\": \"context/itcm0: ASCII text, with CRLF line terminators\\n\"}",
+            "time": {
+              "start": 1793249844059,
+              "end": 1793249844066
+            }
+          },
+          {
+            "call_id": "call_laxoeka1",
+            "name": "taskbox_exec",
+            "message_id": "msg_186051bba001tIIJD1g1mFHVlZ",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "sed",
+                "-n",
+                "1,20p",
+                "context/itcm0"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.002118825912475586, \"stdout\": \"f3\\r\\n63\\r\\n6f\\r\\n97\\r\\n93\\r\\n97\\r\\n93\\r\\n16\\r\\nf3\\r\\n73\\r\\n97\\r\\n93\\r\\n73\\r\\nef\\r\\nef\\r\\n01\\r\\n01\\r\\n1d\\r\\n97\\r\\n93\\r\\n\"}",
+            "time": {
+              "start": 1793249844728,
+              "end": 1793249844733
+            }
+          },
+          {
+            "call_id": "call_kb8m2js0",
+            "name": "taskbox_exec",
+            "message_id": "msg_186051e350015RV3OQEr267h0V",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "- <<'PY'\nfrom pathlib import Path\ndef rd(p): return [int(x,16) for x in Path(p).read_text().split()]\nitcms=[rd(f'context/itcm{i}') for i in range(4)]\nprint([len(x) for x in itcms])\nexp=list(Path('context/expected.bin').read_bytes())\nprint('expected len',len(exp))\n# byte interleave lanes\nout=bytearray()\nfor i in range(len(itcms[0])):\n    for l in range(4):\n        out.append(itcms[l][i])\nprint('interleaved-by-index len',len(out),'match expected?',out==exp[:len(out)])\n# maybe each itcm is bytes of expected in chunks? Try reconstruct by taking every 4th byte starting offset\nfor off in range(4):\n    lane=[exp[i] for i in range(off,len(exp),4)]\n    print('lane',off,'matches itcm?',lane==itcms[off])\nPY"
+              ]
+            },
+            "output": "{\"returncode\": 2, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.002115890965797007, \"stdout\": \"Unknown option: - \\nusage: python3 [option] ... [-c cmd | -m mod | file | -] [arg] ...\\nTry `python -h' for more information.\\n\"}",
+            "time": {
+              "start": 1793249852635,
+              "end": 1793249852641
+            }
+          },
+          {
+            "call_id": "call_g97sfjrg",
+            "name": "taskbox_exec",
+            "message_id": "msg_186053d1900195gDHR2k00TrQw",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "import pathlib\ndef rd(p): return [int(x,16) for x in pathlib.Path(p).read_text().split()]\nitcms=[rd('context/itcm%d'%i) for i in range(4)]\nprint([len(x) for x in itcms])\nexp=list(pathlib.Path('context/expected.bin').read_bytes())\nprint('expected len',len(exp))\nout=bytearray()\nfor i in range(len(itcms[0])):\n    for l in range(4):\n        out.append(itcms[l][i])\nprint('interleaved-by-index len',len(out),'match expected?',bytes(out)==exp[:len(out)])\nfor off in range(4):\n    lane=[exp[i] for i in range(off,len(exp),4)]\n    print('lane',off,'matches itcm?',lane==itcms[off])"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.01853828609455377, \"stdout\": \"[5234, 5234, 5234, 5234]\\nexpected len 20936\\ninterleaved-by-index len 20936 match expected? False\\nlane 0 matches itcm? True\\nlane 1 matches itcm? True\\nlane 2 matches itcm? True\\nlane 3 matches itcm? True\\n\"}",
+            "time": {
+              "start": 1793249854202,
+              "end": 1793249854223
+            }
+          },
+          {
+            "call_id": "call_01ph2i5t",
+            "name": "taskbox_exec",
+            "message_id": "msg_186054350001aiIWvhTj5fYShu",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "grep",
+                "-m5",
+                "BIT_WIDTH",
+                "context/r3_rom_cells.vo"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0020935580832883716, \"stdout\": \"defparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .BIT_WIDTH=1;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_1_s .BIT_WIDTH=1;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_2_s .BIT_WIDTH=1;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_3_s .BIT_WIDTH=1;\\ndefparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_4_s .BIT_WIDTH=1;\\n\"}",
+            "time": {
+              "start": 1793249870173,
+              "end": 1793249870178
+            }
+          },
+          {
+            "call_id": "call_vjtdsx0c",
+            "name": "taskbox_exec",
+            "message_id": "msg_18605819f001U3qyA9j35kKMfD",
+            "status": "error",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "cd",
+                "/tmp",
+                "&&",
+                "python3",
+                "-c",
+                "import pathlib; print(1)"
+              ]
+            },
+            "output": null,
+            "time": {
+              "start": 1793249888225,
+              "end": 1793249888230
+            }
+          },
+          {
+            "call_id": "call_3ebmzde3",
+            "name": "taskbox_exec",
+            "message_id": "msg_18605c82c001yCxuMPfJVJGMBc",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "print(__file__)"
+              ]
+            },
+            "output": "{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.012976686004549265, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 1, in <module>\\nNameError: name '__file__' is not defined. Did you mean: '__name__'?\\n\"}",
+            "time": {
+              "start": 1793249889336,
+              "end": 1793249889357
+            }
+          },
+          {
+            "call_id": "call_u9gnb7uq",
+            "name": "taskbox_exec",
+            "message_id": "msg_18605cc6f0017q5IxQxc00TC4X",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "p='/tmp/h.py'\ns=open('/work/context/SP_official.v').read()[:10]\nprint(s)\n"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.011318227974697948, \"stdout\": \"module SP \\n\"}",
+            "time": {
+              "start": 1793249890830,
+              "end": 1793249890853
+            }
+          },
+          {
+            "call_id": "call_9z30v8sy",
+            "name": "taskbox_exec",
+            "message_id": "msg_18605d273001mLm8SWVzOb1isQ",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "- <<'PY'\nprint('hello')\nPY"
+              ]
+            },
+            "output": "{\"returncode\": 2, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0027908739866688848, \"stdout\": \"Unknown option: - \\nusage: python3 [option] ... [-c cmd | -m mod | file | -] [arg] ...\\nTry `python -h' for more information.\\n\"}",
+            "time": {
+              "start": 1793249897442,
+              "end": 1793249897449
+            }
+          },
+          {
+            "call_id": "call_8zqseisq",
+            "name": "taskbox_exec",
+            "message_id": "msg_18605ec14001QpdI5wm6gMEEUk",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "import pathlib,sys; sys.path.insert(0,'/work'); import rom_check; data=bytes(i%256 for i in range(65536)); chunks=[]\nfor bit in range(32):\n c=[0]*64\n for a in range(16384):\n  v=data[a*4+bit//8] if a*4+bit//8<len(data) else 0\n  if (v>>(bit%8))&1:\n   c[a//256]|=1<<(a%256)\n chunks.append(c)\nlines=[]\nfor bit in range(32):\n p='\\\\g/u_vc_ilm_ram/bit%d'%bit\n lines.append('SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD({%s/ILMADDR[15:2]}),\\n  .DO({%s/DO[31:1],%s/ILMRDATA[%d]})\\n);'%(p,p,p,p,bit))\n for c in [bit]:\n  pass\nfor bit in range(32):\n p='\\\\g/u_vc_ilm_ram/bit%d'%bit\n lines.append('defparam %s .BIT_WIDTH=1;'%p)\n lines.append('defparam %s .BLK_SEL=\"3''b000\";'%p)\n for ch,val in enumerate(chunks[bit]):\n  lines.append('defparam %s .INIT_RAM_%02X=256\\'h%064x;'%(p,ch,val))\ntext='\\n'.join(lines)+'\\n'\npath='/tmp/t.v'\npathlib.Path(path).write_text(text)\nimg,meta=rom_check.decode(text)\nprint('decoded',len(img),'match?',img==data)\nr=rom_check.compare(img,data)\nprint('passed',r['passed'])\n"
+              ]
+            },
+            "output": "{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.1250343619612977, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"<string>\\\", line 24, in <module>\\n  File \\\"/work/rom_check.py\\\", line 61, in decode\\n    raise ValueError('Unsupported ROM bank parameter')\\nValueError: Unsupported ROM bank parameter\\n\"}",
+            "time": {
+              "start": 1793249900047,
+              "end": 1793249900174
+            }
+          },
+          {
+            "call_id": "call_zvcnujyc",
+            "name": "taskbox_exec",
+            "message_id": "msg_18605f692001knik5aVGXzNKSb",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "grep",
+                "-m1",
+                "BLK_SEL=",
+                "context/r3_rom_cells.vo"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0030269590206444263, \"stdout\": \"defparam \\\\u_soc/u_ae350/u_RiscV_AE350_SOC/u_gw_itcm_top/u_gw_itcm/u_vc_ilm_ram/memA_memA_0_0_s .BLK_SEL=3'b000;\\n\"}",
+            "time": {
+              "start": 1793249902724,
+              "end": 1793249902729
+            }
+          },
+          {
+            "call_id": "call_zlq20zd5",
+            "name": "taskbox_exec",
+            "message_id": "msg_1860600bc001BVRUEvM47Z7P9j",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "import pathlib,sys; sys.path.insert(0,'/work'); import rom_check; data=bytes(i%256 for i in range(65536)); chunks=[]\nfor bit in range(32):\n c=[0]*64\n for a in range(16384):\n  v=data[a*4+bit//8] if a*4+bit//8<len(data) else 0\n  if (v>>(bit%8))&1:\n   c[a//256]|=1<<(a%256)\n chunks.append(c)\nlines=[]\nfor bit in range(32):\n p='\\\\g/u_vc_ilm_ram/bit%d'%bit\n lines.append('SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD({%s/ILMADDR[15:2]}),\\n  .DO({%s/DO[31:1],%s/ILMRDATA[%d]})\\n);'%(p,p,p,p,bit))\nfor bit in range(32):\n p='\\\\g/u_vc_ilm_ram/bit%d'%bit\n lines.append('defparam %s .BIT_WIDTH=1;'%p)\n lines.append('defparam %s .BLK_SEL=3\\'b000;'%p)\n for ch,val in enumerate(chunks[bit]):\n  lines.append('defparam %s .INIT_RAM_%02X=256\\'h%064x;'%(p,ch,val))\ntext='\\n'.join(lines)+'\\n'\npathlib.Path('/tmp/t.v').write_text(text)\nimg,meta=rom_check.decode(text)\nprint('decoded',len(img),'match?',img==data)\nr=rom_check.compare(img,data)\nprint('passed',r['passed'])\n"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.15959306492004544, \"stdout\": \"decoded 65536 match? True\\npassed True\\n\"}",
+            "time": {
+              "start": 1793249904625,
+              "end": 1793249904787
+            }
+          },
+          {
+            "call_id": "call_e8587d4k",
+            "name": "taskbox_exec",
+            "message_id": "msg_1860608980013q710F7ocMBewL",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "import pathlib,sys; sys.path.insert(0,'/work'); import rom_check\n# base generator for 32 bits but reuse instance for bit0 and bit1\ndata=bytes(0 for _ in range(65536))\ndef gen(bits_assign):\n    # bits_assign: list mapping instance bit -> output bit\n    lines=[]\n    # one instance per output bit in bits_assign\n    chunks_by_out={}\n    for out in bits_assign:\n        chunks_by_out[out]=[0]*64\n    for addr in range(16384):\n        for out in bits_assign:\n            # data all zero, nothing\n            pass\n    for out in bits_assign:\n        p='\\\\g/u_vc_ilm_ram/dup'\n        # only add instance once; we'll handle separately\n    return None\n# Simpler: take valid VO and replace bit1 instance name with bit0 instance name\nv=pathlib.Path('/tmp/t.v').read_text()\nv2=v.replace('\\\\g/u_vc_ilm_ram/bit1','\\\\g/u_vc_ilm_ram/bit0')\ntry:\n    img,meta=rom_check.decode(v2)\n    print('accepted duplicate instance; outputs:', sorted(meta if isinstance(meta,list) else []))\nexcept Exception as e:\n    print('rejected:',repr(e))\n"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.025396942044608295, \"stdout\": \"rejected: ValueError(\\\"Duplicate ROM parameter: ('\\\\\\\\\\\\\\\\g/u_vc_ilm_ram/bit0', 'BIT_WIDTH')\\\")\\n\"}",
+            "time": {
+              "start": 1793249923851,
+              "end": 1793249923879
+            }
+          },
+          {
+            "call_id": "call_11fgbuz7",
+            "name": "taskbox_exec",
+            "message_id": "msg_186065369001OHKYnuzbiuZkgS",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "import pathlib,sys; sys.path.insert(0,'/work'); import rom_check; v=pathlib.Path('/tmp/t.v').read_text()\n# replace instance paths for bitN with same path for all\nimport re\nlines=v.splitlines()\nout=[]\nfor ln in lines:\n    ln=ln.replace('bit0','bitX')\n    for b in range(1,32):\n        ln=ln.replace('bit%d'%b,'bitX')\n    out.append(ln)\nv2='\\n'.join(out)\n# Now there are 32 duplicate defparam declarations for bitX -> duplicate ROM parameter, so need dedup defparams:\n# Rebuild defparams unique by removing duplicate defparam lines\nseen=set(); uu=[]\nfor ln in out:\n    if ln.startswith('defparam'):\n        if ln in seen: \n            continue\n        seen.add(ln)\n    uu.append(ln)\nv3='\\n'.join(uu)\ntry:\n    img,meta=rom_check.decode(v3)\n    print('accepted same instance all bits, details instances unique?', len(set(d['instance'] for d in meta)))\nexcept Exception as e:\n    print('rejected:',repr(e))\n"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.03119185206014663, \"stdout\": \"rejected: ValueError(\\\"Duplicate ROM parameter: ('\\\\\\\\\\\\\\\\g/u_vc_ilm_ram/bitX', 'INIT_RAM_00')\\\")\\n\"}",
+            "time": {
+              "start": 1793249929206,
+              "end": 1793249929240
+            }
+          },
+          {
+            "call_id": "call_wva41wbs",
+            "name": "taskbox_exec",
+            "message_id": "msg_18606683f001F3EjZMf3NVBzNG",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "-c",
+                "import sys; sys.path.insert(0,'/work'); import rom_check; p='\\\\g/u_vc_ilm_ram/shared'; lines=[]\nfor b in range(32):\n lines.append('SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD({%s/ILMADDR[15:2]}),\\n  .DO({%s/DO[31:1],%s/ILMRDATA[%d]})\\n);'%(p,p,p,p,b))\nlines.append('defparam %s .BIT_WIDTH=1;'%p)\nlines.append('defparam %s .BLK_SEL=3\\'b000;'%p)\nt='\\n'.join(lines)\nimg,meta=rom_check.decode(t)\nprint('accepted; unique instances', len(set(d['instance'] for d in meta)), 'allzero', not any(img))\n"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.038831141078844666, \"stdout\": \"accepted; unique instances 1 allzero True\\n\"}",
+            "time": {
+              "start": 1793249957015,
+              "end": 1793249957071
+            }
+          },
+          {
+            "call_id": "call_rgkrsvrm",
+            "name": "taskbox_write_file",
+            "message_id": "msg_18606d4df001qwgjlxA0wFFptt",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "path": "owned/test_adversarial.py",
+              "content": "import sys\nimport pathlib\nimport unittest\n\nROOT = pathlib.Path(__file__).resolve().parents[1]\nsys.path.insert(0, str(ROOT))\nimport rom_check\n\nCONTEXT = ROOT / \"context\"\nEXPECTED = (CONTEXT / \"expected.bin\").read_bytes()\nR3_VO = (CONTEXT / \"r3_rom_cells.vo\").read_text()\n\n\ndef _itcm(n):\n    return [int(x, 16) for x in (CONTEXT / (\"itcm%d\" % n)).read_text().split()]\n\n\nITCMS = [_itcm(i) for i in range(4)]\nP = \"\\\\g\"\n\n\ndef _encode(data):\n    out = []\n    for bit in range(32):\n        chunks = [0] * 64\n        for addr in range(16384):\n            off = addr * 4 + bit // 8\n            if off < len(data) and ((data[off] >> (bit % 8)) & 1):\n                chunks[addr // 256] |= 1 << (addr % 256)\n        out.append(chunks)\n    return out\n\n\ndef build_vo(data, skip_bit=None, duplicate_output_bit=False):\n    chunks = _encode(data)\n    lines = []\n    for bit in range(32):\n        if bit == skip_bit:\n            continue\n        out_bit = 0 if (duplicate_output_bit and bit == 1) else bit\n        inst = \"%s/u_vc_ilm_ram/s%d\" % (P, bit)\n        ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n        do = \"{\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[%d]}\" % out_bit\n        lines.append(\"SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD(%s),\\n  .DO(%s)\\n);\"\n                     % (inst, ad, do))\n    for bit in range(32):\n        if bit == skip_bit:\n            continue\n        inst = \"%s/u_vc_ilm_ram/s%d\" % (P, bit)\n        lines.append(\"defparam %s .BIT_WIDTH=1;\" % inst)\n        lines.append(\"defparam %s .BLK_SEL=3'b000;\" % inst)\n        for ch, val in enumerate(chunks[bit]):\n            lines.append(\"defparam %s .INIT_RAM_%02X=256'h%064x;\" % (inst, ch, val))\n    return \"\\n\".join(lines) + \"\\n\"\n\n\nclass TestIndependentCounterReview(unittest.TestCase):\n    def test_real_r3_rejected(self):\n        image, details = rom_check.decode(R3_VO)\n        result = rom_check.compare(image, EXPECTED)\n        self.assertFalse(result[\"passed\"])\n        fd = result[\"first_difference\"]\n        self.assertEqual(fd[\"offset\"], 41)\n        self.assertEqual(fd[\"expected\"], 34)\n        self.assertEqual(fd[\"observed\"], 162)\n        self.assertEqual(result[\"differing_payload_bytes\"], 20556)\n        self.assertEqual(len(details), 32)\n\n    def test_four_lanes_interleave(self):\n        per = len(ITCMS[0])\n        merged = bytes(ITCMS[lane][i] for i in range(per) for lane in range(4))\n        self.assertEqual(merged, EXPECTED)\n\n    def test_generated_fixture_accepted(self):\n        data = bytes((i * 37 + 11) & 0xFF for i in range(65536))\n        vo = build_vo(data)\n        image, _ = rom_check.decode(vo)\n        self.assertEqual(image, data)\n        result = rom_check.compare(image, data)\n        self.assertTrue(result[\"passed\"])\n        self.assertEqual(result[\"differing_payload_bytes\"], 0)\n        self.assertEqual(result[\"padding_bytes\"], 0)\n\n    def test_bit_lane_ordering_boundaries(self):\n        data = bytearray(65536)\n        marks = [0, 3, 4, 7, 1020, 1023, 1024, 1027, 65532, 65535]\n        for idx, pos in enumerate(marks):\n            data[pos] = ((idx + 1) * 17) & 0xFF\n        vo = build_vo(bytes(data))\n        image, _ = rom_check.decode(vo)\n        self.assertEqual(image, bytes(data))\n\n    def test_one_bit_mutation_fails(self):\n        data = bytes((i * 37 + 11) & 0xFF for i in range(65536))\n        mutated = bytearray(data)\n        mutated[100] ^= 1\n        image, _ = rom_check.decode(build_vo(bytes(mutated)))\n        result = rom_check.compare(image, data)\n        self.assertFalse(result[\"passed\"])\n        self.assertEqual(result[\"differing_payload_bytes\"], 1)\n\n    def test_unknown_ad_layout_refused(self):\n        vo = build_vo(bytes(65536)).replace(\n            \"  .AD({\" + P + \"/ILMADDR[15:2]})\", \"  .AD({\" + P + \"/ADDR[15:2]})\", 1)\n        with self.assertRaisesRegex(ValueError, \"ROM address mapping differs\"):\n            rom_check.decode(vo)\n\n    def test_unknown_do_layout_refused(self):\n        vo = build_vo(bytes(65536)).replace(\n            \"  .DO({\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[0]})\",\n            \"  .DO({\" + P + \"/DO[31:0]})\", 1)\n        with self.assertRaisesRegex(ValueError, \"ROM output mapping differs\"):\n            rom_check.decode(vo)\n\n    def test_missing_output_slice_refused(self):\n        with self.assertRaisesRegex(ValueError, \"Expected exactly 32 distinct ROM output bits\"):\n            rom_check.decode(build_vo(bytes(65536), skip_bit=5))\n\n    def test_duplicate_output_slice_refused(self):\n        with self.assertRaisesRegex(ValueError, \"Duplicate or out-of-range ROM output bit\"):\n            rom_check.decode(build_vo(bytes(65536), duplicate_output_bit=True))\n\n    def test_wrong_bit_width_refused(self):\n        vo = build_vo(bytes(65536)).replace(\".BIT_WIDTH=1;\", \".BIT_WIDTH=2;\", 1)\n        with self.assertRaisesRegex(ValueError, \"Unsupported ROM width\"):\n            rom_check.decode(vo)\n\n    def test_unknown_init_declaration_refused(self):\n        vo = build_vo(bytes(65536)) + \"defparam %s/u_vc_ilm_ram/s0 .INIT_RAM_40=256'h1;\\n\" % P\n        with self.assertRaisesRegex(ValueError, \"Unsupported ROM INIT block\"):\n            rom_check.decode(vo)\n\n    def test_duplicate_init_declaration_refused(self):\n        vo = build_vo(bytes(65536))\n        line = [x for x in vo.splitlines() if \"INIT_RAM_00\" in x][0]\n        vo = vo + line + \"\\n\"\n        with self.assertRaisesRegex(ValueError, \"Duplicate ROM parameter\"):\n            rom_check.decode(vo)\n\n    def test_duplicate_port_refused(self):\n        ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n        vo = build_vo(bytes(65536)).replace(\n            \"  .AD(%s),\\n  .DO(\" % ad, \"  .AD(%s),\\n  .AD(%s),\\n  .DO(\" % (ad, ad), 1)\n        with self.assertRaisesRegex(ValueError, \"Duplicate ROM port\"):\n            rom_check.decode(vo)\n\n    def test_compare_invalid_lengths(self):\n        image, _ = rom_check.decode(build_vo(bytes(65536)))\n        with self.assertRaises(ValueError):\n            rom_check.compare(image, b\"\")\n        with self.assertRaises(ValueError):\n            rom_check.compare(image, bytes(65537))\n        result = rom_check.compare(image, bytes(100))\n        self.assertTrue(result[\"passed\"])\n        self.assertEqual(result[\"payload_bytes\"], 100)\n        self.assertEqual(result[\"padding_bytes\"], 65436)\n\n    def test_compare_distinguishes_payload_padding(self):\n        data = bytearray(65536)\n        data[500] = 7\n        image, _ = rom_check.decode(build_vo(bytes(data)))\n        result = rom_check.compare(image, bytes(data[:100]))\n        self.assertTrue(result[\"passed\"])\n        self.assertGreater(result[\"padding_nonzero_bytes\"], 0)\n\n    def test_shared_primitive_multiple_bits_accepted(self):\n        lines = []\n        inst = \"%s/u_vc_ilm_ram/shared\" % P\n        for bit in range(32):\n            ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n            do = \"{\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[%d]}\" % bit\n            lines.append(\"SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD(%s),\\n  .DO(%s)\\n);\"\n                         % (inst, ad, do))\n        lines.append(\"defparam %s .BIT_WIDTH=1;\" % inst)\n        lines.append(\"defparam %s .BLK_SEL=3'b000;\" % inst)\n        image, details = rom_check.decode(\"\\n\".join(lines) + \"\\n\")\n        self.assertTrue(all(b == 0 for b in image))\n        self.assertEqual(len(set(d[\"instance\"] for d in details)), 1)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+            },
+            "output": "{\"written_bytes\": 7306}",
+            "time": {
+              "start": 1793249974484,
+              "end": 1793249974489
+            }
+          },
+          {
+            "call_id": "call_g9ucu8ge",
+            "name": "taskbox_exec",
+            "message_id": "msg_186071907001X1kGRIV98veb68",
+            "status": "error",
+            "exit_code": null,
+            "input": {
+              "argv": "[\"python3\", \"owned/test_adversarial.py\"],"
+            },
+            "output": null,
+            "time": {
+              "start": 1793249976140,
+              "end": 1793249976144
+            }
+          },
+          {
+            "call_id": "call_2vte5d9c",
+            "name": "taskbox_exec",
+            "message_id": "msg_186071f8f001c26ua76b3EcPrv",
+            "status": "completed",
+            "exit_code": null,
+            "input": {
+              "argv": [
+                "python3",
+                "owned/test_adversarial.py"
+              ]
+            },
+            "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.7247516970383003, \"stdout\": \"................\\n----------------------------------------------------------------------\\nRan 16 tests in 0.687s\\n\\nOK\\n\"}",
+            "time": {
+              "start": 1793249977164,
+              "end": 1793249977890
+            }
+          },
+          {
+            "call_id": "call_hvhqgt13",
+            "name": "taskbox_run_tests",
+            "message_id": "msg_186072626001KjUJHDq8P3gqEi",
+            "status": "completed",
+            "exit_code": null,
+            "input": {},
+            "output": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.7281699749873951, \"stdout\": \"................\\n----------------------------------------------------------------------\\nRan 16 tests in 0.669s\\n\\nOK\\nTraceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 12, in <module>\\n    assert len((root/'owned/REPORT.md').read_text())>200,'Report not completed'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Report not completed\\n\"}], \"test_runs\": 1, \"test_failures\": 1, \"passed\": false}",
+            "time": {
+              "start": 1793249978950,
+              "end": 1793249979680
+            }
+          }
+        ],
+        "finishes": [
+          {
+            "message_id": "msg_18604df0f001Ks1sWE6dHLG8RV",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 647,
+              "input": 295,
+              "output": 96,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 256
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18604e3d9001ClZIXvGLDVeyWl",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 1116,
+              "input": 1071,
+              "output": 45,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 0
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18604e69c001uivoBpVCrwX8Fw",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 1317,
+              "input": 237,
+              "output": 56,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 1024
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18604e8e00019Ew1DES5pnb21V",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 2957,
+              "input": 1682,
+              "output": 59,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 1216
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18604ecae0013PgIVx2Eolj9uZ",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 4908,
+              "input": 1973,
+              "output": 55,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 2880
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18604f0010015b2K2jO5UGxZWg",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 4974,
+              "input": 4421,
+              "output": 41,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 512
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18604f3b0001x8olj6t8e0RGq9",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 5595,
+              "input": 590,
+              "output": 77,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 4928
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18604f733001n67Oem30ZG9Ptt",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 5841,
+              "input": 286,
+              "output": 51,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 5504
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1860502e5001VhtvneuGVA90dK",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 8719,
+              "input": 2868,
+              "output": 91,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 5760
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186050722001VV2Y5adVAUTd6D",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 9978,
+              "input": 1274,
+              "output": 128,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 8576
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186050b47001REF4ULpfgouoGa",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 11646,
+              "input": 1701,
+              "output": 153,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 9792
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186050fe0001NZB1ai0TflKv71",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 12214,
+              "input": 582,
+              "output": 176,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 11456
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186051715001a5CN4tnie98wfR",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 12278,
+              "input": 12239,
+              "output": 39,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 0
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186051bba001tIIJD1g1mFHVlZ",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 12406,
+              "input": 133,
+              "output": 49,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 12224
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186051e350015RV3OQEr267h0V",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 13028,
+              "input": 197,
+              "output": 479,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 12352
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186053d1900195gDHR2k00TrQw",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 13378,
+              "input": 1101,
+              "output": 245,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 12032
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186054350001aiIWvhTj5fYShu",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 16434,
+              "input": 406,
+              "output": 2908,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 13120
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18605819f001U3qyA9j35kKMfD",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 20075,
+              "input": 3260,
+              "output": 3311,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 13504
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18605c82c001yCxuMPfJVJGMBc",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 20159,
+              "input": 3409,
+              "output": 46,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 16704
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18605cc6f0017q5IxQxc00TC4X",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 20448,
+              "input": 173,
+              "output": 179,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 20096
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18605d273001mLm8SWVzOb1isQ",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 22039,
+              "input": 291,
+              "output": 1524,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 20224
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18605ec14001QpdI5wm6gMEEUk",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 22751,
+              "input": 1665,
+              "output": 606,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 20480
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18605f692001knik5aVGXzNKSb",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 23143,
+              "input": 731,
+              "output": 268,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 22144
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1860600bc001BVRUEvM47Z7P9j",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 23801,
+              "input": 418,
+              "output": 535,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 22848
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_1860608980013q710F7ocMBewL",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 26676,
+              "input": 645,
+              "output": 2799,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 23232
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186065369001OHKYnuzbiuZkgS",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 27482,
+              "input": 14222,
+              "output": 716,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 12544
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18606683f001F3EjZMf3NVBzNG",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 32173,
+              "input": 822,
+              "output": 4599,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 26752
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_18606d4df001qwgjlxA0wFFptt",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 37279,
+              "input": 8374,
+              "output": 5033,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 23872
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186071907001X1kGRIV98veb68",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 37346,
+              "input": 5112,
+              "output": 42,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 32192
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186071f8f001c26ua76b3EcPrv",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 37410,
+              "input": 123,
+              "output": 39,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 37248
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186072626001KjUJHDq8P3gqEi",
+            "reason": "tool-calls",
+            "tokens": {
+              "total": 37518,
+              "input": 183,
+              "output": 23,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 37312
+              }
+            },
+            "cost": 0
+          },
+          {
+            "message_id": "msg_186072d25001AHuFGLZELgpHpI",
+            "reason": "stop",
+            "tokens": {
+              "total": 38376,
+              "input": 433,
+              "output": 503,
+              "reasoning": 0,
+              "cache": {
+                "write": 0,
+                "read": 37440
+              }
+            },
+            "cost": 0
+          }
+        ],
+        "answer": "Maximum steps for this agent have been reached, so no further tool calls are available.\n\nAccomplished so far:\n- Ran the official baseline with the placeholder test file.\n- Read and retained `rom_check.py`, CONTRACT.md, SP model, R3 VO, ITCM lanes, and context metadata.\n- Implemented `owned/test_adversarial.py` with 16 unittest cases, under 1000 lines.\n- Verified R3 rejection at first-difference offset 41, expected byte 34, observed byte 162, and 20556 differing payload bytes.\n- Verified all four ITCM lanes interleave to expected.bin.\n- Added a generated supported SP fixture, boundary bit/lane ordering, one-bit mutation failure, invalid length and payload-vs-padding coverage, validation-error mutation cases, and a documented shared-primitive permissiveness counterexample.\n- Official-like execution currently passes all 16 tests, but fails only on `owned/REPORT.md` being shorter than 200 characters.\n\nRemaining tasks not completed:\n- Write `owned/REPORT.md` with more than 200 characters, including source-ROM versus VO versus physical readback distinctions, omitted INIT zero defaults, and the counterexample limitation.\n- Run official tests once after that final edit.\n- Confirm hashes remain unchanged.\n\nRecommended next step:\n- Write the evidence report to `owned/REPORT.md`, then rerun `taskbox_run_tests` or `validate.py` as the final mutation. The successful suite is already in place and no checker edits were made.",
+        "api_requests_observed": null,
+        "note": "API attempts are measured separately by the provider gateway"
+      },
+      "validation": {
+        "passed": false,
+        "returncode": 1,
+        "tests_returncode": 1,
+        "policy_ok": true,
+        "infrastructure_ok": true,
+        "test_runs": 1,
+        "test_failures": 1,
+        "tests_log": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.7203432630049065, \"stdout\": \"................\\n----------------------------------------------------------------------\\nRan 16 tests in 0.658s\\n\\nOK\\nTraceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 12, in <module>\\n    assert len((root/'owned/REPORT.md').read_text())>200,'Report not completed'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Report not completed\\n\"}], \"test_runs\": 1, \"test_failures\": 1, \"passed\": false}\n",
+        "changed_files": [
+          "owned/test_adversarial.py"
+        ],
+        "feedback": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.7203432630049065, \"stdout\": \"................\\n----------------------------------------------------------------------\\nRan 16 tests in 0.658s\\n\\nOK\\nTraceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 12, in <module>\\n    assert len((root/'owned/REPORT.md').read_text())>200,'Report not completed'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Report not completed\\n\"}], \"test_runs\": 1, \"test_failures\": 1, \"passed\": false}\n",
+        "changes": {
+          "policy_ok": true,
+          "changed_files": [
+            "owned/test_adversarial.py"
+          ],
+          "changes": [
+            {
+              "path": "owned/test_adversarial.py",
+              "status": "modified",
+              "before_sha256": "c309ffbec089c152af1e91867aab2b1567583ad84ec1a44a6cbfaf40e7919f0a",
+              "after_sha256": "c80afc5fdb05b7f18683d7e180f622a3662060c42477fb44e462a1beb85a4a75"
+            }
+          ],
+          "diff": "--- a/owned/test_adversarial.py\n+++ b/owned/test_adversarial.py\n@@ -1 +1,182 @@\n-raise NotImplementedError('Implement independent behavioral and mutation tests')\n+import sys\n+import pathlib\n+import unittest\n+\n+ROOT = pathlib.Path(__file__).resolve().parents[1]\n+sys.path.insert(0, str(ROOT))\n+import rom_check\n+\n+CONTEXT = ROOT / \"context\"\n+EXPECTED = (CONTEXT / \"expected.bin\").read_bytes()\n+R3_VO = (CONTEXT / \"r3_rom_cells.vo\").read_text()\n+\n+\n+def _itcm(n):\n+    return [int(x, 16) for x in (CONTEXT / (\"itcm%d\" % n)).read_text().split()]\n+\n+\n+ITCMS = [_itcm(i) for i in range(4)]\n+P = \"\\\\g\"\n+\n+\n+def _encode(data):\n+    out = []\n+    for bit in range(32):\n+        chunks = [0] * 64\n+        for addr in range(16384):\n+            off = addr * 4 + bit // 8\n+            if off < len(data) and ((data[off] >> (bit % 8)) & 1):\n+                chunks[addr // 256] |= 1 << (addr % 256)\n+        out.append(chunks)\n+    return out\n+\n+\n+def build_vo(data, skip_bit=None, duplicate_output_bit=False):\n+    chunks = _encode(data)\n+    lines = []\n+    for bit in range(32):\n+        if bit == skip_bit:\n+            continue\n+        out_bit = 0 if (duplicate_output_bit and bit == 1) else bit\n+        inst = \"%s/u_vc_ilm_ram/s%d\" % (P, bit)\n+        ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n+        do = \"{\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[%d]}\" % out_bit\n+        lines.append(\"SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD(%s),\\n  .DO(%s)\\n);\"\n+                     % (inst, ad, do))\n+    for bit in range(32):\n+        if bit == skip_bit:\n+            continue\n+        inst = \"%s/u_vc_ilm_ram/s%d\" % (P, bit)\n+        lines.append(\"defparam %s .BIT_WIDTH=1;\" % inst)\n+        lines.append(\"defparam %s .BLK_SEL=3'b000;\" % inst)\n+        for ch, val in enumerate(chunks[bit]):\n+            lines.append(\"defparam %s .INIT_RAM_%02X=256'h%064x;\" % (inst, ch, val))\n+    return \"\\n\".join(lines) + \"\\n\"\n+\n+\n+class TestIndependentCounterReview(unittest.TestCase):\n+    def test_real_r3_rejected(self):\n+        image, details = rom_check.decode(R3_VO)\n+        result = rom_check.compare(image, EXPECTED)\n+        self.assertFalse(result[\"passed\"])\n+        fd = result[\"first_difference\"]\n+        self.assertEqual(fd[\"offset\"], 41)\n+        self.assertEqual(fd[\"expected\"], 34)\n+        self.assertEqual(fd[\"observed\"], 162)\n+        self.assertEqual(result[\"differing_payload_bytes\"], 20556)\n+        self.assertEqual(len(details), 32)\n+\n+    def test_four_lanes_interleave(self):\n+        per = len(ITCMS[0])\n+        merged = bytes(ITCMS[lane][i] for i in range(per) for lane in range(4))\n+        self.assertEqual(merged, EXPECTED)\n+\n+    def test_generated_fixture_accepted(self):\n+        data = bytes((i * 37 + 11) & 0xFF for i in range(65536))\n+        vo = build_vo(data)\n+        image, _ = rom_check.decode(vo)\n+        self.assertEqual(image, data)\n+        result = rom_check.compare(image, data)\n+        self.assertTrue(result[\"passed\"])\n+        self.assertEqual(result[\"differing_payload_bytes\"], 0)\n+        self.assertEqual(result[\"padding_bytes\"], 0)\n+\n+    def test_bit_lane_ordering_boundaries(self):\n+        data = bytearray(65536)\n+        marks = [0, 3, 4, 7, 1020, 1023, 1024, 1027, 65532, 65535]\n+        for idx, pos in enumerate(marks):\n+            data[pos] = ((idx + 1) * 17) & 0xFF\n+        vo = build_vo(bytes(data))\n+        image, _ = rom_check.decode(vo)\n+        self.assertEqual(image, bytes(data))\n+\n+    def test_one_bit_mutation_fails(self):\n+        data = bytes((i * 37 + 11) & 0xFF for i in range(65536))\n+        mutated = bytearray(data)\n+        mutated[100] ^= 1\n+        image, _ = rom_check.decode(build_vo(bytes(mutated)))\n+        result = rom_check.compare(image, data)\n+        self.assertFalse(result[\"passed\"])\n+        self.assertEqual(result[\"differing_payload_bytes\"], 1)\n+\n+    def test_unknown_ad_layout_refused(self):\n+        vo = build_vo(bytes(65536)).replace(\n+            \"  .AD({\" + P + \"/ILMADDR[15:2]})\", \"  .AD({\" + P + \"/ADDR[15:2]})\", 1)\n+        with self.assertRaisesRegex(ValueError, \"ROM address mapping differs\"):\n+            rom_check.decode(vo)\n+\n+    def test_unknown_do_layout_refused(self):\n+        vo = build_vo(bytes(65536)).replace(\n+            \"  .DO({\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[0]})\",\n+            \"  .DO({\" + P + \"/DO[31:0]})\", 1)\n+        with self.assertRaisesRegex(ValueError, \"ROM output mapping differs\"):\n+            rom_check.decode(vo)\n+\n+    def test_missing_output_slice_refused(self):\n+        with self.assertRaisesRegex(ValueError, \"Expected exactly 32 distinct ROM output bits\"):\n+            rom_check.decode(build_vo(bytes(65536), skip_bit=5))\n+\n+    def test_duplicate_output_slice_refused(self):\n+        with self.assertRaisesRegex(ValueError, \"Duplicate or out-of-range ROM output bit\"):\n+            rom_check.decode(build_vo(bytes(65536), duplicate_output_bit=True))\n+\n+    def test_wrong_bit_width_refused(self):\n+        vo = build_vo(bytes(65536)).replace(\".BIT_WIDTH=1;\", \".BIT_WIDTH=2;\", 1)\n+        with self.assertRaisesRegex(ValueError, \"Unsupported ROM width\"):\n+            rom_check.decode(vo)\n+\n+    def test_unknown_init_declaration_refused(self):\n+        vo = build_vo(bytes(65536)) + \"defparam %s/u_vc_ilm_ram/s0 .INIT_RAM_40=256'h1;\\n\" % P\n+        with self.assertRaisesRegex(ValueError, \"Unsupported ROM INIT block\"):\n+            rom_check.decode(vo)\n+\n+    def test_duplicate_init_declaration_refused(self):\n+        vo = build_vo(bytes(65536))\n+        line = [x for x in vo.splitlines() if \"INIT_RAM_00\" in x][0]\n+        vo = vo + line + \"\\n\"\n+        with self.assertRaisesRegex(ValueError, \"Duplicate ROM parameter\"):\n+            rom_check.decode(vo)\n+\n+    def test_duplicate_port_refused(self):\n+        ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n+        vo = build_vo(bytes(65536)).replace(\n+            \"  .AD(%s),\\n  .DO(\" % ad, \"  .AD(%s),\\n  .AD(%s),\\n  .DO(\" % (ad, ad), 1)\n+        with self.assertRaisesRegex(ValueError, \"Duplicate ROM port\"):\n+            rom_check.decode(vo)\n+\n+    def test_compare_invalid_lengths(self):\n+        image, _ = rom_check.decode(build_vo(bytes(65536)))\n+        with self.assertRaises(ValueError):\n+            rom_check.compare(image, b\"\")\n+        with self.assertRaises(ValueError):\n+            rom_check.compare(image, bytes(65537))\n+        result = rom_check.compare(image, bytes(100))\n+        self.assertTrue(result[\"passed\"])\n+        self.assertEqual(result[\"payload_bytes\"], 100)\n+        self.assertEqual(result[\"padding_bytes\"], 65436)\n+\n+    def test_compare_distinguishes_payload_padding(self):\n+        data = bytearray(65536)\n+        data[500] = 7\n+        image, _ = rom_check.decode(build_vo(bytes(data)))\n+        result = rom_check.compare(image, bytes(data[:100]))\n+        self.assertTrue(result[\"passed\"])\n+        self.assertGreater(result[\"padding_nonzero_bytes\"], 0)\n+\n+    def test_shared_primitive_multiple_bits_accepted(self):\n+        lines = []\n+        inst = \"%s/u_vc_ilm_ram/shared\" % P\n+        for bit in range(32):\n+            ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n+            do = \"{\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[%d]}\" % bit\n+            lines.append(\"SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD(%s),\\n  .DO(%s)\\n);\"\n+                         % (inst, ad, do))\n+        lines.append(\"defparam %s .BIT_WIDTH=1;\" % inst)\n+        lines.append(\"defparam %s .BLK_SEL=3'b000;\" % inst)\n+        image, details = rom_check.decode(\"\\n\".join(lines) + \"\\n\")\n+        self.assertTrue(all(b == 0 for b in image))\n+        self.assertEqual(len(set(d[\"instance\"] for d in details)), 1)\n+\n+\n+if __name__ == \"__main__\":\n+    unittest.main()\n",
+          "originals_unchanged": true,
+          "context_unchanged": true,
+          "violations": []
+        },
+        "evidence_ok": false
+      },
+      "api_requests_observed": 32
+    }
+  ],
+  "task_count": 1,
+  "model_steps_observed": 32,
+  "tool_invocations_observed": 37,
+  "api_requests_observed": 32,
+  "baseline": {
+    "passed": false,
+    "returncode": 1,
+    "tests_returncode": 1,
+    "policy_ok": true,
+    "infrastructure_ok": true,
+    "test_runs": 1,
+    "test_failures": 1,
+    "tests_log": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.027013352024368942, \"stdout\": \"Traceback (most recent call last):\\n  File \\\"/work/owned/test_adversarial.py\\\", line 1, in <module>\\n    raise NotImplementedError('Implement independent behavioral and mutation tests')\\nNotImplementedError: Implement independent behavioral and mutation tests\\n\"}], \"test_runs\": 1, \"test_failures\": 1, \"passed\": false}\n"
+  },
+  "validation": {
+    "passed": false,
+    "returncode": 1,
+    "tests_returncode": 1,
+    "policy_ok": true,
+    "infrastructure_ok": true,
+    "test_runs": 1,
+    "test_failures": 1,
+    "tests_log": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.7203432630049065, \"stdout\": \"................\\n----------------------------------------------------------------------\\nRan 16 tests in 0.658s\\n\\nOK\\nTraceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 12, in <module>\\n    assert len((root/'owned/REPORT.md').read_text())>200,'Report not completed'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Report not completed\\n\"}], \"test_runs\": 1, \"test_failures\": 1, \"passed\": false}\n",
+    "changed_files": [
+      "owned/test_adversarial.py"
+    ],
+    "feedback": "{\"test_results\": [{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.7203432630049065, \"stdout\": \"................\\n----------------------------------------------------------------------\\nRan 16 tests in 0.658s\\n\\nOK\\nTraceback (most recent call last):\\n  File \\\"/work/validate.py\\\", line 12, in <module>\\n    assert len((root/'owned/REPORT.md').read_text())>200,'Report not completed'\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nAssertionError: Report not completed\\n\"}], \"test_runs\": 1, \"test_failures\": 1, \"passed\": false}\n",
+    "changes": {
+      "policy_ok": true,
+      "changed_files": [
+        "owned/test_adversarial.py"
+      ],
+      "changes": [
+        {
+          "path": "owned/test_adversarial.py",
+          "status": "modified",
+          "before_sha256": "c309ffbec089c152af1e91867aab2b1567583ad84ec1a44a6cbfaf40e7919f0a",
+          "after_sha256": "c80afc5fdb05b7f18683d7e180f622a3662060c42477fb44e462a1beb85a4a75"
+        }
+      ],
+      "diff": "--- a/owned/test_adversarial.py\n+++ b/owned/test_adversarial.py\n@@ -1 +1,182 @@\n-raise NotImplementedError('Implement independent behavioral and mutation tests')\n+import sys\n+import pathlib\n+import unittest\n+\n+ROOT = pathlib.Path(__file__).resolve().parents[1]\n+sys.path.insert(0, str(ROOT))\n+import rom_check\n+\n+CONTEXT = ROOT / \"context\"\n+EXPECTED = (CONTEXT / \"expected.bin\").read_bytes()\n+R3_VO = (CONTEXT / \"r3_rom_cells.vo\").read_text()\n+\n+\n+def _itcm(n):\n+    return [int(x, 16) for x in (CONTEXT / (\"itcm%d\" % n)).read_text().split()]\n+\n+\n+ITCMS = [_itcm(i) for i in range(4)]\n+P = \"\\\\g\"\n+\n+\n+def _encode(data):\n+    out = []\n+    for bit in range(32):\n+        chunks = [0] * 64\n+        for addr in range(16384):\n+            off = addr * 4 + bit // 8\n+            if off < len(data) and ((data[off] >> (bit % 8)) & 1):\n+                chunks[addr // 256] |= 1 << (addr % 256)\n+        out.append(chunks)\n+    return out\n+\n+\n+def build_vo(data, skip_bit=None, duplicate_output_bit=False):\n+    chunks = _encode(data)\n+    lines = []\n+    for bit in range(32):\n+        if bit == skip_bit:\n+            continue\n+        out_bit = 0 if (duplicate_output_bit and bit == 1) else bit\n+        inst = \"%s/u_vc_ilm_ram/s%d\" % (P, bit)\n+        ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n+        do = \"{\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[%d]}\" % out_bit\n+        lines.append(\"SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD(%s),\\n  .DO(%s)\\n);\"\n+                     % (inst, ad, do))\n+    for bit in range(32):\n+        if bit == skip_bit:\n+            continue\n+        inst = \"%s/u_vc_ilm_ram/s%d\" % (P, bit)\n+        lines.append(\"defparam %s .BIT_WIDTH=1;\" % inst)\n+        lines.append(\"defparam %s .BLK_SEL=3'b000;\" % inst)\n+        for ch, val in enumerate(chunks[bit]):\n+            lines.append(\"defparam %s .INIT_RAM_%02X=256'h%064x;\" % (inst, ch, val))\n+    return \"\\n\".join(lines) + \"\\n\"\n+\n+\n+class TestIndependentCounterReview(unittest.TestCase):\n+    def test_real_r3_rejected(self):\n+        image, details = rom_check.decode(R3_VO)\n+        result = rom_check.compare(image, EXPECTED)\n+        self.assertFalse(result[\"passed\"])\n+        fd = result[\"first_difference\"]\n+        self.assertEqual(fd[\"offset\"], 41)\n+        self.assertEqual(fd[\"expected\"], 34)\n+        self.assertEqual(fd[\"observed\"], 162)\n+        self.assertEqual(result[\"differing_payload_bytes\"], 20556)\n+        self.assertEqual(len(details), 32)\n+\n+    def test_four_lanes_interleave(self):\n+        per = len(ITCMS[0])\n+        merged = bytes(ITCMS[lane][i] for i in range(per) for lane in range(4))\n+        self.assertEqual(merged, EXPECTED)\n+\n+    def test_generated_fixture_accepted(self):\n+        data = bytes((i * 37 + 11) & 0xFF for i in range(65536))\n+        vo = build_vo(data)\n+        image, _ = rom_check.decode(vo)\n+        self.assertEqual(image, data)\n+        result = rom_check.compare(image, data)\n+        self.assertTrue(result[\"passed\"])\n+        self.assertEqual(result[\"differing_payload_bytes\"], 0)\n+        self.assertEqual(result[\"padding_bytes\"], 0)\n+\n+    def test_bit_lane_ordering_boundaries(self):\n+        data = bytearray(65536)\n+        marks = [0, 3, 4, 7, 1020, 1023, 1024, 1027, 65532, 65535]\n+        for idx, pos in enumerate(marks):\n+            data[pos] = ((idx + 1) * 17) & 0xFF\n+        vo = build_vo(bytes(data))\n+        image, _ = rom_check.decode(vo)\n+        self.assertEqual(image, bytes(data))\n+\n+    def test_one_bit_mutation_fails(self):\n+        data = bytes((i * 37 + 11) & 0xFF for i in range(65536))\n+        mutated = bytearray(data)\n+        mutated[100] ^= 1\n+        image, _ = rom_check.decode(build_vo(bytes(mutated)))\n+        result = rom_check.compare(image, data)\n+        self.assertFalse(result[\"passed\"])\n+        self.assertEqual(result[\"differing_payload_bytes\"], 1)\n+\n+    def test_unknown_ad_layout_refused(self):\n+        vo = build_vo(bytes(65536)).replace(\n+            \"  .AD({\" + P + \"/ILMADDR[15:2]})\", \"  .AD({\" + P + \"/ADDR[15:2]})\", 1)\n+        with self.assertRaisesRegex(ValueError, \"ROM address mapping differs\"):\n+            rom_check.decode(vo)\n+\n+    def test_unknown_do_layout_refused(self):\n+        vo = build_vo(bytes(65536)).replace(\n+            \"  .DO({\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[0]})\",\n+            \"  .DO({\" + P + \"/DO[31:0]})\", 1)\n+        with self.assertRaisesRegex(ValueError, \"ROM output mapping differs\"):\n+            rom_check.decode(vo)\n+\n+    def test_missing_output_slice_refused(self):\n+        with self.assertRaisesRegex(ValueError, \"Expected exactly 32 distinct ROM output bits\"):\n+            rom_check.decode(build_vo(bytes(65536), skip_bit=5))\n+\n+    def test_duplicate_output_slice_refused(self):\n+        with self.assertRaisesRegex(ValueError, \"Duplicate or out-of-range ROM output bit\"):\n+            rom_check.decode(build_vo(bytes(65536), duplicate_output_bit=True))\n+\n+    def test_wrong_bit_width_refused(self):\n+        vo = build_vo(bytes(65536)).replace(\".BIT_WIDTH=1;\", \".BIT_WIDTH=2;\", 1)\n+        with self.assertRaisesRegex(ValueError, \"Unsupported ROM width\"):\n+            rom_check.decode(vo)\n+\n+    def test_unknown_init_declaration_refused(self):\n+        vo = build_vo(bytes(65536)) + \"defparam %s/u_vc_ilm_ram/s0 .INIT_RAM_40=256'h1;\\n\" % P\n+        with self.assertRaisesRegex(ValueError, \"Unsupported ROM INIT block\"):\n+            rom_check.decode(vo)\n+\n+    def test_duplicate_init_declaration_refused(self):\n+        vo = build_vo(bytes(65536))\n+        line = [x for x in vo.splitlines() if \"INIT_RAM_00\" in x][0]\n+        vo = vo + line + \"\\n\"\n+        with self.assertRaisesRegex(ValueError, \"Duplicate ROM parameter\"):\n+            rom_check.decode(vo)\n+\n+    def test_duplicate_port_refused(self):\n+        ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n+        vo = build_vo(bytes(65536)).replace(\n+            \"  .AD(%s),\\n  .DO(\" % ad, \"  .AD(%s),\\n  .AD(%s),\\n  .DO(\" % (ad, ad), 1)\n+        with self.assertRaisesRegex(ValueError, \"Duplicate ROM port\"):\n+            rom_check.decode(vo)\n+\n+    def test_compare_invalid_lengths(self):\n+        image, _ = rom_check.decode(build_vo(bytes(65536)))\n+        with self.assertRaises(ValueError):\n+            rom_check.compare(image, b\"\")\n+        with self.assertRaises(ValueError):\n+            rom_check.compare(image, bytes(65537))\n+        result = rom_check.compare(image, bytes(100))\n+        self.assertTrue(result[\"passed\"])\n+        self.assertEqual(result[\"payload_bytes\"], 100)\n+        self.assertEqual(result[\"padding_bytes\"], 65436)\n+\n+    def test_compare_distinguishes_payload_padding(self):\n+        data = bytearray(65536)\n+        data[500] = 7\n+        image, _ = rom_check.decode(build_vo(bytes(data)))\n+        result = rom_check.compare(image, bytes(data[:100]))\n+        self.assertTrue(result[\"passed\"])\n+        self.assertGreater(result[\"padding_nonzero_bytes\"], 0)\n+\n+    def test_shared_primitive_multiple_bits_accepted(self):\n+        lines = []\n+        inst = \"%s/u_vc_ilm_ram/shared\" % P\n+        for bit in range(32):\n+            ad = \"{\" + P + \"/ILMADDR[15:2]}\"\n+            do = \"{\" + P + \"/DO[31:1],\" + P + \"/ILMRDATA[%d]}\" % bit\n+            lines.append(\"SP %s (\\n  .BLKSEL({GND,GND,GND}),\\n  .AD(%s),\\n  .DO(%s)\\n);\"\n+                         % (inst, ad, do))\n+        lines.append(\"defparam %s .BIT_WIDTH=1;\" % inst)\n+        lines.append(\"defparam %s .BLK_SEL=3'b000;\" % inst)\n+        image, details = rom_check.decode(\"\\n\".join(lines) + \"\\n\")\n+        self.assertTrue(all(b == 0 for b in image))\n+        self.assertEqual(len(set(d[\"instance\"] for d in details)), 1)\n+\n+\n+if __name__ == \"__main__\":\n+    unittest.main()\n",
+      "originals_unchanged": true,
+      "context_unchanged": true,
+      "violations": []
+    },
+    "evidence_ok": false
+  },
+  "elapsed_seconds": 157.79697232705075,
+  "quality_status": "pending_independent_evaluation",
+  "automatic_quality_score": null,
+  "source_integrated": false
+}

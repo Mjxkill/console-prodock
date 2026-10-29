@@ -1,0 +1,72 @@
+**Faits.** Aucun nom de fichier n’est fourni ; les références désignent le bloc reçu. La fonction existante forme déjà trois groupes de 12 arbres par secteurs angulaires, avec rayons irréguliers (`L4–L7`), et garantit mathématiquement une coordonnée d’au moins 16,5 (`L8–L9`). Hauteur et largeur varient déjà (`L10–L11`). En revanche, l’interface ne fournit ni inclinaison ni palette (`L1`), et l’accès à `centers[i/12]` serait hors limites pour `i>=36` (`L4`).
+
+**Proposition pour le lot futur** — données uniquement, même mesh et même draw :
+
+```c
+typedef struct {
+    float x, z, height, width, tilt;
+    unsigned palette; /* 0..5 : tons verts existants */
+} TreeParams;
+
+static int garden_tree(unsigned i, TreeParams *t)
+{
+    if (i >= 36u || !t)
+        return 0;
+
+    static const float centers[3] = {.25f, 2.25f, 4.35f};
+    unsigned g = i / 12u;
+
+    float angle = centers[g]
+                + ((int)(i % 12u) - 5.5f) * .095f
+                + .06f * sinf(i * 1.83f);
+    float radius = 24.f + 4.f * sinf(i * 2.3f)
+                        + 2.f * cosf(i * .63f);
+
+    t->x = sinf(angle) * radius;
+    t->z = cosf(angle) * radius;
+
+    float extent = fmaxf(fabsf(t->x), fabsf(t->z));
+    if (extent < 16.5f) {
+        /* Normalisation avant multiplication : le maximum reste
+           exactement 16.5f, sans arrondi sous la borne stricte. */
+        float nx = t->x / extent;
+        float nz = t->z / extent;
+        t->x = 16.5f * nx;
+        t->z = 16.5f * nz;
+    }
+
+    t->height = 4.2f + 1.1f * (1.f + sinf(i * 1.71f));
+    t->width  = 1.8f + .45f * (1.f + cosf(i * 2.11f));
+    t->tilt   = .08f * sinf(i * 1.37f + centers[g]);
+    t->palette = 2u * g + (t->tilt >= 0.f ? 1u : 0u);
+    return 1;
+}
+```
+
+Les 12 positions par secteur forment un éventail irrégulier, pas une grille. La palette comporte deux tons proches par groupe. L’inclinaison reste à ±0,08 radian.
+
+**Deux tests discriminants à ajouter :**
+
+```c
+/* 1 : indices et reproductibilité */
+TreeParams a, b, c;
+assert(garden_tree(0, &a));
+assert(garden_tree(35, &c));
+assert(!garden_tree(36, &c));
+assert(garden_tree(0, &b));
+/* comparer chaque membre de a et b : résultats identiques */
+
+/* 2 : bornes géométriques des 36 arbres */
+for (unsigned i = 0; i < 36u; ++i) {
+    TreeParams p;
+    assert(garden_tree(i, &p));
+    float m = fmaxf(fabsf(p.x), fabsf(p.z));
+    assert(isfinite(p.x) && isfinite(p.z) && m >= 16.5f);
+    assert(p.height >= 4.199f && p.height <= 6.401f);
+    assert(p.width  >= 1.799f && p.width  <= 2.701f);
+    assert(fabsf(p.tilt) <= .0801f);
+    assert(p.palette < 6u);
+}
+```
+
+**Preuves manquantes / hypothèses.** Le draw n’étant pas fourni, le compte de primitives et l’absence d’appels supplémentaires ne peuvent pas être vérifiées ici ; seule la fonction est neutre en géométrie. Il faut confirmer six tons verts existants, un pivot d’inclinaison à la base et le rayon réel du tronc. Le déterminisme est stable sans aléa dans un toolchain fixé ; l’identité bit-à-bit entre bibliothèques `libm` distinctes reste non démontrée. Portée limitée à la disposition/aux paramètres des 36 instances existantes, sans ombres, fleurs, textures, nouveaux matériaux ou refonte visuelle.

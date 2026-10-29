@@ -1,0 +1,30 @@
+Diagnostic local des 28 pixels OP1
+
+Le fichier jardin V4, le renderer r4 et ses ressources restent inchangés.
+Deux initialisations suffisent à reproduire l’écart : caméra initialisée
+depuis la vallée, CRC e89849b6 ; caméra initialisée depuis Amber, CRC
+7c0ccf51. Les images diffèrent exactement sur 28 pixels. Les 12 coordonnées
+et couples de couleurs consignés par le matériel sont reproduits à l’identique.
+Le CRC de chaque image correspond exactement à celui du FAIL matériel.
+Le dump complet de l’image matérielle n’a pas été récupéré : les autres
+coordonnées sont une reproduction locale, pas une nouvelle lecture carte.
+
+La cible et l’œil de camera_update(immediate) utilisaient encore
+old + (new-old)*1. Deux composantes de caméra conservaient quelques ULP
+d’arrondi, selon leur initialisation. Quatre translations matricielles 16.16
+différaient ensuite. Le générateur de fixture utilisait le monde Amber du
+parcours, tandis que le programme réel chargeait la sauvegarde depuis une
+nouvelle vallée. Ce n’est ni un manque de tolérance pixel ni une anomalie
+GPU démontrée.
+
+L’ELF RV32 r4 exact, exécuté sous QEMU virt avec la fixture originale
+(rv32_original/result.json), produit les mêmes commandes et 28 Mio de
+mémoire que son main PC. QEMU n’émule pas le GPU ni la carte AE350.
+Le replay du modèle entier reste indépendant du producteur de commandes.
+
+Correction r5 : affectation directe lors de la remise en place immédiate ;
+interpolation en mouvement et collisions inchangées. Les deux initialisations
+donnent caméra, flux, mémoire et pixels strictement identiques. Le générateur
+de fixtures crée aussi désormais un monde neuf comme le programme réel.
+Les références op1 et son FAIL sont conservés, sans assouplissement du test.
+Aucun accès Pro Dock pendant ce diagnostic ; am1 reste visible.

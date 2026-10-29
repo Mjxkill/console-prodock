@@ -1,0 +1,21 @@
+LUMA R8 — masque des blocs d'effets, essai non retenu
+
+G22r0 / Linux NEBULA R17 inchangés. Ressources identiques à R5, validées
+à nouveau en longueur/CRC avant upload lorsqu'elles sont utilisées.
+Trois fenêtres de 600 images après 120 d'échauffement, sans commandes UART.
+Exécution PASS ; erreurs, underflows, couches/sprites invalides et fault à zéro.
+NEBULA restauré, processus et compteurs vérifiés après cinq secondes.
+
+walk : 51.60 FPS ; p95 <= 32.6 ms, p99 <= 41.5 ms, max 55.286 ms ; 28/600 images > 33,333 ms.
+horse : 50.57 FPS ; p95 <= 35.0 ms, p99 <= 47.7 ms, max 57.518 ms ; 38/600 images > 33,333 ms.
+sanctuary : 49.66 FPS ; p95 <= 36.0 ms, p99 <= 54.1 ms, max 84.945 ms ; 43/600 images > 33,333 ms.
+
+Les blocs sont suivis pendant le dessin, sans comparer de copies CPU.
+La salle 22 transfère 1,81 Mo d'effets contre 3,33 Mo dans R5, mais le gain
+de cadence n'est pas convaincant : 49,66 contre 49,51 FPS, p95 36,0 contre
+35,5 ms. Le cheval manque aussi le critère p95 dans cette fenêtre.
+Le chemin R5, plus simple, est donc rétabli dans l'espace de travail.
+Ces fenêtres de temps réel suivent les mêmes entrées déterministes mais
+ne parcourent pas exactement les mêmes images si leur débit diffère.
+Aucune qualification de durée humaine, de campagne complète sur carte ou
+de Neo n'en découle. Aucun flash, noyau ou stockage SD modifié.

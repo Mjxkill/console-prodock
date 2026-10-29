@@ -1,5 +1,9 @@
 # Linux sur la console Pro Dock
 
+Le port Tang Mega Neo / Console en HDMI 720p est décrit dans
+[les profils de carte](../ARCHI/PORT_NEO_720P.md), avec son
+[rapport de validation](../TESTS/NEO_720P_20261012.md).
+
 Évolution du 11 octobre : terminal natif fbcon en **tuiles matérielles**, jeu
 400×240 + terminal 50×15 + diagnostics 100×15, modes plein écran et shell
 permettant de lancer `prodock-game`. Voir
@@ -69,9 +73,12 @@ le rendu et n'est pas utilisé par ce pilote.
 
 L'interface est destinée à des jeux de confiance. Ce pilote n'est pas un pilote
 DRM/Mesa/OpenGL ; l'accès brut n'est pas une isolation matérielle d'applications
-non fiables. GPIO, I2C/ADS1115, manettes, audio et gadget USB MSC sous Linux
-ne sont pas encore portés. Le CDC FPGA continue à transporter l'UART ; Linux
-ne transforme pas ce port en contrôleur USB hôte.
+non fiables. GPIO, I2C/ADS1115, audio et gadget USB MSC sous Linux
+ne sont pas encore portés. Le profil Neo ajoute deux hôtes USB2 réservés
+aux manettes 081f:e401, un pilote evdev et leur utilisation dans NEBULA ;
+leur qualification sur carte reste à faire. Le profil Pro Dock ne possède
+pas encore ce pilote de manette dans son arbre de périphériques. Le CDC FPGA
+continue à transporter l'UART ; Linux ne transforme pas ce port en hôte USB.
 
 ## Particularités de cet A25
 

@@ -1,0 +1,139 @@
+R4 billboards : essai matériel terminé, candidat non retenu.
+R3 reste visible et animée : /tmp/luma3d-b3v2, PID 424, journal /tmp/l3r4_live.log.
+Ancre publiée : /tmp/luma3d-live.pid (copiée depuis /tmp/l3r4_live.pid).
+Processus confirmé R (running) ; presents 70159 -> 70230 lors de la vérification finale.
+CDC et verrou diagnostic libérés. Aucun retour à NEBULA.
+
+Carte Pro Dock 11252024 ; FPGA G22r0 inchangé :
+fbbea9c357d0c4d5b33c3c4a7e54f9ed0ff8e31cc3fad1ac9dc1771f8e8cba5f.
+Noyau RAM conservé : 6.12.112-prodock-luma3d-g3d1-r1.
+Aucune écriture FPGA, noyau, flash ou SD durant cet essai.
+R3 SHA256 : 131ff6d7ca404e0188bb7e0ff68c25bd2db29b52ae27c561e019f6c53dfcc270
+R4 SHA256 : d346506621fa1f5177d746c43919610e866420d22cb3fe51c9b066ea6ff98a51
+Manifeste du protocole figé : 2731f45296ca0e946d6053cf5c46bcd249f8dc5c345b2d1e8dc8742d0f4c67e7
+
+Comparaison contrôlée : quatre poses identiques, variantes R3 puis R4 alternées.
+Pour chaque lancement : trois images de chauffe exclues, trente images mesurées.
+Le contrôleur attend EXIT en lecture seule, sans commande UART pendant la mesure.
+Après les 33 PRESENT, les 96000 pixels de la page 0 sont comparés à la référence
+propre à la variante. Les huit comparaisons sont exactes ; les images R3 et R4
+ne sont pas déclarées identiques entre elles. GPU/G3D errors, underflows, invalid
+layers, sprite errors et fault sont nuls. Aucun sliver sur les poses fixes.
+Ces petites fenêtres mesurent un débit ; elles ne prouvent pas un percentile
+de régularité, ni une différence statistiquement significative de quelques pour cent.
+
+Pose | R3 FPS | R4 FPS | débit R4/R3 (durées)
+---- | ------ | ------ | -------------------
+   0 |   8.97 |   8.68 | 0.967583 (-3.24 %)
+ 700 |  10.20 |  10.07 | 0.986913 (-1.31 %)
+1600 |  13.12 |  13.32 | 1.015542 (+1.55 %)
+2200 |  10.87 |  10.58 | 0.973898 (-2.61 %)
+
+Moyenne géométrique des rapports de débit : 0.985813 (-1,42 %).
+Critère fixé avant essai : au moins +10 % en moyenne géométrique et aucune pose
+plus lente de plus de 3 %. R4 échoue, avec notamment -3,24 % sur la pose 0.
+Le succès technique passed=true dans result.json est distinct de candidate_accepted=false.
+Critère inchangé ; aucune répétition pour chercher PASS.
+
+Compteurs par image, notés R3 -> R4 (rapport R4/R3).
+Les commandes et SUBMIT sont normalisés par les 30 images ; DRAW/input faces
+sont les valeurs de la dernière image, représentatives de cette pose figée.
+
+Pose 0 :
+  DRAW: 81 -> 81 (1.000000)
+  SUBMIT/batches: 6 -> 6 (1.000000)
+  Commandes: 356 -> 359 (1.008427)
+  Faces en entrée: 2086 -> 1664 (0.797699)
+  Sommets transformés: 1590 -> 1351 (0.849686)
+  Triangles raster: 936 -> 845 (0.902778)
+  Triangles culled: 1263 -> 918 (0.726841)
+  Intersections clip: 594 -> 490 (0.824916)
+  Slivers: 0 -> 0 (non défini, dénominateur nul)
+  Cycles G3D: 4.20144e+06 -> 4.44523e+06 (1.058024)
+
+Pose 700 :
+  DRAW: 35 -> 35 (1.000000)
+  SUBMIT/batches: 3 -> 3 (1.000000)
+  Commandes: 149 -> 151 (1.013423)
+  Faces en entrée: 1871 -> 1843 (0.985035)
+  Sommets transformés: 1390 -> 1374 (0.988489)
+  Triangles raster: 735 -> 728 (0.990476)
+  Triangles culled: 1268 -> 1248 (0.984227)
+  Intersections clip: 650 -> 646 (0.993846)
+  Slivers: 0 -> 0 (non défini, dénominateur nul)
+  Cycles G3D: 4.54895e+06 -> 4.56042e+06 (1.002522)
+
+Pose 1600 :
+  DRAW: 22 -> 22 (1.000000)
+  SUBMIT/batches: 2 -> 2 (1.000000)
+  Commandes: 113 -> 122 (1.079646)
+  Faces en entrée: 1314 -> 1222 (0.929985)
+  Sommets transformés: 812 -> 758 (0.933498)
+  Triangles raster: 493 -> 471 (0.955375)
+  Triangles culled: 933 -> 856 (0.917471)
+  Intersections clip: 600 -> 578 (0.963333)
+  Slivers: 0 -> 0 (non défini, dénominateur nul)
+  Cycles G3D: 3.24444e+06 -> 3.27571e+06 (1.009637)
+
+Pose 2200 :
+  DRAW: 52 -> 52 (1.000000)
+  SUBMIT/batches: 4 -> 4 (1.000000)
+  Commandes: 243 -> 245 (1.008230)
+  Faces en entrée: 1904 -> 1596 (0.838235)
+  Sommets transformés: 1311 -> 1135 (0.865751)
+  Triangles raster: 682 -> 587 (0.860704)
+  Triangles culled: 1306 -> 1090 (0.834609)
+  Intersections clip: 532 -> 524 (0.984962)
+  Slivers: 0 -> 0 (non défini, dénominateur nul)
+  Cycles G3D: 3.50289e+06 -> 3.77295e+06 (1.077094)
+
+Temps par image en millisecondes. API SUBMIT inclut ses attentes synchrones ;
+les compteurs du pilote sont présentés séparément, sans les ajouter aux temps API.
+Les différentes lectures/arrondis de mesure n'en font pas une décomposition exacte
+de toute la durée de l'image.
+Pose/version | API SUBMIT | API PRESENT | pilote feed | wait | cache | present
+0/r3 | 86.933 | 15.200 | 22.113 | 44.466 | 4.505 | 16.242
+0/r4 | 90.800 | 15.533 | 24.777 | 45.146 | 4.474 | 16.544
+700/r3 | 80.333 | 11.933 | 33.228 | 35.044 | 2.099 | 12.484
+700/r4 | 78.867 | 13.633 | 33.279 | 34.743 | 2.192 | 12.849
+1600/r3 | 59.467 | 12.800 | 40.708 | 8.925 | 1.518 | 11.954
+1600/r4 | 58.333 | 12.400 | 41.984 | 8.956 | 1.589 | 10.100
+2200/r3 | 68.933 | 15.400 | 34.928 | 20.007 | 2.865 | 14.864
+2200/r4 | 72.433 | 15.067 | 36.313 | 22.417 | 2.841 | 14.236
+
+Lecture limitée des compteurs : le gain géométrique ne devient pas un gain FPS.
+À la pose 0, les sommets transformés baissent de 15,03 % et les triangles raster
+de 9,72 %, mais les cycles G3D augmentent de 5,80 %. DRAW et SUBMIT restent
+identiques. À la pose 2200, les cycles G3D augmentent de 7,71 % tandis que les
+triangles raster baissent de 13,93 %. Les billboards ne regroupent pas les DRAW.
+Cela est compatible avec un surcoût de rasterisation/texture des rectangles
+transparents, mais ne le démontre pas. Le nombre de pixels refusés par key0,
+par la profondeur ou le raster n'est pas exposé par cette ABI : indisponible,
+pas supposé nul. Le compteur culled est géométrique. Les cycles G3D comprennent
+les attentes du raster pendant DRAW ; ils excluent les commandes V1 directes
+comme COPY et ne mesurent pas l'occupation de tout le GPU.
+
+Endurance R4 : une fenêtre de 75 secondes sans commande UART après chauffe.
+Le processus était encore vivant à la fin de cette fenêtre. La durée totale
+du processus inclut démarrage, vérifications avant fenêtre et arrêt : 122,651 s,
+1061 images, moyenne globale 8,65 FPS. Ce n'est pas une moyenne isolée des 75 s
+et ce parcours variable n'est pas la comparaison A/B à pose fixe.
+Quatre lettres récupérées. Un sliver signalé, zéro erreur GPU/G3D et underflow.
+Le précédent parcours R3 avait également signalé un sliver ; aucune équivalence
+de sa localisation ou de sa cause n'est déduite de ce nombre.
+
+Transfert RAM : 337921 octets, 2 reprises de blocs, contrôles CRC réussis.
+R3 est restée visible jusqu'à la fin des transferts et des validations.
+L'ancien ELF R3 et les anciennes preuves R1/R2/R3 restent conservés.
+Le manifeste figé garde hardware_tested=false, son état au moment du gel ;
+la qualification réellement effectuée est dans trial_20261024_r1/result.json.
+Le contrôleur exige PID302 : il est périmé depuis la reprise PID424 et ne doit
+pas être relancé tel quel.
+
+Preuves : trial_20261024_r1/ (journaux complets et résultat), performance.json
+et performance_per_frame.csv (toutes valeurs normalisées et rapports), evidence.json
+(empreintes). Validations locales indépendantes du matériel :
+build/render_contract_20261024_r10_r4_billboards/result.json et huit captures
+build/frozen_20261024_r4_billboards/captures/. Aucun essai Neo dans ce lot.
+La cible de 30 FPS n'est pas atteinte. La visite automatique ne qualifie ni
+l'exploration libre hors chemin, ni une campagne de plusieurs heures.

@@ -1,0 +1,27 @@
+{
+  "scope": "Interpretation of existing logs only; no hardware rerun and no runtime change.",
+  "legacy_ui_counters": "LUMA3D_UI_COST raster/compare_publish/scan_bytes/canvas_updates describe legacy mini_ui timings. Native puzzle/Simon modules have their own counters not printed by this main.",
+  "native_modes": [
+    2,
+    4,
+    6
+  ],
+  "native_timing_zeros_mean": "Not instrumented in those legacy fields; NOT absence of CPU UI work.",
+  "valid_total_fields": [
+    "simulation",
+    "adviser included in simulation",
+    "preparation including all CPU UI/build/copies",
+    "submit",
+    "present",
+    "ui_bytes"
+  ],
+  "native_counter_evidence": [
+    "l3_puzzle_ui.inc records cache->rasterized_pixels and cache->published_bytes; only r->mini_bytes/mini_uploads are forwarded",
+    "simon_presentation.c records p->ui_raster_pixels and p->ui_published_bytes; only r->mini_bytes/mini_uploads are forwarded"
+  ],
+  "sources": {
+    "games/luma3d/build/maze_events_20261027_r4/source/games/luma3d/include/l3_puzzle_ui.inc": "4fdc64c476e09ce92cc11c58bd43d00cfc08650ac7dc7e29ce94d2f4eaa6339d",
+    "games/luma3d/build/maze_events_20261027_r4/source/games/luma3d/src/simon_presentation.c": "07c2c55eab8d25dcc65837ebcd244eae2b7ffbe10a8cb8e9cdceda53c0524e73",
+    "games/luma3d/build/maze_events_20261027_r4/source/games/luma3d/src/main.c": "d44a8fa081947efd40e67858d5d55f14bce942ddb93d53152b6e179352ebf7d1"
+  }
+}

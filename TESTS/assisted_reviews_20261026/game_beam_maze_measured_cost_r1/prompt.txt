@@ -1,0 +1,1151 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Analyse chiffrée MO1 et rendu maison R4 exact: commandes, géométrie dynamique CPU, publications, SUBMIT et PRESENT. Proposer une instrumentation ciblée des plus longues images et entrée versus régime établi, sans attribuer de coût non mesuré ni changer FPGA. Contre-valider tout calcul et donner les limites.
+
+EVIDENCE PACKET:
+MISSION: calculer les couts maison R4 et MO1 pour preparer une mesure ciblée, sans hypothèse nonmesurée. MO1 est FAIL final de compteurs remis àzero; les quatre fenetres AB sont réelles et conservées. Maison candidat12.39085FPS,22.60ms prepCPU,39.78msSUBMIT,15.12msPRESENT/image; shooter45.91385FPS,4.04ms prep,0submit,15.31msPRESENT. Histogramme4ms, maxima713.7/543ms; les images les plus longues ne sont PAS localisées à entrée, on sait seulement que les fenetres incluent le chargementHUD. Pasattribution arbitraire àDDR/alpha/CPU ni recommendationFPGA. R4 reprend exactement rendu maison/cache de ce candidat, ajoute GPU plateaux etSimon qui ne sont PAS inclus dansMO1. Propose un calcul exact commandes/triangles/publications CPU et un point instrumentation discriminant; CPUshadow etpublicationROI déjàprésents. Il faut distinguer CPU géométrie dynamique, cachepublication, feed/waitdriver etGPUraster; tempsSUBMIT contient plusieurscomposantes. Aucun appareil ni exécutionparreviewer. Priorité p99/max et imagesentrée versusrégime, pas simpleFPSmoyen.
+
+FILE games/luma3d/tests/hardware/motion_20261027_mo1_result/README.md SHA256 75d3a88e9099caea58a2178257c0e07f00603f5589156f96633b407b11173b32
+1: # MO1 — mesure HUD, 27 octobre 2026
+2: 
+3: **Essai global FAIL, R6 restaurée.** Les deux oracles et les quatre fenêtres
+4: A/B passent. La dernière séquence à temps réel finit normalement, mais la
+5: garde du diagnostic échoue : la sortie de la maison efface les compteurs
+6: locaux de mouvement avant leur impression. Aucune relance ni promotion.
+7: 
+8: État laissé : `/tmp/luma3d-pp1 --showcase`, PID **2680**, startticks **25042521**,
+9: identité complète et progression vérifiées après reprise et lecture finale
+10: de la sauvegarde. La boucle autonome utilise stdin `/dev/null`. Le contrôleur
+11: est sorti avec code 1 ; CDC et verrou sont libérés. G22r0 et noyau
+12: `6.12.112-prodock-luma3d-g3d1-r1` conservés, aucune écriture FPGA/noyau/SD/flash.
+13: La V4 `/tmp/op2-live.save` reste identique, SHA
+14: `2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6`.
+15: 
+16: ## Mesures acquises
+17: 
+18: Les deux diagnostics reprennent exactement le même snapshot motion R5.
+19: Seul `mini_ui.c` change : rendu UI R6 pour le témoin, cache du chrome et
+20: publication de rectangles pour le candidat. Même caméra, même glissement,
+21: mêmes règles et ressources. Un pas simulé de 1/60 s par image rend les états
+22: comparables ; ces fenêtres ne sont pas un jeu cadencé sur le temps mural.
+23: Elles incluent la première publication du HUD, sans chauffe exclue.
+24: 
+25: | Activité / variante | Images | FPS | Préparation CPU / image | p95 ≤ | p99 ≤ | Maximum |
+26: |---|---:|---:|---:|---:|---:|---:|
+27: | Maison, témoin | 360 | 8,37 | 60,84 ms | 276 ms | 312 ms | 557,75 ms |
+28: | Maison, candidat | 360 | 12,39 | 22,60 ms | 116 ms | 148 ms | 713,74 ms |
+29: | Shooter, candidat | 600 | 45,91 | 4,04 ms | 40 ms | 76 ms | 543,01 ms |
+30: | Shooter, témoin | 600 | 37,85 | 8,61 ms | 48 ms | 220 ms | 398,84 ms |
+31: 
+32: Les bornes percentiles viennent d'un histogramme de 4 ms. Les maxima de ces
+33: fenêtres, qui incluent l'entrée, restent plus hauts avec le candidat. Le journal
+34: ne donne pas l'indice des images correspondantes : leur attribution à l'entrée
+35: n'est pas démontrée. La cadence n'est donc pas qualifiée comme régulière. Une seule paire prédéfinie par activité a été mesurée.
+36: 
+37: Les états finaux, les commandes, les batches et les octets UI sont identiques
+38: entre chaque paire : maison `c5384401`, 8 322 commandes, 782 424 octets UI ;
+39: shooter `e84b1a71`, zéro commande de raster/3D et 785 320 octets UI. Le shooter
+40: utilise les couches/sprites de scanout. Aucune erreur GPU, aucun underflow ou
+41: sliver dans les fenêtres. Les deux images de diagnostic passent exactement
+42: (pixels 3D de la maison et banques UI) ; palette/descripteurs sont validés
+43: localement, pas relus comme une capture composite du LCD.
+44: 
+45: ## Échec final conservé
+46: 
+47: La maison à temps mural produit 161 images, 12,733 s simulées et 13,414 s
+48: murales. Le journal donne `activity_exit=1`, `active=0`, `showcase_status=1`,
+49: code de sortie du programme 0 et compteurs GPU sans erreur. Le callback BACK
+50: appelle `l3_maze_motion_reset`, puis le diagnostic imprime `moves=0` ; la
+51: garde `moves>0` rejette donc le résultat. Les zéros finaux ne permettent pas
+52: non plus de prouver l'absence d'un débordement de file visuelle antérieur.
+53: 
+54: Le binaire hôte exact reproduit cette remise à zéro après les mêmes 12,733 s
+55: simulées et le même CRC final `6d7eacac` :
+56: `../../../candidates/arcade_motion_r1/tests/measurement_lifetime_r1/result.json`.
+57: La correction prévue conserve les compteurs sur toute la durée du diagnostic,
+58: sans modifier le reset de présentation ni les règles. Le FAIL matériel
+59: d'origine n'est pas reclassé. Aucun essai supplémentaire n'a été lancé.
+60: 
+61: Les pastilles disparaissent encore au pas logique, environ 100 ms avant
+62: l'arrivée du personnage interpolé : limite visuelle connue de ce lot. La
+63: présentation des contacts et ramassages sera corrigée séparément.
+64: 
+65: ## Identités et preuves
+66: 
+67: - Paquet : `../motion_20261027_mo1_prepared_r2/`, manifeste
+68:   `2fe601fdf3f3d7469bd0b3bb06d32abe42e3243ab1d2ee47e59f7490a51cd464`.
+69: - Témoin diagnostic : `72d138d8052262229eba17254d86bdc8c48e4623e94162c8dad660b555858e23`.
+70: - Candidat diagnostic : `d776da6e802ebc5ce6c691683264be35abd1aae801794172d3cdfed4dd6b4aad`.
+71: - R6 restaurée : `d8f65131f8ad4834501850d39354be98a666e484822085004dea13c8fd1c0a48`.
+72: - `result.json` contient le FAIL original et la récupération ;
+73:   `measurement_summary.json` résume les fenêtres sans changer le verdict.
+74: - 437 055 octets transférés en RAM en 113,32 s cumulées. Les lectures CRC,
+75:   le prélude et le chargement des ressources s'ajoutent à cette durée.
+76: - Chaque fils est supervisé par son PID distinct et son vrai EXIT ; aucune
+77:   commande UART n'est émise pendant ses mesures.
+
+
+FILE games/luma3d/tests/hardware/motion_20261027_mo1_result/measurement_summary.json SHA256 a95cfc475312507f40d01c4e8afaf0bbcb29ec02ddde49096f58db7b4a373419
+1: {
+2:   "trial_passed": false,
+3:   "ab_windows_complete": true,
+4:   "hardware": true,
+5:   "result_sha256": "da81a89b860cc4beafd14e9d3649fb999704a9c5f645de1975f9af66e556f5dd",
+6:   "records": [
+7:     {
+8:       "variant": "baseline",
+9:       "kind": 4,
+10:       "frames": 360.0,
+11:       "wall": 43.003136,
+12:       "fps": 8.37148248909103,
+13:       "preparation_ms_per_frame": 60.83608888888888,
+14:       "simulation_ms_per_frame": 3.2636694444444445,
+15:       "submit_ms_per_frame": 40.49868611111111,
+16:       "present_ms_per_frame": 14.702824999999999,
+17:       "p95_upper_ms": 276.0,
+18:       "p99_upper_ms": 312.0,
+19:       "max_ms": 557.7520000000001,
+20:       "state_crc32": "c5384401",
+21:       "commands": 8322.0,
+22:       "ui_bytes": 782424.0
+23:     },
+24:     {
+25:       "variant": "candidate",
+26:       "kind": 4,
+27:       "frames": 360.0,
+28:       "wall": 29.053687,
+29:       "fps": 12.39085421413124,
+30:       "preparation_ms_per_frame": 22.599294444444443,
+31:       "simulation_ms_per_frame": 2.9737138888888888,
+32:       "submit_ms_per_frame": 39.784075,
+33:       "present_ms_per_frame": 15.124477777777777,
+34:       "p95_upper_ms": 116.0,
+35:       "p99_upper_ms": 148.0,
+36:       "max_ms": 713.744,
+37:       "state_crc32": "c5384401",
+38:       "commands": 8322.0,
+39:       "ui_bytes": 782424.0
+40:     },
+41:     {
+42:       "variant": "candidate",
+43:       "kind": 6,
+44:       "frames": 600.0,
+45:       "wall": 13.067952,
+46:       "fps": 45.913850923235714,
+47:       "preparation_ms_per_frame": 4.040505,
+48:       "simulation_ms_per_frame": 2.289405,
+49:       "submit_ms_per_frame": 0.0,
+50:       "present_ms_per_frame": 15.311558333333332,
+51:       "p95_upper_ms": 40.0,
+52:       "p99_upper_ms": 76.0,
+53:       "max_ms": 543.0120000000001,
+54:       "state_crc32": "e84b1a71",
+55:       "commands": 0.0,
+56:       "ui_bytes": 785320.0
+57:     },
+58:     {
+59:       "variant": "baseline",
+60:       "kind": 6,
+61:       "frames": 600.0,
+62:       "wall": 15.851951,
+63:       "fps": 37.85023054890846,
+64:       "preparation_ms_per_frame": 8.605388333333334,
+65:       "simulation_ms_per_frame": 2.409466666666667,
+66:       "submit_ms_per_frame": 0.0,
+67:       "present_ms_per_frame": 15.253620000000002,
+68:       "p95_upper_ms": 48.0,
+69:       "p99_upper_ms": 220.0,
+70:       "max_ms": 398.835,
+71:       "state_crc32": "e84b1a71",
+72:       "commands": 0.0,
+73:       "ui_bytes": 785320.0
+74:     }
+75:   ],
+76:   "comparison": [
+77:     {
+78:       "kind": 4,
+79:       "frames": 360.0,
+80:       "state_crc32": "c5384401",
+81:       "baseline_fps": 8.37148248909103,
+82:       "candidate_fps": 12.39085421413124,
+83:       "preparation_ratio": 0.3714784243563031,
+84:       "frame_time_ratio": 0.6756178665667546,
+85:       "scope": "Single predetermined pair, no automatic promotion and no statistical confidence claim"
+86:     },
+87:     {
+88:       "kind": 6,
+89:       "frames": 600.0,
+90:       "state_crc32": "e84b1a71",
+91:       "baseline_fps": 37.85023054890846,
+92:       "candidate_fps": 45.913850923235714,
+93:       "preparation_ratio": 0.469531977348301,
+94:       "frame_time_ratio": 0.8243749933367823,
+95:       "scope": "Single predetermined pair, no automatic promotion and no statistical confidence claim"
+96:     }
+97:   ],
+98:   "wall_raw": "kind=4 frames=161 simulated=12.733333 wall=13.413568 simulation=0.726166 preparation=4.133588 submit=6.344732 present=2.175626 ui_raster=0.938336 ui_publish=1.074552 scan_bytes=2847040 restore_bytes=1011648 ui_bytes=820988 commands=3428 batches=161 p95_upper_ms=116 p99_upper_ms=388 overflow=0 max_frame=0.665969 frame_sum=13.406258 state_crc32=6d7eacac moves=0 teleports=0 queue_overflows=0 hardware=1 ok=1",
+99:   "wall_guard_failed": "moves>0 after exit resets the per-activity counters",
+100:   "wall_overflow_lifetime_not_proven": true,
+101:   "restored_r6": true,
+102:   "final_identity": {
+103:     "pid": 2680,
+104:     "start_ticks": 25042521
+105:   },
+106:   "save_sha256": "2138ac0ad21a4707aad2dc0613381e3bde131acfa783dbb29a43f4d6a4c08cc6"
+107: }
+
+
+FILE games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/src/maze_render.c SHA256 2cdf1253a9f3cd817f0cdadd2e76b4062dfeea7b08878a308fef5abadb95787f
+1: #include "luma3d_render.h"
+2: #include "luma3d_activities.h"
+3: #include "l3_mini_actors.h"
+4: #include "generated.h"
+5: #include "activity_art.h"
+6: #include <math.h>
+7: #include <string.h>
+8: 
+9: /* Authored MAZE grid becomes real metric walls and actors. G3D1 transforms,
+10:  * clips, lights, projects, textures and depth-tests every visible triangle.
+11:  * Static walls24 MiB; transient lantern/actor meshes26/27 MiB, never a live
+12:  * scanout source. No screen-space animation coordinates or pre-rendered view. */
+13: typedef struct {L3Render *r;uint32_t offset;gpu_geom_vertex v[256];gpu_geom_face f[384];unsigned nv,nf,n;gpu_geom_mesh *meshes;} Builder;
+14: int l3_activity_art_open(L3Render *r){
+15:  /*18 MiB is above the complete console bank, below HUD20/21 and geometry24+. */
+16:  r->arcade_texture=PRODOCK_GPU_BASE+(18U<<20);
+17:  uint32_t *dst=(uint32_t *)(r->memory+(18U<<20));const uint8_t *src=(const uint8_t *)l3_activity_texture;
+18:  for(unsigned i=0;i<sizeof(l3_activity_texture)/4;i++){uint32_t word;memcpy(&word,src+i*4,4);dst[i]=word;}return 1;
+19: }
+20: static L3Vec3 sub(L3Vec3 a,L3Vec3 b){return (L3Vec3){a.x-b.x,a.y-b.y,a.z-b.z};}
+21: static L3Vec3 cross(L3Vec3 a,L3Vec3 b){return (L3Vec3){a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
+22: static float dot(L3Vec3 a,L3Vec3 b){return a.x*b.x+a.y*b.y+a.z*b.z;}
+23: static L3Vec3 unit(L3Vec3 a){float n=sqrtf(dot(a,a));return (L3Vec3){a.x/n,a.y/n,a.z/n};}
+24: static int seal(Builder *b){
+25:  if(!b->nv)return 1;if(b->n>=24||b->offset>(28U<<20)||b->nv*32+b->nf*32>(28U<<20)-b->offset)return 0;
+26:  unsigned start=b->offset;memcpy(b->r->memory+start,b->v,b->nv*32);b->offset+=b->nv*32;
+27:  memcpy(b->r->memory+b->offset,b->f,b->nf*32);b->meshes[b->n++]=(gpu_geom_mesh){PRODOCK_GPU_BASE+start,PRODOCK_GPU_BASE+b->offset,(uint16_t)b->nv,(uint16_t)b->nf};b->offset+=b->nf*32;b->nv=b->nf=0;return 1;
+28: }
+29: static int quad(Builder *b,L3Vec3 a,L3Vec3 c,L3Vec3 d,L3Vec3 e,unsigned red,unsigned green,unsigned blue){
+30:  if(b->nv+4>256&&!seal(b))return 0;L3Vec3 p[]={a,c,d,e},normal=unit(cross(sub(c,a),sub(d,a)));unsigned v=b->nv;
+31:  for(unsigned i=0;i<4;i++){b->v[b->nv]=(gpu_geom_vertex){0};if(!gpu_geom_fixed(p[i].x,&b->v[b->nv].x)||!gpu_geom_fixed(p[i].y,&b->v[b->nv].y)||!gpu_geom_fixed(p[i].z,&b->v[b->nv].z))return 0;b->nv++;}
+32:  const unsigned tri[2][3]={{0,1,2},{0,2,3}};
+33:  unsigned mode=b->r->activity_mode,tile=mode==L3_MINI_MAZE+1?(normal.y>.8f&&fabsf(a.y)<.01f?2:0):mode==L3_ARCADE_PLATFORM+1?(normal.y>.8f?1:3):2;
+34:  if(b->offset<(26U<<20)){red=green=blue=256;} /* painted albedo already supplies its colour */
+35:  unsigned ux=(tile&1)*128+2,uy=(tile>>1)*128+2;unsigned uv[4][2]={{ux,uy},{ux+123,uy},{ux+123,uy+123},{ux,uy+123}};
+36:  int nx=(int)lroundf(normal.x*32767),ny=(int)lroundf(normal.y*32767),nz=(int)lroundf(normal.z*32767);
+37:  for(unsigned f=0;f<2;f++){uint32_t *w=b->f[b->nf++].words;memset(w,0,32);w[0]=(v+tri[f][0])|((v+tri[f][1])<<8)|((v+tri[f][2])<<16);for(unsigned i=0;i<3;i++)w[1+i]=uv[tri[f][i]][0]<<16|uv[tri[f][i]][1];w[4]=((uint32_t)(nx&65535)<<16)|(ny&65535);w[5]=nz&65535;w[6]=red|(green<<9)|(blue<<18);}
+38:  return 1;
+39: }
+40: static int box(Builder *b,float x,float y,float z,float w,float h,float d,unsigned r,unsigned g,unsigned blue){
+41:  float l=x-w/2,R=x+w/2,n=z-d/2,s=z+d/2,t=y+h;
+42:  return quad(b,(L3Vec3){l,t,n},(L3Vec3){l,t,s},(L3Vec3){R,t,s},(L3Vec3){R,t,n},r,g,blue)&&
+43:  quad(b,(L3Vec3){l,y,n},(L3Vec3){l,t,n},(L3Vec3){R,t,n},(L3Vec3){R,y,n},r,g,blue)&&
+44:  quad(b,(L3Vec3){R,y,s},(L3Vec3){R,t,s},(L3Vec3){l,t,s},(L3Vec3){l,y,s},r,g,blue)&&
+45:  quad(b,(L3Vec3){l,y,s},(L3Vec3){l,t,s},(L3Vec3){l,t,n},(L3Vec3){l,y,n},r,g,blue)&&
+46:  quad(b,(L3Vec3){R,y,n},(L3Vec3){R,t,n},(L3Vec3){R,t,s},(L3Vec3){R,y,s},r,g,blue);
+47: }
+48: static int triangle(Builder *,L3Vec3,L3Vec3,L3Vec3,unsigned,unsigned,unsigned);
+49: static int phantom(Builder *b,float x,float z,float time,int frightened){
+50:  /* Bell cloak and scalloped hem:32 faces including the two readable eyes,
+51:   * replacing the old100-face stack of boxes and four-sided eye sockets. */
+52:  float lift=.18f+.08f*sinf(time*2.4f+x),twist=.055f*sinf(time*1.5f);
+53:  unsigned red=frightened?105:242,green=frightened?205:222,blue=frightened?245:189;
+54:  for(unsigned i=0;i<8;i++){
+55:   float a=i*.78539816f+twist,c=(i+1)*.78539816f+twist;
+56:   L3Vec3 p={x+.55f*cosf(a),lift+(i&1?.13f:0),z+.55f*sinf(a)},q={x+.55f*cosf(c),lift+(i&1?0:.13f),z+.55f*sinf(c)};
+57:   L3Vec3 u={x+.38f*cosf(a),lift+1.05f,z+.38f*sinf(a)},v={x+.38f*cosf(c),lift+1.05f,z+.38f*sinf(c)};
+58:   if(!quad(b,p,u,v,q,red,green,blue)||!triangle(b,u,(L3Vec3){x,lift+1.34f,z},v,red,green,blue))return 0;
+59:  }
+60:  for(int i=-1;i<=1;i+=2){float ex=x+i*.16f;
+61:   if(!quad(b,(L3Vec3){ex-.055f,lift+.92f,z+.385f},(L3Vec3){ex-.055f,lift+.73f,z+.385f},(L3Vec3){ex+.055f,lift+.73f,z+.385f},(L3Vec3){ex+.055f,lift+.92f,z+.385f},20,28,46))return 0;
+62:   if(!quad(b,(L3Vec3){ex-.019f,lift+.88f,z+.39f},(L3Vec3){ex-.019f,lift+.83f,z+.39f},(L3Vec3){ex+.019f,lift+.83f,z+.39f},(L3Vec3){ex+.019f,lift+.88f,z+.39f},240,245,232))return 0;
+63:  }return 1;
+64: }
+65: static int courier(Builder *b,float x,float y,float z,float phase){
+66:  float stride=.08f*sinf(phase),arm=.10f*sinf(phase);
+67:  return box(b,x-.16f,y,z+stride,.21f,.46f,.3f,65,68,83)&&box(b,x+.16f,y,z-stride,.21f,.46f,.3f,65,68,83)&&
+68:  box(b,x-.16f,y,z+stride+.06f,.25f,.15f,.4f,76,51,42)&&box(b,x+.16f,y,z-stride+.06f,.25f,.15f,.4f,76,51,42)&&
+69:  box(b,x,y+.45f,z,.56f,.5f,.42f,45,172,167)&&box(b,x,y+.95f,z,.4f,.37f,.4f,244,200,153)&&
+70:  box(b,x,y+1.24f,z-.02f,.44f,.15f,.43f,79,55,43)&&box(b,x-.38f,y+.5f,z-arm,.16f,.39f,.2f,58,180,175)&&
+71:  box(b,x+.38f,y+.5f,z+arm,.16f,.39f,.2f,58,180,175);
+72: }
+73: static int geometry(L3Render *r,const L3MiniView *v,const L3MiniActors *actors){
+74:  if(!r->maze_static_count){Builder b={.r=r,.offset=24U<<20,.meshes=r->maze_static};
+75:   for(unsigned y=0;y<v->height*2;y+=4)for(unsigned x=0;x<v->width*2;x+=4){
+76:    float x1=fminf(x+4,v->width*2),y1=fminf(y+4,v->height*2);
+77:    if(!quad(&b,(L3Vec3){x,0,y},(L3Vec3){x,0,y1},(L3Vec3){x1,0,y1},(L3Vec3){x1,0,y},240,235,225))return 0;
+78:   }
+79:   for(unsigned y=0;y<v->height;y++)for(unsigned x=0;x<v->width;x++)if(v->cells[y*20+x].kind==L3_MINI_CELL_WALL)
+80:    if(!box(&b,x*2+1,0,y*2+1,2,1.55f,2,256,256,256))return 0;
+81:   if(!seal(&b)||b.offset>25U<<20)return 0;r->maze_static_count=b.n;
+82:  }
+83:  unsigned page=r->frame&1;Builder b={.r=r,.offset=(26U+page)<<20,.meshes=r->maze_dynamic};
+84:  for(unsigned y=0;y<v->height;y++)for(unsigned x=0;x<v->width;x++){
+85:   unsigned kind=v->cells[y*20+x].kind;if(kind!=L3_MINI_CELL_PELLET&&kind!=L3_MINI_CELL_POWER)continue;
+86:   float size=kind==L3_MINI_CELL_POWER?.42f:.18f;
+87:   if(!box(&b,x*2+1,.15f,y*2+1,size,kind==L3_MINI_CELL_POWER?.7f:.25f,size,256,220,90))return 0;
+88:  }
+89:  for(unsigned i=0;i<actors->count;i++){
+90:   const L3MiniActor *a=&actors->actors[i];float x=a->x256/128.f,z=a->y256/128.f;
+91:   if(i==0){
+92:    if(!courier(&b,x,0,z,v->elapsed_ms*.018f))return 0;
+93:    /* A thin, raised brass guide ring keeps the courier distinguishable from
+94:     * the amber lanterns behind a wall. Same dynamic batch, 16 extra faces. */
+95:    for(unsigned n=0;n<8;n++){
+96:     float a=n*.78539816f,d=(n+1)*.78539816f;
+97:     if(!quad(&b,(L3Vec3){x+.48f*cosf(a),1.68f,z+.48f*sinf(a)},
+98:        (L3Vec3){x+.38f*cosf(a),1.68f,z+.38f*sinf(a)},
+99:        (L3Vec3){x+.38f*cosf(d),1.68f,z+.38f*sinf(d)},
+100:        (L3Vec3){x+.48f*cosf(d),1.68f,z+.48f*sinf(d)},256,244,171))return 0;
+101:    }
+102:   }
+103:   else if(!phantom(&b,x,z,v->elapsed_ms*.001f,!!(a->flags&L3_MINI_ACTOR_FRIGHTENED)))return 0;
+104:  }
+105:  if(!seal(&b)||b.offset>((27U+page)<<20))return 0;r->maze_dynamic_count=b.n;return 1;
+106: }
+107: int l3_maze_render(L3Render *r,const L3Game *g){
+108:  L3MiniView v;L3MiniActors actors;const L3MiniState *s=&g->activities.arcade.base[L3_MINI_MAZE];
+109:  if(!l3_mini_view(s,&v)||!l3_mini_actors(s,&actors))return 0;
+110:  if(!r->maze_motion.valid){if(!l3_maze_motion_observe(&r->maze_motion,&v,&actors,r->presentation_seconds,r->presentation_epoch))return 0;}
+111:  if(!l3_maze_motion_sample(&r->maze_motion,r->presentation_seconds,&actors)||!geometry(r,&v,&actors))return 0;
+112:  /* A stable angled view keeps the whole house navigable. All coordinates are
+113:   * world metres and the matrix is recomputed normally for G3D1 each frame. */
+114:  L3Vec3 eye={v.width,42,v.height+9},target={v.width,0,v.height};
+115:  L3Vec3 f=unit(sub(target,eye)),right=unit(cross(f,(L3Vec3){0,1,0})),down=cross(f,right),rows[]={right,down,f};
+116:  gpu_target t={PRODOCK_GPU_BASE+(r->frame&1)*r->page_bytes,PRODOCK_GPU_BASE+2*r->page_bytes,r->width,r->height,r->pitch,r->pitch};
+117:  if(!gpu_v1_target(&r->gpu,&t)||!gpu_v1_scissor(&r->gpu,0,0,r->width,r->height)||!gpu_v1_clear(&r->gpu,3,0x0864,65535,0,0,r->width,r->height))return 0;
+118:  gpu_geom_camera cam={65536,80*65536,(int32_t)(r->focal*65536),(int32_t)(r->focal*65536),r->width/2,r->height/2};if(!gpu_geom_set_camera(&r->gpu,&cam))return 0;
+119:  gpu_geom_transform m;for(unsigned a=0;a<3;a++){m.values[a*4]=(int32_t)lroundf(rows[a].x*65536);m.values[a*4+1]=(int32_t)lroundf(rows[a].y*65536);m.values[a*4+2]=(int32_t)lroundf(rows[a].z*65536);m.values[a*4+3]=(int32_t)lroundf(-dot(rows[a],eye)*65536);}
+120:  gpu_geom_light light={-12000,26000,-15000,180,76};gpu_material material={1|2|4|16,256,65535,256,256,256,0,0,0};
+121:  gpu_texture_level texture={r->arcade_texture,256,256,512,GPU_RGB565,1,1,0};
+122:  if(!gpu_geom_set_transform(&r->gpu,&m)||!gpu_geom_set_light(&r->gpu,&light)||!gpu_v1_material(&r->gpu,&material)||!gpu_v1_texture(&r->gpu,&texture))return 0;
+123:  for(unsigned i=0;i<r->maze_static_count;i++){if(!gpu_geom_draw(&r->gpu,&r->maze_static[i],1))return 0;r->draws++;r->triangles+=r->maze_static[i].face_count;}
+124:  material.flags=2|4;if(!gpu_v1_material(&r->gpu,&material))return 0;
+125:  for(unsigned i=0;i<r->maze_dynamic_count;i++){if(!gpu_geom_draw(&r->gpu,&r->maze_dynamic[i],1))return 0;r->draws++;r->triangles+=r->maze_dynamic[i].face_count;}
+126:  return !r->failed;
+127: }
+128: 
+129: static int triangle(Builder *b,L3Vec3 a,L3Vec3 c,L3Vec3 d,unsigned red,unsigned green,unsigned blue){
+130:  if(b->nv+3>256&&!seal(b))return 0;L3Vec3 p[]={a,c,d},n=unit(cross(sub(c,a),sub(d,a)));unsigned v=b->nv;
+131:  for(unsigned i=0;i<3;i++){b->v[b->nv]=(gpu_geom_vertex){0};if(!gpu_geom_fixed(p[i].x,&b->v[b->nv].x)||!gpu_geom_fixed(p[i].y,&b->v[b->nv].y)||!gpu_geom_fixed(p[i].z,&b->v[b->nv].z))return 0;b->nv++;}
+132:  uint32_t *w=b->f[b->nf++].words;memset(w,0,32);w[0]=v|((v+1)<<8)|((v+2)<<16);w[4]=((uint32_t)((int)lroundf(n.x*32767)&65535)<<16)|((int)lroundf(n.y*32767)&65535);w[5]=(int)lroundf(n.z*32767)&65535;w[6]=red|(green<<9)|(blue<<18);return 1;
+133: }
+134: static int crystal(Builder *b,float x,float z,float height,unsigned sides,unsigned r,unsigned g,unsigned blue){
+135:  for(unsigned i=0;i<sides;i++){
+136:   float a=i*6.2831853f/sides,c=(i+1)*6.2831853f/sides;
+137:   L3Vec3 p={x+.51f*cosf(a),.42f,z+.51f*sinf(a)},q={x+.51f*cosf(c),.42f,z+.51f*sinf(c)};
+138:   L3Vec3 u={x+.45f*cosf(a),height*.72f,z+.45f*sinf(a)},v={x+.45f*cosf(c),height*.72f,z+.45f*sinf(c)};
+139:   float facet=.68f+.32f*(i%3)/2.f;
+140:   if(!quad(b,p,u,v,q,(unsigned)(r*facet),(unsigned)(g*facet),(unsigned)(blue*facet))||
+141:      !triangle(b,u,(L3Vec3){x+.08f,height,z-.06f},v,r,g,blue)||
+142:      !triangle(b,p,q,(L3Vec3){x,.23f,z},r/2,g/2,blue/2))return 0;
+143:  }return 1;
+144: }
+145: static int barrel(Builder *b,float x,float y,float z,float angle){
+146:  for(unsigned i=0;i<8;i++){
+147:   float a=angle+i*.78539816f,c=angle+(i+1)*.78539816f;float radius=.34f;
+148:   L3Vec3 p={x+radius*cosf(a),y+radius*sinf(a),z-.32f},q={x+radius*cosf(c),y+radius*sinf(c),z-.32f},u=p,v=q;u.z=v.z=z+.32f;
+149:   unsigned r=i&1?180:235,g=i&1?125:180,blue=i&1?75:110;
+150:   if(!quad(b,p,u,v,q,r,g,blue)||!triangle(b,(L3Vec3){x,y,z-.32f},p,q,130,100,75)||!triangle(b,(L3Vec3){x,y,z+.32f},v,u,130,100,75))return 0;
+151:  }return 1;
+152: }
+153: int l3_arcade_3d_render(L3Render *r,const L3Game *g){
+154:  unsigned kind=g->activities.arcade.active-1,page=r->frame&1;
+155:  L3SimonView simon;L3PlatformView tower;
+156:  if(kind==L3_ARCADE_SIMON){if(!l3_simon_view(&g->activities.arcade.simon,&simon))return 0;}
+157:  else if(kind==L3_ARCADE_PLATFORM){if(!l3_platform_view(&g->activities.arcade.platform,&tower))return 0;}
+158:  else return 0;
+159:  if(kind==L3_ARCADE_PLATFORM&&r->activity_stage!=tower.floor){r->activity_stage=tower.floor;r->maze_static_count=0;}
+160:  if(!r->maze_static_count){Builder b={.r=r,.offset=24U<<20,.meshes=r->maze_static};
+161:   if(kind==L3_ARCADE_SIMON){
+162:    for(int z=-5;z<5;z+=2)for(int x=-6;x<6;x+=2)
+163:     if(!quad(&b,(L3Vec3){x,0,z},(L3Vec3){x,0,z+2},(L3Vec3){x+2,0,z+2},(L3Vec3){x+2,0,z},256,256,256))return 0;
+164:    for(unsigned i=0;i<4;i++){static const float x[]={0,3,0,-3},z[]={-2.3f,0,2.3f,0};if(!box(&b,x[i],0,z[i],1.7f,.25f,1.7f,190,185,170))return 0;}
+165:   }else{
+166:    for(unsigned side=0;side<4;side++){float x=side&1?12.4f:.4f,z=side&2?4.65f:.45f;if(!box(&b,x,-.16f,z,.24f,10.6f,.24f,90,115,135))return 0;}
+167:    /* Every platform slab uses the exact collision rectangles from the engine.
+168:     * Missing rectangles stay visibly empty: no decorative floor over a gap. */
+169:    for(unsigned i=0;i<tower.surface_count;i++){const L3PlatformSurface *p=tower.surfaces+i;
+170:     float x0=p->x0/3200.f,x1=p->x1/3200.f,z0=p->z0/3200.f,z1=p->z1/3200.f,y=p->y256/3200.f;
+171:     if(y>tower.floor*2.56f+.05f){
+172:      /* Upper decks are a visible cutaway frame, never an opaque ceiling
+173:       * hiding the controlled actor. The occupied/lower decks stay complete. */
+174:      const float t=.22f;
+175:      if(!quad(&b,(L3Vec3){x0,y,z0},(L3Vec3){x0,y,z0+t},(L3Vec3){x1,y,z0+t},(L3Vec3){x1,y,z0},100,125,150)||
+176:         !quad(&b,(L3Vec3){x0,y,z1-t},(L3Vec3){x0,y,z1},(L3Vec3){x1,y,z1},(L3Vec3){x1,y,z1-t},100,125,150)||
+177:         !quad(&b,(L3Vec3){x0,y,z0},(L3Vec3){x0,y,z1},(L3Vec3){x0+t,y,z1},(L3Vec3){x0+t,y,z0},100,125,150)||
+178:         !quad(&b,(L3Vec3){x1-t,y,z0},(L3Vec3){x1-t,y,z1},(L3Vec3){x1,y,z1},(L3Vec3){x1,y,z0},100,125,150))return 0;
+179:     }else if(!box(&b,(x0+x1)/2,y-.16f,(z0+z1)/2,x1-x0,.16f,z1-z0,170,145,115))return 0;
+180:    }
+181:    for(unsigned i=0;i<tower.ladder_count;i++){const L3PlatformLadder *p=tower.ladders+i;float x=p->x256/3200.f,z=p->z256/3200.f,y0=p->y0/3200.f,y1=p->y1/3200.f;
+182:     for(int side=-1;side<=1;side+=2)if(!box(&b,x+side*.30f,y0,z,.09f,y1-y0,.09f,240,195,90))return 0;
+183:     for(float y=y0+.16f;y<y1;y+=.32f)if(!box(&b,x,y,z,.65f,.13f,.15f,240,195,90))return 0;
+184:    }
+185:   }
+186:   if(!seal(&b)||b.offset>(25U<<20))return 0;r->maze_static_count=b.n;
+187:  }
+188:  Builder b={.r=r,.offset=(26U+page)<<20,.meshes=r->maze_dynamic};
+189:  if(kind==L3_ARCADE_SIMON){
+190:   static const float x[]={0,3,0,-3},z[]={-2.3f,0,2.3f,0};static const unsigned rgb[4][3]={{255,65,90},{60,225,125},{80,150,255},{255,220,70}};
+191:   for(unsigned i=0;i<4;i++){float bright=simon.active_color==i?1:.45f;
+192:    if(!crystal(&b,x[i],z[i],2.1f+i*.18f,4+i,rgb[i][0]*bright,rgb[i][1]*bright,rgb[i][2]*bright))return 0;
+193:    /* Raised white dots give a second identity in addition to direction/color. */
+194:    for(unsigned j=0;j<=i;j++)if(!box(&b,x[i]-.45f+j*.30f,.27f,z[i]+.67f,.12f,.07f,.12f,245,245,230))return 0;
+195:   }
+196:  }else{
+197:   for(unsigned i=0;i<tower.actor_count;i++){const L3PlatformActor *a=tower.actors+i;float x=a->x256/3200.f,y=a->y256/3200.f,z=a->z256/3200.f;
+198:    if(a->kind==2){if(!barrel(&b,x,y+.34f,z,x*2.5f))return 0;}
+199:    else if(a->kind==1){if(!courier(&b,x,y,z,tower.elapsed_ms*.018f))return 0;}
+200:    else if(a->kind==3){if(!box(&b,x,y,z,.8f,1,.6f,235,195,70)||!box(&b,x,y+1,z,.15f,.8f,.15f,255,245,140))return 0;}
+201:    else if(a->kind==4){if(!box(&b,x,y,z,.8f,.14f,.8f,80,210,240))return 0;}
+202:   }
+203:  }
+204:  if(!seal(&b)||b.offset>((27U+page)<<20))return 0;r->maze_dynamic_count=b.n;
+205:  L3Vec3 eye=kind==L3_ARCADE_SIMON?(L3Vec3){0,10,12}:(L3Vec3){21,17,23};
+206:  L3Vec3 target=kind==L3_ARCADE_SIMON?(L3Vec3){0,0,0}:(L3Vec3){6.4f,5,2.56f};
+207:  L3Vec3 f=unit(sub(target,eye)),right=unit(cross(f,(L3Vec3){0,1,0})),down=cross(f,right),rows[]={right,down,f};
+208:  gpu_target t={PRODOCK_GPU_BASE+(r->frame&1)*r->page_bytes,PRODOCK_GPU_BASE+2*r->page_bytes,r->width,r->height,r->pitch,r->pitch};
+209:  if(!gpu_v1_target(&r->gpu,&t)||!gpu_v1_scissor(&r->gpu,0,0,r->width,r->height)||!gpu_v1_clear(&r->gpu,3,kind==L3_ARCADE_SIMON?0x1948:0x18e7,65535,0,0,r->width,r->height))return 0;
+210:  gpu_geom_camera cam={65536,80*65536,(int32_t)(r->focal*65536),(int32_t)(r->focal*65536),r->width/2,r->height/2};if(!gpu_geom_set_camera(&r->gpu,&cam))return 0;
+211:  gpu_geom_transform m;for(unsigned a=0;a<3;a++){m.values[a*4]=(int32_t)lroundf(rows[a].x*65536);m.values[a*4+1]=(int32_t)lroundf(rows[a].y*65536);m.values[a*4+2]=(int32_t)lroundf(rows[a].z*65536);m.values[a*4+3]=(int32_t)lroundf(-dot(rows[a],eye)*65536);}
+212:  gpu_geom_light light={-12000,26000,-15000,200,56};gpu_material material={1|2|4|16,256,65535,256,256,256,0,0,0};
+213:  gpu_texture_level texture={r->arcade_texture,256,256,512,GPU_RGB565,1,1,0};
+214:  if(!gpu_geom_set_transform(&r->gpu,&m)||!gpu_geom_set_light(&r->gpu,&light)||!gpu_v1_material(&r->gpu,&material)||!gpu_v1_texture(&r->gpu,&texture))return 0;
+215:  for(unsigned i=0;i<r->maze_static_count;i++){if(!gpu_geom_draw(&r->gpu,&r->maze_static[i],1))return 0;r->draws++;r->triangles+=r->maze_static[i].face_count;}
+216:  material.flags=2|4;if(!gpu_v1_material(&r->gpu,&material))return 0;
+217:  for(unsigned i=0;i<r->maze_dynamic_count;i++){if(!gpu_geom_draw(&r->gpu,&r->maze_dynamic[i],1))return 0;r->draws++;r->triangles+=r->maze_dynamic[i].face_count;}
+218:  return !r->failed;
+219: }
+
+
+FILE games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/src/mini_ui.c SHA256 0228003ccea1820e31726a386693a3acef557c10a97381dcef943864970f68bf
+1: #define _POSIX_C_SOURCE 200809L
+2: #include "luma3d_render.h"
+3: #include "luma3d_activities.h"
+4: #include "puzzle_art.h"
+5: #include <stdlib.h>
+6: #include <string.h>
+7: #include <stdio.h>
+8: #include <sys/ioctl.h>
+9: #include <time.h>
+10: static double ui_seconds(void){struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return t.tv_sec+t.tv_nsec*1e-9;}
+11: 
+12: /* Native indexed artwork. 0 is transparent, 1..31 retain their old palette;
+13:  * 32..127 belong to this UI. Shooter sprites own 128..239, console 240..255.
+14:  * Two independent CPU shadows describe the last bytes uploaded to each page. */
+15: #define MINI_BASE (22U<<20)
+16: #define MINI_PAGE (1U<<20)
+17: enum { INK=64,SHADOW,PANEL,EDGE,EDGE_LIGHT,WELL,SLOT,SLOT_LIGHT,MUTED,FAINT,
+18:        TEXT,WHITE,BRASS_DARK,BRASS,GOLD,GOLD_LIGHT,GREEN_DARK,GREEN,GREEN_LIGHT,
+19:        RED_DARK,RED,RED_LIGHT,BLUE_DARK,BLUE };
+20: typedef struct {L3Render *r;uint8_t *pixels;int w,h,scale,wide;} Canvas;
+21: static int unit(const Canvas *c,int n){return n*c->scale/2;}
+22: static int min(int a,int b){return a<b?a:b;}
+23: static int max(int a,int b){return a>b?a:b;}
+24: static void box(Canvas *c,int x,int y,int w,int h,unsigned color){
+25:  int x0=max(x,0),x1=min(x+w,c->w),y0=max(y,0),y1=min(y+h,c->h);
+26:  if(x1<=x0||y1<=y0)return;
+27:  for(int yy=y0;yy<y1;yy++)memset(c->pixels+(size_t)yy*c->w+x0,(int)color,(size_t)(x1-x0));
+28: }
+29: static void pixel(Canvas *c,int x,int y,unsigned color){if(x>=0&&x<c->w&&y>=0&&y<c->h)c->pixels[(size_t)y*c->w+x]=(uint8_t)color;}
+30: static void round_box(Canvas *c,int x,int y,int w,int h,int radius,unsigned color){
+31:  radius=min(radius,min(w,h)/2);if(radius<1){box(c,x,y,w,h,color);return;}
+32:  for(int yy=0;yy<h;yy++){
+33:   int dy=yy<radius?radius-yy-1:yy>=h-radius?yy-(h-radius):0,cut=0;
+34:   if(dy)while(cut<radius && (radius-cut-1)*(radius-cut-1)+dy*dy>radius*radius)cut++;
+35:   box(c,x+cut,y+yy,w-2*cut,1,color);
+36:  }
+37: }
+38: static void circle(Canvas *c,int x,int y,int radius,unsigned color){
+39:  for(int yy=-radius;yy<=radius;yy++){int xx=radius;while(xx>0&&xx*xx+yy*yy>radius*radius)xx--;box(c,x-xx,y+yy,2*xx+1,1,color);}
+40: }
+41: static void line(Canvas *c,int x0,int y0,int x1,int y1,int thick,unsigned color){
+42:  int dx=abs(x1-x0),sx=x0<x1?1:-1,dy=-abs(y1-y0),sy=y0<y1?1:-1,e=dx+dy;
+43:  for(;;){box(c,x0-thick/2,y0-thick/2,thick,thick,color);if(x0==x1&&y0==y1)break;int q=2*e;if(q>=dy){e+=dy;x0+=sx;}if(q<=dx){e+=dx;y0+=sy;}}
+44: }
+45: static void panel(Canvas *c,int x,int y,int w,int h){
+46:  int r=unit(c,10);round_box(c,x,y+unit(c,4),w,h,r,SHADOW);round_box(c,x,y,w,h,r,EDGE);
+47:  round_box(c,x+1,y+1,w-2,h-2,r,PANEL);box(c,x+r,y+1,w-2*r,1,EDGE_LIGHT);
+48: }
+49: static void glass_panel(Canvas *c,int x,int y,int w,int h){
+50:  int radius=unit(c,10);
+51:  for(int yy=0;yy<h;yy++){
+52:   int dy=yy<radius?radius-yy-1:yy>=h-radius?yy-(h-radius):0,cut=0;
+53:   if(dy)while(cut<radius&&(radius-cut-1)*(radius-cut-1)+dy*dy>radius*radius)cut++;
+54:   for(int xx=cut;xx<w-cut;xx++)if(x+xx>=0&&x+xx<c->w&&y+yy>=0&&y+yy<c->h){
+55:    uint8_t *p=c->pixels+(size_t)(y+yy)*c->w+x+xx;
+56:    *p=(xx==cut||xx==w-cut-1||!yy||yy==h-1)?BRASS_DARK:(*p>=32&&*p<128?puzzle_glass_tint[*p-32]:PANEL);
+57:   }
+58:  }
+59: }
+60: static unsigned next_char(const unsigned char **p){
+61:  unsigned c=*(*p)++;if(c>=0xc2&&c<0xe0&&**p>=0x80){c=((c&31)<<6)|(**p&63);(*p)++;}
+62:  else if(c>=0xe0&&c<0xf0&&(*p)[0]&&(*p)[1]){c=((c&15)<<12)|(((*p)[0]&63)<<6)|((*p)[1]&63);*p+=2;}
+63:  if(c==0x2019)return '\'';if(c==0x2014||c==0x2013)return '-';return c<256?c:'?';
+64: }
+65: static int font_index(const Canvas *c,int f){return f+(c->wide?5:0);}
+66: static int text_width(int f,const char *s){
+67:  const unsigned char *p=(const unsigned char *)s;int w=0;while(*p)w+=puzzle_fonts[f].glyph[next_char(&p)].advance;return w;
+68: }
+69: static void label(Canvas *c,int x,int y,int f,const char *s,unsigned color){
+70:  const PuzzleFont *font=puzzle_fonts+f;const unsigned char *p=(const unsigned char *)s;
+71:  while(*p){unsigned ch=next_char(&p);const PuzzleGlyph *g=font->glyph+ch;
+72:   for(unsigned yy=0;yy<font->height;yy++)for(unsigned xx=0;xx<g->width;xx++){
+73:    unsigned pos=yy*g->width+xx,a=(font->pixels[g->offset+pos/4]>>(2*(pos%4)))&3;
+74:    if(a)pixel(c,x+(int)xx,y+(int)yy,a==3?color:a==2?(color==GOLD||color==GOLD_LIGHT?BRASS:MUTED):FAINT);
+75:   }x+=g->advance;
+76:  }
+77: }
+78: static void centered(Canvas *c,int x,int y,int w,int f,const char *s,unsigned color){label(c,x+(w-text_width(f,s))/2,y,f,s,color);}
+79: static int wrapped(Canvas *c,int x,int y,int width,int f,const char *s,unsigned color){
+80:  char row[256]={0};size_t n=0;int start=y;const char *p=s;
+81:  while(*p){while(*p==' ')p++;if(!*p)break;const char *end=p;while(*end&&*end!=' '&&*end!='\n')end++;
+82:   size_t z=(size_t)(end-p);if(z>180)z=180;char trial[512];snprintf(trial,sizeof(trial),"%s%s%.*s",row,n?" ":"",(int)z,p);
+83:   if(n&&text_width(f,trial)>width){label(c,x,y,f,row,color);y+=(int)puzzle_fonts[f].height+unit(c,2);n=0;row[0]=0;}
+84:   if(n&&n+1<sizeof(row))row[n++]=' ';size_t room=sizeof(row)-n-1;if(z>room)z=room;memcpy(row+n,p,z);n+=z;row[n]=0;
+85:   p=end;if(*p=='\n'){label(c,x,y,f,row,color);y+=(int)puzzle_fonts[f].height+unit(c,2);n=0;row[0]=0;p++;}
+86:  }
+87:  if(n){label(c,x,y,f,row,color);y+=(int)puzzle_fonts[f].height;}return y-start;
+88: }
+89: int l3_ui_text(uint8_t *dst,unsigned width,unsigned height,int x,int y,unsigned style,const char *text,unsigned color,unsigned wrap_width){
+90:  if(!dst||!text||!width||!height||width>16384||height>16384||style>2||color>255)return 0;
+91:  Canvas c={NULL,dst,(int)width,(int)height,width>=1000?3:2,width>=1000};int f=font_index(&c,(int)style);
+92:  if(wrap_width)return wrapped(&c,x,y,(int)(wrap_width>width?width:wrap_width),f,text,color);
+93:  label(&c,x,y,f,text,color);return *text?(int)puzzle_fonts[f].height:0;
+94: }
+95: static void meter(Canvas *c,int x,int y,int w,unsigned value,unsigned total,unsigned color){
+96:  int h=unit(c,6);round_box(c,x,y,w,h,h/2,WELL);if(total){unsigned v=value>total?total:value;round_box(c,x,y,(int)((uint64_t)w*v/total),h,h/2,color);}
+97: }
+98: static void key(Canvas *c,int x,int y,const char *s,const char *help,int width){
+99:  int f=font_index(c,0),h=unit(c,23),w=max(unit(c,24),text_width(f,s)+unit(c,12));
+100:  round_box(c,x,y+2,w,h,unit(c,4),SHADOW);round_box(c,x,y,w,h,unit(c,4),EDGE);round_box(c,x+1,y+1,w-2,h-3,unit(c,3),SLOT);
+101:  centered(c,x,y+unit(c,2),w,f,s,TEXT);if(help&&width>w+unit(c,8))label(c,x+w+unit(c,9),y+unit(c,2),f,help,MUTED);
+102: }
+103: static const char *titles[8]={"Circuit des conduites","La fabrique des blocs","Le jardin des formes","Fusion 1024","Maison des lueurs","Les quatre échos","Simulateur des étoiles","Tour des courroies"};
+104: static void footer(Canvas *c,const L3Game *g){
+105:  int y=c->h-unit(c,30),f=font_index(c,0);label(c,unit(c,28),y,f,"R  Recommencer",MUTED);
+106:  label(c,unit(c,184),y,f,"Q  Retour au monde",MUTED);
+107:  const char *s=g->showcase_status==3?"Visite en pause · E pour jouer":g->showcase_status?"DÉMO · E pour jouer":"À votre rythme";
+108:  label(c,c->w-unit(c,28)-text_width(f,s),y,f,s,GOLD);
+109: }
+110: static void header(Canvas *c,unsigned kind,unsigned status,unsigned won){
+111:  int x=unit(c,28);label(c,x,unit(c,12),font_index(c,0),"LUMA   /   ATELIERS D'AMBRE",GOLD);
+112:  label(c,x,unit(c,32),font_index(c,2),titles[kind],WHITE);
+113:  const char *tag=status==L3_MINI_WON?"DÉFI RÉUSSI":won?"SOUVENIR ACQUIS":"DÉFI FACULTATIF";
+114:  int f=font_index(c,0),w=text_width(f,tag)+unit(c,26),xx=c->w-unit(c,28)-w;
+115:  round_box(c,xx,unit(c,23),w,unit(c,28),unit(c,14),PANEL);
+116:  label(c,xx+unit(c,13),unit(c,28),f,tag,status==L3_MINI_WON?GREEN_LIGHT:MUTED);
+117: }
+118: static void tile(Canvas *c,int x,int y,int s,unsigned ramp,int active){
+119:  unsigned b=88+(ramp%8)*5;int r=max(3,s/10),gap=max(2,s/18),w=s-gap*2;
+120:  round_box(c,x+gap,y+gap+3,w,w,r,SHADOW);round_box(c,x+gap,y+gap,w,w,r,b);
+121:  round_box(c,x+gap+1,y+gap+1,w-2,w-4,r,b+1);
+122:  box(c,x+gap+r,y+gap+1,w-r*2,2,b+3);box(c,x+gap+2,y+gap+r,1,w-r*2,b+2);
+123:  box(c,x+gap+r,y+gap+w-3,w-r*2,2,b+4);
+124:  if(active){box(c,x+gap+r,y+gap,w-r*2,1,WHITE);circle(c,x+s/2,y+gap+max(3,s/8),max(1,s/22),b+3);}
+125: }
+126: static void corner_selection(Canvas *c,int x,int y,int s){
+127:  int z=max(7,s/4),t=max(2,s/24);unsigned col=GOLD_LIGHT;
+128:  box(c,x,y,z,t,col);box(c,x,y,t,z,col);box(c,x+s-z,y,z,t,col);box(c,x+s-t,y,t,z,col);
+129:  box(c,x,y+s-t,z,t,col);box(c,x,y+s-z,t,z,col);box(c,x+s-z,y+s-t,z,t,col);box(c,x+s-t,y+s-z,t,z,col);
+130: }
+131: static void wire(Canvas *c,int x,int y,int s,const L3MiniCell *cell){
+132:  int mid=s/2,t=max(3,s/9);unsigned connected=cell->flags&L3_MINI_FLAG_CONNECTED;
+133:  unsigned base=connected?GREEN_DARK:BRASS_DARK,light=connected?GREEN:BRASS,shine=connected?GREEN_LIGHT:GOLD;
+134:  round_box(c,x+2,y+2,s-4,s-4,max(3,s/10),SLOT);box(c,x+7,y+3,s-14,1,SLOT_LIGHT);
+135:  for(int pass=0;pass<3;pass++){
+136:   int thick=pass==0?t*2+2:pass==1?t*2:max(1,t/2),off=pass==0?2:0;unsigned col=pass==0?SHADOW:pass==1?base:light;
+137:   if(cell->value&1)line(c,x+mid,y+mid+off,x+mid,y+off,thick,col);
+138:   if(cell->value&2)line(c,x+mid,y+mid+off,x+s,y+mid+off,thick,col);
+139:   if(cell->value&4)line(c,x+mid,y+mid+off,x+mid,y+s+off,thick,col);
+140:   if(cell->value&8)line(c,x+mid,y+mid+off,x,y+mid+off,thick,col);
+141:  }
+142:  circle(c,x+mid,y+mid,t+3,base);circle(c,x+mid,y+mid,t,light);circle(c,x+mid-1,y+mid-1,max(1,t/3),shine);
+143:  if(cell->kind==L3_MINI_CELL_START||cell->kind==L3_MINI_CELL_FINISH){
+144:   circle(c,x+mid,y+mid,max(5,s/5),SHADOW);circle(c,x+mid,y+mid,max(3,s/5-2),cell->kind==L3_MINI_CELL_START?GREEN:BRASS);
+145:   int z=max(3,s/10);line(c,x+mid-z,y+mid,x+mid+z,y+mid,2,WHITE);line(c,x+mid+z,y+mid,x+mid,y+mid-z,2,WHITE);line(c,x+mid+z,y+mid,x+mid,y+mid+z,2,WHITE);
+146:  }
+147:  if(cell->flags&L3_MINI_FLAG_CURSOR)corner_selection(c,x+1,y+1,s-2);
+148: }
+149: static int drop_distance(const L3MiniView *v){
+150:  int distance=0,found=0;
+151:  for(int d=1;d<(int)v->height;d++){
+152:   int fits=1;for(unsigned y=0;y<v->height;y++)for(unsigned x=0;x<v->width;x++)if(v->cells[y*20+x].flags&L3_MINI_FLAG_ACTIVE){
+153:    found=1;int yy=(int)y+d;if(yy>=v->height){fits=0;continue;}const L3MiniCell *at=&v->cells[(unsigned)yy*20+x];if(at->kind==L3_MINI_CELL_BLOCK&&!(at->flags&L3_MINI_FLAG_ACTIVE))fits=0;
+154:   }if(!fits)break;distance=d;
+155:  }return found?distance:0;
+156: }
+157: static void board(Canvas *c,const L3MiniView *v,int right){
+158:  int top=unit(c,86),bottom=c->h-unit(c,54),area=right-unit(c,42);
+159:  int cell=min((bottom-top-unit(c,14))/(int)v->height,(area-unit(c,42))/(int)v->width);
+160:  int bw=cell*v->width,bh=cell*v->height,left=unit(c,22)+(area-bw)/2,y0=top+(bottom-top-bh)/2;
+161:  int rim=unit(c,10);round_box(c,left-rim,y0-rim+unit(c,5),bw+2*rim,bh+2*rim,unit(c,14),SHADOW);
+162:  round_box(c,left-rim,y0-rim,bw+2*rim,bh+2*rim,unit(c,14),BRASS_DARK);
+163:  round_box(c,left-rim+2,y0-rim+2,bw+2*rim-4,bh+2*rim-4,unit(c,12),BRASS);
+164:  round_box(c,left-rim+3,y0-rim+4,bw+2*rim-6,bh+2*rim-7,unit(c,11),PANEL);
+165:  round_box(c,left-3,y0-3,bw+6,bh+6,unit(c,5),SHADOW);box(c,left,y0,bw,bh,WELL);
+166:  for(int sy=0;sy<2;sy++)for(int sx=0;sx<2;sx++){int xx=left+(sx?bw+rim/2:-rim/2),yy=y0+(sy?bh+rim/2:-rim/2);circle(c,xx,yy,max(1,unit(c,2)),BRASS_DARK);pixel(c,xx,yy-1,GOLD);}
+167:  int ghost=v->kind==L3_MINI_BLOCKS?drop_distance(v):0;
+168:  for(unsigned y=0;y<v->height;y++)for(unsigned x=0;x<v->width;x++){
+169:   const L3MiniCell *a=&v->cells[y*20+x];int xx=left+(int)x*cell,yy=y0+(int)y*cell;
+170:   if(v->kind==L3_MINI_CIRCUIT){wire(c,xx,yy,cell,a);continue;}
+171:   round_box(c,xx+2,yy+2,cell-4,cell-4,max(2,cell/10),SLOT);
+172:   if(v->kind==L3_MINI_MERGE1024){
+173:    if(a->kind==L3_MINI_CELL_NUMBER){unsigned exponent=0,n=a->value;while(n>1){n>>=1;exponent++;}static const unsigned colors[]={0,0,4,1,6,3,2,7,5,5};tile(c,xx,yy,cell,colors[(exponent?exponent-1:0)%10],0);
+174:     char number[12];snprintf(number,sizeof(number),"%u",a->value);int f=font_index(c,3);if(text_width(f,number)>cell-unit(c,14))f=font_index(c,2);if(text_width(f,number)>cell-unit(c,14))f=font_index(c,4);
+175:     int fy=yy+(cell-(int)puzzle_fonts[f].height)/2-1;centered(c,xx,fy,cell,f,number,exponent<=2?INK:WHITE);
+176:     if(a->value>=512){box(c,xx+cell/3,yy+cell-unit(c,10),cell/3,1,exponent==10?WHITE:GOLD_LIGHT);}
+177:    }else{circle(c,xx+cell/2,yy+cell/2,max(1,cell/40),SLOT_LIGHT);}
+178:   }else if(v->kind==L3_MINI_SHAPES){
+179:    unsigned ramp=((a->color>=10?a->color-10:0)+1)%8;
+180:    if(a->kind==L3_MINI_CELL_TARGET){unsigned col=88+ramp*5;round_box(c,xx+3,yy+3,cell-6,cell-6,max(3,cell/10),col);round_box(c,xx+5,yy+5,cell-10,cell-10,max(2,cell/10),WELL);
+181:     box(c,xx+cell/2-1,yy+cell/2-1,3,3,col+2);
+182:    }else if(a->kind==L3_MINI_CELL_BLOCK){tile(c,xx,yy,cell,ramp,a->flags&L3_MINI_FLAG_ACTIVE);if(a->flags&L3_MINI_FLAG_ACTIVE)corner_selection(c,xx+2,yy+2,cell-4);}
+183:   }else if(a->kind==L3_MINI_CELL_BLOCK)tile(c,xx,yy,cell,a->color%8,a->flags&L3_MINI_FLAG_ACTIVE);
+184:  }
+185:  if(ghost)for(unsigned y=0;y<v->height;y++)for(unsigned x=0;x<v->width;x++)if(v->cells[y*20+x].flags&L3_MINI_FLAG_ACTIVE){
+186:   const L3MiniCell *below=&v->cells[(y+(unsigned)ghost)*20+x];if(below->flags&L3_MINI_FLAG_ACTIVE)continue;
+187:   int xx=left+(int)x*cell+3,yy=y0+((int)y+ghost)*cell+3,w=cell-6;
+188:   box(c,xx,yy,w,1,BLUE);box(c,xx,yy+w-1,w,1,BLUE);box(c,xx,yy,1,w,BLUE);box(c,xx+w-1,yy,1,w,BLUE);circle(c,xx+w/2,yy+w/2,1,BLUE);
+189:  }
+190:  if(v->kind==L3_MINI_BLOCKS){int xx=left-unit(c,17);for(unsigned y=0;y<v->height;y++){box(c,xx,y0+(int)y*cell+cell/2,unit(c,5),1,BRASS_DARK);} }
+191: }
+192: static void sidebar(Canvas *c,const L3Game *g,const L3MiniView *v,int x){
+193:  int y=unit(c,86),w=c->w-x-unit(c,28),h=c->h-y-unit(c,54),pad=unit(c,17),f=font_index(c,0),body=font_index(c,1);
+194:  glass_panel(c,x,y,w,h);x+=pad;y+=unit(c,13);w-=pad*2;
+195:  const char *name=v->kind==L3_MINI_BLOCKS?"LIGNES COMPLÈTES":v->kind==L3_MINI_MERGE1024?"MEILLEURE TUILE":v->kind==L3_MINI_SHAPES?"FORMES ASSEMBLÉES":"SOURCE  >  BASSIN";
+196:  label(c,x,y,f,name,GOLD);y+=unit(c,24);char n[48];
+197:  if(v->kind==L3_MINI_CIRCUIT)snprintf(n,sizeof(n),"%u",v->lives);else snprintf(n,sizeof(n),"%u / %u",v->progress,v->target);
+198:  int number=font_index(c,2);if(text_width(number,n)>w)number=body;label(c,x,y,number,n,WHITE);y+=unit(c,38);
+199:  if(v->kind==L3_MINI_CIRCUIT)label(c,x,y-unit(c,4),f,"rotations disponibles",MUTED);
+200:  else meter(c,x,y,w,v->progress,v->target,v->status==L3_MINI_WON?GREEN:GOLD);
+201:  y+=unit(c,20);snprintf(n,sizeof(n),"SCORE  %u",v->score);label(c,x,y,f,n,MUTED);y+=unit(c,22);box(c,x,y,w,1,EDGE);y+=unit(c,16);
+202:  if(v->status!=L3_MINI_RUNNING){
+203:   label(c,x,y,body,v->status==L3_MINI_WON?"Belle réussite !":"Nouvel essai ?",v->status==L3_MINI_WON?GREEN_LIGHT:RED_LIGHT);y+=unit(c,31);
+204:   wrapped(c,x,y,w,f,v->status==L3_MINI_WON?l3_activity_reward(v->kind):"Votre progression dans l'aventure est conservée. R pour recommencer.",MUTED);return;
+205:  }
+206:  const char *hint=v->kind==L3_MINI_BLOCKS?"Complétez quatre lignes. La silhouette indique où tombera la pièce.":v->kind==L3_MINI_MERGE1024?"Glissez les nombres identiques ensemble, jusqu'à 1024.":v->kind==L3_MINI_SHAPES?"Placez chaque pièce sur son empreinte de même couleur.":"Tournez les conduites. Le flux vert doit rejoindre le bassin.";
+207:  y+=wrapped(c,x,y,w,f,hint,TEXT)+unit(c,15);
+208:  if(v->kind==L3_MINI_BLOCKS){key(c,x,y,"A D","Déplacer",w);y+=unit(c,30);key(c,x,y,"W / F","Tourner",w);y+=unit(c,30);key(c,x,y,"E","Chute directe",w);}
+209:  else if(v->kind==L3_MINI_MERGE1024){key(c,x,y,"WASD","Glisser",w);y+=unit(c,32);label(c,x,y,f,"ou les flèches",MUTED);}
+210:  else {key(c,x,y,"WASD","Déplacer",w);y+=unit(c,30);key(c,x,y,"F","Tourner",w);if(v->kind==L3_MINI_SHAPES){y+=unit(c,30);key(c,x,y,"E","Assembler",w);}}
+211:  (void)g;
+212: }
+213: static void lives(Canvas *c,int x,int y,unsigned n,int scaled){
+214:  int s=scaled?unit(c,8):8;for(unsigned i=0;i<3;i++){int xx=x+(int)i*(s*2+6);unsigned color=i<n?RED:EDGE;circle(c,xx-s/3,y,s/2,color);circle(c,xx+s/3,y,s/2,color);for(int row=0;row<s;row++)box(c,xx-s+row,y+row,(s-row)*2+1,1,color);}
+215: }
+216: static void shooter_hud(Canvas *c,const L3Game *g,const L3ShooterView *v,unsigned chrome){
+217:  if(chrome){
+218:  memset(c->pixels,0,(size_t)c->w*c->h);box(c,0,0,c->w,48,INK);box(c,0,c->h-48,c->w,48,INK);
+219:  box(c,0,48,136,c->h-96,INK);box(c,c->w-136,48,136,c->h-96,INK);
+220:  box(c,135,48,1,c->h-96,BRASS_DARK);box(c,c->w-136,48,1,c->h-96,BRASS_DARK);
+221:  label(c,20,9,2,"Simulateur des étoiles",WHITE);const char *state=v->status==L3_MINI_WON?"MISSION ACCOMPLIE":v->status==L3_MINI_LOST?"MISSION TERMINÉE":g->showcase_status?"DÉMO · E pour jouer":"VOL LIBRE";
+222:  label(c,c->w-20-text_width(0,state),15,0,state,v->status==L3_MINI_WON?GREEN_LIGHT:GOLD);
+223:  label(c,18,72,0,"ÉQUIPAGE",GOLD);label(c,18,163,0,"SCORE",MUTED);
+224:  label(c,18,247,0,"PROTECTION",MUTED);label(c,c->w-116,72,0,"VAGUE",GOLD);
+225:  label(c,c->w-116,168,0,"CIBLES",MUTED);
+226:  label(c,18,c->h-32,0,"WASD / flèches  Piloter",MUTED);centered(c,0,c->h-32,c->w,0,"E / espace  Tirer",TEXT);label(c,c->w-18-text_width(0,"R  Rejouer    Q  Retour"),c->h-32,0,"R  Rejouer    Q  Retour",MUTED);
+227:  return;
+228:  }
+229:  int x=18,y=72;lives(c,x+10,y+37,v->lives,0);y+=91;
+230:  char n[30];snprintf(n,sizeof(n),"%u",v->score);label(c,x,y+21,text_width(2,n)>100?1:2,n,WHITE);
+231:  label(c,x,y+108,0,v->shield_ticks?"BOUCLIER":"Standard",v->shield_ticks?BLUE:FAINT);
+232:  label(c,x,y+145,0,v->double_ticks?"DOUBLE TIR":"",GOLD);
+233:  x=c->w-116;y=72;snprintf(n,sizeof(n),"%u / 3",v->wave);label(c,x,y+25,2,n,WHITE);
+234:  snprintf(n,sizeof(n),"%u",v->kills);label(c,x,y+119,2,n,WHITE);
+235:  if(v->boss_hp){label(c,x,y+188,0,"GARDIEN",RED_LIGHT);int fill=min(v->boss_hp,24);box(c,x,y+218,98,6,WELL);box(c,x,y+218,98*fill/24,6,RED);}
+236: }
+237: static void scene_hud(Canvas *c,const L3Game *g,const L3ArcadeView *all,unsigned chrome){
+238:  unsigned k=all->kind,status=all->status;
+239:  int margin=unit(c,18),top=unit(c,10),height=unit(c,64),f=font_index(c,0);
+240:  if(!chrome){char info[120];
+241:  if(k==L3_ARCADE_SIMON){const L3SimonView *s=&all->content.simon;snprintf(info,sizeof(info),"%s   ·   Manche %u / 8   ·   Réponses %u / %u",s->phase==L3_SIMON_INPUT?"À VOUS DE RÉPÉTER":s->phase==L3_SIMON_ROUND_OK?"BIEN JOUÉ":"OBSERVEZ LES CRISTAUX",s->sequence_length,s->input_index,s->sequence_length);}
+242:  else if(k==L3_ARCADE_PLATFORM){const L3PlatformView *v=&all->content.platform;snprintf(info,sizeof(info),"Étage %u / 4   ·   Reprise à l'étage %u   ·   Sauts %u",v->floor,v->checkpoint_floor,v->jumps);lives(c,c->w-margin-unit(c,92),top+unit(c,20),v->lives,1);}
+243:  else {const L3MiniView *v=&all->content.grid;snprintf(info,sizeof(info),"Lueurs retrouvées  %u / %u   ·   Les lanternes éloignent les fantômes",v->progress,v->target);lives(c,c->w-margin-unit(c,92),top+unit(c,20),v->lives,1);}
+244:  label(c,margin+unit(c,17),top+unit(c,34),f,info,GOLD);return;
+245:  }
+246:  memset(c->pixels,0,(size_t)c->w*c->h);panel(c,margin,top,c->w-2*margin,height);
+247:  label(c,margin+unit(c,17),top+unit(c,7),font_index(c,1),titles[k],WHITE);
+248:  int bh=unit(c,status==L3_MINI_RUNNING?64:82),by=c->h-bh-unit(c,10);panel(c,margin,by,c->w-2*margin,bh);
+249:  if(status!=L3_MINI_RUNNING){label(c,margin+unit(c,17),by+unit(c,8),font_index(c,1),status==L3_MINI_WON?"Défi réussi · Votre souvenir est conservé":"Essai terminé · R pour recommencer",status==L3_MINI_WON?GREEN_LIGHT:RED_LIGHT);
+250:   if(status==L3_MINI_WON)label(c,margin+unit(c,17),by+unit(c,34),f,l3_activity_reward(k),TEXT);
+251:  }else{
+252:   const char *controls=k==L3_ARCADE_SIMON?"W / haut : rouge    D / droite : vert    S / bas : bleu    A / gauche : or":k==L3_ARCADE_PLATFORM?"WASD : marcher / échelles    E / espace : sauter":"WASD / flèches : explorer la maison";
+253:   label(c,margin+unit(c,17),by+unit(c,8),f,controls,TEXT);
+254:  }
+255:  const char *bottom=g->showcase_status==3?"Visite en pause · E pour jouer · Q pour revenir":g->showcase_status?"DÉMO · E pour jouer · Q pour revenir":"R : recommencer    Q : revenir au même endroit";
+256:  label(c,margin+unit(c,17),c->h-unit(c,35),f,bottom,MUTED);
+257: }
+258: void l3_mini_ui_close(L3Render *r){free(r->mini_chrome_pixels);r->mini_chrome_pixels=NULL;r->mini_chrome_key=0;r->mini_page_chrome[0]=r->mini_page_chrome[1]=0;free(r->mini_pixels);r->mini_pixels=NULL;r->mini_canvas_stamp=0;for(unsigned i=0;i<2;i++){free(r->mini_shadow[i]);r->mini_shadow[i]=NULL;r->mini_stamp[i]=0;}}
+259: int l3_mini_ui_open(L3Render *r){
+260:  if((r->width!=400||r->height!=240)&&(r->width!=640||r->height!=360))return 0;
+261:  size_t bytes=(size_t)r->width*2*r->height*2;if(!bytes||bytes>MINI_PAGE)return 0;
+262:  r->mini_canvas_stamp=0;r->mini_stamp[0]=r->mini_stamp[1]=0;r->mini_rasterizations=0;
+263:  r->mini_chrome_key=r->mini_page_chrome[0]=r->mini_page_chrome[1]=r->mini_chrome_rebuilds=0;r->mini_scan_bytes=r->mini_restore_bytes=0;
+264:  r->mini_raster_seconds=r->mini_publish_seconds=0;
+265:  r->mini_chrome_pixels=calloc(1,bytes);r->mini_pixels=calloc(1,bytes);r->mini_shadow[0]=calloc(1,bytes);r->mini_shadow[1]=calloc(1,bytes);
+266:  if(!r->mini_chrome_pixels||!r->mini_pixels||!r->mini_shadow[0]||!r->mini_shadow[1]){l3_mini_ui_close(r);return 0;}
+267:  static const unsigned char old[16][3]={{15,24,35},{35,50,64},{246,239,213},{247,188,77},{76,140,158},{113,192,139},{124,197,245},{198,120,175},{231,139,90},{168,155,211},{78,115,104},{118,103,157},{210,89,114},{76,173,183},{215,210,128},{230,234,243}};
+268:  for(unsigned i=0;i<112;i++){const unsigned char *p=i<16?old[i]:puzzle_palette[i-16];r->hud_palette.rgb[16+i]=(p[0]>>2)<<12|(p[1]>>2)<<6|(p[2]>>2);}
+269:  if(!r->host&&ioctl(r->fd,PRODOCK_PALETTE,&r->hud_palette)){r->failed=1;l3_mini_ui_close(r);return 0;}return 1;
+270: }
+271: static unsigned hash_view(const L3MiniView *v,unsigned mode,unsigned won,unsigned showcase,unsigned stage){
+272:  unsigned h=2166136261u;const uint32_t a[]={mode,v->status,v->score,v->target,v->moves,v->width,v->height,v->lives,v->progress,won,showcase,stage};
+273:  for(unsigned i=0;i<sizeof(a)/sizeof(*a);i++)h=(h^a[i])*16777619u;
+274:  for(unsigned i=0;i<400;i++){const L3MiniCell *a=v->cells+i;h=(h^a->value)*16777619u;h=(h^a->kind^((unsigned)a->color<<8)^((unsigned)a->flags<<16)^((unsigned)a->glyph<<24))*16777619u;}return h?h:1;
+275: }
+276: typedef struct {int x,y,w,h;} DirtyRect;
+277: static unsigned hud_rects(const Canvas *c,unsigned kind,DirtyRect *rect){
+278:  if(kind==L3_ARCADE_SHOOTER){rect[0]=(DirtyRect){0,48,136,292};rect[1]=(DirtyRect){c->w-136,48,136,292};return 2;}
+279:  int margin=unit(c,18),top=unit(c,10),x=margin+unit(c,17),sz=unit(c,8);
+280:  rect[0]=(DirtyRect){x,top+unit(c,34),c->w-x,puzzle_fonts[font_index(c,0)].height};
+281:  rect[1]=(DirtyRect){c->w-margin-unit(c,92)-sz,top+unit(c,20)-sz/2,2*(sz*2+6)+2*sz+1,sz+sz/2+1};return kind==L3_ARCADE_SIMON?1:2;
+282: }
+283: static void restore_chrome(Canvas *c,unsigned kind){
+284:  DirtyRect rect[2];unsigned n=hud_rects(c,kind,rect);
+285:  for(unsigned i=0;i<n;i++)for(int y=rect[i].y;y<rect[i].y+rect[i].h;y++){
+286:   size_t at=(size_t)y*c->w+rect[i].x;memcpy(c->pixels+at,c->r->mini_chrome_pixels+at,(size_t)rect[i].w);c->r->mini_restore_bytes+=rect[i].w;
+287:  }
+288: }
+289: static void upload(Canvas *c,unsigned page,unsigned stamp,unsigned chrome,unsigned kind){
+290:  L3Render *r=c->r;int force=!r->mini_stamp[page];unsigned bytes=0;
+291:  DirtyRect rect[2];unsigned n=1;
+292:  if(!force&&chrome&&r->mini_page_chrome[page]==chrome)n=hud_rects(c,kind,rect);
+293:  else rect[0]=(DirtyRect){0,0,c->w,c->h};
+294:  for(unsigned i=0;i<n;i++){
+295:   int x0=rect[i].x&~3,x1=(rect[i].x+rect[i].w+3)&~3;
+296:   for(int y=rect[i].y;y<rect[i].y+rect[i].h;y++){
+297:    size_t at=(size_t)y*c->w;const uint8_t *source=r->mini_pixels+at;uint8_t *shadow=r->mini_shadow[page]+at;
+298:    r->mini_scan_bytes+=(unsigned)(x1-x0);
+299:    if(!force&&!memcmp(source+x0,shadow+x0,(size_t)(x1-x0)))continue;
+300:    for(int x=x0;x<x1;x+=4){uint32_t a,b;memcpy(&a,source+x,4);memcpy(&b,shadow+x,4);if(force||a!=b){
+301:     *(volatile uint32_t *)(r->memory+MINI_BASE+page*MINI_PAGE+at+(unsigned)x)=a;memcpy(shadow+x,&a,4);bytes+=4;
+302:    }}
+303:   }
+304:  }
+305:  r->mini_page_chrome[page]=chrome;r->mini_stamp[page]=stamp;if(bytes){r->mini_uploads++;r->mini_bytes+=bytes;}
+306: }
+307: int l3_mini_ui_prepare(L3Render *r,const L3Game *g,struct prodock_scene *scene){
+308:  if(!g->activities.arcade.active)return 0;L3ArcadeView all;if(!l3_arcade_view(&g->activities.arcade,&all))return 0;
+309:  unsigned k=all.kind;L3MiniView v;memset(&v,0,sizeof(v));
+310:  if(k<4)v=all.content.grid;
+311:  else if(k==L3_ARCADE_MAZE){const L3MiniView *m=&all.content.grid;v.status=m->status;v.progress=m->progress;v.target=m->target;v.lives=m->lives;}
+312:  else if(k==L3_ARCADE_SIMON){const L3SimonView *s=&all.content.simon;v.status=s->grid.status;v.moves=s->phase==L3_SIMON_INPUT?1:s->phase==L3_SIMON_ROUND_OK?2:0;v.cells[398].value=(s->sequence_length<<8)|s->input_index;}
+313:  else if(k==L3_ARCADE_SHOOTER){const L3ShooterView *s=&all.content.shooter;v.status=s->status;v.score=s->score;v.progress=s->wave;v.lives=s->lives;v.moves=s->kills;v.cells[399].value=(!!s->shield_ticks)|((!!s->double_ticks)<<1);v.cells[398].value=s->boss_hp;}
+314:  else{const L3PlatformView *p=&all.content.platform;v.status=p->status;v.progress=p->floor;v.lives=p->lives;v.moves=p->jumps;v.cells[399].value=p->checkpoint_floor;}
+315:  Canvas c={r,r->mini_pixels,(int)r->width*2,(int)r->height*2,r->height==360?3:2,r->height==360};unsigned page=r->frame&1,stamp=hash_view(&v,k,g->activities.arcade.won,g->showcase_status,g->showcase_stage);
+316:  unsigned chrome=k<4?0:1+k+8*all.status+32*g->showcase_status;
+317:  if(r->mini_stamp[page]!=stamp){
+318:   /* The CPU canvas is independent of either displayed page. A page may
+319:    * already contain A while the latest canvas contains B; only a required
+320:    * upload needs the requested canvas. The second page reuses that canvas. */
+321:   if(r->mini_canvas_stamp!=stamp){
+322:    double started=ui_seconds();
+323:    if(k<4){r->mini_chrome_key=0;memcpy(r->mini_pixels,c.w==800?puzzle_background_800:puzzle_background_1280,(size_t)c.w*c.h);header(&c,k,v.status,g->activities.arcade.won&(1u<<k));int sx=c.w-unit(&c,244);board(&c,&v,sx);sidebar(&c,g,&v,sx);footer(&c,g);}
+324:    else{
+325:     if(r->mini_chrome_key!=chrome||!r->mini_canvas_stamp){
+326:      if(k==L3_ARCADE_SHOOTER)shooter_hud(&c,g,&all.content.shooter,1);else scene_hud(&c,g,&all,1);
+327:      memcpy(r->mini_chrome_pixels,r->mini_pixels,(size_t)c.w*c.h);r->mini_chrome_key=chrome;r->mini_chrome_rebuilds++;
+328:     }else restore_chrome(&c,k);
+329:     if(k==L3_ARCADE_SHOOTER)shooter_hud(&c,g,&all.content.shooter,0);else scene_hud(&c,g,&all,0);
+330:    }
+331:    r->mini_canvas_stamp=stamp;r->mini_rasterizations++;
+332:    r->mini_raster_seconds+=ui_seconds()-started;
+333:   }
+334:   double started=ui_seconds();
+335:   upload(&c,page,stamp,chrome,k);
+336:   r->mini_publish_seconds+=ui_seconds()-started;
+337:  }
+338:  uint32_t *l=scene->layers[k==L3_ARCADE_SHOOTER?3:0];l[0]=PRODOCK_GPU_BASE+MINI_BASE+page*MINI_PAGE;l[1]=(unsigned)c.w|((unsigned)c.h<<16);l[2]=0;l[3]=l[1];l[4]=0;l[5]=(unsigned)c.w;l[6]=3;scene->layers_enabled=1;r->last_scene=*scene;return 1;
+339: }
+340: 
+341: #include "l3_puzzle_ui.inc"
+
+
+FILE games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/src/presentation.c SHA256 859b38370e57eb6f57ee79c8044bcaf6e8225cf1cf786089d208e2edc93a4cd6
+1: #include "luma3d_render.h"
+2: #include "luma3d_activity_observer.h"
+3: #include "l3_puzzle_presentation.h"
+4: #include "l3_simon_presentation.h"
+5: static int puzzle_view(const L3ArcadeView *v){return v&&(v->kind==L3_MINI_BLOCKS||v->kind==L3_MINI_MERGE1024);}
+6: static void observed(void *context,const L3ArcadeView *before,const L3ArcadeView *after,uint32_t pressed,uint32_t held,uint32_t warp,double time,uint32_t epoch){
+7:  L3Render *r=context;(void)held;
+8:  if(pressed&L3_ARCADE_RESTART){
+9:   l3_maze_motion_reset(&r->maze_motion);
+10:   l3_puzzle_presentation_reset(r);l3_simon_presentation_reset(r);
+11:   before=NULL;
+12:  }
+13:  if(after&&after->kind==L3_MINI_MAZE){
+14:   L3MiniActors actors;
+15:   if(!l3_mini_actors(&r->presentation_game->activities.arcade.base[L3_MINI_MAZE],&actors)||
+16:      !l3_maze_motion_observe_trace(&r->maze_motion,&after->content.grid,&actors,time,epoch,warp))r->failed=1;
+17:  }else if(before&&before->kind==L3_MINI_MAZE)l3_maze_motion_reset(&r->maze_motion);
+18:  if(puzzle_view(before)||puzzle_view(after))l3_puzzle_presentation_observe(r,before,after,pressed,held,warp,time,epoch);
+19:  if((before&&before->kind==L3_ARCADE_SIMON)||(after&&after->kind==L3_ARCADE_SIMON))l3_simon_presentation_observe(r,before,after,pressed,held,warp,time,epoch);
+20: }
+21: void l3_presentation_bind(L3Render *r,const L3Game *g){
+22:  l3_puzzle_presentation_reset(r);l3_simon_presentation_reset(r);l3_maze_motion_reset(&r->maze_motion);
+23:  r->presentation_game=g;l3_activity_observer_bind(g,255,observed,r);
+24: }
+25: int l3_presentation_clock(L3Render *r,double seconds,uint32_t epoch){
+26:  if(!l3_activity_observer_clock(seconds,epoch)){r->failed=1;return 0;}
+27:  r->presentation_seconds=seconds;r->presentation_epoch=epoch;return 1;
+28: }
+29: /* activity_enter may be followed by a render before the first engine step.
+30:  * Establish its real view/epoch before baking, without discarding a queue
+31:  * already observed during this frame's simulation steps. */
+32: int l3_presentation_prepare(L3Render *r,const L3Game *g){
+33:  unsigned active=g->activities.arcade.active;
+34:  int puzzle=active==L3_MINI_BLOCKS+1||active==L3_MINI_MERGE1024+1;
+35:  int simon=active==L3_ARCADE_SIMON+1;
+36:  if((puzzle&&!r->puzzle_presentation)||(simon&&!r->simon_presentation))return 0;
+37:  if(puzzle&&r->puzzle_presentation->motion.valid&&r->puzzle_presentation->motion.latest.kind==active-1&&r->puzzle_presentation->observed_epoch==r->presentation_epoch)return 1;
+38:  if(simon&&r->simon_presentation&&r->simon_presentation->light.valid&&r->simon_presentation->epoch==r->presentation_epoch)return 1;
+39:  if(!puzzle&&!simon)return 1;
+40:  L3ArcadeView view;if(!l3_arcade_view(&g->activities.arcade,&view))return 0;
+41:  if(puzzle)l3_puzzle_presentation_observe(r,NULL,&view,0,0,0,r->presentation_seconds,r->presentation_epoch);
+42:  else l3_simon_presentation_observe(r,NULL,&view,0,0,0,r->presentation_seconds,r->presentation_epoch);
+43:  return puzzle?r->puzzle_presentation->motion.valid:r->simon_presentation->light.valid;
+44: }
+45: void l3_presentation_unbind(L3Render *r){l3_activity_observer_bind(NULL,0,NULL,NULL);r->presentation_game=NULL;}
+
+
+FILE games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/src/maze_motion.c SHA256 b8878aabdf21364d8f3c9886ba0524028211ea6ecb0a4c64b6eb4b94e0a9fdae
+1: #include "l3_maze_motion.h"
+2: #include <math.h>
+3: #include <string.h>
+4: #include <stdlib.h>
+5: static void settle(L3MazeTrack *t,unsigned x,unsigned y){
+6:  memset(t,0,sizeof *t);t->settled_x=t->logical_x=(uint16_t)x;t->settled_y=t->logical_y=(uint16_t)y;
+7: }
+8: static void retire(L3MazeTrack *t,double time){
+9:  while(t->count){const L3MazeSegment *s=t->segments+t->head;if(time<s->end)break;
+10:   t->settled_x=s->x1;t->settled_y=s->y1;t->head=(t->head+1)%L3_MAZE_SEGMENTS;t->count--;
+11:  }
+12: }
+13: static int open_cell(const L3MiniView *v,unsigned x,unsigned y){
+14:  if(x%256!=128||y%256!=128)return 0;x/=256;y/=256;
+15:  return x<v->width&&y<v->height&&v->cells[y*20+x].kind!=L3_MINI_CELL_WALL;
+16: }
+17: void l3_maze_motion_reset(L3MazeMotion *m){if(m)memset(m,0,sizeof *m);}
+18: int l3_maze_motion_observe_trace(L3MazeMotion *m,const L3MiniView *v,const L3MiniActors *a,double time,uint32_t epoch,unsigned warp){
+19:  if(warp>7||!m||!v||!a||!isfinite(time)||time<0||v->kind!=L3_MINI_MAZE||v->width>20||v->height>20||a->count!=3)return 0;
+20:  for(unsigned i=0;i<3;i++)if(!open_cell(v,a->actors[i].x256,a->actors[i].y256))return 0;
+21:  if(m->valid&&m->epoch==epoch&&time<m->time)return 0;
+22:  int reset=!m->valid||m->epoch!=epoch||a->respawn_ticks>m->latest.respawn_ticks;
+23:  if(reset){for(unsigned i=0;i<3;i++)settle(m->actor+i,a->actors[i].x256,a->actors[i].y256);m->resets++;}
+24:  else for(unsigned i=0;i<3;i++){
+25:   L3MazeTrack *t=m->actor+i;const L3MiniActor *p=a->actors+i;retire(t,time);
+26:   if(warp&(1u<<i)){settle(t,p->x256,p->y256);m->teleports++;continue;}
+27:   int dx=(int)p->x256-t->logical_x,dy=(int)p->y256-t->logical_y;
+28:   if(!dx&&!dy)continue;
+29:   if(abs(dx)+abs(dy)!=256||!open_cell(v,t->logical_x,t->logical_y)){
+30:    settle(t,p->x256,p->y256);m->teleports++;continue;
+31:   }
+32:   if(t->count==L3_MAZE_SEGMENTS){settle(t,p->x256,p->y256);m->overflows++;continue;}
+33:   unsigned tail=(t->head+t->count)%L3_MAZE_SEGMENTS;double start=time;
+34:   if(t->count){double end=t->segments[(tail+L3_MAZE_SEGMENTS-1)%L3_MAZE_SEGMENTS].end;if(end>start)start=end;}
+35:   t->segments[tail]=(L3MazeSegment){start,start+(i?14.:6.)/60.,t->logical_x,t->logical_y,p->x256,p->y256};
+36:   t->logical_x=p->x256;t->logical_y=p->y256;t->count++;m->moves++;
+37:  }
+38:  m->latest=*a;m->time=time;m->epoch=epoch;m->valid=1;return 1;
+39: }
+40: int l3_maze_motion_sample(const L3MazeMotion *m,double time,L3MiniActors *out){
+41:  if(!m||!out||!m->valid||!isfinite(time)||time<m->time)return 0;
+42:  L3MiniActors a=m->latest;
+43:  for(unsigned i=0;i<3;i++){
+44:   const L3MazeTrack *t=m->actor+i;double x=t->settled_x,y=t->settled_y;
+45:   for(unsigned j=0;j<t->count;j++){
+46:    const L3MazeSegment *s=t->segments+(t->head+j)%L3_MAZE_SEGMENTS;
+47:    if(time>=s->end){x=s->x1;y=s->y1;continue;}
+48:    double p=time<=s->start?0:(time-s->start)/(s->end-s->start);
+49:    x=s->x0+(s->x1-s->x0)*p;y=s->y0+(s->y1-s->y0)*p;break;
+50:   }
+51:   a.actors[i].x256=(uint16_t)lround(x);a.actors[i].y256=(uint16_t)lround(y);
+52:  }
+53:  *out=a;return 1;
+54: }
+55: 
+56: int l3_maze_motion_observe(L3MazeMotion *m,const L3MiniView *v,const L3MiniActors *a,double time,uint32_t epoch){
+57:  return l3_maze_motion_observe_trace(m,v,a,time,epoch,0);
+58: }
+
+
+FILE games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/include/luma3d_render.h SHA256 abc9a3c8ef8538ce783d5f8500877613ecca442d8040e4101b580d57cd7da35b
+1: #ifndef LUMA3D_RENDER_H
+2: #define LUMA3D_RENDER_H
+3: #include "luma3d_game.h"
+4: #include "l3_maze_motion.h"
+5: #include "gpu_geometry.h"
+6: #include "prodock-uapi.h"
+7: #include <stdio.h>
+8: 
+9: /* Same command producer for native GPU and independent model capture. */
+10: #define L3_MAP_BYTES (32U*1024*1024)
+11: #define L3_ASSET_OFFSET (8U*1024*1024)
+12: typedef struct {
+13:     int fd, display, host, failed;
+14:     const L3Game *presentation_game;
+15:     double presentation_seconds;
+16:     uint32_t presentation_epoch;
+17:     L3MazeMotion maze_motion;
+18:     struct L3PuzzlePresentation *puzzle_presentation;
+19:     struct L3SimonPresentation *simon_presentation;
+20:     unsigned width, height, pitch, page_bytes, frame;
+21:     unsigned commands, draws, triangles, instances, culled, uploaded;
+22:     unsigned total_commands, total_flushes;
+23:     double feed_seconds, present_seconds;
+24:     uint8_t *memory;
+25:     struct prodock_batch batch;
+26:     gpu_command state_cache[6]; /* matrix rows, light, material, texture */
+27:     unsigned state_valid;
+28:     struct prodock_display_info initial;
+29:     struct prodock_geometry_info initial_geometry;
+30:     gpu_v1_context gpu;
+31:     gpu_geom_mesh *meshes;
+32:     uint32_t *textures;
+33:     uint8_t *water_kind;
+34:     uint32_t *water_faces[2];
+35:     unsigned static_end,water_texture,animated_bytes,sky_region;
+36:     unsigned arcade_texture;
+37:     gpu_geom_mesh bird_mesh[2];
+38:     int ambient_active;
+39:     L3Vec3 bird_position;
+40:     unsigned tint[3];
+41:     gpu_geom_mesh npc_mesh[3][7];
+42:     gpu_geom_mesh hero_mesh[6];
+43:     unsigned hero_texture;
+44:     int hero_part;
+45:     int npc_character,npc_part;
+46:     uint8_t *hud;
+47:     gpu_geom_mesh maze_static[24], maze_dynamic[24];
+48:     unsigned maze_static_count, maze_dynamic_count;
+49:     uint8_t *mini_pixels;
+50:     uint8_t *mini_chrome_pixels; /* immutable HUD chrome for the current mode */
+51:     unsigned mini_chrome_key, mini_page_chrome[2], mini_chrome_rebuilds;
+52:     uint64_t mini_scan_bytes, mini_restore_bytes;
+53:     double mini_raster_seconds, mini_publish_seconds;
+54:     uint8_t *mini_shadow[2]; /* cached CPU copies of the two displayed UI pages */
+55:     unsigned activity_mode, activity_stage, shooter_ready, sprite_count, sprite_limit;
+56:     unsigned shooter_upload_bytes;
+57:     L3ShooterView shooter_previous;
+58:     struct {int32_t x256,y256;uint32_t started;unsigned active;} shooter_bursts[8];
+59:     unsigned cosmetic_dropped;
+60:     unsigned mini_stamp[2], mini_uploads, mini_bytes;
+61:     unsigned mini_canvas_stamp, mini_rasterizations;
+62:     unsigned hud_stamp[2],hud_height,hud_uploads,hud_bytes;
+63:     struct prodock_palette hud_palette;
+64:     struct prodock_scene last_scene;
+65:     FILE *capture;
+66:     L3Vec3 right, down, forward;
+67:     float focal, near_z, far_z;
+68: } L3Render;
+69: void l3_presentation_bind(L3Render *,const L3Game *);
+70: int l3_presentation_clock(L3Render *,double seconds,uint32_t epoch);
+71: int l3_presentation_prepare(L3Render *,const L3Game *);
+72: void l3_presentation_unbind(L3Render *);
+73: int l3_render_open(L3Render *, int host, int wide);
+74: int l3_render_frame(L3Render *, const L3Game *);
+75: int l3_render_dump(L3Render *, const char *prefix);
+76: int l3_render_close(L3Render *);
+77: void l3_world_init(L3World *world);
+78: int l3_hud_open(L3Render *r);
+79: int l3_hud_prepare(L3Render *r,const L3Game *g,struct prodock_scene *scene);
+80: int l3_hud_dump(L3Render *r,const char *prefix);
+81: int l3_arcade_3d_render(L3Render *,const L3Game *);
+82: int l3_shooter_render(L3Render *,const L3Game *,struct prodock_scene *);
+83: int l3_shooter_art_open(L3Render *);
+84: int l3_maze_render(L3Render *,const L3Game *);
+85: int l3_mini_ui_open(L3Render *);
+86: int l3_mini_ui_prepare(L3Render *,const L3Game *,struct prodock_scene *);
+87: void l3_mini_ui_close(L3Render *);
+88: int l3_activity_art_open(L3Render *);
+89: int l3_ui_text(uint8_t *,unsigned,unsigned,int,int,unsigned,const char *,unsigned,unsigned);
+90: #endif
+
+
+FILE games/luma3d/candidates/arcade_motion_r1/tests/measure_probe_r2/candidate_4_800.reference.json SHA256 5ea9c46f16a2c3e3bfdc3a040194117d85abac7529d15978dd1d7f300555dd54
+1: {
+2:   "width": 400,
+3:   "height": 240,
+4:   "pitch": 1600,
+5:   "page_bytes": 1048576,
+6:   "page": 0,
+7:   "bytes": 33554432,
+8:   "commands": 25,
+9:   "draws": 14,
+10:   "submitted_triangles": 1654,
+11:   "instances": 0,
+12:   "culled_instances": 0,
+13:   "hardware": false,
+14:   "model_seconds": 0.118909863056615,
+15:   "vertices": 3324,
+16:   "triangles": 774,
+17:   "clipped": 0,
+18:   "culled": 880,
+19:   "slivers": 0,
+20:   "fragments": 54755,
+21:   "command_sha256": "add1cb2fef3f8a59aa88c563aea093f9755093b1124c6586523085aa5ca3ff18",
+22:   "asset_sha256": "02d0290c5573dd3efffaec2b1b11129559f4c2a70d5ebebf65a8ef61d58e4e3c",
+23:   "image_sha256": "1d7bcba06eeefbcb83be697d5489d15c1fabe3536c6af1deed181f9a5409e405",
+24:   "scope": "Independent offline G3D1 command and native plane/sprite composition; no hardware timing",
+25:   "composite_sha256": "bdfca38fb3e75b2211403198a677a15e2d320c0a00019ccc0b103bfd5166f3c0",
+26:   "native_layers": 1,
+27:   "native_sprites": 0
+28: }
+
+
+RENDER EXACT games/luma3d/build/arcade_gpu_motion_20261027_r4/source/games/luma3d/src/render.c
+1: #define _POSIX_C_SOURCE 200809L
+2: #include "luma3d_amber.h"
+3: #include "luma3d_activities.h"
+4: #include "luma3d_render.h"
+5: #include "l3_puzzle_presentation.h"
+6: #include "l3_simon_presentation.h"
+7: #include "generated.h"
+8: #include "luma3d_surface.h"
+9: #include "npc_cast.h"
+10: #include "hero_polish.h"
+11: #include "amber_data.h"
+12: #include "prodock-validate.h"
+13: #include <errno.h>
+14: #include <fcntl.h>
+15: #include <math.h>
+16: #include <stdlib.h>
+17: #include <string.h>
+18: #include <sys/ioctl.h>
+19: #include <sys/mman.h>
+20: #include <time.h>
+21: #include <unistd.h>
+22: 
+23: /* gpu_v1's emitter has no user pointer. The native application has exactly one
+24:  * producer, and capture uses this identical producer, never CPU projection. */
+25: static L3Render *active;
+26: static double clock_seconds(void) {struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return t.tv_sec+t.tv_nsec*1e-9;}
+27: static float dot(L3Vec3 a,L3Vec3 b) {return a.x*b.x+a.y*b.y+a.z*b.z;}
+28: static L3Vec3 sub(L3Vec3 a,L3Vec3 b) {return (L3Vec3){a.x-b.x,a.y-b.y,a.z-b.z};}
+29: static L3Vec3 cross(L3Vec3 a,L3Vec3 b) {return (L3Vec3){a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
+30: static L3Vec3 unit(L3Vec3 a) {float n=sqrtf(dot(a,a));return n>1e-6f?(L3Vec3){a.x/n,a.y/n,a.z/n}:(L3Vec3){0,0,1};}
+31: static unsigned rgb(unsigned r,unsigned g,unsigned b) {return (r*31/255<<11)|(g*63/255<<5)|(b*31/255);}
+32: static int call(L3Render *r,unsigned long op,void *v) {
+33:     if(r->failed)return 0;
+34:     if(op==PRODOCK_PRESENT)r->last_scene=*(const struct prodock_scene *)v;
+35:     if(!r->host&&ioctl(op==PRODOCK_LAYOUT||op==PRODOCK_DISPLAY_INFO?r->display:r->fd,op,v)) {
+36:         perror("LUMA3D GPU");r->failed=1;return 0;
+37:     }return 1;
+38: }
+39: static void flush(L3Render *r) {
+40:     if(!r->batch.count||r->failed)return;
+41:     double t=clock_seconds();call(r,PRODOCK_SUBMIT,&r->batch);
+42:     r->feed_seconds+=clock_seconds()-t;r->total_flushes++;r->batch.count=0;
+43: }
+44: static void emit(const gpu_command *c) {
+45:     L3Render *r=active;
+46:     if(!r||r->failed)return;
+47:     if(prodock_command(c->words)) {fprintf(stderr,"Invalid G3D command %u\n",c->words[0]>>24);r->failed=1;return;}
+48:     unsigned op=c->words[0]>>24;
+49:     int slot=op==31?(int)c->words[1]:op==33?3:op==25?4:op==24?5:-1;
+50:     /* G3D DRAW restores MATERIAL and retains MATRIX/LIGHT/TEXTURE. COPY
+51:      * invalidates texture contents, not its descriptor. Keep all descriptors
+52:      * explicit again after TARGET; do not cache raster interpolation planes. */
+53:     if(op==22)r->state_valid=0;
+54:     if(slot>=0&&(r->state_valid&(1U<<slot))&&!memcmp(c,&r->state_cache[slot],sizeof(*c)))return;
+55:     if(r->batch.count==PRODOCK_BATCH_MAX)flush(r);
+56:     if(r->failed)return;
+57:     memcpy(r->batch.commands[r->batch.count++],c->words,32);r->commands++;r->total_commands++;
+58:     if(slot>=0) {r->state_cache[slot]=*c;r->state_valid|=1U<<slot;}
+59:     if(r->capture&&fwrite(c->words,32,1,r->capture)!=1)r->failed=1;
+60: }
+61: static uint32_t upload(L3Render *r,const void *source,unsigned bytes) {
+62:     unsigned offset=(r->uploaded+31)&~31U;
+63:     /* Assets stop before the kernel console framebuffer at relative15 MiB.
+64:      * Indexed HUD pages use20/21 MiB and never share either range. */
+65:     if(offset>(14U<<20)||bytes>(14U<<20)-offset) {r->failed=1;return 0;}
+66:     memcpy(r->memory+offset,source,bytes);
+67:     if(memcmp(r->memory+offset,source,bytes)) {fputs("LUMA3D upload verification failed\n",stderr);r->failed=1;return 0;}
+68:     r->uploaded=offset+bytes;return PRODOCK_GPU_BASE+offset;
+69: }
+70: int l3_render_open(L3Render *r,int host,int wide) {
+71:     memset(r,0,sizeof(*r));r->fd=r->display=-1;r->host=host;r->npc_character=r->hero_part=-1;r->sky_region=~0u;
+72:     if(active) {fputs("Only one GPU producer allowed\n",stderr);return 0;}
+73:     unsigned w=wide?1280:800,h=wide?720:480;
+74:     if(!host) {
+75:         r->fd=open("/dev/prodock-gpu",O_RDWR|O_CLOEXEC);
+76:         r->display=open("/dev/prodock-display",O_RDWR|O_CLOEXEC);
+77:         if(r->fd<0||r->display<0) {perror("LUMA3D open");return 0;}
+78:         struct prodock_info i;
+79:         if(!call(r,PRODOCK_INFO,&i)||i.abi!=PRODOCK_ABI||i.faulted||i.errors||(i.caps&511)!=511)return 0;
+80:         if(!call(r,PRODOCK_GEOMETRY_INFO,&r->initial_geometry)||r->initial_geometry.signature!=PRODOCK_GEOMETRY_SIGNATURE||r->initial_geometry.errors)return 0;
+81:         if(!call(r,PRODOCK_DISPLAY_INFO,&r->initial))return 0;
+82:         w=i.width;h=i.height;
+83:     }
+84:     if(!((w==800&&h==480)||(w==1280&&h==720)))return 0;
+85:     r->width=w/2;r->height=h/2;r->pitch=w*2;r->page_bytes=w==800?1U<<20:2U<<20;
+86:     r->memory=host?calloc(1,L3_MAP_BYTES):mmap(NULL,L3_MAP_BYTES,PROT_READ|PROT_WRITE,MAP_SHARED,r->fd,0);
+87:     if(r->memory==MAP_FAILED)r->memory=NULL;
+88:     if(!r->memory)return 0;
+89:     r->meshes=calloc(l3_asset_group_count,sizeof(*r->meshes));
+90:     r->textures=calloc(l3_asset_texture_count,sizeof(*r->textures));
+91:     if(!r->meshes||!r->textures)return 0;
+92:     r->uploaded=L3_ASSET_OFFSET;
+93:     for(unsigned i=0;i<l3_asset_group_count;i++) {
+94:         const L3AssetGroup *g=l3_asset_groups+i;
+95:         if(!g->nv||g->nv>256||!g->nf||g->material>=l3_asset_material_count)return 0;
+96:         r->meshes[i]=(gpu_geom_mesh){upload(r,g->vertices,g->nv*32),upload(r,g->faces,g->nf*32),g->nv,g->nf};
+97:     }
+98:     for(unsigned i=0;i<l3_asset_texture_count;i++) {
+99:         const L3AssetTexture *t=&l3_asset_textures[i];
+100:         if(!((t->width==128||t->width==256)&&(t->height==128||t->height==256)))return 0;
+286:     r->bird_position.y=g->world.height(g->world.context,r->bird_position.x,r->bird_position.z)+8+.6f*sinf(time*.21f);
+287:     uint32_t *dst=(uint32_t *)(r->memory+r->bird_mesh[r->frame&1].vertices-PRODOCK_GPU_BASE);
+288:     for(unsigned b=0;b<3;b++) {
+289:         float offset=(float)b-1,flap=.35f*sinf(time*7+b*1.2f);
+290:         L3Vec3 points[6]={{0,0,.5f},{0,0,-.45f},{-.7f,flap,0},{.7f,flap,0},{-.2f,0,-.8f},{.2f,0,-.8f}};
+291:         for(unsigned v=0;v<6;v++) {
+292:             L3Vec3 p=points[v];p.x+=offset*2.2f;p.z-=fabsf(offset)*1.5f;p.y+=sinf(b*2.0f)*.2f;
+293:             uint32_t words[8]={(uint32_t)(int32_t)(p.x*65536),(uint32_t)(int32_t)(p.y*65536),(uint32_t)(int32_t)(p.z*65536),0,0,0,0,0};
+294:             for(unsigned k=0;k<8;k++)dst[(b*6+v)*8+k]=words[k];
+295:         }
+296:     }
+297:     r->animated_bytes+=18*32;
+298: }
+299: int l3_render_frame(L3Render *r,const L3Game *g) {
+300:     if(r->failed||!g->valid)return 0;
+301:     active=r;r->sprite_count=0;
+302:     if(g->activities.arcade.active){
+303:         if(!l3_presentation_prepare(r,g)){r->failed=1;return 0;}
+304:         r->commands=r->draws=r->triangles=r->instances=r->culled=0;
+305:         unsigned mode=g->activities.arcade.active;
+306:         if(r->activity_mode!=mode){r->maze_static_count=0;r->mini_stamp[0]=r->mini_stamp[1]=0;r->activity_mode=mode;r->activity_stage=~0u;if(mode!=L3_MINI_MAZE+1)l3_maze_motion_reset(&r->maze_motion);}
+307:         if(mode==L3_MINI_MAZE+1||mode==L3_ARCADE_PLATFORM+1){
+308:             if(!(mode==L3_MINI_MAZE+1?l3_maze_render(r,g):l3_arcade_3d_render(r,g)))return 0;
+309:             flush(r);if(r->failed)return 0;
+310:         }
+311:         struct prodock_scene scene={.base=PRODOCK_GPU_BASE+(r->frame&1)*r->page_bytes,.stride=r->pitch,.format=7};
+312:         if(mode==L3_ARCADE_SHOOTER+1&&!l3_shooter_render(r,g,&scene))return 0;
+313:         if(mode==L3_MINI_BLOCKS+1||mode==L3_MINI_MERGE1024+1){
+314:             if(!l3_puzzle_motion_prepare(r,g,&scene,r->presentation_seconds))return 0;
+315:         }else if(mode==L3_ARCADE_SIMON+1){
+316:             if(!l3_simon_presentation_prepare(r,g,&scene,r->presentation_seconds))return 0;
+317:         }else if(!l3_mini_ui_prepare(r,g,&scene))return 0;
+318:         r->last_scene=scene;flush(r);if(r->failed)return 0;
+319:         double t=clock_seconds();if(!call(r,PRODOCK_PRESENT,&scene))return 0;r->present_seconds+=clock_seconds()-t;r->frame++;return 1;
+320:     }
+321:     active=r;r->commands=r->draws=r->triangles=r->instances=r->culled=0;animate_water(r,g->time,g->story.region);animate_birds(r,g);
+322:     r->forward=unit(sub(g->camera.target,g->camera.eye));
+323:     /* World is right-handed Y-up; G3D1 is right/down/forward. Preserve
+324:      * determinant +1, otherwise visible faces are culled and east is mirrored. */
+325:     r->right=unit(cross(r->forward,(L3Vec3){0,1,0}));r->down=cross(r->forward,r->right);
+326:     gpu_target target={PRODOCK_GPU_BASE+(r->frame&1)*r->page_bytes,PRODOCK_GPU_BASE+2*r->page_bytes,r->width,r->height,r->pitch,r->pitch};
+327:     gpu_target background=target;background.color=PRODOCK_GPU_BASE+6U*1024*1024;
+328:     /* The sky is generated once by the same GPU Gouraud operation as R1.
+329:      * It is an angle-independent gradient, not a cached 3D camera image. */
+330:     if(r->frame==0||r->sky_region!=g->story.region) {
+331:     if(!gpu_v1_target(&r->gpu,&background)||!gpu_v1_scissor(&r->gpu,0,0,r->width,r->height))return 0;
+332:     gpu_material sky={GPU_V1_GOURAUD,256,65535,256,256,256,0,0,0};
+333:     gpu_vertex quad[4]={{0,0,0,0,0,0,0,0,0},{r->width,0,0,0,0,0,0,0,0},{r->width,r->height,0,0,0,0,0,0,0},{0,r->height,0,0,0,0,0,0,0}};
+334:     for(unsigned i=0;i<4;i++) {static const uint8_t amber_sky[2][3]={{104,157,194},{238,213,177}};const uint8_t *a=g->story.region?amber_sky[i<2?0:1]:i<2?l3_asset_sky_zenith:l3_asset_sky_horizon;quad[i].r=a[0]*256/255;quad[i].g=a[1]*256/255;quad[i].b=a[2]*256/255;}
+335:     if(!gpu_v1_material(&r->gpu,&sky)||!gpu_v1_quad(&r->gpu,quad))return 0;r->sky_region=g->story.region;
+336:     }
+337:     if(!gpu_v1_target(&r->gpu,&target)||!gpu_v1_scissor(&r->gpu,0,0,r->width,r->height)||
+338:        !gpu_v1_clear(&r->gpu,2,0,65535,0,0,r->width,r->height)||

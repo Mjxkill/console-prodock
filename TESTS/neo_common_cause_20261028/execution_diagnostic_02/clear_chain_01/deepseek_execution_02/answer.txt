@@ -1,0 +1,37 @@
+I'll start by exploring the task files to understand what's being asked.Now I'll run the fixed acceptance tests to see the actual current failure before editing.The current harness passes only because the protected monitor catches fault5; the bench's own write counter still silently ignores accepted READ/illegal commands. I'll correct that scoreboard gap in `bench.sv` (and remove the unused stall variable) without touching RTL, stimuli, or protected files.The bench scoreboard now rejects any accepted non-write native command. I'll run the suite once to confirm behavior and capture the measured logs for the report.The bench correction compiles and all seven cases still behave as measured. Now I'll write the corrected `ANALYSIS.md`, with the scoreboard semantics, fault-2 readiness explanation, the new fault-5 observation, and the seven-case aggregate.`ANALYSIS.md` is now written before the final test invocation. I'll run the protected seven-case suite one last time; no owned files will be changed afterward.## Files changed
+
+- **`bench.sv`**
+  - Added an explicit native-command scoreboard check: any accepted command with `mcmd != 0` now terminates with `CHECK_FAIL NATIVE_COMMAND` instead of being silently ignored by the write-only counter.
+  - Introduced separate `native_accept` (`men && m_ready`) and `write_accept` conditions.
+  - Removed the unused `stall_offset_used` variable.
+  - Preserved all stimuli, seed timing, fault behavior, and RTL connections.
+- **`ANALYSIS.md`**
+  - Corrected `received/words=16` to mean **8 TARGET + 8 CLEAR** total command words, not 16 CLEAR words.
+  - Corrected the fault-2 explanation: `m_ready=0` there is the TB periodic readiness model’s low phase, not an arbiter-generated value.
+  - Documented that the command-word scoreboard uses internal `gpu.command_we`/`queue_data` with an independently specified payload, not an external measurement.
+  - Added the bench scoreboard correction and the fault-5 observation-only sensitivity result.
+  - Updated the aggregate to all seven cases and kept measured logs and finite limitations.
+
+RTL, `native_monitor.sv`, and `test_bench.py` were left unchanged.
+
+## Tests observed
+
+Final protected `taskbox_run_tests` after the last file write:
+
+- `FULL_CHAIN_COMPILE_PASS`
+- `seed=1 fault=0` → `BASELINE_PASS accepted=1 words=16 stalls=1`
+- `seed=8 fault=0` → `BASELINE_PASS accepted=1 words=16 stalls=3`
+- `fault=1` → bounded `CHECK_FAIL COMPLETION`, `accepted=0`
+- `fault=2` → bounded `CHECK_FAIL COMPLETION`, `accepted=0`
+- `fault=3` → `CHECK_FAIL COMPLETION duplicate_native_write accepted=2`
+- `fault=4` → `RESET_RECOVERY_PASS`
+- `fault=5` → protected monitor `CHECK_FAIL NATIVE_COMMAND type=1`
+
+Harness result: `{"passed": true, ...}` with all seven cases passing, exit code `0`.
+
+## Limitations
+
+- No hardware was used; DDR readiness/handshake is modeled.
+- The hardware CLEAR failure was not reproduced without an injected fault.
+- Fault 3 is a bench-side connection cut; fault 4 uses a synthetic reset window; fault 5 is an observation-only mutation in the protected monitor.
+- The seven named cases exercise the protected monitor’s native-command sensitivity via fault 5, but do not directly force an accepted non-write through the new bench-side check.

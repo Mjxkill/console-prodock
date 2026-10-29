@@ -1,0 +1,43 @@
+{
+  "status": "FAIL",
+  "timing_checks_ns": {
+    "setup": -3.446,
+    "hold": 0.124,
+    "recovery": -0.222,
+    "removal": 0.193
+  },
+  "minimum_pulse_slack_ns": 2.025,
+  "clock_mhz": {
+    "clk50": 50.0,
+    "bus80_clk": 80.0,
+    "core_clk": 800.0,
+    "rtc_clk": 10.0,
+    "ddr3_mem_clk": 400.0,
+    "ddr3_sys_clk": 100.0,
+    "vid_pclk": 74.375,
+    "vid_clk5x": 371.875,
+    "CLK_48M": 48.0,
+    "PHY_CLKOUT": 60.0,
+    "fclk_960M": 960.0,
+    "sclk": 120.005
+  },
+  "bitstream_sha256": "6dd64a2be5b68c5798826451ad71c898d56c26cba3fcfbcab5c73cce8afd2a4c",
+  "hardware_loaded": false,
+  "data_setup_violations": 1303,
+  "ddr_reset_recovery_violations": 24,
+  "setup_detail_report_limit": 1000,
+  "failed_audits": {
+    "gpu_reset_tree": [
+      "Reset 0 still uses a global routing resource",
+      "Reset 4 still uses a global routing resource",
+      "Reset 9 still uses a global routing resource"
+    ],
+    "gpu_wide_controls": [
+      "gpu_debug_state[44] still uses LW",
+      "gpu_debug_state[48] still uses LW",
+      "gpu_debug_state[53] still uses LW",
+      "u_gpu/mrst[1] still uses LW"
+    ]
+  },
+  "next_step": "Target the 100 MHz GPU/native DDR paths; pure placement has not closed them. Keep reset-clock restart analysis separate from generic STA and do not qualify the build from the functional CLKDIV model alone."
+}

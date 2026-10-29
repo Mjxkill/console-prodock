@@ -1,0 +1,194 @@
+{
+  "prompt": [
+    1,
+    "07da1f47-2442-4dd1-81c4-a55b44e6e811",
+    {
+      "unet": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "clip": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+          "type": "qwen_image",
+          "device": "default"
+        }
+      },
+      "vae": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "qwen_image_vae.safetensors"
+        }
+      },
+      "shift": {
+        "class_type": "ModelSamplingAuraFlow",
+        "inputs": {
+          "model": [
+            "lora",
+            0
+          ],
+          "shift": 3.0
+        }
+      },
+      "latent": {
+        "class_type": "EmptySD3LatentImage",
+        "inputs": {
+          "width": 1024,
+          "height": 1024,
+          "batch_size": 1
+        }
+      },
+      "positive": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "text": "A professional videogame terrain TEXTURE ATLAS, exactly 4 columns by 4 rows, 16 square material samples touching perfectly with no borders or gaps, each sample covers its entire square. Strict flat top-down orthographic ground, no perspective, no objects, no scenery. Elegant quiet hand-painted pixel-art textures for a cozy garden adventure. Broad calm color fields with sparse subtle pixel cluster details, low contrast, no busy noise, no large stones or plants. Row1 from left: warm moss-green grass; pale ochre worn dirt path; calm teal water with small pale ripples; pale golden beach sand. Row2: darker forest grass with tiny leaf litter; muted blue-gray cliff stone; green lawn with very sparse tiny cream and apricot flower dots; warm worn copper floor plates. Row3: cool blue-green moss; soft pale blue-white cloud texture; cream old limestone paving; warm wooden planks. Row4: deep blue-green grass; deep turquoise water with restrained ripples; rich garden soil with small seedlings; pale blue-white snow with soft tiny tracks. Same gentle light and beautiful coordinated palette across all tiles, edges of each material visually seamless and tileable. EXACT 4 by 4 grid arrangement with each sample filling one quarter width and height. NO text, NO letters, NO logos, NO decorative framing, NO dividing lines, NO shadows between samples, NO magenta, NO image of a map, NO UI."
+        }
+      },
+      "negative": {
+        "class_type": "CLIPTextEncode",
+        "inputs": {
+          "clip": [
+            "clip",
+            0
+          ],
+          "text": ""
+        }
+      },
+      "sample": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": [
+            "shift",
+            0
+          ],
+          "seed": 2310261005,
+          "steps": 4,
+          "cfg": 1.0,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "positive": [
+            "positive",
+            0
+          ],
+          "negative": [
+            "negative",
+            0
+          ],
+          "latent_image": [
+            "latent",
+            0
+          ],
+          "denoise": 1.0
+        }
+      },
+      "decode": {
+        "class_type": "VAEDecode",
+        "inputs": {
+          "samples": [
+            "sample",
+            0
+          ],
+          "vae": [
+            "vae",
+            0
+          ]
+        }
+      },
+      "save": {
+        "class_type": "SaveImage",
+        "inputs": {
+          "images": [
+            "decode",
+            0
+          ],
+          "filename_prefix": "luma_terrain_sheet"
+        }
+      },
+      "lora": {
+        "class_type": "LoraLoaderModelOnly",
+        "inputs": {
+          "model": [
+            "unet",
+            0
+          ],
+          "lora_name": "Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors",
+          "strength_model": 1.0
+        }
+      }
+    },
+    {
+      "client_id": "luma-art-20261023",
+      "create_time": 1792792846827
+    },
+    [
+      "save"
+    ]
+  ],
+  "outputs": {
+    "save": {
+      "images": [
+        {
+          "filename": "luma_terrain_sheet_00001_.png",
+          "subfolder": "",
+          "type": "output",
+          "metadata": {
+            "kind": "image",
+            "width": 1024,
+            "height": 1024
+          },
+          "id": "66e44ea7-cb2f-4872-b9a6-cd81f81209a0"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "07da1f47-2442-4dd1-81c4-a55b44e6e811",
+          "timestamp": 1792792846828
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "unet",
+            "vae",
+            "shift",
+            "latent",
+            "lora"
+          ],
+          "prompt_id": "07da1f47-2442-4dd1-81c4-a55b44e6e811",
+          "timestamp": 1792792846828
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "07da1f47-2442-4dd1-81c4-a55b44e6e811",
+          "timestamp": 1792792872821
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "save": {
+      "node_id": "save",
+      "display_node": "save",
+      "parent_node": null,
+      "real_node_id": "save"
+    }
+  }
+}

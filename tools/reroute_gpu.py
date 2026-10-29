@@ -15,6 +15,8 @@ import shutil
 import sys
 
 from build_gpu import ROOT, IDE, resolve_constraints, run
+from gowin_toolchain import environment
+from board_contract import before_build, record_build
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -29,6 +31,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--stage',type=Path,required=True)
     p.add_argument('--name',required=True)
+    p.add_argument('--candidate',action='store_true',help='Explicit unvalidated Pro Dock candidate')
     reuse=p.add_mutually_exclusive_group()
     reuse.add_argument('--incremental',action='store_true',
                    help='reuse the parent routed .pr using Gowin incremental PnR')
@@ -64,7 +67,9 @@ def main():
     old_name='console_'+src.name;new_name='console_'+a.name
     old_net=src/'impl/gwsynthesis'/(old_name+'.vg')
     net_digest=sha(old_net)
+    contract=before_build('prodock',candidate=a.candidate)
     dst.mkdir(exist_ok=False)
+    record_build(dst,contract)
     shutil.copytree(src/'source',dst/'source')
     (dst/'impl/gwsynthesis').mkdir(parents=True)
     net=dst/'impl/gwsynthesis'/(new_name+'.vg');shutil.copyfile(old_net,net)
@@ -75,7 +80,7 @@ def main():
     (dst/'source'/raw_rel).write_text(new)
     constraints=dst/'source/tang/constr/gpu.cst';constraints.write_text(effective)
     for name in (raw_rel,'tang/constr/gpu.cst'):manifest[name]=sha(dst/'source'/name)
-    provenance=dict(parent=str(src),parent_manifest_sha256=sha(src/'sources.json'),
+    provenance=dict(parent=str(src),ide=str(IDE),parent_manifest_sha256=sha(src/'sources.json'),
                     reused_netlist_sha256=net_digest,changes=changes,
                     scope='placement only; identical synthesized netlist; no SDC change')
     if a.timing_paths!=200:
@@ -119,7 +124,7 @@ def main():
     tcl+=f'add_file {{{dst / "source/diagnostics/timing_reports.sdc"}}}\nrun pnr\n'
     (dst/'build.tcl').write_text(tcl)
     resolve_constraints(net,constraints,dst/'constraints_resolved.cst')
-    env=dict(os.environ,LD_LIBRARY_PATH=str(IDE/'lib'),QT_QPA_PLATFORM='offscreen',DISPLAY='')
+    env=environment()
     run([str(IDE/'bin/gw_sh'),'build.tcl'],dst,dst/'build.log',env)
     if sha(net)!=net_digest or 'Running GowinSynthesis' in (dst/'build.log').read_text():
         raise RuntimeError('Gowin resynthesized the design instead of routing the frozen netlist')

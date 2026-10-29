@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "neo_md12_decoder_hardening_02",
+  "inputs": [
+    "ANALYSIS.md",
+    "CONTRACT.md",
+    "HARDWARE_RUN03.md",
+    "INPUTS.json",
+    "REVIEW_FINDINGS.md",
+    "adversarial.py",
+    "microdma_decode_v2.py",
+    "microdma_r1/decode_journal.py",
+    "microdma_r1/rv32_model.py",
+    "readback_r1/README.md",
+    "readback_r1/build_01/manifest.json",
+    "readback_r1/build_01/readback.bin",
+    "readback_r1/decode.py",
+    "readback_r1/readback.S",
+    "readback_r1/readback_model.py",
+    "readback_r1/test_readback.py",
+    "run02/journal.bin",
+    "run02/microdma.log",
+    "run02/result.json",
+    "run03/journal.bin",
+    "run03/microdma.log",
+    "run03/result.json",
+    "test_reader.py",
+    "test_md12_expected.py"
+  ],
+  "owned": [
+    "adversarial.py",
+    "ANALYSIS.md",
+    "microdma_decode_v2.py"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "test_reader.py"
+    ]
+  ],
+  "timeout_seconds": 30,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "min_model_steps": 2,
+    "min_tool_calls": 4,
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "domain": "fpga",
+  "task_type": "test_design",
+  "difficulty": "medium",
+  "task_family": "neo_ilm_reader_validation",
+  "acceptance_criteria": "Reserved/extent/lastword checks in separateMD12decoder; healthyword24=1 accepted,0/2 rejected; originalsuntouched;36reader/log tests plusprotectedcontracts; finalfixedtest evidence.",
+  "prompt": "Read REVIEW_FINDINGS.md. Correct the specifically identified wrong command_words_remaining inference (actualcompletedvalue1), implement bounded checks in new microdma_decode_v2.py only, correct/adapt your independent tests without removing reader guard coverage. Originaldecoder/payloadremainRO. Run fixed taskbox_run_tests before editing and after all edits includingreport. Complete ANALYSIS.md with actual failure/correction evidence; nohardware."
+}

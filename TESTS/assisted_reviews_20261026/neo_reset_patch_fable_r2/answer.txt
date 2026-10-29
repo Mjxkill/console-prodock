@@ -1,0 +1,52 @@
+Revue du paquet figé candidate_02, sans exécution.
+
+**Verdict.** Aucun défaut logique ou CDC concret trouvé dans le delta `pll_ready = pll_ae350_lock && ae350_por_n`. Le couplage est acceptable pour une route candidate, sous réserve des preuves manquantes listées plus bas.
+
+## Faits vérifiés dans la source
+
+- **Pas de cycle de démarrage.** La première chaîne `ae350_rst_sync` ne dépend que de `pll_ae350_lock` et de `bus80_clk` (console_neo.v:148-152, exact_chain.sv:16-20). Aucune sortie du helper ne la rejoint. L'ordre à la mise sous tension est strictement acyclique : lock, puis deux fronts bus80, puis `ae350_por_n`, puis `available`, puis `ready_meta`, puis `delay_done`, puis `trial_request`, puis `init_sync`. La seule boucle existante passe par `cpu_reset_n` vers `reset_meta` (neo_reset_trial.v:79, 92) et n'agit que pendant `holding`. Elle converge car la retombée de `trial_request` force `rst_key_n` à 0 de façon asynchrone (ae350_soc.v:152-153). Elle existait déjà dans candidate_01.
+
+- **Pas de nouveau blocage.** La condition finale de relâchement du SoC est inchangée : `rst_key_n = ae350_por_n && trial_request` (console_neo.v:169). Si bus80 ne bat pas avec lock à 1, candidate_01 ne relâchait déjà pas. Le couplage ne modifie que le point de départ de la qualification, retardé de deux périodes bus80 après le retour du lock.
+
+- **Qualification préservée et rendue cohérente.** Toute assertion de la première chaîne force `available` à 0, donc efface `ready_meta` sans attendre un front clk_ref (neo_reset_trial.v:73-78), puis `delay_done` (neo_reset_trial.v:103-105). La direction inverse était déjà couverte par `available`. Les deux détecteurs sont désormais cohérents dans les deux sens. Effet physique utile : la première chaîne étire tout événement capturé sur ses broches PRESET à au moins deux périodes bus80, ce qui dépasse largement le minimum de capture du chemin LUT du helper. Les transitions montantes de `release_request` restent à entrée unique : `ready_meta[1]` monte avec `delay_done` à 0, `delay_done` monte seul, `ae350_por_n` monte avec `ready_meta` à 0. Aucun aléa de montée sur les CLEAR asynchrones.
+
+- **Consommateurs de rst_key_n dans le SoC complet.** Déclaration ae350_soc.v:38, réduction inutilisée ae350_soc.v:114 sous `ifdef VERILATOR` donc non synthétisée pour Neo, et la seule logique à ae350_soc.v:152-153. La sortie `dbg[0]` est bien `ae350_rstn` (ae350_soc.v:155, 157), ce qui valide `cpu_reset_n(soc_dbg[0])` et le modèle exact_chain.sv:15. Logique DDR inchangée.
+
+- **Interprétation de l'injection.** Le test force uniquement `ae350_rst_sync` avec lock à 1 (capture_asymmetry_tb.sv:30-32). Le delta 25 ns de candidate_01 correspond aux deux étages `init_sync` qui rechargent `trial_request` resté à 1. Le delta de candidate_02 est un multiple de 12,5 ns, cohérent avec deux relâchements alignés sur bus80. Ce test prouve la propriété de couplage, pas la cause Neo. Si la perte physique était visible des deux détecteurs, candidate_01 requalifiait déjà.
+
+- **Cohérence des hachés.** Helper, rx et les deux exact_chain du manifeste correspondent au result.json de l'asymétrie. Le SDC cité par root_structure_coupled.json est celui fourni. Les tables de vérité des deux LUT correspondent à console_neo.v:162 et 169.
+
+## Défauts concrets, non bloquants
+
+- **Commentaire périmé.** ae350_soc.v:14-15 décrit un relâchement sur `init_calib_complete`, mais le code recharge `trial_release` (ae350_soc.v:154). Le gating DDR passe désormais par `ddr_ready` du helper. À corriger dans la documentation seulement.
+
+- **Référence du banc.** Le banc mesure l'origine de la fenêtre sur le lock brut (invariants_tb.sv:5, 15), pas sur le `available` couplé. L'écart est de 25 ns au plus, dans le sens conservateur. Non bloquant, mais la fenêtre mode0 de 2 080 000 ns est vérifiée avec ce biais.
+
+- **Redondance.** `ae350_por_n` apparaît deux fois dans le cône de `rst_key_n`. À conserver : c'est le chemin d'assertion le plus court vers le CLEAR du SoC.
+
+## Preuves manquantes
+
+- Résultat de l'équivalence mappée/RTL de candidate_02 avec les quatre bascules réelles. Annoncé en cours, non fourni.
+- Journal du banc complet de candidate_02. Seul candidate_01 a les sept phases citées.
+- Rapport recovery/removal pour les CLEAR de `ready_meta` et de `init_sync`. Le SDC n'exempte que `ae350_rst_sync` (neo.sdc:37). Les chemins bus80 vers clk50 relèvent de neo.sdc:31-33 si Gowin applique le max_delay aux checks de recovery. Fonctionnellement bénin : au relâchement, le second étage a D à 0.
+- Limites physiques inchangées : minimum de capture d'impulsion sur PRESET, 10 ns PLL versus CLEAR fabric, délai SR vers Q.
+
+## Tests discriminants minimaux
+
+- Invariant de cohérence dans invariants_tb.sv, actif à chaque perte et pas seulement sous force :
+
+```systemverilog
+always @(negedge dut.ae350_por_n) begin #0.001;
+  if(dut.u_reset_trial.ready_meta!=2'b00 || dut.u_reset_trial.delay_done)
+    $fatal(1,"COUPLING_BROKEN case%0d",case_id); end
+```
+
+- Démarrage avec bus80 absent jusqu'après le lock, pour prouver l'absence de cycle au lieu de l'affirmer :
+
+```systemverilog
+// phase supplémentaire : bus_run=0 au départ, lock=1 à 211 ns, bus_run=1 à 1000 ns, puis await_release()
+```
+
+- Direction inverse par force de `dut.u_reset_trial.ready_meta=0` pendant 30 ns avec lock à 1 : exiger la retombée immédiate de `por` et un relâchement à 50 ms, pour documenter la symétrie complète.
+
+**Décision.** Rien ne s'oppose au couplage sur le plan logique. La route reste suspendue au résultat de la simulation mappée et aux hachés de source, comme prévu.

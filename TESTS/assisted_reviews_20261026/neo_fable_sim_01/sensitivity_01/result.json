@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "cases": [
+    {
+      "name": "mask_polarity_wrong",
+      "args": [
+        "+negative=1"
+      ],
+      "returncode": -6,
+      "expected_success": false,
+      "expected_signature": "Memory/guard mismatch",
+      "passed": true,
+      "log_sha256": "0836cbf93b345a9e968842be84a15b40fbff380e94893b9b0a8b8abdb916aa76"
+    },
+    {
+      "name": "held_witness_wrong",
+      "args": [
+        "+negative=2"
+      ],
+      "returncode": -6,
+      "expected_success": false,
+      "expected_signature": "Payload changed while slot held",
+      "passed": true,
+      "log_sha256": "da273c8efffced85b35bc90be757c6e50754785f542e370911a7caa977e9e0ae"
+    },
+    {
+      "name": "ui_faster",
+      "args": [
+        "+mem_half=6.650"
+      ],
+      "returncode": 0,
+      "expected_success": true,
+      "expected_signature": "PASS R19 REAL SLOT CLEAR",
+      "passed": true,
+      "log_sha256": "5430a8f944a9ed20fce999d3d5f0b96d9a619a5a451f46677c7a9167df57a286"
+    },
+    {
+      "name": "ui_slower",
+      "args": [
+        "+mem_half=6.683"
+      ],
+      "returncode": 0,
+      "expected_success": true,
+      "expected_signature": "PASS R19 REAL SLOT CLEAR",
+      "passed": true,
+      "log_sha256": "e4bec625248ac01ad5b7bd60599daf09ff64c8f8fc6ea1d56c59d0ce9d03bbe3"
+    }
+  ],
+  "executable_sha256": "19fe67d6d2203bba85b6bf9c8068c751dbb0c5287fbdd7172bc18d1c18bc80b0",
+  "base_result_sha256": "920b8af678ed63927b10caba1b3dc0600955338d7955a7f1517aeba50d93e3f7",
+  "scope": "Two bench sensitivity checks + two asynchronous clock ratios; no RTL/board mutations",
+  "limitations": [
+    "Fault injection modifies endpoint semantics or observation witness only, not application RTL.",
+    "Not a proof of all protocol faults or metastability."
+  ]
+}

@@ -1,0 +1,128 @@
+## Avis (pas de test, pas de carte)
+
+Cette revue est statique, basée uniquement sur le paquet fourni. Les définitions des constantes (`L3_TABLE_COUNT`, `L3_FESTIVAL_STANDS`, `L3_MEMORY_WON`, capacités des tableaux graphiques) et la logique interne de `l3_memory.c` ne sont pas dans le paquet : plusieurs points restent donc des hypothèses, signalés explicitement.
+
+## Faits établis par le code fourni
+
+1. **Alias de sauvegarde jardin** : dans `l3_festival.c`, `l3_festival_save()` force :
+   ```c
+   p.kind=f->kind==L3_FESTIVAL_MEMORY?L3_FESTIVAL_GARDEN:f->kind;
+   ```
+   Donc une sauvegarde festival prise pendant Memory devient un état jardin (`4`), sans inclure l’état Memory de `memory_progress`. C’est cohérent avec « format original inchangé » et la séparation des deux saves, mais cela impose que la sauvegarde Memory indépendante soit la source de vérité pour l’état Memory.
+
+2. **Chargement Memory séparé** : `l3_festival_memory_load()` appelle `l3_memory_scene_restore()`, qui fait `stable()` puis recalcule la vue. `stable()` met `duration=1`, `elapsed=1`, `wait=0`, `old_n=0`, `page_valid[0/1]=0`, et incrémente `revision`. L’invalidation graphique partielle est donc renvoyée au cache de pages de `memory_scene.c`.
+
+3. **Site 4 / Memory** : `sites[4]={16.5f,0}`, `nearest()` inclut ce site, et le déclenchement jardin utilise une distance strictement inférieure à 3 m. Comme `l3_festival_step()` clamp `x,z` à `[-14,14]`, le joueur ne va pas jusqu’à 16.5, mais depuis `x=14` la distance vaut 2.5 m, donc le déclenchement à `<3` est bien prévu.
+   ```c
+   float x=clamp(f->x+f->vx*dt,-14,14), z=clamp(f->z+f->vz*dt,-14,14);
+   ```
+
+4. **Autoplay Memory** : dans `l3_festival_step()` :
+   ```c
+   if(f->automatic && f->memory.game.phase==L3_MEMORY_WON && f->memory.elapsed==f->memory.duration && f->memory.wait>=1.5f){
+       f->stage=0; f->map^=1; l3_festival_enter(f,L3_FESTIVAL_GARDEN);
+   }
+   ```
+   et dans `l3_memory_scene_step()` :
+   ```c
+   else if(f->automatic && f->wait>=(f->view.phase==L3_MEMORY_WON?2.0f:.26f)){ ... }
+   ```
+   Le départ vers le jardin a donc un seuil `1.5f`, alors que la scène Memory utilise `2.0f` pour son propre conseil automatique en phase gagnée. Si l’intention est de laisser la scène Memory déclencher un nouveau round, le départ jardin se produit avant ce conseil.
+
+5. **Entrée directe sur un Memory gagné** : dans `l3_festival_enter()` :
+   ```c
+   if(f->automatic&&f->memory.game.phase==L3_MEMORY_WON){
+       f->memory.elapsed=f->memory.duration;
+       l3_memory_scene_action(&f->memory,(L3MemoryAction){L3_MEMORY_NEXT,0});
+   }
+   ```
+   En chargement/reprise automatique d’un état `WON`, on passe directement au board suivant sans montrer l’écran de victoire sauvegardé.
+
+6. **Cache incrémental de `board()`** : dans `memory_scene.c`, le rectangle sale est calculé en comparant pose courante et pose mémorisée par page :
+   ```c
+   float x0=800,y0=400,x1=0,y1=0;
+   if(full||!f->page_valid[page]){x0=y0=0;x1=800;y1=400;}
+   else {
+      ...
+      if(!old||!equal(p,old)){bounds(p,&x0,&y0,&x1,&y1); if(old)bounds(old,&x0,&y0,&x1,&y1);}
+      ...
+   }
+   ```
+   Si `full==0` et `page_valid[page]==1`, seules les poses changées sont redessinées. Le renderer festival appelle toujours avec `full=0`, donc la validité doit rester correcte lors des changements d’actifs/taille.
+
+## Hypothèses de bugs les plus plausibles
+
+### H1 — Reprise automatique d’un Memory déjà gagné masque l’état gagné
+
+**Counterexemple proposé** : lancer en mode automatique avec un fichier Memory déjà en phase `L3_MEMORY_WON`, par exemple reprise après une sauvegarde produite au moment où l’autoplay passait de Memory à la jardin.
+
+**Symptôme attendu si bug** : au lieu d’afficher `LE CIEL SE SOUVIENT`, la scène appelle immédiatement `L3_MEMORY_NEXT`, donc l’écran de victoire sauvegardé disparaît et la partie repart sur un nouveau board.
+
+**Ligne concernée** : `l3_festival.c`, bloc `if(f->automatic&&f->memory.game.phase==L3_MEMORY_WON)` dans `l3_festival_enter()`.
+
+**Patch minimal prudent** :
+```c
+if(f->automatic && f->memory.game.phase==L3_MEMORY_WON){
+    f->memory.elapsed=f->memory.duration;
+    f->memory.wait=1.5f;
+    /* Ne pas avancer tout de suite : laisser step() sortir
+       vers L3_FESTIVAL_GARDEN après le délai de victoire. */
+}
+```
+Cette modification garde la transition automatique sans effacer l’état gagné à l’entrée. Elle suppose que l’objectif d’autoplay est bien d’afficher la victoire puis de quitter, ce que suggèrent l’UI `LE CIEL SE SOUVIENT` et la condition de sortie à `1.5f`.
+
+### H2 — Concurrence de seuils dans la sortie automatique de Memory
+
+**Counterexemple possible** : pendant la phase gagnée, `l3_festival_step()` sort à `wait>=1.5f`, donc `l3_memory_scene_step()` ne reçoit jamais la possibilité d’utiliser son seuil `2.0f` pour un conseil automatique. Si ce conseil était prévu pour jouer le board suivant dans la même entrée Memory, il est rendu mort dans l’autoplay festival.
+
+**Patch minimal dépendant de l’intention** :
+- Si l’autoplay festival doit jouer plusieurs boards Memory par visite : sortir seulement après un nombre fixe de manches, pas au premier écran de victoire.
+- Si chaque visite Memory du tour doit jouer une manche puis retourner à la jardin : garder `1.5f`, mais documenter que `2.0f` ne concerne que le mode Memory autonome, pas le tour festival.
+
+**Hypothèse, pas fait prouvé** : le paquet ne montre pas le contrat de `l3_memory_advice`, donc l’intention exacte reste à confirmer.
+
+### H3 — Sauvegarde festival en mode Memory : alias sans `memory_visited`
+
+`l3_festival_save()` sauve la partie jardin même quand on est en Memory, donc `f->memory_visited` n’est pas représenté dans `L3TableProgress`. C’est le comportement attendu si le format original reste inchangé, mais c’est une dépendance à la sauvegarde Memory indépendante.
+
+**Patch si on veut rendre l’alias explicite** : ajouter un garde-fou au démarrage ou à la sortie :
+```c
+if (festival->active && festival->kind==L3_FESTIVAL_MEMORY) {
+    /* ne pas laisser penser que festival_save est un état Memory complet */
+}
+```
+Mais rien dans le code actuel ne le rend faux ; c’est plutôt un point de contrat. La vérification fournie dans `main` des chemins distincts est déjà correcte :
+```c
+if(memory_save&&((save_path&&!strcmp(memory_save,save_path))||(festival_save&&!strcmp(memory_save,festival_save)))) { ... return 2; }
+```
+
+### H4 — Cache graphique Memory et actifs invalidés
+
+`l3_memory_scene_invalidate()` remet `assets`, `base_ready`, `page_valid`, `ui_revision` à zéro. `art()` gère aussi le changement de taille. Le principal risque restant n’est pas dans la liste fournie : si `l3_memory_scene_restore()` recharge un état dont la disposition courante diffère peu de l’image mémorisée, `stable()` remet `page_valid=0`, donc le prochain `board()` devrait refaire une passe complète. Cela semble correct.
+
+**Hypothèse de correction** : si une incohérence de page est observée, forcer une invalidation complète juste après restauration :
+```c
+f->page_valid[0]=f->page_valid[1]=0;
+f->base_ready[0]=f->base_ready[1]=0;
+f->ui_revision[0]=f->ui_revision[1]=0;
+f->assets=0;
+```
+Mais `stable()` fait déjà la majorité de ce travail pour les pages. Sans données de capture pixel, je ne marquerais pas cela comme bug confirmé.
+
+## Ce que je ne classerais pas comme bug dans le paquet
+
+- Le clamp `[-14,14]` n’est pas contradictoire avec le site à `16.5` : le texte et la distance `<3` depuis `x=14` prévoient justement une interaction à distance.
+- `garden_blocked()` inclut le 5e site dans sa boucle, mais la position `x=14,z=0` n’est pas bloquée, donc l’interaction restée possible.
+- `reset_draw()` incrémente `revision` et vide les caches graphiques côté festival.
+- La validation `valid()` de `memory_progress.c` impose un état initial strict si `visited==0`, ce qui est une protection d’intégrité, pas une erreur.
+
+## Éléments manquants pour une conclusion définitive
+
+1. Les en-têtes `l3_festival.h`, `memory_scene.h`, `l3_memory.h`, `l3_table*.h`, qui définissent `L3_TABLE_COUNT`, `L3_FESTIVAL_STANDS`, `L3_MEMORY_*`, les capacités des tableaux `poses`/`pages`, et le moteur `l3_memory_advice`.
+2. La sortie exacte attendue ( capture/pixel producer output) pour comparaison old4 / Memory.
+3. La définition de `L3MemoryAction` et les transitions de phase, sans laquelle le correctif d’autoplay doit rester hypothétique.
+4. Les codes retour/comportements de `l3_memory_validate`, pour valider complètement `memory_progress.c`.
+
+## Conclusion
+
+Le défaut le plus direct et reproductible sur les seules données fournies est la **reprise automatique d’un Memory déjà gagné** (`l3_festival.c`, entrée Memory) qui appelle `L3_MEMORY_NEXT` immédiatement et saute l’écran de victoire sauvegardé. Pour le reste, les éléments plus sensibles (seuils d’autoplay, résolution exacte, sortie VRAM) demandent les définitions manquantes avant un patch sûr.

@@ -1,0 +1,443 @@
+{
+  "session_id": "ses_e7bc376d4ffe6dcDh4AXsjITIF",
+  "complete": true,
+  "errors": [],
+  "model_steps_started": 11,
+  "model_steps_finished": 11,
+  "tool_invocations_observed": 17,
+  "tools": [
+    {
+      "call_id": "call_lisojuao",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c8ac60015C396z7Fudrtz7",
+      "status": "error",
+      "exit_code": null,
+      "input": {
+        "path": "CONTRACT"
+      },
+      "output": null,
+      "time": {
+        "start": 1793219923933,
+        "end": 1793219923940
+      }
+    },
+    {
+      "call_id": "call_e3v5nxa1",
+      "name": "taskbox_exec",
+      "message_id": "msg_1843c8ac60015C396z7Fudrtz7",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "argv": [
+          "pwd",
+          "ls",
+          "-la"
+        ]
+      },
+      "output": "{\"returncode\": 1, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0018295609625056386, \"stdout\": \"pwd: invalid option -- 'l'\\nTry 'pwd --help' for more information.\\n\"}",
+      "time": {
+        "start": 1793219923930,
+        "end": 1793219923941
+      }
+    },
+    {
+      "call_id": "call_16vadbge",
+      "name": "taskbox_exec",
+      "message_id": "msg_1843c901f001oboL1ldcusJ9Bt",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "argv": [
+          "ls",
+          "-la"
+        ]
+      },
+      "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.001784304971806705, \"stdout\": \"total 64\\ndrwxrwxr-x  2 1000 1000  4096 Oct 28 20:38 .\\ndrwxr-xr-x 11 1000 1000   240 Oct 28 20:38 ..\\n-rw-------  1 1000 1000    49 Oct 28 20:38 ANALYSIS.md\\n-r--------  1 1000 1000  4768 Oct 28 20:38 CONTRACT.md\\n-r--------  1 1000 1000   413 Oct 28 20:38 INPUTS.json\\n-rw-------  1 1000 1000 17566 Oct 28 20:38 bench.sv\\n-r--------  1 1000 1000  6472 Oct 28 20:38 ddr_gpu_arb.v\\n-r--------  1 1000 1000  7199 Oct 28 20:38 ddr_ui_adapt.v\\n-r--------  1 1000 1000  2179 Oct 28 20:38 native_memory.sv\\n-r--------  1 1000 1000  2012 Oct 28 20:38 test_bench.py\\n\"}",
+      "time": {
+        "start": 1793219924779,
+        "end": 1793219924784
+      }
+    },
+    {
+      "call_id": "call_c4uisehg",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c93950013B0vBu1ns2VeYV",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "CONTRACT.md"
+      },
+      "output": "{\"content\": \"# Mission : v\u00e9rifier le m\u00e9lange CPU128 / GPU256 / scanout dans le DDR R19\\n\\nImpl\u00e9menter `bench.sv`, puis ex\u00e9cuter r\u00e9ellement `test_bench.py` avec les outils\\nMCP. `ANALYSIS.md` contient les observations et limites. Tous les autres fichiers\\nsont prot\u00e9g\u00e9s. Ne pas proposer de correction au DUT. Aucun mat\u00e9riel, r\u00e9seau,\\nnouveau bitstream ou r\u00e9f\u00e9rence \u00e0 un chemin ext\u00e9rieur \u00e0 la copie.\\n\\n## Trou de preuve cibl\u00e9\\n\\nLe banc R19 pr\u00e9c\u00e9dent `neo_fable_sim_01` v\u00e9rifiait CLEAR/COPY avec le slot r\u00e9el,\\nmais CPU et scanout inactifs. L'ancien banc CPU complet les gardait aussi\\ninactifs. Le banc de l'arbitre seul m\u00e9langeait les clients sans adaptateur128.\\nIci on teste la COMPOSITION de `ddr_ui_adapt` CPU et `ddr_gpu_arb`, tous deux\\ncopi\u00e9s octet pour octet du snapshot R19 (empreintes dans INPUTS.json).\\n\\nHypoth\u00e8se r\u00e9futable : m\u00e9lange des \u00e9tiquettes de propri\u00e9taire et des \u00e9tiquettes\\nmoiti\u00e9/rotation sous lectures CPU/GPU/scanout concurrentes. Un PASS fonctionnel\\nr\u00e9fute seulement cette hypoth\u00e8se pour ces stimuli. Il n'explique pas le d\u00e9faut\\ncarte et ne qualifie ni PHY, netlist, timing, m\u00e9tastabilit\u00e9 ni \u00e9tat des caches.\\nLa collecte R22r1 r\u00e9ussissait une matrice sans DMA ; R21r1 ne d\u00e9marrait pas et\\nn'a fourni aucune observation de COPY/CLEAR. Ne pas fusionner ces versions.\\n\\n## Assemblage et mod\u00e8le externe\\n\\nInstancier `ddr_ui_adapt` puis connecter ses `ip_*` au port `c_*` de\\n`ddr_gpu_arb`. Connecter `g_*` \u00e0 un producteur de lectures scanout et `b_*`\\n\u00e0 un producteur GPU/blitter lecture/\u00e9criture. `native_memory` est le terminal\\nordonn\u00e9 externe, pas l'IP Gowin. Son interface reproduit les ports `m_*` de\\nl'arbitre. Horloge de 10 ns, reset commun tenu plusieurs fronts.\\n\\nLes 4096 octets du terminal sont initialement z\u00e9ro. Seules les commandes\\naccept\u00e9es modifient le mod\u00e8le. Adresses natives en mots32, align\u00e9es sur32B.\\nUne lecture rend32 octets en ordre croissant. Une \u00e9criture masque chaque octet\\ndont le bit de masque vaut1. Les readys commande et \u00e9criture varient s\u00e9par\u00e9ment.\\nLatence de lecture positive3..14 cycles, retours ordonn\u00e9s. Les fautes +fault1\\n(XOR des donn\u00e9es), +fault2 (un retour omis), +fault3 (aucun retour) sont des\\ncontr\u00f4les n\u00e9gatifs du banc, pas des causes attribu\u00e9es \u00e0 la carte.\\n\\n## Stimuli minimaux et oracle ind\u00e9pendant\\n\\n1. Initialiser plusieurs rafales par le client CPU128, deux moiti\u00e9s et masques\\n   non triviaux. Faire aussi des \u00e9critures GPU256 partiellement masqu\u00e9es vers\\n   ces m\u00eames rafales. Construire l'attendu OCTET PAR OCTET \u00e0 partir des op\u00e9rations\\n   de haut niveau. Ne jamais lire `native_memory.bytes`, les tags, pointeurs,\\n   full, grants internes ou autre \u00e9tat interne du DUT comme r\u00e9f\u00e9rence.\\n2. Apr\u00e8s drainage born\u00e9 des \u00e9critures, lancer un m\u00e9lange de lectures des trois\\n   clients sur ces donn\u00e9es, dont les16 combinaisons CPU moiti\u00e9/rotation.\\n   Au moins16 retours CPU,8 scanout,8 blitter, et3 lectures natives en vol.\\n   Chaque r\u00e9ponse se compare \u00e0 la requ\u00eate attendue de son propre client,\\n   jamais \u00e0 une donn\u00e9e simplement recopi\u00e9e depuis le bus natif re\u00e7u.\\n3. Exercer aussi des \u00e9critures CPU et GPU pendant ces lectures sur des plages\\n   DISJOINTES des lectures en cours. Leur contr\u00f4le ne doit pas d\u00e9pendre d'un\\n   ordre inter-ma\u00eetre non sp\u00e9cifi\u00e9. Apr\u00e8s drainage, lire ces plages et les\\n   canaris non masqu\u00e9s. Les adresses restent toutes dans `[0,4096)`.\\n4. Les op\u00e9rations CPU128 utilisent l'adresse en mots16. Pour une adresse U,\\n   la rafale16B a pour base `(U & ~7)*2`. Le premier mot pr\u00e9sent\u00e9 correspond\\n   \u00e0 l'offset `(U & 7)*2`; les octets suivants tournent dans ces16B. L'oracle\\n   effectue cette indexation d'octets, sans recopier rotl128/rotr128 du DUT.\\n5. Respecter les handshakes : CPU command_en seulement au front ready et,\\n   pour \u00e9crire, wr_ready ; commande+data simultan\u00e9s. GPU et scanout gardent\\n   valid/payload stables jusqu'au ready. Piloter au front descendant et\\n   \u00e9chantillonner au front montant pour \u00e9viter les races du banc.\\n\\nLes attentes sont born\u00e9es en cycles. Une mauvaise donn\u00e9e/propri\u00e9taire doit\\n\u00e9chouer par `$fatal(1,\\\"CHECK_FAIL DATA ...\\\")` ou `CHECK_FAIL ROUTE`; une r\u00e9ponse\\nmanquante par `CHECK_FAIL TIMEOUT`. En succ\u00e8s seulement, afficher :\\n`PASS cpu=N scan=N blit=N rotations=16 outstanding=N` avec compteurs r\u00e9els.\\nNe pas d\u00e9river les compteurs de param\u00e8tres ou de constantes d'intention.\\n\\nLe runner prot\u00e9g\u00e9 compile avec Verilator puis ex\u00e9cute2 latences saines et3 fautes.\\nCommencer par `taskbox_run_tests` pour constater le module inachev\u00e9, \u00e9crire\\nuniquement les deux fichiers autoris\u00e9s, relancer et corriger dans cette m\u00eame\\nsession. Modules comment\u00e9s, moins de1000 lignes physiques. Le r\u00e9sum\u00e9 final\\ndoit distinguer un vrai d\u00e9faut trouv\u00e9 du simple succ\u00e8s du mod\u00e8le ordonn\u00e9.\\n\"}",
+      "time": {
+        "start": 1793219925422,
+        "end": 1793219925437
+      }
+    },
+    {
+      "call_id": "call_vscluhkk",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c93950013B0vBu1ns2VeYV",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "INPUTS.json"
+      },
+      "output": "{\"content\": \"{\\n  \\\"ddr_gpu_arb.v\\\": {\\n    \\\"path\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v\\\",\\n    \\\"sha256\\\": \\\"b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5\\\"\\n  },\\n  \\\"ddr_ui_adapt.v\\\": {\\n    \\\"path\\\": \\\"tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_ui_adapt.v\\\",\\n    \\\"sha256\\\": \\\"c5fce284cfff9bd3cca03ea1ee3ac8a769da28ca05c1c28cc1762040427c4d7a\\\"\\n  }\\n}\\n\"}",
+      "time": {
+        "start": 1793219925426,
+        "end": 1793219925438
+      }
+    },
+    {
+      "call_id": "call_1jw431bl",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c93950013B0vBu1ns2VeYV",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "ANALYSIS.md"
+      },
+      "output": "{\"content\": \"Impl\u00e9mentation et r\u00e9sultat encore \u00e0 \u00e9tablir.\\n\"}",
+      "time": {
+        "start": 1793219925428,
+        "end": 1793219925439
+      }
+    },
+    {
+      "call_id": "call_uonpv556",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c93950013B0vBu1ns2VeYV",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "test_bench.py"
+      },
+      "output": "{\"content\": \"#!/usr/bin/env python3\\n\\\"\\\"\\\"Compile exact DUT copies and challenge the proposed bench with faults.\\\"\\\"\\\"\\nimport json\\nfrom pathlib import Path\\nimport re\\nimport subprocess\\nimport tempfile\\n\\nHERE=Path(__file__).resolve().parent\\n\\ndef run(argv, timeout=12):\\n    proc=subprocess.run(argv,cwd=HERE,capture_output=True,text=True,timeout=timeout)\\n    return proc.returncode,proc.stdout+proc.stderr\\n\\ndef main():\\n    with tempfile.TemporaryDirectory(prefix='ddr-cross-client-') as temporary:\\n        binary=str(Path(temporary)/'obj/Vbench')\\n        rc,log=run(['/usr/bin/verilator','--binary','--timing','-j','2','-Wno-fatal',\\n                    '-MAKEFLAGS','VM_PARALLEL_BUILDS=0','--top-module','bench','--Mdir',str(Path(temporary)/'obj'),\\n                    'bench.sv','native_memory.sv','ddr_gpu_arb.v','ddr_ui_adapt.v'],timeout=40)\\n        if rc: print(log);return 1\\n        results=[]\\n        for seed,fault in [(1,0),(8,0),(1,1),(1,2),(1,3)]:\\n            rc,log=run([binary,f'+seed={seed}',f'+fault={fault}'])\\n            print(f'CASE seed={seed} fault={fault} returncode={rc}\\\\n{log}')\\n            if fault==0:\\n                # Coverage values must be measured at the public interfaces.\\n                match=re.search(r'PASS cpu=(\\\\d+) scan=(\\\\d+) blit=(\\\\d+) rotations=(\\\\d+) outstanding=(\\\\d+)',log)\\n                ok=rc==0 and match is not None\\n                if match:\\n                    a,b,c,d,e=map(int,match.groups())\\n                    ok=ok and a>=16 and b>=8 and c>=8 and d==16 and e>=3\\n            else:\\n                # A simulation crash is not proof of sensitivity: the bench\\n                # must identify data/routing mismatch or bounded missing reply.\\n                ok=rc!=0 and bool(re.search(r'CHECK_FAIL (DATA|ROUTE|TIMEOUT)',log))\\n            results.append(dict(seed=seed,fault=fault,passed=ok))\\n        print(json.dumps(dict(passed=all(r['passed'] for r in results),cases=results)))\\n        return int(not all(r['passed'] for r in results))\\n\\nif __name__=='__main__':raise SystemExit(main())\\n\"}",
+      "time": {
+        "start": 1793219925430,
+        "end": 1793219925439
+      }
+    },
+    {
+      "call_id": "call_glaaehr2",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c95f20017qKt4pT50qSlAh",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "bench.sv"
+      },
+      "output": "{\"content\": \"// Cross-client DDR composition bench.\\n// CPU128 -> ddr_ui_adapt -> ddr_gpu_arb <- scanout/blitter -> native_memory.\\n// The scoreboard builds its byte image only from high-level operations and\\n// compares each client response with an independently computed request value.\\n`timescale 1ns/1ps\\nmodule bench;\\n\\n    // ---------------------------------------------------------------------\\n    // Clock/reset and public DUT ports\\n    // ---------------------------------------------------------------------\\n    reg clk = 1'b0;\\n    always #5 clk = ~clk;\\n\\n    reg rst_n = 1'b0;\\n\\n    // 128-bit CPU side of the adapter.\\n    reg         u_cmd_en = 0;\\n    reg  [2:0]  u_cmd = 0;\\n    reg  [28:0] u_addr = 0;\\n    wire        u_cmd_ready;\\n    reg         u_wr_data_en = 0;\\n    reg         u_wr_data_end = 0;\\n    reg  [127:0] u_wr_data = 0;\\n    reg  [15:0]  u_wr_data_mask = 0;\\n    wire        u_wr_data_rdy;\\n    wire [127:0] u_rd_data;\\n    wire        u_rd_data_valid;\\n    wire        u_rd_data_end;\\n\\n    // Adapter 256-bit IP side, wired to the arbiter CPU port.\\n    wire        ip_cmd_en;\\n    wire [2:0]  ip_cmd;\\n    wire [28:0] ip_addr;\\n    wire        ip_cmd_ready;\\n    wire        ip_wr_data_en;\\n    wire        ip_wr_data_end;\\n    wire [255:0] ip_wr_data;\\n    wire [31:0]  ip_wr_data_mask;\\n    wire         ip_wr_data_rdy;\\n    wire [255:0] ip_rd_data;\\n    wire         ip_rd_data_valid;\\n    wire         ip_rd_data_end;\\n\\n    // Scanout producer.\\n    reg         g_valid = 0;\\n    reg  [28:0] g_addr = 0;\\n    wire        g_ready;\\n    wire [255:0] g_data;\\n    wire        g_data_valid;\\n\\n    // Blitter/GPU producer.\\n    reg         b_valid = 0;\\n    reg         b_write = 0;\\n    reg  [28:0] b_addr = 0;\\n    reg  [255:0] b_wr_data = 0;\\n    reg  [31:0]  b_wr_mask = 0;\\n    wire        b_ready;\\n    wire [255:0] b_rd_data;\\n    wire        b_rd_valid;\\n\\n    // Ordered native terminal.\\n    wire        m_en;\\n    wire [2:0]  m_cmd;\\n    wire [28:0] m_addr;\\n    wire        m_ready;\\n    wire        m_wr_en;\\n    wire        m_wr_end;\\n    wire [255:0] m_wr_data;\\n    wire [31:0]  m_wr_mask;\\n    wire        m_wr_ready;\\n    wire [255:0] m_rd_data;\\n    wire        m_rd_valid;\\n    wire        m_rd_end;\\n\\n    // ---------------------------------------------------------------------\\n    // DUT composition.\\n    // ---------------------------------------------------------------------\\n    ddr_ui_adapt u_adapter (\\n        .clk(clk), .rst_n(rst_n),\\n        .u_cmd_en(u_cmd_en), .u_cmd(u_cmd), .u_addr(u_addr),\\n        .u_cmd_ready(u_cmd_ready),\\n        .u_wr_data_en(u_wr_data_en), .u_wr_data_end(u_wr_data_end),\\n        .u_wr_data(u_wr_data), .u_wr_data_mask(u_wr_data_mask),\\n        .u_wr_data_rdy(u_wr_data_rdy),\\n        .u_rd_data(u_rd_data), .u_rd_data_valid(u_rd_data_valid),\\n        .u_rd_data_end(u_rd_data_end),\\n        .ip_cmd_en(ip_cmd_en), .ip_cmd(ip_cmd), .ip_addr(ip_addr),\\n        .ip_cmd_ready(ip_cmd_ready),\\n        .ip_wr_data_en(ip_wr_data_en), .ip_wr_data_end(ip_wr_data_end),\\n        .ip_wr_data(ip_wr_data), .ip_wr_data_mask(ip_wr_data_mask),\\n        .ip_wr_data_rdy(ip_wr_data_rdy),\\n        .ip_rd_data(ip_rd_data), .ip_rd_data_valid(ip_rd_data_valid),\\n        .ip_rd_data_end(ip_rd_data_end)\\n    );\\n\\n    ddr_gpu_arb u_arb (\\n        .clk(clk), .rst_n(rst_n),\\n        .c_en(ip_cmd_en), .c_cmd(ip_cmd), .c_addr(ip_addr),\\n        .c_ready(ip_cmd_ready),\\n        .c_wr_en(ip_wr_data_en), .c_wr_end(ip_wr_data_end),\\n        .c_wr_data(ip_wr_data), .c_wr_mask(ip_wr_data_mask),\\n        .c_wr_ready(ip_wr_data_rdy),\\n        .c_rd_data(ip_rd_data), .c_rd_valid(ip_rd_data_valid),\\n        .c_rd_end(ip_rd_data_end),\\n        .g_valid(g_valid), .g_addr(g_addr), .g_ready(g_ready),\\n        .g_data(g_data), .g_data_valid(g_data_valid),\\n        .b_valid(b_valid), .b_write(b_write), .b_addr(b_addr),\\n        .b_wr_data(b_wr_data), .b_wr_mask(b_wr_mask), .b_ready(b_ready),\\n        .b_rd_data(b_rd_data), .b_rd_valid(b_rd_valid),\\n        .m_en(m_en), .m_cmd(m_cmd), .m_addr(m_addr), .m_ready(m_ready),\\n        .m_wr_en(m_wr_en), .m_wr_end(m_wr_end), .m_wr_data(m_wr_data),\\n        .m_wr_mask(m_wr_mask), .m_wr_ready(m_wr_ready),\\n        .m_rd_data(m_rd_data), .m_rd_valid(m_rd_valid), .m_rd_end(m_rd_end)\\n    );\\n\\n    native_memory u_native (\\n        .clk(clk), .resetn(rst_n), .en(m_en), .cmd(m_cmd), .addr(m_addr),\\n        .ready(m_ready), .wr_en(m_wr_en), .wr_end(m_wr_end),\\n        .wr_data(m_wr_data), .wr_mask(m_wr_mask), .wr_ready(m_wr_ready),\\n        .rd_data(m_rd_data), .rd_valid(m_rd_valid), .rd_end(m_rd_end)\\n    );\\n\\n    // ---------------------------------------------------------------------\\n    // Independent byte model and per-client expected-response queues.\\n    // exp_mem is never sourced from the DUT or from native_memory.bytes.\\n    // ---------------------------------------------------------------------\\n    reg [7:0] exp_mem [0:4095];\\n\\n    reg [127:0] cpu_q  [0:255];\\n    reg [3:0]   cpu_rot [0:255];\\n    reg [255:0] scan_q [0:255];\\n    reg [255:0] blit_q [0:255];\\n\\n    integer cpu_w = 0, cpu_r = 0, scan_w = 0, scan_r = 0;\\n    integer blit_w = 0, blit_r = 0;\\n    integer cpu_got = 0, scan_got = 0, blit_got = 0;\\n    integer outstanding_native = 0, outstanding_peak = 0;\\n    integer rotations = 0;\\n    reg [15:0] rot_cov = 16'h0000;\\n\\n    integer i, j, b, h, rot;\\n    integer rr_cpu, rr_scan, rr_blit;\\n    reg [127:0] wd;\\n    reg [255:0] wd256;\\n\\n    // CPU read expectation: select the 16-byte half addressed by U, then\\n    // rotate so that the 16-bit word at offset (U & 7) appears first.\\n    function automatic [127:0] cpu_expect(input [28:0] u);\\n        integer hb, n, m, q, src;\\n        begin\\n            hb = (u & ~29'd7) * 2;\\n            n  = u[2:0];\\n            for (m = 0; m < 8; m = m + 1) begin\\n                src = hb + (((m + n) % 8) * 2);\\n                for (q = 0; q < 2; q = q + 1)\\n                    cpu_expect[8*(2*m+q) +: 8] = exp_mem[src + q];\\n            end\\n        end\\n    endfunction\\n\\n    // Native 32-byte line expectation, increasing byte order.\\n    function automatic [255:0] line_expect(input [28:0] a);\\n        integer base, q;\\n        begin\\n            base = a * 4;\\n            for (q = 0; q < 32; q = q + 1)\\n                line_expect[8*q +: 8] = exp_mem[base + q];\\n        end\\n    endfunction\\n\\n    // ---------------------------------------------------------------------\\n    // External-port scoreboard and real coverage counters.\\n    // ---------------------------------------------------------------------\\n    always @(posedge clk) begin\\n        if (rst_n) begin\\n            if (u_rd_data_valid) begin\\n                if (cpu_r >= cpu_w)\\n                    $fatal(1, \\\"CHECK_FAIL ROUTE cpu valid without request\\\");\\n                if (u_rd_data !== cpu_q[cpu_r])\\n                    $fatal(1, \\\"CHECK_FAIL DATA cpu got=%h exp=%h\\\",\\n                           u_rd_data, cpu_q[cpu_r]);\\n                rot_cov[cpu_rot[cpu_r][3:0]] = 1'b1;\\n                cpu_r = cpu_r + 1;\\n                cpu_got = cpu_got + 1;\\n            end\\n\\n            if (g_data_valid) begin\\n                if (scan_r >= scan_w)\\n                    $fatal(1, \\\"CHECK_FAIL ROUTE scanout valid without request\\\");\\n                if (g_data !== scan_q[scan_r])\\n                    $fatal(1, \\\"CHECK_FAIL DATA scanout got=%h exp=%h\\\",\\n                           g_data, scan_q[scan_r]);\\n                scan_r = scan_r + 1;\\n                scan_got = scan_got + 1;\\n            end\\n\\n            if (b_rd_valid) begin\\n                if (blit_r >= blit_w)\\n                    $fatal(1, \\\"CHECK_FAIL ROUTE blitter valid without request\\\");\\n                if (b_rd_data !== blit_q[blit_r])\\n                    $fatal(1, \\\"CHECK_FAIL DATA blitter got=%h exp=%h\\\",\\n                           b_rd_data, blit_q[blit_r]);\\n                blit_r = blit_r + 1;\\n                blit_got = blit_got + 1;\\n            end\\n\\n            // Native reads in flight, sampled only at the arbiter's m_* port.\\n            if (m_en && (m_cmd == 3'b001)) begin\\n                outstanding_native = outstanding_native + 1;\\n                if (outstanding_native > outstanding_peak)\\n                    outstanding_peak = outstanding_native;\\n            end\\n            if (m_rd_valid && (outstanding_native > 0))\\n                outstanding_native = outstanding_native - 1;\\n        end\\n    end\\n\\n    // ---------------------------------------------------------------------\\n    // CPU128 command/data driver.  Command and write data are presented\\n    // together and only after u_cmd_ready (and u_wr_data_rdy for writes).\\n    // ---------------------------------------------------------------------\\n    task automatic cpu_write(input [28:0] u, input [127:0] d,\\n                             input [15:0] mask);\\n        integer guard, k, by, hb, n;\\n        begin\\n            guard = 0;\\n            @(negedge clk);\\n            while ((u_cmd_ready !== 1'b1) || (u_wr_data_rdy !== 1'b1)) begin\\n                @(negedge clk);\\n                guard = guard + 1;\\n                if (guard > 2000)\\n                    $fatal(1, \\\"CHECK_FAIL TIMEOUT cpu write ready\\\");\\n            end\\n            u_cmd_en = 1'b1; u_cmd = 3'b000; u_addr = u;\\n            u_wr_data_en = 1'b1; u_wr_data_end = 1'b1;\\n            u_wr_data = d; u_wr_data_mask = mask;\\n            // High-level operation -> byte oracle.  Upstream word k lands at\\n            // native half-word (k+n) mod 8 because the adapter rotates left.\\n            hb = (u & ~29'd7) * 2;\\n            n  = u[2:0];\\n            for (k = 0; k < 8; k = k + 1)\\n                for (by = 0; by < 2; by = by + 1)\\n                    if (!mask[2*k + by])\\n                        exp_mem[hb + (((k + n) % 8) * 2) + by] =\\n                            d[8*(2*k + by) +: 8];\\n            @(posedge clk);\\n            if (!(u_cmd_en && u_cmd_ready && u_wr_data_rdy))\\n                $fatal(1, \\\"CHECK_FAIL ROUTE cpu write handshake\\\");\\n            @(negedge clk);\\n            u_cmd_en = 1'b0; u_wr_data_en = 1'b0; u_wr_data_end = 1'b0;\\n        end\\n    endtask\\n\\n    task automatic cpu_read(input [28:0] u);\\n        integer guard;\\n        begin\\n            guard = 0;\\n            @(negedge clk);\\n            while (u_cmd_ready !== 1'b1) begin\\n                @(negedge clk);\\n                guard = guard + 1;\\n                if (guard > 2000)\\n                    $fatal(1, \\\"CHECK_FAIL TIMEOUT cpu read ready\\\");\\n            end\\n            u_cmd_en = 1'b1; u_cmd = 3'b001; u_addr = u;\\n            u_wr_data_en = 1'b0; u_wr_data_end = 1'b0;\\n            cpu_q[cpu_w]   = cpu_expect(u);\\n            cpu_rot[cpu_w] = {u[3], u[2:0]};\\n            cpu_w = cpu_w + 1;\\n            @(posedge clk);\\n            if (!(u_cmd_en && u_cmd_ready))\\n                $fatal(1, \\\"CHECK_FAIL ROUTE cpu read handshake\\\");\\n            @(negedge clk);\\n            u_cmd_en = 1'b0;\\n        end\\n    endtask\\n\\n    // ---------------------------------------------------------------------\\n    // Scanout read driver: valid/payload remain stable until g_ready.\\n    // ---------------------------------------------------------------------\\n    task automatic scan_read(input [28:0] a);\\n        integer guard;\\n        begin\\n            guard = 0;\\n            @(negedge clk);\\n            g_valid = 1'b1; g_addr = a;\\n            scan_q[scan_w] = line_expect(a);\\n            scan_w = scan_w + 1;\\n            @(posedge clk);\\n            while (!g_ready) begin\\n                guard = guard + 1;\\n                if (guard > 2000)\\n                    $fatal(1, \\\"CHECK_FAIL TIMEOUT scanout ready\\\");\\n                @(posedge clk);\\n            end\\n            @(negedge clk);\\n            g_valid = 1'b0;\\n        end\\n    endtask\\n\\n    // ---------------------------------------------------------------------\\n    // Blitter read/write driver: valid/payload remain stable until b_ready.\\n    // ---------------------------------------------------------------------\\n    task automatic blit_read(input [28:0] a);\\n        integer guard;\\n        begin\\n            guard = 0;\\n            @(negedge clk);\\n            b_valid = 1'b1; b_write = 1'b0; b_addr = a;\\n            blit_q[blit_w] = line_expect(a);\\n            blit_w = blit_w + 1;\\n            @(posedge clk);\\n            while (!b_ready) begin\\n                guard = guard + 1;\\n                if (guard > 2000)\\n                    $fatal(1, \\\"CHECK_FAIL TIMEOUT blitter read ready\\\");\\n                @(posedge clk);\\n            end\\n            @(negedge clk);\\n            b_valid = 1'b0;\\n        end\\n    endtask\\n\\n    task automatic gpu_write(input [28:0] a, input [255:0] d,\\n                             input [31:0] mask);\\n        integer guard, q, by;\\n        begin\\n            guard = 0;\\n            @(negedge clk);\\n            b_valid = 1'b1; b_write = 1'b1; b_addr = a;\\n            b_wr_data = d; b_wr_mask = mask;\\n            @(posedge clk);\\n            while (!b_ready) begin\\n                guard = guard + 1;\\n                if (guard > 2000)\\n                    $fatal(1, \\\"CHECK_FAIL TIMEOUT blitter write ready\\\");\\n                @(posedge clk);\\n            end\\n            // Mask bit 1 means the corresponding byte is not written.\\n            for (q = 0; q < 32; q = q + 1)\\n                if (!mask[q])\\n                    exp_mem[a*4 + q] = d[8*q +: 8];\\n            @(negedge clk);\\n            b_valid = 1'b0;\\n        end\\n    endtask\\n\\n    // Bounded wait for all issued reads to produce a checked response.\\n    task automatic wait_drained(input integer limit);\\n        integer guard;\\n        begin\\n            guard = 0;\\n            while ((cpu_r != cpu_w) || (scan_r != scan_w) || (blit_r != blit_w)) begin\\n                @(negedge clk);\\n                guard = guard + 1;\\n                if (guard > limit)\\n                    $fatal(1, \\\"CHECK_FAIL TIMEOUT drain cpu=%0d/%0d scan=%0d/%0d blit=%0d/%0d\\\",\\n                           cpu_r, cpu_w, scan_r, scan_w, blit_r, blit_w);\\n            end\\n        end\\n    endtask\\n\\n    // ---------------------------------------------------------------------\\n    // Stimulus.\\n    // ---------------------------------------------------------------------\\n    initial begin\\n        for (i = 0; i < 4096; i = i + 1)\\n            exp_mem[i] = 8'h00;\\n        for (i = 0; i < 256; i = i + 1) begin\\n            cpu_q[i] = 0; cpu_rot[i] = 0; scan_q[i] = 0; blit_q[i] = 0;\\n        end\\n\\n        rst_n = 1'b0;\\n        repeat (8) @(negedge clk);\\n        rst_n = 1'b1;\\n        repeat (4) @(negedge clk);\\n\\n        // Four native bursts, both CPU halves, non-trivial write masks.\\n        for (b = 0; b < 4; b = b + 1) begin\\n            for (h = 0; h < 2; h = h + 1) begin\\n                rot = (b*3 + h*5) & 7;\\n                for (j = 0; j < 16; j = j + 1)\\n                    wd[8*j +: 8] = 8'h31 + b*8'h13 + h*8'h29\\n                                   + rot*8'h07 + j*8'h05;\\n                if (h == 0)\\n                    cpu_write(b*16 + 8*h + rot, wd, 16'hA5C3);\\n                else\\n                    cpu_write(b*16 + 8*h + rot, wd, 16'h5A3C);\\n            end\\n        end\\n\\n        // GPU256 partially masked writes to the same bursts.\\n        for (b = 0; b < 4; b = b + 1) begin\\n            for (j = 0; j < 32; j = j + 1)\\n                wd256[8*j +: 8] = 8'h80 + b*8'h0B + j*8'h03;\\n            if ((b % 2) == 0)\\n                gpu_write(b*8, wd256, 32'h0F0F0F0F);\\n            else\\n                gpu_write(b*8, wd256, 32'hF0F0F0F0);\\n        end\\n\\n        // Bounded write drainage before reads.\\n        repeat (128) @(negedge clk);\\n\\n        // Three client processes run together.  The CPU process inserts a\\n        // CPU write among its reads; the blitter process inserts a GPU write\\n        // among its reads.  Both target ranges are disjoint from B=0..3.\\n        fork\\n            begin : CPU_MIX\\n                for (rr_cpu = 0; rr_cpu < 16; rr_cpu = rr_cpu + 1) begin\\n                    cpu_read(8*(rr_cpu/8) + (rr_cpu%8));\\n                    if (rr_cpu == 5) begin\\n                        for (j = 0; j < 16; j = j + 1)\\n                            wd[8*j +: 8] = 8'hC1 + j*8'h09;\\n                        cpu_write(1600, wd, 16'h0FF0);\\n                    end\\n                end\\n            end\\n            begin : SCAN_MIX\\n                for (rr_scan = 0; rr_scan < 8; rr_scan = rr_scan + 1)\\n                    scan_read(8*(rr_scan % 4));\\n            end\\n            begin : BLIT_MIX\\n                for (rr_blit = 0; rr_blit < 8; rr_blit = rr_blit + 1) begin\\n                    blit_read(8*(rr_blit % 4));\\n                    if (rr_blit == 3) begin\\n                        for (j = 0; j < 32; j = j + 1)\\n                            wd256[8*j +: 8] = 8'hD1 + j*8'h07;\\n                        gpu_write(880, wd256, 32'h00FF00FF);\\n                    end\\n                end\\n            end\\n        join\\n\\n        wait_drained(4000);\\n        repeat (128) @(negedge clk);\\n\\n        // Read back both disjoint write ranges and an untouched canary.\\n        scan_read(800);  blit_read(800);\\n        scan_read(880);  blit_read(880);\\n        scan_read(1008); blit_read(1008);\\n\\n        wait_drained(4000);\\n\\n        rotations = 0;\\n        for (i = 0; i < 16; i = i + 1)\\n            if (rot_cov[i]) rotations = rotations + 1;\\n\\n        if ((rotations != 16) || (cpu_got < 16) || (scan_got < 8) ||\\n            (blit_got < 8) || (outstanding_peak < 3))\\n            $fatal(1, \\\"CHECK_FAIL TIMEOUT coverage cpu=%0d scan=%0d blit=%0d rot=%0d out=%0d\\\",\\n                   cpu_got, scan_got, blit_got, rotations, outstanding_peak);\\n\\n        $display(\\\"PASS cpu=%0d scan=%0d blit=%0d rotations=%0d outstanding=%0d\\\",\\n                 cpu_got, scan_got, blit_got, rotations, outstanding_peak);\\n        $finish;\\n    end\\n\\nendmodule\\n\"}",
+      "time": {
+        "start": 1793219926486,
+        "end": 1793219926495
+      }
+    },
+    {
+      "call_id": "call_m4aiz908",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c95f20017qKt4pT50qSlAh",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "native_memory.sv"
+      },
+      "output": "{\"content\": \"// Independent byte-addressed endpoint. This models an ordered native DDR UI,\\n// not a physical Gowin controller. The native byte address is word_addr*4.\\n`timescale 1ns/1ps\\nmodule native_memory(\\n input wire clk, resetn, en, input wire [2:0] cmd,\\n input wire [28:0] addr, output wire ready,\\n input wire wr_en, wr_end, input wire [255:0] wr_data,\\n input wire [31:0] wr_mask, output wire wr_ready,\\n output reg [255:0] rd_data=0, output reg rd_valid=0,rd_end=0\\n);\\n reg [7:0] bytes[0:4095];\\n reg [255:0] replies[0:511];\\n integer due[0:511];\\n integer cycle=0, wp=0,rp=0,delay_seed=1,fault=0,reads=0,writes=0;\\n integer i,base;\\n reg dropped=0;\\n initial begin\\n  for(i=0;i<4096;i=i+1)bytes[i]=0;\\n  i=$value$plusargs(\\\"seed=%d\\\",delay_seed);\\n  i=$value$plusargs(\\\"fault=%d\\\",fault);\\n end\\n assign ready=resetn && cycle%7!=2 && cycle%11!=4;\\n assign wr_ready=resetn && cycle%5!=1 && cycle%13!=3;\\n always @(posedge clk)begin\\n  if(!resetn)begin cycle<=0;wp=0;rp=0;rd_valid<=0;rd_end<=0;dropped=0;end\\n  else begin\\n   cycle<=cycle+1;rd_valid<=0;rd_end<=0;\\n   // Latency is positive, variable and ordered. No internal DUT tags used.\\n   if(rp<wp && cycle>=due[rp] && fault!=3)begin\\n    if(fault==2 && !dropped)begin\\n     dropped=1;$display(\\\"INJECT dropped_response=%0d\\\",rp);\\n    end else begin\\n     rd_data<=replies[rp] ^ (fault==1 ? {32{8'h01}} : 256'd0);\\n     rd_valid<=1;rd_end<=1;\\n    end\\n    rp=rp+1;\\n   end\\n   if(en)begin\\n    if(!ready)$fatal(1,\\\"ENDPOINT illegal command without ready\\\");\\n    base=addr*4;\\n    if(addr[2:0]!=0 || base<0 || base+31>=4096)\\n     $fatal(1,\\\"ENDPOINT address out of model range or alignment\\\");\\n    if(cmd==0)begin\\n     if(!wr_en || !wr_end || !wr_ready)$fatal(1,\\\"ENDPOINT missing write handshake\\\");\\n     for(i=0;i<32;i=i+1)if(!wr_mask[i])bytes[base+i]=wr_data[8*i+:8];\\n     writes=writes+1;\\n    end else if(cmd==1)begin\\n     if(wp>=512)$fatal(1,\\\"ENDPOINT bounded queue exceeded\\\");\\n     for(i=0;i<32;i=i+1)replies[wp][8*i+:8]=bytes[base+i];\\n     due[wp]=cycle+3+(reads*5+delay_seed)%12;\\n     wp=wp+1;reads=reads+1;\\n    end else $fatal(1,\\\"ENDPOINT unsupported command\\\");\\n   end\\n   if(wr_en && !(en && cmd==0))$fatal(1,\\\"ENDPOINT unmatched write data\\\");\\n  end\\n end\\nendmodule\\n\"}",
+      "time": {
+        "start": 1793219926489,
+        "end": 1793219926496
+      }
+    },
+    {
+      "call_id": "call_iezfw8z9",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c9b14001gAyHL3h71Yu8f0",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "ddr_gpu_arb.v"
+      },
+      "output": "{\"content\": \"// Shared native DDR3 UI: CPU adapter, scanout reads and blitter reads/writes.\\n// Addresses are 32-bit words, aligned to eight words (32 bytes).\\n// CPU upstream issues command+data pulses only when ready; capture them in a\\n// one-entry buffer to break the ready chain through the legacy CPU adapter.\\n// Scanout has priority for bounded line fetches; CPU/blitter alternate otherwise.\\n// Their grant is registered, so changing clients may insert an idle cycle.\\n`default_nettype none\\nmodule ddr_gpu_arb (\\n    input wire clk, rst_n,\\n    input wire c_en,\\n    input wire [2:0] c_cmd,\\n    input wire [28:0] c_addr,\\n    output wire c_ready,\\n    input wire c_wr_en, c_wr_end,\\n    input wire [255:0] c_wr_data,\\n    input wire [31:0] c_wr_mask,\\n    output wire c_wr_ready,\\n    output wire [255:0] c_rd_data,\\n    output wire c_rd_valid, c_rd_end,\\n    input wire g_valid,\\n    input wire [28:0] g_addr,\\n    output wire g_ready,\\n    output wire [255:0] g_data,\\n    output wire g_data_valid,\\n    input wire b_valid, b_write,\\n    input wire [28:0] b_addr,\\n    input wire [255:0] b_wr_data,\\n    input wire [31:0] b_wr_mask,\\n    output wire b_ready,\\n    output wire [255:0] b_rd_data,\\n    output wire b_rd_valid,\\n    output wire m_en,\\n    output wire [2:0] m_cmd,\\n    output wire [28:0] m_addr,\\n    input wire m_ready,\\n    output wire m_wr_en, m_wr_end,\\n    output wire [255:0] m_wr_data,\\n    output wire [31:0] m_wr_mask,\\n    input wire m_wr_ready,\\n    input wire [255:0] m_rd_data,\\n    input wire m_rd_valid, m_rd_end\\n);\\n    reg [1:0] tags [0:15]; // 0 CPU, 1 scanout, 2 blitter\\n    reg [4:0] wp = 0, rp = 0;\\n    reg full = 0;\\n    wire empty = wp == rp;\\n    wire issue = rst_n && !full;\\n    reg cpu_pending = 0;\\n    reg [2:0] cpu_cmd;\\n    reg [28:0] cpu_addr;\\n    reg [255:0] cpu_data;\\n    reg [31:0] cpu_mask;\\n    reg prefer_blitter = 1;\\n    reg take_blitter = 0;\\n    // Two scanout request slots isolate its distant owner/request decode\\n    // from DDR arbitration. READY acknowledges enqueueing; responses still\\n    // follow DDR issue order. The FIFO sustains one request per cycle when\\n    // DDR accepts continuously, and never depends on DDR READY at its input.\\n    reg [28:0] scan_addresses [0:1];\\n    reg scan_wp=0,scan_rp=0;\\n    reg [1:0] scan_count=0;\\n    wire scan_valid=scan_count!=0;\\n    wire [28:0] scan_addr=scan_addresses[scan_rp];\\n    assign g_ready = rst_n && scan_count!=2;\\n    wire scan_enqueue=g_valid && g_ready;\\n    wire scan_issue=scan_valid && issue && m_ready;\\n    always @(posedge clk)begin\\n        if(!rst_n)begin scan_wp<=0;scan_rp<=0;scan_count<=0;end\\n        else begin\\n            if(scan_enqueue)begin scan_addresses[scan_wp]<=g_addr;scan_wp<=!scan_wp;end\\n            if(scan_issue)scan_rp<=!scan_rp;\\n            case({scan_enqueue,scan_issue})\\n                2'b10:scan_count<=scan_count+1'b1;\\n                2'b01:scan_count<=scan_count-1'b1;\\n                default:;\\n            endcase\\n        end\\n    end\\n    // b_grant est gard\u00e9 tel quel par la synth\u00e8se (syn_keep) : sans cela, la LUT de b_ready \u00e9tait partag\u00e9e\\n    // avec m_wr_en, qui d\u00e9pend de b_valid, et l'analyse de timing comptait une boucle combinatoire\\n    // b_valid -> arbitre -> b_ready -> blitter/V1 qui n'existe pas logiquement (r600, -0,47 ns).\\n    wire b_grant /* synthesis syn_keep=1 */ = issue && !scan_valid && take_blitter && m_ready && (!b_write || m_wr_ready);\\n    assign b_ready = b_grant;\\n    assign c_ready = rst_n && !cpu_pending;\\n    assign c_wr_ready = c_ready;\\n    wire cpu_fire = issue && !scan_valid && !take_blitter && cpu_pending && m_ready && (cpu_cmd != 0 || m_wr_ready);\\n    assign m_en = scan_issue || (b_valid && b_ready) || cpu_fire;\\n    assign m_cmd = scan_valid ? 3'b001 : take_blitter ? {2'b0,!b_write} : cpu_cmd;\\n    assign m_addr = scan_valid ? scan_addr : take_blitter ? b_addr : cpu_addr;\\n    assign m_wr_en = (b_valid && b_ready && b_write) || (cpu_fire && cpu_cmd == 0);\\n    assign m_wr_end = m_wr_en;\\n    assign m_wr_data = take_blitter ? b_wr_data : cpu_data;\\n    assign m_wr_mask = take_blitter ? b_wr_mask : cpu_mask;\\n    wire push = scan_issue || (b_valid && b_ready && !b_write) || (cpu_fire && cpu_cmd == 1);\\n    wire pop = m_rd_valid && !empty;\\n    wire [4:0] next_wp = wp + {4'b0, push};\\n    wire [4:0] next_rp = rp + {4'b0, pop};\\n    wire [4:0] incremented_wp = wp + 5'd1;\\n    wire one_slot_left = incremented_wp == {~rp[4],rp[3:0]};\\n    always @(posedge clk) begin\\n        if (!rst_n) begin\\n            wp <= 0; rp <= 0; full <= 0; prefer_blitter <= 1;\\n            take_blitter<=0;\\n            cpu_pending <= 0; cpu_cmd <= 0; cpu_addr <= 0; cpu_data <= 0; cpu_mask <= 32'hffffffff;\\n        end\\n        else begin\\n            // Cut the valid -> arbitration -> ready round trip. A stale grant\\n            // can only insert a bubble: native commands still require valid.\\n            // Acknowledgement remains the actual DDR command/data acceptance.\\n            if(b_valid && b_ready) take_blitter<=0;\\n            else take_blitter<=b_valid && (prefer_blitter || !cpu_pending);\\n            // While empty, sample the payload independently of the late\\n            // upstream request. The acceptance cycle captures the same words;\\n            // once pending, every word remains held until DDR accepts it.\\n            // This leaves c_en driving only the valid bit, not 320 payload CEs.\\n            if (!cpu_pending) begin\\n                cpu_cmd <= c_cmd; cpu_addr <= c_addr;\\n                cpu_data <= c_wr_data; cpu_mask <= c_wr_mask;\\n            end\\n            if (c_en && c_ready) cpu_pending <= 1;\\n            else if (cpu_fire) cpu_pending <= 0;\\n            if (!scan_valid) begin\\n                if (b_valid && b_ready) prefer_blitter <= 0;\\n                else if (cpu_fire) prefer_blitter <= 1;\\n            end\\n            if (push) tags[wp[3:0]] <= scan_valid ? 2'd1 : take_blitter ? 2'd2 : 2'd0;\\n            wp <= next_wp; rp <= next_rp;\\n            // Compare stable pointers before the late command acceptance.\\n            // Simultaneous push/pop leaves occupancy unchanged.\\n            if(push && !pop)full<=one_slot_left;\\n            else if(pop && !push)full<=0;\\n        end\\n    end\\n    assign c_rd_data = m_rd_data;\\n    assign g_data = m_rd_data;\\n    assign c_rd_valid = pop && tags[rp[3:0]] == 0;\\n    assign c_rd_end = c_rd_valid && m_rd_end;\\n    assign g_data_valid = pop && tags[rp[3:0]] == 1;\\n    assign b_rd_data = m_rd_data;\\n    assign b_rd_valid = pop && tags[rp[3:0]] == 2;\\nendmodule\\n`default_nettype wire\\n\"}",
+      "time": {
+        "start": 1793219933838,
+        "end": 1793219933846
+      }
+    },
+    {
+      "call_id": "call_icwolrqe",
+      "name": "taskbox_read_file",
+      "message_id": "msg_1843c9b14001gAyHL3h71Yu8f0",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "ddr_ui_adapt.v"
+      },
+      "output": "{\"content\": \"// ddr_ui_adapt.v \u2014 adaptateur de largeur entre l'interface utilisateur \u00ab 16 bits \u00bb (128 bits par rafale, adresses en\\n// mots de 16 bits, s\u00e9mantique du contr\u00f4leur DDR3 Gowin en DQ 16 telle que mod\u00e9lis\u00e9e dans sim/ddr3_ui_model.py et\\n// valid\u00e9e sur carte en E1/E2) et l'IP DDR3 configur\u00e9e en DQ 32 bits (256 bits par rafale, adresses en mots de 32 bits,\\n// 1 Go) \u2014 ARCHI_V3 \u00a7 11 (E2-f1). Il permet de garder le pont Sipeed, ddr_arb et ddr_writer tels quels.\\n//\\n// S\u00e9mantique reproduite (c\u00f4t\u00e9 amont, \u00ab u_* \u00bb) :\\n//   - adresse u_addr en mots de 16 bits ; une rafale couvre les 16 octets \u00e0 (u_addr & ~7) \u00d7 2 ; si u_addr n'est pas\\n//     align\u00e9e, la donn\u00e9e \u00e9crite et le masque sont TOURN\u00c9S de (u_addr & 7) mots (c'est ce que faisait le contr\u00f4leur\\n//     16 bits : \u00ab la donn\u00e9e pr\u00e9sent\u00e9e commence au mot demand\u00e9 \u00bb), et une lecture rend la rafale tourn\u00e9e en sens\\n//     inverse (mot demand\u00e9 en t\u00eate) ;\\n//   - masque : 1 = octet non \u00e9crit.\\n// C\u00f4t\u00e9 IP 32 bits (\u00ab ip_* \u00bb) : commandes toujours ALIGN\u00c9ES sur la rafale de 32 octets (ip_addr = octets / 4 avec les\\n// 3 bits bas \u00e0 0) ; la moiti\u00e9 de 128 bits vis\u00e9e est u_addr[3] (octet 16 de la rafale), l'autre moiti\u00e9 est masqu\u00e9e.\\n// Hypoth\u00e8se \u00e0 v\u00e9rifier sur carte : rafale align\u00e9e = 8 mots de 32 bits en petit-boutiste (mot 0 en bas), comme en 16 bits.\\n// Lectures : l'IP rend dans l'ordre \u2192 file d'\u00e9tiquettes {moiti\u00e9, rotation} ; cmd_ready amont = IP pr\u00eate ET file non\\n// pleine (jamais de commande perdue en silence). Donn\u00e9es d'\u00e9criture : wr_data_en passe tel quel (l'IP les apparie).\\n`default_nettype none\\nmodule ddr_ui_adapt #(\\n    parameter TAG_LOG2 = 4                  // 16 lectures en vol au plus (le pont n'en a qu'une, le writer aucune)\\n) (\\n    input  wire         clk,\\n    input  wire         rst_n,\\n    // amont : interface 128 bits (sortie de ddr_arb)\\n    input  wire         u_cmd_en,\\n    input  wire [2:0]   u_cmd,\\n    input  wire [28:0]  u_addr,\\n    output wire         u_cmd_ready,\\n    input  wire         u_wr_data_en,\\n    input  wire         u_wr_data_end,\\n    input  wire [127:0] u_wr_data,\\n    input  wire [15:0]  u_wr_data_mask,\\n    output wire         u_wr_data_rdy,\\n    output wire [127:0] u_rd_data,\\n    output wire         u_rd_data_valid,\\n    output wire         u_rd_data_end,\\n    // aval : IP DDR3 en DQ 32 (256 bits)\\n    output wire         ip_cmd_en,\\n    output wire [2:0]   ip_cmd,\\n    output wire [28:0]  ip_addr,\\n    input  wire         ip_cmd_ready,\\n    output wire         ip_wr_data_en,\\n    output wire         ip_wr_data_end,\\n    output wire [255:0] ip_wr_data,\\n    output wire [31:0]  ip_wr_data_mask,\\n    input  wire         ip_wr_data_rdy,\\n    input  wire [255:0] ip_rd_data,\\n    input  wire         ip_rd_data_valid,\\n    input  wire         ip_rd_data_end\\n);\\n    // --- rotation d'un mot de 128 bits par n mots de 16 bits (gauche pour \u00e9crire, droite pour lire) -------------\\n    function [127:0] rotl128; input [127:0] d; input [2:0] n;\\n        begin rotl128 = (d << (16 * n)) | (d >> (128 - 16 * n)); end\\n    endfunction\\n    function [127:0] rotr128; input [127:0] d; input [2:0] n;\\n        begin rotr128 = (d >> (16 * n)) | (d << (128 - 16 * n)); end\\n    endfunction\\n    function [15:0] rotl16; input [15:0] m; input [2:0] n;\\n        begin rotl16 = (m << (2 * n)) | (m >> (16 - 2 * n)); end\\n    endfunction\\n\\n    // --- file d'\u00e9tiquettes des lectures en vol ------------------------------------------------------------------\\n    localparam DEPTH = 1 << TAG_LOG2;\\n    reg  [3:0]          tags [0:DEPTH-1];                    // {half, rot}\\n    reg  [TAG_LOG2:0]   tq_w = 0, tq_r = 0;\\n    // `tq_full` REGISTR\u00c9 (calcul\u00e9 sur les pointeurs du cycle suivant) : combinatoire, il entrait dans u_cmd_ready \u2192\\n    // arbitre \u2192 mux de donn\u00e9es 256 bits \u2192 tampon d'\u00e9criture de l'IP, chemin en violation de 1 ns (E2-f1, sdc corrig\u00e9).\\n    // Pessimiste d'un cycle sur la lib\u00e9ration d'une place (16 lectures en vol, le pont n'en a qu'une) : sans effet.\\n    reg                 tq_full = 1'b0;\\n    wire                tq_empty = (tq_w == tq_r);\\n    assign u_cmd_ready = ip_cmd_ready && !tq_full;\\n    wire   push = u_cmd_en && u_cmd_ready && (u_cmd == 3'b001);\\n    wire   pop  = ip_rd_data_valid;\\n    wire [TAG_LOG2:0] tq_w_n = tq_w + {{TAG_LOG2{1'b0}}, push};\\n    wire [TAG_LOG2:0] tq_r_n = tq_r + {{TAG_LOG2{1'b0}}, pop};\\n    wire [TAG_LOG2:0] tq_count = tq_w - tq_r;\\n    always @(posedge clk) begin\\n        if (!rst_n) begin\\n            tq_w <= 0; tq_r <= 0; tq_full <= 1'b0;\\n        end else begin\\n            // The write slot is free whenever the queue is not full. Prepare\\n            // its tag every such cycle; only push publishes it by advancing\\n            // tq_w. Never overwrite this slot while full: it is then the head.\\n            // This removes upstream arbitration from the RAM write enable.\\n            if (!tq_full) tags[tq_w[TAG_LOG2-1:0]] <= {half, rot};\\n            tq_w <= tq_w_n; tq_r <= tq_r_n;\\n            // L11 : m\u00eame valeur que (tq_w_n, tq_r_n) \u00ab \u00e9cart = DEPTH \u00bb, calcul\u00e9e sur les pointeurs courants ; push et\\n            // pop, qui arrivent tard (arbitre, IP), ne font plus que choisir entre trois comparaisons d\u00e9j\u00e0 pr\u00eates.\\n            tq_full <= (push && !pop) ? tq_count == DEPTH - 1 : (!push && pop) ? tq_count == DEPTH + 1 : tq_count == DEPTH;\\n        end\\n    end\\n    /* verilator lint_off UNUSEDSIGNAL */\\n    wire tq_underflow = pop && tq_empty;                     // donn\u00e9e rendue sans lecture en vol : incoh\u00e9rence (banc)\\n    /* verilator lint_on UNUSEDSIGNAL */\\n\\n    // --- commande --------------------------------------------------------------------------------------------\\n    // Le masque et la donn\u00e9e d'\u00e9criture d\u00e9pendent de l'adresse de la commande : le pont et le writer pr\u00e9sentent\\n    // wr_data_en au m\u00eame cycle que cmd_en (ddr_arb : ui_wr_data_end = ui_wr_data_en), on utilise donc u_addr du cycle.\\n    wire [2:0] rot  = u_addr[2:0];\\n    wire       half = u_addr[3];\\n    // Contrat amont (celui de ddr_arb) : u_cmd_en seulement quand u_cmd_ready ; on verrouille quand m\u00eame la file\\n    // pleine c\u00f4t\u00e9 IP pour qu'une lecture sans \u00e9tiquette ne puisse jamais partir (d\u00e9synchronisation silencieuse).\\n    assign ip_cmd_en = u_cmd_en && !tq_full;\\n    assign ip_cmd    = u_cmd;\\n    assign ip_addr   = {1'b0, u_addr[28:4], 3'b000};        // octets / 4, align\u00e9 sur la rafale de 32 octets\\n    wire [127:0] wdata_eff = rotl128(u_wr_data, rot);\\n    wire [15:0]  wmask_eff = rotl16(u_wr_data_mask, rot);\\n    assign ip_wr_data      = {wdata_eff, wdata_eff};\\n    assign ip_wr_data_mask = half ? {wmask_eff, 16'hFFFF} : {16'hFFFF, wmask_eff};\\n    assign ip_wr_data_en   = u_wr_data_en;\\n    assign ip_wr_data_end  = u_wr_data_end;\\n    assign u_wr_data_rdy   = ip_wr_data_rdy;\\n\\n    // --- donn\u00e9es lues : moiti\u00e9 demand\u00e9e, tourn\u00e9e pour que le mot demand\u00e9 soit en t\u00eate -----------------------------\\n    wire [3:0]   tag_r  = tags[tq_r[TAG_LOG2-1:0]];\\n    wire [127:0] rhalf  = tag_r[3] ? ip_rd_data[255:128] : ip_rd_data[127:0];\\n    assign u_rd_data       = rotr128(rhalf, tag_r[2:0]);\\n    assign u_rd_data_valid = ip_rd_data_valid;\\n    assign u_rd_data_end   = ip_rd_data_end;\\nendmodule\\n`default_nettype wire\\n\"}",
+      "time": {
+        "start": 1793219933840,
+        "end": 1793219933847
+      }
+    },
+    {
+      "call_id": "call_257a439o",
+      "name": "taskbox_run_tests",
+      "message_id": "msg_1843cb6f5001P673802T90kaXI",
+      "status": "completed",
+      "exit_code": null,
+      "input": {},
+      "output": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 2.9372221529483795, \"stdout\": \"CASE seed=1 fault=0 returncode=0\\nPASS cpu=16 scan=11 blit=11 rotations=16 outstanding=12\\n- bench.sv:456: Verilog $finish\\n\\nCASE seed=8 fault=0 returncode=0\\nPASS cpu=16 scan=11 blit=11 rotations=16 outstanding=12\\n- bench.sv:456: Verilog $finish\\n\\nCASE seed=1 fault=1 returncode=-6\\n[1845000] %Fatal: bench.sv:191: Assertion failed in TOP.bench: CHECK_FAIL DATA scanout got=dcdbd6d5837cc901c4c3bebd01a4a19aacaba6a569015f0194938e8d413a0101 exp=dddad7d4827dc800c5c2bfbc00a5a09badaaa7a468005e0095928f8c403b0000\\n%Error: bench.sv:191: Verilog $stop\\nAborting...\\n\\nCASE seed=1 fault=2 returncode=-6\\nINJECT dropped_response=0\\n[1905000] %Fatal: bench.sv:191: Assertion failed in TOP.bench: CHECK_FAIL DATA scanout got=b800ae00dcd9d6d3908b0000c4c1bebb86000000aca9a6a30000009f94918e8b exp=dddad7d4827dc800c5c2bfbc00a5a09badaaa7a468005e0095928f8c403b0000\\n%Error: bench.sv:191: Verilog $stop\\nAborting...\\n\\nCASE seed=1 fault=3 returncode=-6\\n[22010000] %Fatal: bench.sv:263: Assertion failed in TOP.bench.cpu_read: CHECK_FAIL TIMEOUT cpu read ready\\n%Error: bench.sv:263: Verilog $stop\\nAborting...\\n\\n{\\\"passed\\\": true, \\\"cases\\\": [{\\\"seed\\\": 1, \\\"fault\\\": 0, \\\"passed\\\": true}, {\\\"seed\\\": 8, \\\"fault\\\": 0, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 1, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 2, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 3, \\\"passed\\\": true}]}\\n\"}], \"test_runs\": 1, \"test_failures\": 0, \"passed\": true}",
+      "time": {
+        "start": 1793219934720,
+        "end": 1793219937660
+      }
+    },
+    {
+      "call_id": "call_kkhiycls",
+      "name": "taskbox_write_file",
+      "message_id": "msg_1843cc580001hEO4Ah67UB9Ced",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "path": "bench.sv",
+        "content": "// Cross-client DDR composition bench.\n// CPU128 -> ddr_ui_adapt -> ddr_gpu_arb <- scanout/blitter -> native_memory.\n// The scoreboard builds its byte image only from high-level operations and\n// compares each client response with an independently computed request value.\n`timescale 1ns/1ps\nmodule bench;\n\n    // ---------------------------------------------------------------------\n    // Clock/reset and public DUT ports\n    // ---------------------------------------------------------------------\n    reg clk = 1'b0;\n    always #5 clk = ~clk;\n\n    reg rst_n = 1'b0;\n\n    // 128-bit CPU side of the adapter.\n    reg         u_cmd_en = 0;\n    reg  [2:0]  u_cmd = 0;\n    reg  [28:0] u_addr = 0;\n    wire        u_cmd_ready;\n    reg         u_wr_data_en = 0;\n    reg         u_wr_data_end = 0;\n    reg  [127:0] u_wr_data = 0;\n    reg  [15:0]  u_wr_data_mask = 0;\n    wire        u_wr_data_rdy;\n    wire [127:0] u_rd_data;\n    wire        u_rd_data_valid;\n    wire        u_rd_data_end;\n\n    // Adapter 256-bit IP side, wired to the arbiter CPU port.\n    wire        ip_cmd_en;\n    wire [2:0]  ip_cmd;\n    wire [28:0] ip_addr;\n    wire        ip_cmd_ready;\n    wire        ip_wr_data_en;\n    wire        ip_wr_data_end;\n    wire [255:0] ip_wr_data;\n    wire [31:0]  ip_wr_data_mask;\n    wire         ip_wr_data_rdy;\n    wire [255:0] ip_rd_data;\n    wire         ip_rd_data_valid;\n    wire         ip_rd_data_end;\n\n    // Scanout producer.\n    reg         g_valid = 0;\n    reg  [28:0] g_addr = 0;\n    wire        g_ready;\n    wire [255:0] g_data;\n    wire        g_data_valid;\n\n    // Blitter/GPU producer.\n    reg         b_valid = 0;\n    reg         b_write = 0;\n    reg  [28:0] b_addr = 0;\n    reg  [255:0] b_wr_data = 0;\n    reg  [31:0]  b_wr_mask = 0;\n    wire        b_ready;\n    wire [255:0] b_rd_data;\n    wire        b_rd_valid;\n\n    // Ordered native terminal.\n    wire        m_en;\n    wire [2:0]  m_cmd;\n    wire [28:0] m_addr;\n    wire        m_ready;\n    wire        m_wr_en;\n    wire        m_wr_end;\n    wire [255:0] m_wr_data;\n    wire [31:0]  m_wr_mask;\n    wire        m_wr_ready;\n    wire [255:0] m_rd_data;\n    wire        m_rd_valid;\n    wire        m_rd_end;\n\n    // ---------------------------------------------------------------------\n    // DUT composition.\n    // ---------------------------------------------------------------------\n    ddr_ui_adapt u_adapter (\n        .clk(clk), .rst_n(rst_n),\n        .u_cmd_en(u_cmd_en), .u_cmd(u_cmd), .u_addr(u_addr),\n        .u_cmd_ready(u_cmd_ready),\n        .u_wr_data_en(u_wr_data_en), .u_wr_data_end(u_wr_data_end),\n        .u_wr_data(u_wr_data), .u_wr_data_mask(u_wr_data_mask),\n        .u_wr_data_rdy(u_wr_data_rdy),\n        .u_rd_data(u_rd_data), .u_rd_data_valid(u_rd_data_valid),\n        .u_rd_data_end(u_rd_data_end),\n        .ip_cmd_en(ip_cmd_en), .ip_cmd(ip_cmd), .ip_addr(ip_addr),\n        .ip_cmd_ready(ip_cmd_ready),\n        .ip_wr_data_en(ip_wr_data_en), .ip_wr_data_end(ip_wr_data_end),\n        .ip_wr_data(ip_wr_data), .ip_wr_data_mask(ip_wr_data_mask),\n        .ip_wr_data_rdy(ip_wr_data_rdy),\n        .ip_rd_data(ip_rd_data), .ip_rd_data_valid(ip_rd_data_valid),\n        .ip_rd_data_end(ip_rd_data_end)\n    );\n\n    ddr_gpu_arb u_arb (\n        .clk(clk), .rst_n(rst_n),\n        .c_en(ip_cmd_en), .c_cmd(ip_cmd), .c_addr(ip_addr),\n        .c_ready(ip_cmd_ready),\n        .c_wr_en(ip_wr_data_en), .c_wr_end(ip_wr_data_end),\n        .c_wr_data(ip_wr_data), .c_wr_mask(ip_wr_data_mask),\n        .c_wr_ready(ip_wr_data_rdy),\n        .c_rd_data(ip_rd_data), .c_rd_valid(ip_rd_data_valid),\n        .c_rd_end(ip_rd_data_end),\n        .g_valid(g_valid), .g_addr(g_addr), .g_ready(g_ready),\n        .g_data(g_data), .g_data_valid(g_data_valid),\n        .b_valid(b_valid), .b_write(b_write), .b_addr(b_addr),\n        .b_wr_data(b_wr_data), .b_wr_mask(b_wr_mask), .b_ready(b_ready),\n        .b_rd_data(b_rd_data), .b_rd_valid(b_rd_valid),\n        .m_en(m_en), .m_cmd(m_cmd), .m_addr(m_addr), .m_ready(m_ready),\n        .m_wr_en(m_wr_en), .m_wr_end(m_wr_end), .m_wr_data(m_wr_data),\n        .m_wr_mask(m_wr_mask), .m_wr_ready(m_wr_ready),\n        .m_rd_data(m_rd_data), .m_rd_valid(m_rd_valid), .m_rd_end(m_rd_end)\n    );\n\n    native_memory u_native (\n        .clk(clk), .resetn(rst_n), .en(m_en), .cmd(m_cmd), .addr(m_addr),\n        .ready(m_ready), .wr_en(m_wr_en), .wr_end(m_wr_end),\n        .wr_data(m_wr_data), .wr_mask(m_wr_mask), .wr_ready(m_wr_ready),\n        .rd_data(m_rd_data), .rd_valid(m_rd_valid), .rd_end(m_rd_end)\n    );\n\n    // ---------------------------------------------------------------------\n    // Independent byte model and per-client expected-response queues.\n    // exp_mem is never sourced from the DUT or from native_memory.bytes.\n    // ---------------------------------------------------------------------\n    reg [7:0] exp_mem [0:4095];\n\n    reg [127:0] cpu_q  [0:255];\n    reg [3:0]   cpu_rot [0:255];\n    reg [255:0] scan_q [0:255];\n    reg [255:0] blit_q [0:255];\n\n    integer cpu_w = 0, cpu_r = 0, scan_w = 0, scan_r = 0;\n    integer blit_w = 0, blit_r = 0;\n    integer cpu_got = 0, scan_got = 0, blit_got = 0;\n    integer outstanding_native = 0, outstanding_peak = 0;\n    integer rotations = 0;\n    reg [15:0] rot_cov = 16'h0000;\n\n    // Producer acceptance and terminal acceptance are deliberately separate.\n    // Producer counters are written by their own driver process only.\n    integer cpu_wr_issued = 0, gpu_wr_issued = 0;\n    integer native_wr_accepted = 0;\n\n    // Set only after every checked response and write has completed.\n    reg bench_done = 1'b0;\n\n    integer i, j, b, h, rot;\n    integer rr_cpu, rr_scan, rr_blit;\n    reg [127:0] wd;\n    reg [255:0] wd256;\n\n    // CPU read expectation: select the 16-byte half addressed by U, then\n    // rotate so that the 16-bit word at offset (U & 7) appears first.\n    function automatic [127:0] cpu_expect(input [28:0] u);\n        integer hb, n, m, q, src;\n        begin\n            hb = (u & ~29'd7) * 2;\n            n  = u[2:0];\n            for (m = 0; m < 8; m = m + 1) begin\n                src = hb + (((m + n) % 8) * 2);\n                for (q = 0; q < 2; q = q + 1)\n                    cpu_expect[8*(2*m+q) +: 8] = exp_mem[src + q];\n            end\n        end\n    endfunction\n\n    // Native 32-byte line expectation, increasing byte order.\n    function automatic [255:0] line_expect(input [28:0] a);\n        integer base, q;\n        begin\n            base = a * 4;\n            for (q = 0; q < 32; q = q + 1)\n                line_expect[8*q +: 8] = exp_mem[base + q];\n        end\n    endfunction\n\n    // ---------------------------------------------------------------------\n    // External-port scoreboard and real coverage counters.\n    // ---------------------------------------------------------------------\n    always @(posedge clk) begin\n        if (rst_n) begin\n            if (u_rd_data_valid) begin\n                if (cpu_r >= cpu_w)\n                    $fatal(1, \"CHECK_FAIL ROUTE cpu valid without request\");\n                if (u_rd_data !== cpu_q[cpu_r])\n                    $fatal(1, \"CHECK_FAIL DATA cpu got=%h exp=%h\",\n                           u_rd_data, cpu_q[cpu_r]);\n                rot_cov[cpu_rot[cpu_r][3:0]] = 1'b1;\n                cpu_r = cpu_r + 1;\n                cpu_got = cpu_got + 1;\n            end\n\n            if (g_data_valid) begin\n                if (scan_r >= scan_w)\n                    $fatal(1, \"CHECK_FAIL ROUTE scanout valid without request\");\n                if (g_data !== scan_q[scan_r])\n                    $fatal(1, \"CHECK_FAIL DATA scanout got=%h exp=%h\",\n                           g_data, scan_q[scan_r]);\n                scan_r = scan_r + 1;\n                scan_got = scan_got + 1;\n            end\n\n            if (b_rd_valid) begin\n                if (blit_r >= blit_w)\n                    $fatal(1, \"CHECK_FAIL ROUTE blitter valid without request\");\n                if (b_rd_data !== blit_q[blit_r])\n                    $fatal(1, \"CHECK_FAIL DATA blitter got=%h exp=%h\",\n                           b_rd_data, blit_q[blit_r]);\n                blit_r = blit_r + 1;\n                blit_got = blit_got + 1;\n            end\n\n            // Native reads in flight, sampled only at the arbiter's m_* port.\n            if (m_en && (m_cmd == 3'b001)) begin\n                outstanding_native = outstanding_native + 1;\n                if (outstanding_native > outstanding_peak)\n                    outstanding_peak = outstanding_native;\n            end\n            if (m_rd_valid && (outstanding_native > 0))\n                outstanding_native = outstanding_native - 1;\n\n            // External write acceptance, including the ordered terminal's\n            // data-ready handshake.  The producer ready signals (adapter c/IP\n            // or blitter b) are intentionally not counted as completion.\n            if (m_en && m_ready && (m_cmd == 3'b000) &&\n                m_wr_en && m_wr_end && m_wr_ready)\n                native_wr_accepted = native_wr_accepted + 1;\n        end\n    end\n\n    // ---------------------------------------------------------------------\n    // Bounded global completion watchdog.  It is independent of every driver\n    // timeout and fails if the stimulus as a whole never reaches its end.\n    // ---------------------------------------------------------------------\n    integer watchdog_cycles = 0;\n    initial begin : GLOBAL_WATCHDOG\n        while (!bench_done && (watchdog_cycles < 20000)) begin\n            @(negedge clk);\n            watchdog_cycles = watchdog_cycles + 1;\n        end\n        if (!bench_done)\n            $fatal(1, \"CHECK_FAIL TIMEOUT global completion watchdog after %0d cycles\",\n                   watchdog_cycles);\n    end\n\n    // ---------------------------------------------------------------------\n    // CPU128 command/data driver.  Command and write data are presented\n    // together and only after u_cmd_ready (and u_wr_data_rdy for writes).\n    // ---------------------------------------------------------------------\n    task automatic cpu_write(input [28:0] u, input [127:0] d,\n                             input [15:0] mask);\n        integer guard, k, by, hb, n;\n        begin\n            guard = 0;\n            @(negedge clk);\n            while ((u_cmd_ready !== 1'b1) || (u_wr_data_rdy !== 1'b1)) begin\n                @(negedge clk);\n                guard = guard + 1;\n                if (guard > 2000)\n                    $fatal(1, \"CHECK_FAIL TIMEOUT cpu write ready\");\n            end\n            u_cmd_en = 1'b1; u_cmd = 3'b000; u_addr = u;\n            u_wr_data_en = 1'b1; u_wr_data_end = 1'b1;\n            u_wr_data = d; u_wr_data_mask = mask;\n            // High-level operation -> byte oracle.  Upstream word k lands at\n            // native half-word (k+n) mod 8 because the adapter rotates left.\n            hb = (u & ~29'd7) * 2;\n            n  = u[2:0];\n            for (k = 0; k < 8; k = k + 1)\n                for (by = 0; by < 2; by = by + 1)\n                    if (!mask[2*k + by])\n                        exp_mem[hb + (((k + n) % 8) * 2) + by] =\n                            d[8*(2*k + by) +: 8];\n            @(posedge clk);\n            if (!(u_cmd_en && u_cmd_ready && u_wr_data_rdy))\n                $fatal(1, \"CHECK_FAIL ROUTE cpu write handshake\");\n            cpu_wr_issued = cpu_wr_issued + 1;\n            @(negedge clk);\n            u_cmd_en = 1'b0; u_wr_data_en = 1'b0; u_wr_data_end = 1'b0;\n        end\n    endtask\n\n    task automatic cpu_read(input [28:0] u);\n        integer guard;\n        begin\n            guard = 0;\n            @(negedge clk);\n            while (u_cmd_ready !== 1'b1) begin\n                @(negedge clk);\n                guard = guard + 1;\n                if (guard > 2000)\n                    $fatal(1, \"CHECK_FAIL TIMEOUT cpu read ready\");\n            end\n            u_cmd_en = 1'b1; u_cmd = 3'b001; u_addr = u;\n            u_wr_data_en = 1'b0; u_wr_data_end = 1'b0;\n            cpu_q[cpu_w]   = cpu_expect(u);\n            cpu_rot[cpu_w] = {u[3], u[2:0]};\n            cpu_w = cpu_w + 1;\n            @(posedge clk);\n            if (!(u_cmd_en && u_cmd_ready))\n                $fatal(1, \"CHECK_FAIL ROUTE cpu read handshake\");\n            @(negedge clk);\n            u_cmd_en = 1'b0;\n        end\n    endtask\n\n    // ---------------------------------------------------------------------\n    // Scanout read driver: valid/payload remain stable until g_ready.\n    // ---------------------------------------------------------------------\n    task automatic scan_read(input [28:0] a);\n        integer guard;\n        begin\n            guard = 0;\n            @(negedge clk);\n            g_valid = 1'b1; g_addr = a;\n            scan_q[scan_w] = line_expect(a);\n            scan_w = scan_w + 1;\n            @(posedge clk);\n            while (!g_ready) begin\n                guard = guard + 1;\n                if (guard > 2000)\n                    $fatal(1, \"CHECK_FAIL TIMEOUT scanout ready\");\n                @(posedge clk);\n            end\n            @(negedge clk);\n            g_valid = 1'b0;\n        end\n    endtask\n\n    // ---------------------------------------------------------------------\n    // Blitter read/write driver: valid/payload remain stable until b_ready.\n    // ---------------------------------------------------------------------\n    task automatic blit_read(input [28:0] a);\n        integer guard;\n        begin\n            guard = 0;\n            @(negedge clk);\n            b_valid = 1'b1; b_write = 1'b0; b_addr = a;\n            blit_q[blit_w] = line_expect(a);\n            blit_w = blit_w + 1;\n            @(posedge clk);\n            while (!b_ready) begin\n                guard = guard + 1;\n                if (guard > 2000)\n                    $fatal(1, \"CHECK_FAIL TIMEOUT blitter read ready\");\n                @(posedge clk);\n            end\n            @(negedge clk);\n            b_valid = 1'b0;\n        end\n    endtask\n\n    task automatic gpu_write(input [28:0] a, input [255:0] d,\n                             input [31:0] mask);\n        integer guard, q, by;\n        begin\n            guard = 0;\n            @(negedge clk);\n            b_valid = 1'b1; b_write = 1'b1; b_addr = a;\n            b_wr_data = d; b_wr_mask = mask;\n            @(posedge clk);\n            while (!b_ready) begin\n                guard = guard + 1;\n                if (guard > 2000)\n                    $fatal(1, \"CHECK_FAIL TIMEOUT blitter write ready\");\n                @(posedge clk);\n            end\n            // Mask bit 1 means the corresponding byte is not written.\n            for (q = 0; q < 32; q = q + 1)\n                if (!mask[q])\n                    exp_mem[a*4 + q] = d[8*q +: 8];\n            gpu_wr_issued = gpu_wr_issued + 1;\n            @(negedge clk);\n            b_valid = 1'b0;\n        end\n    endtask\n\n    // Bounded wait for all issued reads to produce a checked response.\n    task automatic wait_drained(input integer limit);\n        integer guard;\n        begin\n            guard = 0;\n            while ((cpu_r != cpu_w) || (scan_r != scan_w) || (blit_r != blit_w)) begin\n                @(negedge clk);\n                guard = guard + 1;\n                if (guard > limit)\n                    $fatal(1, \"CHECK_FAIL TIMEOUT drain cpu=%0d/%0d scan=%0d/%0d blit=%0d/%0d\",\n                           cpu_r, cpu_w, scan_r, scan_w, blit_r, blit_w);\n            end\n        end\n    endtask\n\n    // Bounded wait for the external ordered terminal to accept every write\n    // already accepted by its producer.  This replaces fixed drain delays.\n    task automatic wait_native_writes(input integer target, input integer limit);\n        integer guard;\n        begin\n            guard = 0;\n            while (native_wr_accepted < target) begin\n                @(negedge clk);\n                guard = guard + 1;\n                if (guard > limit)\n                    $fatal(1, \"CHECK_FAIL TIMEOUT native writes %0d/%0d\",\n                           native_wr_accepted, target);\n            end\n        end\n    endtask\n\n    // ---------------------------------------------------------------------\n    // Stimulus.\n    // ---------------------------------------------------------------------\n    initial begin\n        for (i = 0; i < 4096; i = i + 1)\n            exp_mem[i] = 8'h00;\n        for (i = 0; i < 256; i = i + 1) begin\n            cpu_q[i] = 0; cpu_rot[i] = 0; scan_q[i] = 0; blit_q[i] = 0;\n        end\n\n        rst_n = 1'b0;\n        repeat (8) @(negedge clk);\n        rst_n = 1'b1;\n        repeat (4) @(negedge clk);\n\n        // Four native bursts, both CPU halves, non-trivial write masks.\n        for (b = 0; b < 4; b = b + 1) begin\n            for (h = 0; h < 2; h = h + 1) begin\n                rot = (b*3 + h*5) & 7;\n                for (j = 0; j < 16; j = j + 1)\n                    wd[8*j +: 8] = 8'h31 + b*8'h13 + h*8'h29\n                                   + rot*8'h07 + j*8'h05;\n                if (h == 0)\n                    cpu_write(b*16 + 8*h + rot, wd, 16'hA5C3);\n                else\n                    cpu_write(b*16 + 8*h + rot, wd, 16'h5A3C);\n            end\n        end\n\n        // GPU256 partially masked writes to the same bursts.\n        for (b = 0; b < 4; b = b + 1) begin\n            for (j = 0; j < 32; j = j + 1)\n                wd256[8*j +: 8] = 8'h80 + b*8'h0B + j*8'h03;\n            if ((b % 2) == 0)\n                gpu_write(b*8, wd256, 32'h0F0F0F0F);\n            else\n                gpu_write(b*8, wd256, 32'hF0F0F0F0);\n        end\n\n        // Wait for terminal write acceptance, not merely producer readiness.\n        wait_native_writes(cpu_wr_issued + gpu_wr_issued, 4000);\n\n        // Three client processes run together.  Each producer uses private\n        // loop/payload locals so the concurrent branches share no j or data.\n        // The CPU process inserts a CPU write among its reads; the blitter\n        // process inserts a GPU write among its reads.  Both target ranges\n        // are disjoint from B=0..3 and from each other.\n        fork\n            begin : CPU_MIX\n                integer cj;\n                reg [127:0] cwd;\n                for (rr_cpu = 0; rr_cpu < 16; rr_cpu = rr_cpu + 1) begin\n                    cpu_read(8*(rr_cpu/8) + (rr_cpu%8));\n                    if (rr_cpu == 5) begin\n                        for (cj = 0; cj < 16; cj = cj + 1)\n                            cwd[8*cj +: 8] = 8'hC1 + cj*8'h09;\n                        cpu_write(1600, cwd, 16'h0FF0);\n                    end\n                end\n            end\n            begin : SCAN_MIX\n                for (rr_scan = 0; rr_scan < 8; rr_scan = rr_scan + 1)\n                    scan_read(8*(rr_scan % 4));\n            end\n            begin : BLIT_MIX\n                integer bj;\n                reg [255:0] bwd;\n                for (rr_blit = 0; rr_blit < 8; rr_blit = rr_blit + 1) begin\n                    blit_read(8*(rr_blit % 4));\n                    if (rr_blit == 3) begin\n                        for (bj = 0; bj < 32; bj = bj + 1)\n                            bwd[8*bj +: 8] = 8'hD1 + bj*8'h07;\n                        gpu_write(880, bwd, 32'h00FF00FF);\n                    end\n                end\n            end\n        join\n\n        wait_drained(4000);\n        // The injected writes were acknowledged by their producers; require\n        // external terminal acceptance before reading those ranges back.\n        wait_native_writes(cpu_wr_issued + gpu_wr_issued, 4000);\n\n        // Read back both disjoint write ranges and an untouched canary.\n        scan_read(800);  blit_read(800);\n        scan_read(880);  blit_read(880);\n        scan_read(1008); blit_read(1008);\n\n        wait_drained(4000);\n\n        rotations = 0;\n        for (i = 0; i < 16; i = i + 1)\n            if (rot_cov[i]) rotations = rotations + 1;\n\n        if ((rotations != 16) || (cpu_got < 16) || (scan_got < 8) ||\n            (blit_got < 8) || (outstanding_peak < 3))\n            $fatal(1, \"CHECK_FAIL TIMEOUT coverage cpu=%0d scan=%0d blit=%0d rot=%0d out=%0d\",\n                   cpu_got, scan_got, blit_got, rotations, outstanding_peak);\n\n        bench_done = 1'b1;\n        $display(\"PASS cpu=%0d scan=%0d blit=%0d rotations=%0d outstanding=%0d\",\n                 cpu_got, scan_got, blit_got, rotations, outstanding_peak);\n        $finish;\n    end\n\nendmodule\n"
+      },
+      "output": "{\"written_bytes\": 20233}",
+      "time": {
+        "start": 1793220001546,
+        "end": 1793220001552
+      }
+    },
+    {
+      "call_id": "call_bgygg4n6",
+      "name": "taskbox_run_tests",
+      "message_id": "msg_1843dbf60001aIVwKRvcfvveB6",
+      "status": "completed",
+      "exit_code": null,
+      "input": {},
+      "output": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 2.9496256980346516, \"stdout\": \"CASE seed=1 fault=0 returncode=0\\nPASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11\\n- bench.sv:513: Verilog $finish\\n\\nCASE seed=8 fault=0 returncode=0\\nPASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11\\n- bench.sv:513: Verilog $finish\\n\\nCASE seed=1 fault=1 returncode=-6\\n[545000] %Fatal: bench.sv:199: Assertion failed in TOP.bench: CHECK_FAIL DATA scanout got=dcdbd6d5837cc901c4c3bebd01a4a19aacaba6a569015f0194938e8d413a0101 exp=dddad7d4827dc800c5c2bfbc00a5a09badaaa7a468005e0095928f8c403b0000\\n%Error: bench.sv:199: Verilog $stop\\nAborting...\\n\\nCASE seed=1 fault=2 returncode=-6\\nINJECT dropped_response=0\\n[665000] %Fatal: bench.sv:188: Assertion failed in TOP.bench: CHECK_FAIL DATA cpu got=86000000aca9a6a30000009f94918e8b exp=adaaa7a468005e0095928f8c403b0000\\n%Error: bench.sv:188: Verilog $stop\\nAborting...\\n\\nCASE seed=1 fault=3 returncode=-6\\n[20730000] %Fatal: bench.sv:294: Assertion failed in TOP.bench.cpu_read: CHECK_FAIL TIMEOUT cpu read ready\\n%Error: bench.sv:294: Verilog $stop\\nAborting...\\n\\n{\\\"passed\\\": true, \\\"cases\\\": [{\\\"seed\\\": 1, \\\"fault\\\": 0, \\\"passed\\\": true}, {\\\"seed\\\": 8, \\\"fault\\\": 0, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 1, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 2, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 3, \\\"passed\\\": true}]}\\n\"}], \"test_runs\": 1, \"test_failures\": 0, \"passed\": true}",
+      "time": {
+        "start": 1793220002572,
+        "end": 1793220005529
+      }
+    },
+    {
+      "call_id": "call_hyg6g8uz",
+      "name": "taskbox_write_file",
+      "message_id": "msg_1843dce9f001kO74Vxd8ADVGIM",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "content": "# Analyse du banc crois\u00e9 CPU128 / GPU256 / scanout\n\n## Objet et composition v\u00e9rifi\u00e9s\n\nLe banc instancie la copie R19 de `ddr_ui_adapt` (interface CPU 128 bits,\nadresses en mots16) puis `ddr_gpu_arb` (port CPU 256 bits, scanout et\nblitter/GPU), termin\u00e9s par `native_memory`, mod\u00e8le octet ordonn\u00e9 externe.\nLes deux RTL prot\u00e9g\u00e9s et `native_memory.sv` n'ont pas \u00e9t\u00e9 modifi\u00e9s ; seuls\n`bench.sv` et ce fichier ont chang\u00e9.\n\nLa comparaison est faite uniquement aux ports publics. `exp_mem` est construit\n\u00e0 partir des op\u00e9rations de haut niveau (\u00e9critures CPU avec rotation/masque,\n\u00e9critures GPU masqu\u00e9es), jamais depuis `native_memory.bytes`, les tags ou les\npointeurs internes. Chaque r\u00e9ponse CPU, scanout et blitter est compar\u00e9e \u00e0 la\nrequ\u00eate attendue de son propre client. Les 16 combinaisons moiti\u00e9/rotation CPU\nsont exerc\u00e9es, avec lectures concurrentes des trois clients et \u00e9critures\nCPU/GPU inject\u00e9es dans des plages disjointes, puis relecture de ces plages et\nd'un canari non \u00e9crit.\n\n## Corrections de qualit\u00e9 du banc\n\n1. Les producteurs concurrents du `fork` (`CPU_MIX`, `BLIT_MIX`) n'utilisent\n   plus l'entier partag\u00e9 `j` : chaque branche poss\u00e8de son indice local (`cj`\n   ou `bj`) et son tampon local (`cwd` ou `bwd`). Aucun producteur concurrent\n   ne partage donc d'\u00e9tat de boucle ou de charge utile.\n2. Les deux attentes fixes `repeat (128)` de drainage des \u00e9critures ont \u00e9t\u00e9\n   supprim\u00e9es. Un compteur `native_wr_accepted` ne compte que l'acceptation\n   r\u00e9elle au port terminal externe :\n   `m_en && m_ready && m_cmd==3'b000 && m_wr_en && m_wr_end && m_wr_ready`.\n   Les acceptations c\u00f4t\u00e9 producteur (`u_cmd_ready`/`u_wr_data_rdy` et\n   `b_ready`) sont compt\u00e9es s\u00e9par\u00e9ment (`cpu_wr_issued`, `gpu_wr_issued`) et ne\n   sont pas consid\u00e9r\u00e9es comme la fin DDR. `wait_native_writes` attend le\n   nombre d'\u00e9critures d\u00e9j\u00e0 \u00e9mises, avec une borne de 4000 cycles, avant le\n   m\u00e9lange de lectures puis avant les relectures.\n3. Un chien de garde global ind\u00e9pendant impose une borne de 20000 cycles \u00e0 la\n   completion de tout le stimulus (`bench_done`). Les timeouts locaux des\n   pilotes et du drainage restent en place.\n\n## R\u00e9sultats mesur\u00e9s (ex\u00e9cution prot\u00e9g\u00e9e r\u00e9elle, apr\u00e8s correction)\n\nCompilation Verilator r\u00e9ussie avec `VM_PARALLEL_BUILDS=0` ; cinq cas ex\u00e9cut\u00e9s :\n\n- `seed=1 fault=0` : code retour 0, `PASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11`.\n- `seed=8 fault=0` : code retour 0, `PASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11`.\n- `seed=1 fault=1` : code retour -6, `CHECK_FAIL DATA scanout` (`bench.sv:199`),\n  donn\u00e9es re\u00e7ues diff\u00e9rentes de l'attendu apr\u00e8s injection XOR.\n- `seed=1 fault=2` : code retour -6, `CHECK_FAIL DATA cpu` (`bench.sv:188`),\n  apr\u00e8s `INJECT dropped_response=0` : la r\u00e9ponse omise est d\u00e9tect\u00e9e par\n  comparaison de donn\u00e9es, pas par un simple arr\u00eat.\n- `seed=1 fault=3` : code retour -6, `CHECK_FAIL TIMEOUT cpu read ready`\n  (`bench.sv:294`, temps simul\u00e9 20730000), r\u00e9ponse absente born\u00e9e.\n\nLe harnais prot\u00e9g\u00e9 conclut `\"passed\": true` pour l'ensemble. Les deux seeds\nsaines satisfont cpu>=16, scan>=8, blit>=8, rotations=16 et outstanding>=3.\nL'observation `outstanding=11` (au lieu de 12 avant suppression des d\u00e9lais\nfixes) est une mesure r\u00e9elle du recouvrement natif pour cette ex\u00e9cution ; elle\nreste au-dessus du seuil exig\u00e9.\n\n## Port\u00e9e et limites\n\n- `native_memory` est un terminal octet ordonn\u00e9, pas le contr\u00f4leur/PHY DDR3\n  Gowin. Dans ce mod\u00e8le, l'acceptation terminale d'une \u00e9criture vaut mise \u00e0\n  jour des octets ; ce n'est pas une preuve de completion DDR physique\n  (latence, banques, rafra\u00eechissement, calibration, timing, m\u00e9tastabilit\u00e9,\n  caches et netlist ne sont pas qualifi\u00e9s).\n- Un PASS r\u00e9fute seulement, pour ces stimuli, l'hypoth\u00e8se de m\u00e9lange des\n  \u00e9tiquettes propri\u00e9taire/moiti\u00e9/rotation sous lectures CPU/GPU/scanout\n  concurrentes. Il n'explique pas le d\u00e9faut carte et ne constitue pas un\n  d\u00e9faut mat\u00e9riel identifi\u00e9.\n- Les fautes `+fault1` (XOR), `+fault2` (retour omis) et `+fault3` (aucun\n  retour) sont des contr\u00f4les n\u00e9gatifs du banc, pas des causes attribu\u00e9es au\n  DUT ou \u00e0 la carte.\n- Aucun DMA, aucune fusion avec les collectes R22r1/R21r1, aucun mat\u00e9riel,\n  r\u00e9seau ou bitstream n'a \u00e9t\u00e9 utilis\u00e9. Les bornes du banc restent finies\n  (2000 cycles par pilote, 4000 cycles par drainage/attente d'\u00e9critures,\n  20000 cycles pour le chien de garde global).\n",
+        "path": "ANALYSIS.md"
+      },
+      "output": "{\"written_bytes\": 4435}",
+      "time": {
+        "start": 1793220015091,
+        "end": 1793220015096
+      }
+    },
+    {
+      "call_id": "call_hatj2ye9",
+      "name": "taskbox_run_tests",
+      "message_id": "msg_1843df448001UAE79Aoe2zIx5B",
+      "status": "completed",
+      "exit_code": null,
+      "input": {},
+      "output": "{\"test_results\": [{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 2.889205210027285, \"stdout\": \"CASE seed=1 fault=0 returncode=0\\nPASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11\\n- bench.sv:513: Verilog $finish\\n\\nCASE seed=8 fault=0 returncode=0\\nPASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11\\n- bench.sv:513: Verilog $finish\\n\\nCASE seed=1 fault=1 returncode=-6\\n[545000] %Fatal: bench.sv:199: Assertion failed in TOP.bench: CHECK_FAIL DATA scanout got=dcdbd6d5837cc901c4c3bebd01a4a19aacaba6a569015f0194938e8d413a0101 exp=dddad7d4827dc800c5c2bfbc00a5a09badaaa7a468005e0095928f8c403b0000\\n%Error: bench.sv:199: Verilog $stop\\nAborting...\\n\\nCASE seed=1 fault=2 returncode=-6\\nINJECT dropped_response=0\\n[665000] %Fatal: bench.sv:188: Assertion failed in TOP.bench: CHECK_FAIL DATA cpu got=86000000aca9a6a30000009f94918e8b exp=adaaa7a468005e0095928f8c403b0000\\n%Error: bench.sv:188: Verilog $stop\\nAborting...\\n\\nCASE seed=1 fault=3 returncode=-6\\n[20730000] %Fatal: bench.sv:294: Assertion failed in TOP.bench.cpu_read: CHECK_FAIL TIMEOUT cpu read ready\\n%Error: bench.sv:294: Verilog $stop\\nAborting...\\n\\n{\\\"passed\\\": true, \\\"cases\\\": [{\\\"seed\\\": 1, \\\"fault\\\": 0, \\\"passed\\\": true}, {\\\"seed\\\": 8, \\\"fault\\\": 0, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 1, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 2, \\\"passed\\\": true}, {\\\"seed\\\": 1, \\\"fault\\\": 3, \\\"passed\\\": true}]}\\n\"}], \"test_runs\": 1, \"test_failures\": 0, \"passed\": true}",
+      "time": {
+        "start": 1793220016069,
+        "end": 1793220018963
+      }
+    },
+    {
+      "call_id": "call_2hal2jna",
+      "name": "taskbox_exec",
+      "message_id": "msg_1843df448001UAE79Aoe2zIx5B",
+      "status": "completed",
+      "exit_code": null,
+      "input": {
+        "argv": [
+          "wc",
+          "-l",
+          "bench.sv",
+          "ANALYSIS.md"
+        ]
+      },
+      "output": "{\"returncode\": 0, \"timeout\": false, \"output_limited\": false, \"elapsed_seconds\": 0.0015097070718184114, \"stdout\": \"  516 bench.sv\\n   76 ANALYSIS.md\\n  592 total\\n\"}",
+      "time": {
+        "start": 1793220016071,
+        "end": 1793220018966
+      }
+    }
+  ],
+  "finishes": [
+    {
+      "message_id": "msg_1843c8ac60015C396z7Fudrtz7",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 1022,
+        "input": 929,
+        "output": 93,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 0
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843c901f001oboL1ldcusJ9Bt",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 1202,
+        "input": 318,
+        "output": 84,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 800
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843c93950013B0vBu1ns2VeYV",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 1656,
+        "input": 527,
+        "output": 141,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 988
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843c95f20017qKt4pT50qSlAh",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 4046,
+        "input": 3941,
+        "output": 105,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 0
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843c9b14001gAyHL3h71Yu8f0",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 11634,
+        "input": 6959,
+        "output": 863,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 3812
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843cb6f5001P673802T90kaXI",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 16306,
+        "input": 14857,
+        "output": 63,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 1386
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843cc580001hEO4Ah67UB9Ced",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 33454,
+        "input": 827,
+        "output": 16513,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 16114
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843dbf60001aIVwKRvcfvveB6",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 33502,
+        "input": 16660,
+        "output": 30,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 16812
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843dce9f001kO74Vxd8ADVGIM",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 36755,
+        "input": 752,
+        "output": 2661,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 33342
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843df448001UAE79Aoe2zIx5B",
+      "reason": "tool-calls",
+      "tokens": {
+        "total": 36892,
+        "input": 2809,
+        "output": 119,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 33964
+        }
+      },
+      "cost": 0
+    },
+    {
+      "message_id": "msg_1843e031c001dMUvEZodFpOdW8",
+      "reason": "stop",
+      "tokens": {
+        "total": 38518,
+        "input": 905,
+        "output": 969,
+        "reasoning": 0,
+        "cache": {
+          "write": 0,
+          "read": 36644
+        }
+      },
+      "cost": 0
+    }
+  ],
+  "answer": "Implemented the bench-quality correction in `bench.sv` and completed `ANALYSIS.md`.\n\n## Files changed\n- `bench.sv` \u2014 516 physical lines, below the 1000-line limit.\n- `ANALYSIS.md` \u2014 recorded exact outcomes and limits.\n\nNo protected RTL, stimulus, or test files were modified.\n\n## Corrections\n- Removed the shared `j` variable from the concurrent `fork` producers. `CPU_MIX` now uses local `cj`/`cwd`, and `BLIT_MIX` uses local `bj`/`bwd`.\n- Replaced both fixed `repeat (128)` write delays with bounded `wait_native_writes` calls.\n  - Separate producer counters: `cpu_wr_issued`, `gpu_wr_issued`.\n  - External terminal acceptance counter: `native_wr_accepted`, counting only `m_en && m_ready && m_cmd==0 && m_wr_en && m_wr_end && m_wr_ready`.\n  - Producer readiness is no longer treated as DDR completion.\n- Added an independent global completion watchdog bounded at 20000 cycles, using `bench_done`.\n\n## Tests observed\n`taskbox_run_tests` passed all five cases:\n\n| Case | Result |\n|---|---|\n| `seed=1 fault=0` | rc=0, `PASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11` |\n| `seed=8 fault=0` | rc=0, `PASS cpu=16 scan=11 blit=11 rotations=16 outstanding=11` |\n| `seed=1 fault=1` | rc=-6, `CHECK_FAIL DATA scanout` |\n| `seed=1 fault=2` | rc=-6, `INJECT dropped_response=0`, `CHECK_FAIL DATA cpu` |\n| `seed=1 fault=3` | rc=-6, `CHECK_FAIL TIMEOUT cpu read ready` |\n\nHarness result: `\"passed\": true`, with 0 test failures.\n\n## Limitations\n- `native_memory` is an ordered byte model, not a physical DDR3 controller/PHY. Terminal acceptance equals model byte update, not hardware DDR completion.\n- PASS only refutes owner/half/rotation label mixing for these stimuli; it does not identify a board defect.\n- Faults 1\u20133 are negative controls for bench sensitivity, not attributed hardware causes.\n- No DMA, hardware, network, or R22r1/R21r1 merging was used.",
+  "api_requests_observed": null,
+  "note": "API attempts are measured separately by the provider gateway"
+}

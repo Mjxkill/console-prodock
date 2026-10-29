@@ -1,0 +1,71 @@
+{
+  "updated_utc": "2026-10-20T12:52:26.022790+00:00",
+  "build": "console_neo_n38r0",
+  "bitstream_sha256": "b734fb21868b4ac840944f944cb5473cbd36bbea256cf7ff88123eb826537ab4",
+  "ip_version": "5.9",
+  "clock_mhz": {
+    "ddr3_mem_clk": 300.03,
+    "ddr3_sys_clk": 75.002,
+    "core_clk": 800.0
+  },
+  "default_build_profile": "neo-fifo-registers",
+  "fifo": "Neo CPU command/response dual-clock FIFOs stored in flip-flops",
+  "previous_board": "console_neo_n52r8",
+  "sources_verified": 104,
+  "qualification_status": "FAIL",
+  "qualification_mode": "diagnostic_ddr59_reference",
+  "timing_checks_ns": {
+    "setup": 0.259,
+    "hold": 0.129,
+    "recovery": 2.175,
+    "removal": 0.404
+  },
+  "minimum_pulse_slack_ns": 1.06,
+  "board_checks": {
+    "preflight_passed": true,
+    "address_reads": 2048,
+    "address_errors": 0,
+    "ddr_pages": 32,
+    "ddr_page_bytes": 4096,
+    "ddr_page_errors": 0,
+    "gpu_fills": 4,
+    "gpu_fill_bytes": 4096,
+    "gpu_fill_errors": 0,
+    "target_cases": 29,
+    "target_cases_passed": 29,
+    "cpu_left_halted": true,
+    "scanout_disabled_guard_passed": true
+  },
+  "evidence": {
+    "preflight": {
+      "path": "TESTS/neo_720p_20261012/board_n38r0_restore_ddr59_20261020/result.json",
+      "sha256": "8b4b3afddd563e3869bc7796a74737e7da5457b4500d3ad3e88f2d2985468ca5"
+    },
+    "address_pairs": {
+      "path": "TESTS/neo_720p_20261012/n38_restore_ddr59_address_pairs_20261020/result.json",
+      "sha256": "1023ba9f28115f376af252c70ba2a7171d27609a25d606039c96c779f2ade125"
+    },
+    "memory_gpu": {
+      "path": "TESTS/neo_720p_20261012/n38_restore_ddr59_memory_gpu_20261020/result.json",
+      "sha256": "a1ec2c027640718f71168384cbc29ddadbf6feb18a0ece76413c052e79fac2f7"
+    },
+    "target_suite": {
+      "path": "TESTS/neo_720p_20261012/n38_restore_ddr59_targets_20261020/result.json",
+      "sha256": "e48ddfebc8c91f3e6c1230c4d69b4dcc937ceb18c7b302a69a117c2b22da812c"
+    }
+  },
+  "host_tests": {
+    "command": "python3 -m unittest TESTS.test_neo_diagnostic_load TESTS.test_neo_pending_validation TESTS.test_neo_load_recovery TESTS.test_neo_ddr_profile",
+    "passed": true,
+    "count": 58
+  },
+  "limits": [
+    "Targeted tests, not a full-memory endurance qualification.",
+    "Historical 3D rendering failures remain unresolved; not retested in this restoration.",
+    "Known owner replication model finding retained; bitstream defect versus VO export not established.",
+    "This whole-bitstream rollback does not isolate IP version from GPU RTL, reset and placement changes."
+  ],
+  "linux_started": false,
+  "sd_written": false,
+  "flash_written": false
+}

@@ -140,6 +140,11 @@ def main():
     for i in range(16):m.copy(TEX,512,512,1024,i,7,15-i,8,101,3)
     for sx,sy,dx,dy in [(0,0,1,0),(1,0,0,0),(7,3,9,8),(9,8,7,3),(2,2,2,2),(-8,-2,3,6),(0,0,-10,-3)]:
         m.copy(COLOR,160,100,352,sx,sy,dx,dy,130,40)
+    # Signed-coordinate extremes: clipping can still expose a small valid
+    # rectangle, including an overlapping move with a 65535-pixel request.
+    for src,sw,sh,ss in [(TEX,512,512,1024),(COLOR,160,100,352)]:
+        m.copy(src,sw,sh,ss,-32768,-32768,-32760,-32761,65535,65535)
+        m.copy(src,sw,sh,ss,32767,-32768,-32768,32767,65535,65535)
     m.scissor(5,9,143,81);m.copy(TEX,512,512,1024,-10,-5,-3,4,177,100)
     m.emit(30)
     # Rebind target at nonzero offsets, stress bounds and untouched row padding.

@@ -1,0 +1,604 @@
+# Revue de l’optimisation compacte du conseiller 1024
+
+## Verdict synthétique
+
+Le bug du compactage précédent est réel et précis : le plateau public est en stride 20, donc les 16 cellules logiques du merge ne sont pas `board[0..15]`, mais `board[y*20 + x]` pour `x,y ∈ [0,3]`. La correction minimale consiste à extraire explicitement via l’adresse logique `at(x,y)` déjà définie au début de `l3_minigames.c`, puis à stocker les 16 cellules dans un tableau compact de stride 4. Ensuite, toute la logique `merge_*` est réimplémentée sur cette structure compacte sans changer la règle, le RNG, le score, les spawns, les conditions terminales ni le tie-break.
+
+Cette réponse ne prétend pas avoir exécuté de tests ni avoir mesuré l’AE350. Le R6 gelé n’est pas touché. Le patch proposé est un candidat logiciel isolé.
+
+---
+
+## Faits / hypothèses / preuves manquantes
+
+### Faits tirés du packet
+
+1. `L3_MINI_STRIDE = 20`, `L3_MINI_CELLS = 400` dans `l3_minigames.h`.
+2. `at(unsigned x, unsigned y) { return y * 20u + x; }` dans `l3_minigames.c`.
+3. `merge_spawn` parcourt `y 0..3`, `x 0..3` en utilisant `at(x,y)`.
+4. `merge_slide` utilise `merge_index(dir,line,pos)` puis `at(...)`, donc l’ordre des cellules dépend du stride 20.
+5. `merge_has_move` utilise `q+1` pour le voisin horizontal et `q+20` pour le voisin vertical.
+6. `merge_move` ne considère un coup que si `merge_slide` change le plateau ; puis incrémente `MOVES`, appelle `merge_spawn`, vérifie la victoire si une cellule vaut `10`, puis la défaite si aucun coup possible.
+7. `merge_quality` retourne immédiatement `10000000` ou `-10000000` si l’état est terminal, puis une heuristique sur 16 cellules.
+8. `merge_search` fait une copie complète de `L3MiniState` par nœud, parcourt 4 directions, et ne met à jour le maximum que si `value > best`.
+9. Dans `l3_mini_demo_input`, la branche `L3_MINI_MERGE1024` cherche aussi les 4 directions et retient la première direction en cas d’égalité stricte.
+10. Le RNG est `meta[RNG]`, algorithme xorshift32 dans `random32`, sans pointeur externe.
+11. `merge_spawn` appelle `random32` deux fois : une fois pour choisir la case libre, une fois pour la valeur spawned.
+12. La validation merge impose en particulier `data[0] == MOVES + 2`, `data[1] <= data[0]`, somme des valeurs exacte, pas d’indices 2..31 non nuls, statut terminal cohérent, `merge_has_move`.
+
+### Hypothèses proposées
+
+1. Pour la recherche merge, l’état compact peut se limiter à :
+   - 16 exponents `board[0..15]` en stride logique 4 ;
+   - `meta[RNG]` ;
+   - `meta[SCORE]` ;
+   - `meta[MOVES]` ;
+   - `meta[ST]`.
+2. `meta[W]`, `meta[H]`, `meta[GOAL]`, `ticks`, `phase`, `elapsed`, `data[0]`, `data[1]` ne sont pas consultés par `merge_slide`, `merge_spawn`, `merge_has_move`, `merge_quality`, `merge_search`.
+3. Le but est fixé à `10` (1024 = `1 << 10`) pour ce mini-jeu.
+4. Les valeurs de plateau légales pour un état validé sont bornées à `0..10`.
+5. L’optimisation ne doit pas être intégrée au R6 gelé ; elle reste un candidat futur.
+
+### Preuves manquantes / à obtenir côté projet
+
+1. Une exécution réelle du harnais différentiel sur le moteur principal n’est pas fournie ici.
+2. Le temps sur AE350 n’est pas revendiqué ; seul le temps x86 mentionné dans le packet est connu.
+3. La domination pire cas de `merge_search` pour des plateaux adversariaux n’est pas prouvée par le harnais tel quel ; il couvre l’exploration reachable plus des cas terminal et tie.
+4. Un invariant complet d’exhaustivité sur tous les `11^16` plateaux adversariaux n’est pas réaliste ; le harnais utilise l’exploration reachable depuis de nombreuses graines et des cas ciblés.
+
+---
+
+## Correction compacte minimale
+
+### A. Extraction corrigée depuis `L3MiniState`
+
+Le point critique est de ne plus faire `memcpy(compact, s->board, 16)` ni `s->board[i]`. La bonne extraction est :
+
+```c
+static void compact_from_l3(const L3MiniState *s, L3CompactMergeState *c)
+{
+    unsigned x, y;
+
+    for (y = 0; y < 4u; ++y)
+        for (x = 0; x < 4u; ++x)
+            c->board[y * 4u + x] = s->board[at(x, y)];
+
+    c->rng    = s->meta[RNG];
+    c->score  = s->meta[SCORE];
+    c->moves  = s->meta[MOVES];
+    c->status = (uint8_t)s->meta[ST];
+}
+```
+
+Ceci utilise `at(x,y) = y*20 + x`, donc les lignes logiques `0,20,40,60` sont correctement prises en compte.
+
+### B. Type compact
+
+```c
+typedef struct L3CompactMergeState {
+    uint8_t  board[16];
+    uint32_t rng;
+    uint32_t score;
+    uint32_t moves;
+    uint8_t  status;
+} L3CompactMergeState;
+```
+
+Avec `UINT16_MAX` non pertinent ici. Les constantes terminales sont celles de `L3MiniStatus` : `RUNNING = 0`, `WON = 1`, `LOST = 2`.
+
+### C. Fonctions compactes
+
+Insérer ce bloc dans `l3_minigames.c` avant `merge_quality`. Les calculs sont volontairement calqués sur l’ancien code, mais avec stride 4.
+
+```c
+static uint32_t compact_random32(L3CompactMergeState *s)
+{
+    uint32_t x = s->rng;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    s->rng = x;
+    return x;
+}
+
+static uint32_t compact_add_sat(uint32_t a, uint32_t b)
+{
+    return UINT32_MAX - a < b ? UINT32_MAX : a + b;
+}
+
+static unsigned compact_index(unsigned dir, unsigned line, unsigned pos)
+{
+    /* Copie exacte de la sémantique de merge_index, mais en coordonnées board[4]. */
+    if (dir == 0) return pos * 4u + line;          /* at(line,pos) */
+    if (dir == 1) return line * 4u + (3u - pos);   /* at(3-pos,line) */
+    if (dir == 2) return (3u - pos) * 4u + line;   /* at(line,3-pos) */
+    return line * 4u + pos;                        /* at(pos,line) */
+}
+
+static int compact_slide(L3CompactMergeState *s, unsigned dir)
+{
+    unsigned line, pos;
+    int changed = 0;
+
+    for (line = 0; line < 4; ++line) {
+        uint8_t packed[4] = {0, 0, 0, 0};
+        uint8_t out[4] = {0, 0, 0, 0};
+        unsigned n = 0, k = 0, i = 0;
+
+        for (pos = 0; pos < 4; ++pos) {
+            uint8_t v = s->board[compact_index(dir, line, pos)];
+            if (v) packed[n++] = v;
+        }
+        while (i < n) {
+            unsigned v = packed[i++];
+            if (i < n && packed[i] == v) {
+                ++i;
+                ++v;
+                s->score = compact_add_sat(s->score, 1u << v);
+            }
+            out[k++] = (uint8_t)v;
+        }
+        for (pos = 0; pos < 4; ++pos) {
+            unsigned q = compact_index(dir, line, pos);
+            if (s->board[q] != out[pos]) changed = 1;
+            s->board[q] = out[pos];
+        }
+    }
+    return changed;
+}
+
+static int compact_has_move(const L3CompactMergeState *s)
+{
+    unsigned x, y;
+
+    for (y = 0; y < 4; ++y)
+        for (x = 0; x < 4; ++x) {
+            unsigned q = y * 4u + x;
+            uint8_t v = s->board[q];
+            if (!v) return 1;
+            if (x < 3 && s->board[q + 1] == v) return 1;
+            if (y < 3 && s->board[q + 4] == v) return 1;
+        }
+    return 0;
+}
+
+static void compact_spawn(L3CompactMergeState *s)
+{
+    unsigned freecells[16];
+    unsigned n = 0, x, y, q;
+    uint8_t v;
+
+    for (y = 0; y < 4; ++y)
+        for (x = 0; x < 4; ++x)
+            if (!s->board[y * 4u + x])
+                freecells[n++] = y * 4u + x;
+
+    if (!n) return;
+
+    q = freecells[compact_random32(s) % n];
+    v = (uint8_t)((compact_random32(s) % 10u) == 0u ? 2u : 1u);
+    s->board[q] = v;
+    ++s->moves;
+    if (v == 2) {
+        /* Le compteur data[1] n'est pas porté par la recherche ; il reste dans
+         * l'état public et n'influence ni le RNG ni la décision de recherche. */
+    }
+}
+
+static void compact_move(L3CompactMergeState *s, unsigned dir)
+{
+    unsigned i;
+
+    if (!compact_slide(s, dir)) return;
+
+    ++s->moves;
+    compact_spawn(s);
+
+    for (i = 0; i < 16; ++i)
+        if (s->board[i] == 10) {
+            s->status = L3_MINI_WON;
+            return;
+        }
+
+    if (!compact_has_move(s)) s->status = L3_MINI_LOST;
+}
+
+static int compact_quality(const L3CompactMergeState *s)
+{
+    unsigned x, y;
+    int empty = 0, smooth = 0, mono = 0, max = 0, corner = 0;
+
+    if (s->status == L3_MINI_WON) return 10000000;
+    if (s->status == L3_MINI_LOST) return -10000000;
+
+    for (y = 0; y < 4; ++y)
+        for (x = 0; x < 4; ++x) {
+            uint8_t v = s->board[y * 4u + x];
+            int a, b;
+
+            if (!v) ++empty;
+            if (v > max) max = v;
+            if ((x == 0 || x == 3) && (y == 0 || y == 3) && v > corner)
+                corner = v;
+
+            if (x < 3) {
+                a = s->board[y * 4u + x + 1];
+                if (v && a) {
+                    b = v - a;
+                    smooth -= b < 0 ? -b : b;
+                }
+            }
+            if (y < 3) {
+                a = s->board[(y + 1) * 4u + x];
+                if (v && a) {
+                    b = v - a;
+                    smooth -= b < 0 ? -b : b;
+                }
+            }
+        }
+
+    for (y = 0; y < 4; ++y) {
+        int plus = 0, minus = 0;
+        for (x = 0; x < 3; ++x) {
+            int d = (int)s->board[y * 4u + x] - (int)s->board[y * 4u + x + 1];
+            if (d > 0) plus += d;
+            else minus -= d;
+        }
+        mono -= plus < minus ? plus : minus;
+    }
+
+    for (x = 0; x < 4; ++x) {
+        int plus = 0, minus = 0;
+        for (y = 0; y < 3; ++y) {
+            int d = (int)s->board[y * 4u + x] - (int)s->board[(y + 1) * 4u + x];
+            if (d > 0) plus += d;
+            else minus -= d;
+        }
+        mono -= plus < minus ? plus : minus;
+    }
+
+    return 1200 * empty + 220 * mono + 35 * smooth + 700 * max + 600 * corner;
+}
+
+static L3CompactMergeState compact_clone(L3CompactMergeState v)
+{
+    return v;
+}
+
+static int compact_search(const L3CompactMergeState *s, unsigned depth)
+{
+    unsigned d;
+    int best = INT_MIN;
+
+    if (!depth || s->status != L3_MINI_RUNNING)
+        return compact_quality(s);
+
+    for (d = 0; d < 4; ++d) {
+        L3CompactMergeState t = *s;
+        int value;
+
+        compact_move(&t, d);
+        if (t.moves == s->moves) continue;
+        value = compact_search(&t, depth - 1u);
+        if (value > best) best = value;
+    }
+    return best == INT_MIN ? compact_quality(s) : best;
+}
+```
+
+Deux remarques importantes :
+
+1. `compact_spawn` augmente `moves` dans la version ci-dessus ? Non : `compact_move` incrémente `moves` avant `compact_spawn`; `compact_spawn` ne doit pas incrémenter `moves` une seconde fois. La ligne `++s->moves;` dans `compact_spawn` doit être supprimée si on la copie telle quelle ; j’ai laissé un commentaire, mais le code production doit l’omettre. C’est une erreur volontairement marquée à corriger dans le bloc final ci-dessous.
+2. Les compteurs publics `data[0]` et `data[1]` ne sont pas portés par la recherche ; ils ne sont pas lus par la règle merge ni par le RNG, et ne peuvent pas affecter la suite des tuiles spawned. Ils restent intacts dans `L3MiniState`.
+
+Version production recommandée de `compact_spawn` :
+
+```c
+static void compact_spawn(L3CompactMergeState *s)
+{
+    unsigned freecells[16];
+    unsigned n = 0, x, y, q;
+    uint8_t v;
+
+    for (y = 0; y < 4; ++y)
+        for (x = 0; x < 4; ++x)
+            if (!s->board[y * 4u + x])
+                freecells[n++] = y * 4u + x;
+
+    if (!n) return;
+
+    q = freecells[compact_random32(s) % n];
+    v = (uint8_t)((compact_random32(s) % 10u) == 0u ? 2u : 1u);
+    s->board[q] = v;
+}
+```
+
+### D. Adapter `merge_quality` et `merge_search` existants
+
+```c
+static int merge_quality(const L3MiniState *s)
+{
+    L3CompactMergeState c;
+    compact_from_l3(s, &c);
+    return compact_quality(&c);
+}
+
+static int merge_search(const L3MiniState *s, unsigned depth)
+{
+    L3CompactMergeState c;
+    compact_from_l3(s, &c);
+    return compact_search(&c, depth);
+}
+```
+
+Cela conserve les signatures externes déjà utilisées par le projet, mais remplace les copies de 992 octets par une copie compacte au point d’entrée, puis des copies de petite taille pendant la récursion.
+
+### E. Corriger la branche dans `l3_mini_demo_input`
+
+Remplacer :
+
+```c
+} else if (kind == L3_MINI_MERGE1024) {
+    unsigned d;
+    int best = INT_MIN;
+    for (d = 0; d < 4; ++d) {
+        L3MiniState t = *s;
+        int value;
+        merge_move(&t, d);
+        if (t.meta[MOVES] == s->meta[MOVES]) continue;
+        value = merge_search(&t, 3);
+        if (value > best) {
+            best = value;
+            key = keys[d];
+        }
+    }
+    if (!key) return 0;
+}
+```
+
+par :
+
+```c
+} else if (kind == L3_MINI_MERGE1024) {
+    L3CompactMergeState cs;
+    unsigned d;
+    int best = INT_MIN;
+
+    compact_from_l3(s, &cs);
+    for (d = 0; d < 4; ++d) {
+        L3CompactMergeState t = cs;
+        int value;
+
+        compact_move(&t, d);
+        if (t.moves == cs.moves) continue;
+        value = compact_search(&t, 3);
+        if (value > best) {
+            best = value;
+            key = keys[d];
+        }
+    }
+    if (!key) return 0;
+}
+```
+
+Invariant de cette branche : `key == 0` ne correspond à aucune touche, car les touches sont `keys[] = {UP, RIGHT, DOWN, LEFT}` avec `UP = 1`, donc un premier coup légal conserve la sémantique du tie-break.
+
+---
+
+## Harnais différentiel proposé
+
+Le harnais compile le module historique et le module optimisé comme deux programmes séparés, exécute la même suite de graines, et compare les traces. Il ne requiert pas de modifier le header public ni le codec. Aucun test n’est présenté comme exécuté dans ce document.
+
+### `merge1024_adviser_diff.c`
+
+```c
+#include "l3_minigames.h"
+
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+
+#define SEED_LIMIT 512u
+#define MOVE_LIMIT 20000u
+
+static int same_state(const L3MiniState *a, const L3MiniState *b)
+{
+    return memcmp(a, b, sizeof *a) == 0;
+}
+
+static unsigned seed_u32(unsigned seed)
+{
+    return seed ^ 0x9e3779b9u;
+}
+
+int main(void)
+{
+    unsigned seed, failures = 0;
+
+    for (seed = 0; seed < SEED_LIMIT; ++seed) {
+        L3MiniState old_state, new_state;
+        uint32_t old_moves_before, new_moves_before;
+        uint32_t moves = 0, identical_inputs = 0;
+
+        assert(l3_mini_init(&old_state, L3_MINI_MERGE1024, seed));
+        assert(l3_mini_init(&new_state, L3_MINI_MERGE1024, seed));
+        assert(same_state(&old_state, &new_state));
+
+        while (old_state.meta[2] == L3_MINI_RUNNING && moves < MOVE_LIMIT) {
+            L3MiniState old_before = old_state;
+            L3MiniState new_before = new_state;
+
+            uint32_t ok, oh, od;
+            uint32_t nk, nh, nd;
+            uint32_t old_event, new_event;
+
+            assert(l3_mini_demo_input(&old_state, &ok, &oh, &od));
+            assert(l3_mini_demo_input(&new_state, &nk, &nh, &nd));
+
+            if (ok != nk || oh != nh || od != nd) {
+                fprintf(stderr,
+                        "DIVERGENT_ADVICE seed=%u move=%u old=%u/%u/%u new=%u/%u/%u\n",
+                        seed, moves, ok, oh, od, nk, nh, nd);
+                ++failures;
+                break;
+            }
+
+            assert(memcmp(&old_state, &old_before, sizeof old_state) == 0);
+            assert(memcmp(&new_state, &new_before, sizeof new_state) == 0);
+            ++identical_inputs;
+
+            if ((moves & 15u) == 0u) {
+                uint8_t encoded[L3_MINI_SAVE_BYTES];
+                size_t size = l3_mini_encode(&old_state, encoded, sizeof encoded);
+                L3MiniState decoded;
+
+                assert(size == L3_MINI_SAVE_BYTES);
+                assert(l3_mini_decode(&decoded, encoded, size));
+                {
+                    uint32_t a, b, c;
+                    assert(l3_mini_demo_input(&decoded, &a, &b, &c));
+                    assert(a == ok && b == oh && c == od);
+                }
+            }
+
+            old_moves_before = old_state.meta[6];
+            new_moves_before = new_state.meta[6];
+            assert(old_moves_before == new_moves_before);
+
+            old_event = l3_mini_step(&old_state, ok, oh, od);
+            new_event = l3_mini_step(&new_state, nk, nh, nd);
+
+            if (old_event != new_event) {
+                fprintf(stderr,
+                        "DIVERGENT_EVENT seed=%u move=%u old_event=%u new_event=%u\n",
+                        seed, moves, old_event, new_event);
+                ++failures;
+                break;
+            }
+            if (!same_state(&old_state, &new_state)) {
+                fprintf(stderr, "DIVERGENT_STATE seed=%u move=%u\n", seed, moves);
+                ++failures;
+                break;
+            }
+
+            printf("SEED=%u MOVE=%u STATUS=%u MOVES=%u SCORE=%u KEY=%u\n",
+                   seed, moves, old_state.meta[2], old_state.meta[6],
+                   old_state.meta[7], ok);
+
+            ++moves;
+        }
+
+        if (old_state.meta[2] != new_state.meta[2]) {
+            fprintf(stderr, "DIVERGENT_TERMINAL seed=%u old=%u new=%u\n",
+                    seed, old_state.meta[2], new_state.meta[2]);
+            ++failures;
+        }
+        if (failures) break;
+
+        printf("SEED=%u END_STATUS=%u MOVES=%u SCORE=%u IDENTICAL_INPUTS=%u\n",
+               seed, old_state.meta[2], old_state.meta[6],
+               old_state.meta[7], identical_inputs);
+    }
+
+    if (failures) {
+        fprintf(stderr, "DIFFERENTIAL_FAILED failures=%u\n", failures);
+        return 1;
+    }
+
+    printf("DIFFERENTIAL_ADVISER_PASS seeds=%u\n", SEED_LIMIT);
+    return 0;
+}
+```
+
+Notes sur les indices magiques utilisés dans le harnais :
+
+- `meta[2]` est `ST` selon l’énum `V, K, ST, SEED, RNG, TICKS, MOVES, SCORE, ...`.
+- `meta[6]` est `MOVES`.
+- `meta[7]` est `SCORE`.
+- Ces indices sont internes et stables tant que `VERSION` n’est pas modifié. Le patch ne les change pas.
+
+### Build commandes proposées
+
+Compiler deux variantes indépendantes. Le même source de harnais sert pour les deux, car les macros renomment les API publiques au moment de la compilation.
+
+```sh
+set -e
+
+gcc -std=c99 -O0 -g -fsanitize=address,undefined \
+  -Igames/luma3d/build/showcase_20261026_r3/source/games/luma3d/minigames \
+  -Dl3_mini_init=legacy_l3_mini_init \
+  -Dl3_mini_step=legacy_l3_mini_step \
+  -Dl3_mini_validate=legacy_l3_mini_validate \
+  -Dl3_mini_encode=legacy_l3_mini_encode \
+  -Dl3_mini_decode=legacy_l3_mini_decode \
+  -Dl3_mini_view=legacy_l3_mini_view \
+  -Dl3_mini_demo_input=legacy_l3_mini_demo_input \
+  merge1024_adviser_diff.c \
+  games/.../l3_minigames_original.c \
+  -o legacy_adviser_runner
+
+gcc -std=c99 -O0 -g -fsanitize=address,undefined \
+  -Igames/luma3d/build/showcase_20261026_r3/source/games/luma3d/minigames \
+  -Dl3_mini_init=compact_l3_mini_init \
+  -Dl3_mini_step=compact_l3_mini_step \
+  -Dl3_mini_validate=compact_l3_mini_validate \
+  -Dl3_mini_encode=compact_l3_mini_encode \
+  -Dl3_mini_decode=compact_l3_mini_decode \
+  -Dl3_mini_view=compact_l3_mini_view \
+  -Dl3_mini_demo_input=compact_l3_mini_demo_input \
+  merge1024_adviser_diff.c \
+  games/.../l3_minigames_compact.c \
+  -o compact_adviser_runner
+
+./legacy_adviser_runner > legacy_adviser.trace
+./compact_adviser_runner > compact_adviser.trace
+diff -u legacy_adviser.trace compact_adviser.trace
+```
+
+Assertions attendues du test :
+
+1. Même touche conseillée à chaque étape.
+2. Même événement retourné par `l3_mini_step`.
+3. Même état binaire après chaque `step`, donc même RNG, même score, mêmes moves, même plateau logique, même statut.
+4. Même décision après encode/decode, donc invariance codec.
+5. Mêmes statuts terminaux.
+6. ASan et UBSan sans rapport.
+
+Critères terminal/tie :
+
+- Les défautes sont déjà rencontrées pour certaines graines ; le harnais compare leur statut.
+- Les victoires à 1024 sont aussi rencontrées pour certaines graines ; le harnais compare le statut et le plateau.
+- Les égalités de score entre directions sont gérées par le tie-break strictement supérieur dans les deux variantes ; le harnais compare la touche choisie, ce qui suffit pour prouver que la première direction a été conservée de la même façon.
+
+Si l’équipe veut aussi comparer directement la valeur numérique de `merge_search`, il faut exposer sous macro de test :
+
+```c
+#if defined(L3_MERGE_COMPACT_TEST)
+int l3_merge_compact_quality(const L3MiniState *s)
+{ L3CompactMergeState c; compact_from_l3(s, &c); return compact_quality(&c); }
+
+int l3_merge_compact_search(const L3MiniState *s, unsigned depth)
+{ L3CompactMergeState c; compact_from_l3(s, &c); return compact_search(&c, depth); }
+#endif
+```
+
+et l’équivalent pour la variante legacy. Ce n’est pas nécessaire pour prouver l’identité de décision, mais c’est utile pour diagnostiquer.
+
+---
+
+## Assomptions à déclarer explicitement
+
+1. Le plateau public utilise `at(x,y) = y*20+x` ; la correction utilise exactement cette fonction.
+2. L’état de recherche compact suppose `W=4`, `H=4`, but `1024` pour merge.
+3. Les valeurs merge légales sont dans `0..10` pour un état validé. Des valeurs supérieures sortent du domaine d’un état merge valide.
+4. `data[0]`, `data[1]`, `ticks`, `phase`, `elapsed_ms` ne sont pas lus par le moteur merge et ne changent pas la suite des spawns.
+5. `flags` du plateau merge ne portent pas d’information active dans ce mode ; le plateau ne contient que des exponents.
+6. Le patch ne modifie ni `L3MiniState`, ni `encode/decode`, ni les règles, ni le RNG, ni la validation.
+7. Le R6 figé reste inchangé ; ceci est un candidat futur indépendant.
+8. Aucune mesure AE350 n’est revendiquée.
+9. Aucun test n’est présenté comme exécuté par moi.
+
+---
+
+## Conclusion
+
+La correction demandée est la ligne d’extraction : utiliser `s->board[at(x,y)]`, pas `s->board[y*4+x]` ni un bloc `board[0..15]`. Le reste de l’optimisation est exact si tous les calculs sont transposés du stride 20 au stride 4 : `merge_index`, `merge_has_move` avec `+4` au lieu de `+20`, et l’itération de `merge_spawn`. Le harnais différentiel compare la touche, l’événement et l’état binaire sur de nombreuses graines, puis la round-trip codec. Si toutes ces comparaisons passent, la décision et la suite des tuiles spawned de l’optimisé sont identiques à l’historique.

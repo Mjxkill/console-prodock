@@ -1,0 +1,207 @@
+**Analyse statique du packet uniquement. Aucun outil, aucun fichier modifié, aucun runtime touché.**
+
+## Verdict
+
+Sur la base du packet, **je ne trouve pas de contre-exemple atteignable à la touche conseillée** pour le conseiller compact. Le test compare bien les quatre coups légaux et l’avis racine à chaque état échantillonné, mais **ce n’est pas une preuve d’équivalence exhaustive**.
+
+La divergence réelle que je peux établir est une **divergence de contrat d’état** : le compact n’est pas un `L3MiniState` complet. Il omet les compteurs de spawn `data[0]` / `data[1]`, que le moteur original met à jour et que le validateur vérifie. Elle n’affecte pas l’avis actuel car ces compteurs ne sont jamais lus par `compact_quality`, `compact_has_move` ni `compact_move`. Mais elle interdit de présenter le compact comme un état complet, revalidable ou sérialisable.
+
+## Faits vérifiés dans le packet
+
+- `compact_proposal.h` SHA256 `f80c99…20d`, `differential.c` SHA256 `9bb28c…bc2`, `l3_minigames.c` SHA256 `1b8538…82f`.
+- `strict_result.json:2-13` rapporte : `hardware=false`, `integrated=false`, `states=64332`, `checks=6943110`, `seeds=128`, `wins=125`, `losses=3`, `compact_bytes=32`.
+- Les 128 graines terminent : `wins+losses=128`. Le test n’est donc pas tronqué par la borne `count<1500` (`differential.c:23`).
+- Pour chaque état échantillonné, les quatre coups sont comparés (`differential.c:26-28`), puis l’avis racine (`differential.c:14-18`, `:31`).
+- Le codec testé est uniquement celui de l’original (`differential.c:36`) ; il n’y a pas de codec compact.
+
+## Divergences et zones non prouvées
+
+### 1. Compteurs de spawn absents — divergence réelle de modèle
+
+Dans l’original :
+
+- `merge_spawn` met à jour `s->data[0]` et éventuellement `s->data[1]` : `l3_minigames.c:247-255`, notamment `:254`.
+- Le validateur impose `s->data[0] == s->meta[MOVES]+2u` et la conservation de la somme via `data[1]` : `l3_minigames.c:541`.
+
+Dans le compact :
+
+- `compact_from_l3` ne copie que `board`, `rng`, `score`, `moves`, `status` : `compact_proposal.h:10-22`.
+- `compact_spawn` place la tuile mais n’incrémente aucun compteur : `compact_proposal.h:95-111`, notamment `:110`.
+
+Conséquence :
+
+- **Aucun effet connu sur la touche conseillée** dans le code fourni, car ces compteurs ne participent pas à la décision.
+- **Effet certain si le compact est utilisé comme état complet** : il ne satisferait pas `l3_mini_validate`, et un encode/decode compact ne pourrait pas reproduire les invariants du moteur.
+- Le test ne le voit pas : `equal` ne compare que 16 cases + `RNG`, `SCORE`, `MOVES`, `ST` (`differential.c:10-13`).
+
+Ce n’est donc pas un contre-exemple d’avis, mais c’est une divergence de contrat réelle.
+
+### 2. Le test est aveugle aux compteurs et à l’arbre interne
+
+`differential.c:10-13` ne compare pas `data[0]`, `data[1]`, `TICKS`, `PHASE`. Pour le merge, `TICKS`/`PHASE` ne sont pas utilisés par l’avis, mais les compteurs de spawn sont des invariants du moteur.
+
+De plus, le test compare `merge_quality` / `compact_quality` au nœud courant et l’avis racine, mais **pas les valeurs de recherche aux profondeurs 1 et 2** :
+
+- `differential.c:24` compare la qualité.
+- `differential.c:31` compare seulement la touche racine.
+- Aucun `assert(merge_search(&s,1) == compact_search(&c,1))`, ni profondeur 2.
+
+Une divergence interne de tie-breaking pourrait donc passer si elle ne change pas l’avis racine sur les 64 332 états échantillonnés.
+
+### 3. Couverture : 64 332 états n’est pas une preuve exhaustive
+
+Les 64 332 états sont un **échantillon de trajectoires** :
+
+- 128 graines, une trajectoire principale par graine ;
+- une branche alternative seulement si `seed%4==0 && count%7==0` (`differential.c:33`) ;
+- les quatre coups sont testés localement, mais pas tous les états atteignables ;
+- l’espace d’états du 2048 4×4 avec RNG, score, moves, statut est bien plus grand ;
+- aucune revendication exhaustive `11^16` n’est faite dans le packet, et c’est correct : le test ne la soutient pas.
+
+Le test est un bon test différentiel de non-régression locale, pas une preuve d’équivalence.
+
+### 4. RNG
+
+Le xorshift est identique :
+
+- original `l3_minigames.c:41-47` ;
+- compact `compact_proposal.h:24-32`.
+
+Le test compare `RNG` après chaque état et chaque coup (`differential.c:12`, `:27`). C’est solide pour les états valides non nuls.
+
+Limites :
+
+- les graines testées vont de 1 à 128 (`differential.c:21`) ; **seed=0 n’est pas testé**, alors que l’en-tête le déclare valide (`l3_minigames.h`, commentaire de `l3_mini_init`).
+- `compact_random32` n’a pas de garde zéro, mais un état xorshift non nul reste non nul ; l’invariant `RNG != 0` est déjà imposé par la validation originale. Cela reste une hypothèse à documenter pour le compact.
+
+### 5. Terminal et tie
+
+- WON : les deux versions détectent une tuile `10` après spawn et s’arrêtent (`l3_minigames.c:297-306`, `compact_proposal.h:113-129`).
+- LOST : `!merge_has_move` dans les deux.
+- Ordre de tie : boucle `d=0..3` et comparaison stricte `>` dans les deux (`l3_minigames.c` `l3_mini_demo_input`, `differential.c:14-18`). L’ordre est donc cohérent.
+
+Mais :
+
+- aucun test explicite ne mesure qu’un tie a été rencontré ;
+- aucun test n’appelle le conseiller sur un état terminal : le test sort avant (`differential.c:25`) ;
+- `l3_mini_demo_input` doit renvoyer 0 sur état non RUNNING, mais le compact n’expose pas cette API ;
+- `held` et `dt_ms` ne sont pas comparés : `advice` ne renvoie que la touche (`differential.c:14-18`, `:31`). Si le candidat doit remplacer `l3_mini_demo_input`, il manque `held`, `dt_ms` et le comportement de retour.
+
+### 6. Codec
+
+Il n’y a **aucun encode/decode compact** dans `compact_proposal.h`. Le `compact_bytes=32` de `strict_result.json:13` est un `sizeof`, pas un format sérialisé.
+
+Points concrets :
+
+- `L3CompactMergeState` contient `uint8_t status` après des `uint32_t` (`compact_proposal.h:2-8`) ; le padding final existe et n’est pas initialisé par `compact_from_l3`. Un `memcpy` du struct ne serait pas un format stable.
+- Aucun `_Static_assert(sizeof(L3CompactMergeState)==32)` n’est présent.
+- Le codec original est testé tous les 31 états (`differential.c:36`), mais pas le compact.
+- Si le compact reste adviser-only, ce n’est pas bloquant ; si “32 bytes” doit devenir un format, c’est une preuve manquante.
+
+### 7. RV32 et auto-contenu du header
+
+- `compact_proposal.h` utilise `L3MiniState`, `L3_MINI_WON`, `L3_MINI_LOST`, `UINT32_MAX`, `INT_MIN`, et `at` sans inclure `<stdint.h>`, `<limits.h>` ni `l3_minigames.h`. Il ne compile que parce que `differential.c:5-6` inclut d’abord `l3_minigames.c`, qui apporte `at` et les constantes. Ce n’est pas un header autonome.
+- `1u << v` dans `compact_slide` (`compact_proposal.h` env. l.62-68) est sûr pour les états valides si `v <= 31`. Les états valides du merge ont `v <= 10` hors terminal, mais le compact ne vérifie ni ne documente cette précondition. Aucun `assert(v < 32)` ni validation compacte.
+- `compact_quality` reste en `int` ; pour des valeurs de tuiles valides `0..10`, pas de dépassement identifié. Mais aucune compilation RV32 n’est fournie, et les temps `old_seconds_host` / `compact_seconds_host` (`strict_result.json:10-11`) ne sont pas des mesures RV32 ou hardware.
+
+## Patchs minimaux concrets
+
+### Patch A — si le compact reste adviser-only
+
+Ne pas prétendre qu’il représente l’état complet. Ajouter un commentaire explicite au-dessus de `L3CompactMergeState` :
+
+```c
+/* Projection adviser-only : data[0]/data[1] sont dérivés
+   (data[0] = moves + 2 ; data[1] = sum/2 - data[0])
+   et ne sont pas maintenus ici. Ne pas encoder/revalider ce struct. */
+```
+
+Et ajouter dans `differential.c` une vérification de reconstruction après chaque coup :
+
+```c
+uint64_t sum = 0;
+for (unsigned i = 0; i < 16; ++i)
+    if (s->board[at(i % 4u, i / 4u)]) sum += 1ull << s->board[at(i % 4u, i / 4u)];
+assert(s->data[0] == s->meta[MOVES] + 2u);
+assert(s->data[1] == (uint32_t)(sum / 2u - s->data[0]));
+```
+
+Cela ne prouve pas le compact, mais rend explicite que ces champs sont dérivés et non modélisés.
+
+### Patch B — si le compact doit être un état complet
+
+Ajouter deux champs et les maintenir :
+
+```c
+typedef struct L3CompactMergeState {
+    uint8_t  board[16];
+    uint32_t rng, score, moves;
+    uint8_t  status;
+    uint32_t spawn0; /* data[0] */
+    uint32_t spawn2; /* data[1] */
+} L3CompactMergeState;
+```
+
+Puis :
+
+```c
+c->spawn0 = s->data[0];
+c->spawn2 = s->data[1];
+```
+
+et dans `compact_spawn` :
+
+```c
+++s->spawn0;
+if (v == 2) ++s->spawn2;
+```
+
+et dans `equal` :
+
+```c
+assert(s->data[0] == c->spawn0 && s->data[1] == c->spawn2);
+```
+
+Attention : `sizeof` passe vraisemblablement de 32 à 40 sur ILP32/RV32. Il faut alors corriger `compact_bytes` et le commentaire “32 bytes”.
+
+### Patch C — header autonome et taille
+
+```c
+#include <limits.h>
+#include <stdint.h>
+#include "l3_minigames.h"
+
+typedef char compact_size_check[
+    (sizeof(L3CompactMergeState) == 32) ? 1 : -1
+];
+```
+
+et remplacer la dépendance à `at` :
+
+```c
+c->board[y * 4u + x] = s->board[y * 20u + x];
+```
+
+Cela rend `compact_proposal.h` analysable seul, sans inclure le `.c` du moteur.
+
+## Tests ciblés manquants
+
+1. **Test compteurs** : avec Patch B, comparer `data[0]/data[1]` après chaque `compact_move` sur les 128 graines. Sans Patch B, ne pas revendiquer l’équivalence d’état.
+2. **Test profondeur 1 et 2** : pour un sous-ensemble des états, comparer
+   `merge_search(&s,1) == compact_search(&c,1)` et idem profondeur 2, pas seulement la qualité et l’avis racine.
+3. **Test de tie explicite** : instrumenter l’avis pour compter les directions qui atteignent le meilleur score ; exiger au moins un état avec `best_count >= 2` dans le corpus, puis vérifier la touche choisie. Si aucun tie n’apparaît, construire une position symétrique et l’ajouter.
+4. **Test terminal du conseiller** : prendre un état WON et un état LOST produits par le corpus, appeler l’API conseiller et vérifier retour 0 / absence de mutation. Le test actuel sort avant (`differential.c:25`).
+5. **Test seed=0** : `l3_mini_init(&s,L3_MINI_MERGE1024,0)` puis même différentiel ; l’en-tête déclare seed=0 valide.
+6. **Test codec compact** : seulement si un encode/decode compact est ajouté. Vérifier taille exacte, endianness, checksum, transactionalité et absence de padding non initialisé.
+7. **Compilation RV32** : test de compilation `riscv32-* -march=rv32i -mabi=ilp32 -ffreestanding -Wall -Wextra -Werror` avec le `_Static_assert` ci-dessus. Ce n’est pas un test de vitesse hardware.
+
+## Ce que le packet ne permet pas de conclure
+
+- Il ne prouve pas l’équivalence sur tous les états atteignables du 2048.
+- Il ne prouve pas l’équivalence de l’arbre de recherche complet, seulement l’avis racine sur 64 332 états.
+- Il ne prouve pas le tie-breaking sur un cas de tie identifié.
+- Il ne prouve pas le codec compact, qui n’existe pas.
+- Il ne prouve pas le comportement RV32 ni les performances hardware.
+- Il ne prouve pas que `data[0]/data[1]` sont inutiles pour une future évolution du conseiller ; aujourd’hui ils ne sont pas lus, c’est tout.
+
+En résumé : **bon différentiel local, pas de contre-exemple d’avis trouvé, mais preuve non exhaustive et contrat d’état incomplet.** Le point à corriger en priorité n’est pas la touche conseillée, mais la revendication implicite d’équivalence d’état compact.

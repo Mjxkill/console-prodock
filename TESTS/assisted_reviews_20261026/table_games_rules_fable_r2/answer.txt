@@ -1,0 +1,80 @@
+Je m'en tiens au paquet fourni, sans exécuter quoi que ce soit.
+
+## Verdict
+
+Aucun défaut de règle, d'index ou de codec prouvé sur Othello, Pendu, Chroma et la couche `l3_table.c`. Un défaut de qualité utilisateur est démontrable sur le conseiller du solitaire. Le reste relève de la couverture de tests et de points mineurs.
+
+## 1. Conseiller solitaire : ping-pong stérile jusqu'au budget (défaut prouvé)
+
+**Fait.** `l3_solitaire.c:86` donne 10 points à tout déplacement colonne vers colonne. Un déplacement qui ne révèle rien et ne vide pas une colonne reste préféré à `DRAW` car `best>0` (`l3_solitaire.c:93`).
+
+**Contre-exemple exécutable** avec `empty_solitaire()` du test :
+
+```c
+p->found[0]=13; p->found[1]=7; p->found[2]=6; p->found[3]=7;
+p->tableau[0][0]=47; p->tableau[1][0]=21; p->tableau[2][0]=33; /* 9coeur, 9carreau, 8pique */
+p->count[0]=p->count[1]=p->count[2]=1;
+static const uint8_t st[16]={20,22,23,24,25,32,34,35,36,37,38,46,48,49,50,51};
+memcpy(p->stock,st,16); p->stock_count=16;  /* total 52, validate passe */
+unsigned n=0; L3TableAction a;
+while(l3_table_demo_action(&s,&a)&&n++<513)accept(&s,a);
+```
+
+Trace attendue : coup 1 `MOVE 2→0`, coup 2 `MOVE 0→1 index 1`, puis alternance 8♠ entre 9♥ et 9♦ jusqu'à `moves==512`, statut `RUNNING`. La pioche contient pourtant 8♦, 7♠ et 8♥ qui gagnent la donne. Le README accepte un conseiller heuristique, mais une visite automatique de 512 allers-retours sur une seule carte est visible par le joueur.
+
+**Patch minimal** (`l3_solitaire.c:86-89`) :
+
+```c
+int score=to>=9?120:from==7?40:0;
+if(from<7&&to<7&&i==p->hidden[from]&&i)score=110; /* seul un deplacement qui revele vaut */
+```
+
+Les cas `i==0` vers colonne vide tombent à 0, ce qui remplace la règle « rois ». **Test discriminant** : sur la fixture ci-dessus, la première action doit être `L3_TABLE_DRAW` et la boucle doit finir en `L3_TABLE_WON` avec `n<512`.
+
+## 2. Chroma : l'égalité est inatteignable (fait, pas un défaut)
+
+**Fait.** `l3t_chroma_validate` exige 108 cartes conservées (`l3_chroma.c:56`). L'égalité exige `draw_count==0` et `discard_count==1` (`l3_chroma.c:68`), donc 107 cartes en mains. Les 24 autres cartes de la couleur active sont alors en main de quelqu'un et jouables par couleur (`l3_chroma.c:28`). `passes` ne peut donc pas atteindre 4 par jeu légal ni par sauvegarde forgée.
+
+**Conséquences.** Le branchement `DRAWN` de `l3_chroma.c:82-83` et `l3_chroma.c:67-70` est du code mort. `finished==128` au test ligne 90 prouve uniquement des victoires. Aucune correction nécessaire, mais le README ligne 33-34 décrit une situation impossible. Je recommande une phrase « inatteignable avec 108 cartes, conservé par sûreté » plutôt qu'une promesse de règle.
+
+## 3. Solitaire : invariants sémantiques de sauvegarde non testés (couverture)
+
+**Fait.** `forged_byte_rejected` n'est appelé que pour Othello (`test_table.c:37`) et Chroma (`test_table.c:77-78,90`). Pour le solitaire, `codec(&s,1)` ligne 63 n'exerce que des retournements de bits rattrapés par le CRC et `kind=99`. Le commentaire de `test_table.c:29-30` annonce une vérification séparée qui n'existe pas.
+
+**Tests discriminants** sur la fixture ligne 63 (colonne 1 avec trois cartes, `hidden[1]==0`) :
+
+```c
+forged_byte_rejected(&s,44+offsetof(L3Solitaire,hidden)+1,2);   /* hidden>i */
+forged_byte_rejected(&s,44+offsetof(L3Solitaire,found)+0,11);   /* carte dupliquee */
+forged_byte_rejected(&s,44+offsetof(L3Solitaire,stock_count),1); /* stock[0]==255 */
+```
+
+Les trois doivent échouer au décodage d'après `l3_solitaire.c:19,28,33`.
+
+## 4. Sauvegarde forgée avec `moves==UINT32_MAX` (hypothèse, mineur)
+
+**Fait.** `l3_table_validate` ne borne pas `moves` sauf pour le pendu (`l3_hangman.c:31`). `l3_table_action` refuse tout à `UINT32_MAX` (`l3_table.c:33`) alors que `l3_table_demo_action` propose une action (`l3_table.c:64`).
+
+**Contre-exemple.** Encoder un Othello frais, `put32(b+32,0xffffffff)`, `reseal`, décoder. Le décodage accepte, la vue affiche `RUNNING` avec quatre cases légales, chaque action est refusée. Un frontend qui boucle « demo puis action » tourne à vide. Le CRC n'est pas anti-triche, mais l'incohérence entre `demo_action` et `action` est évitable d'une ligne dans `l3_table_validate` :
+
+```c
+if(s->moves==UINT32_MAX)return 0;
+```
+
+## 5. Trace solitaire : index utilisateur recopié pour défausse et fondations (mineur)
+
+**Fait.** `l3_solitaire.c:74` émet `a.index+i` alors que `a.index` est ignoré par la règle pour `from==7` ou `from>=9` (`l3_table.h:24-25`). Une action `{MOVE,7,0,200,0}` est acceptée et produit un événement d'index 200. L'animation partirait d'une rangée inexistante.
+
+**Patch** : `unsigned row=a.from<7?a.index:0;` puis `row+i` dans l'événement.
+
+## Points vérifiés sans défaut
+
+- **Chroma règles.** `advance` (`l3_chroma.c:7`), inversion avant avance (`l3_chroma.c:94-97`), pénalité avant fin (`l3_chroma.c:96-98`) et le calcul de `next` dans `validate` (`l3_chroma.c:63-64`) sont cohérents, y compris pour un reverse final. Le +4 ignore la correspondance de valeur, conforme au README ligne 25-26. L'objection DeepSeek sur l'initialisation est bien fausse : il reste au moins 48 cartes numérotées après la donne.
+- **Chroma confidentialité.** Vue : pioche, mains adverses et `drawn_id` masqués (`l3_table.c:57-59`). Le conseiller ne lit que la main du tour et la défausse (`l3_chroma.c:103-107`). Les identités dans les événements de pioche adverses sont une variante annoncée (README 52-54).
+- **Othello.** Tampon `line[7]` suffisant pour six captures maximum par direction (`l3_othello.c:8`). `passes==1` cohérent avec `can_play(turn^1)` (`l3_othello.c:28`). Conseiller toujours légal.
+- **Pendu.** 32 mots en A..Z sans accent, longueur maximale 13 sous les 24 octets de `word`. Le conseiller filtre par vue masquée et le mot réel reste toujours candidat, donc `freq` d'une lettre manquante est non nul en cours de partie.
+- **Codec.** Tailles 65/432/659/28 recalculées à la main, en accord avec les assertions `l3_table.c:89-92` et le README ligne 67. Décodage transactionnel et vérification de longueur exacte confirmés.
+
+## Preuves manquantes
+
+Aucune exécution de ma part. Les contre-exemples 1, 3 et 4 se vérifient en ajoutant les fixtures à `test_table.c` et en relançant `run.py` hors bac à sable avec ASan/UBSan, comme décrit au README ligne 96.

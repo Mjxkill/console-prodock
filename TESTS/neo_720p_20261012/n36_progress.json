@@ -1,0 +1,908 @@
+{
+  "updated_at": "2026-10-20T21:13:23.303517+00:00",
+  "build": "console_neo_n38r0",
+  "bitstream_sha256": "b734fb21868b4ac840944f944cb5473cbd36bbea256cf7ff88123eb826537ab4",
+  "board_anchor": "TESTS/neo_720p_20261012/board_n38r0_restore_ddr59_20261020",
+  "cpu": "Parked and halted; Linux not started",
+  "flash_written": false,
+  "sd_written": false,
+  "timing": {
+    "status": "FAIL",
+    "minimum_slack_ns": 0.129,
+    "minimum_pulse_slack_ns": 1.06,
+    "violated_endpoints": {
+      "setup": 0,
+      "hold": 0
+    },
+    "timing_checks_ns": {
+      "setup": 0.259,
+      "hold": 0.129,
+      "recovery": 2.175,
+      "removal": 0.404
+    },
+    "timing_passed": true,
+    "qualification_failure": "Known GPU owner replication model observation"
+  },
+  "simulations": [
+    "debug_pipeline_n37_r1",
+    "scan_flags_n38",
+    "equivalence_shader_phase",
+    "geometry_shader_phase",
+    "equivalence_first_mesh_r1",
+    "geometry_local_payloads",
+    "equivalence_local_payloads_r2",
+    "equivalence_stream_payload",
+    "geometry_stream_payload",
+    "equivalence_transform_check",
+    "geometry_transform_check",
+    "geometry_transform_check_full"
+  ],
+  "active_builds": [
+    "console_neo_n55r0"
+  ],
+  "minimal_probe": {
+    "first_ab": "reset_probe_board",
+    "reproducer": "reset_reproducer/README.md",
+    "later_inconclusive": [
+      "reset_probe_board_repeat",
+      "reset_probe_compiler_comparison",
+      "reset_probe_after_n35",
+      "reset_probe_uart_recovery"
+    ],
+    "warning": "Later captures have zero UART bytes on both old and new variants; do not count them as measured reset failures or passes.",
+    "uart_hypothesis": "Periodic UART reset tested in r3; still zero bytes in both variants. Analyzer notes document a persistent BL616 return-path failure restored by a power cycle; this cause is not yet established here.",
+    "jtag_results": "reset_reproducer/JTAG_20261016.md",
+    "jtag_summary": "6000 snapshots, 3 auto failures and 3 local passes across 1.9.12 and 1.9.12.03. One passing new-IDE variant remains labelled LW: label alone is inconclusive."
+  },
+  "next": "Await N55r0 qualification, preflight and conditional pixel/geometry comparisons.",
+  "interrupted_builds": [
+    {
+      "name": "console_neo_n35r1",
+      "observation": "No running process at former PIDs 1908497/1908498, log stops at routing phase 0, no final timing or bitstream; cause unknown",
+      "caveat": "The sandbox process namespace may hide host jobs. Absence from local ps alone cannot establish termination; no restart or kill authorized by this observation."
+    }
+  ],
+  "restore_transient": {
+    "failed": "reset_probe_uart_recovery/restored_console",
+    "symptom": "AE350 JTAG all zeroes before any preflight access",
+    "retry_without_programming": "board_n36r0_after_uart_retry",
+    "passed": true
+  },
+  "functional_status": "N38: sampled DDR, native fills and 29 TARGET cases pass; triangle cases show retained mask/buffer/selector state at CHUNK; exact color failure model recorded. N54 mask-only candidate routing.",
+  "geometry_board_tests": {
+    "n36": "geometry_board_n36_r1",
+    "n38": "geometry_board_n38",
+    "n36_color_mismatch_bytes": 31577,
+    "n36_other_windows_exact": true,
+    "n38_triangles": 15,
+    "expected_triangles": 61
+  },
+  "n36_board_tests": {
+    "preflights": [
+      "board_n36r0_diagnostic",
+      "board_n36r0_reload2",
+      "board_n36r0_after_uart_retry"
+    ],
+    "snapshots": [
+      "gpu_debug_n36r0",
+      "gpu_debug_n36r0_reload2"
+    ],
+    "native_fills": [
+      "gpu_ddr_n36r0",
+      "gpu_ddr_n36r0_reload2"
+    ],
+    "exact_native_fill_bytes": 32768,
+    "address_phase_reads": 1120,
+    "address_phase_errors": 0
+  },
+  "board_tests": {
+    "preflight": "TESTS/neo_720p_20261012/board_n38r0_restore_ddr59_20261020",
+    "address_pairs": "TESTS/neo_720p_20261012/n38_restore_ddr59_address_pairs_20261020",
+    "memory_gpu": "TESTS/neo_720p_20261012/n38_restore_ddr59_memory_gpu_20261020",
+    "target_suite": "TESTS/neo_720p_20261012/n38_restore_ddr59_targets_20261020"
+  },
+  "tested_sources": {
+    "n37_n38": "n37_n38_tested_sources.json",
+    "n39": "n39_tested_sources.json",
+    "n40": "n40_tested_sources.json",
+    "n41": "n41_tested_sources.json"
+  },
+  "rejected_builds": [
+    {
+      "name": "console_neo_n38r1",
+      "loaded": false,
+      "setup_min_ns": -0.055,
+      "setup_violations": 4,
+      "hold_violations": 0,
+      "structural_failure": "gpu_debug_state[48] promoted to LW despite LOCAL_CLOCK; other GPU controls newly on LW",
+      "targeted_controls_off_lw": true
+    },
+    {
+      "name": "console_neo_n38r2_newide",
+      "loaded": false,
+      "minimum_slack_ns": -6.51,
+      "violated_endpoints": {
+        "setup": 262,
+        "hold": 0
+      },
+      "failed_audits": {}
+    },
+    {
+      "name": "console_neo_n38r3_primary",
+      "loaded": false,
+      "minimum_slack_ns": 0.129,
+      "violated_endpoints": {
+        "setup": 0,
+        "hold": 0
+      },
+      "failed_audits": {
+        "gpu_control_routing": [
+          "u_gpu/mrst[1] still uses LW",
+          "u_accel/u_v1/n60343_3 still uses LW",
+          "u_accel/u_v1/u_pixels/n34374_4 still uses LW",
+          "u_accel/u_v1/u_pixels/n38025_3 still uses LW",
+          "u_accel/u_v1/n60343_3 is not on PRIMARY",
+          "u_accel/u_v1/u_pixels/n34374_4 is not on PRIMARY",
+          "u_accel/u_v1/u_pixels/n38025_3 is not on PRIMARY",
+          "u_gpu/mrst[1] is not on PRIMARY"
+        ]
+      }
+    },
+    {
+      "name": "console_neo_n40r1",
+      "loaded": false,
+      "reason": "CT1000 duplicate constraints through reset inversion aliases; stopped before placement. Fixed generator for separate N40r2."
+    },
+    {
+      "name": "console_neo_n40r2",
+      "loaded": true,
+      "timing": {
+        "setup": -2.701,
+        "hold": 0.138,
+        "recovery": 2.057,
+        "removal": 0.352
+      },
+      "failed_audits": {
+        "gpu_reset_tree": [
+          "Reset 0 still uses a global routing resource",
+          "Reset 4 still uses a global routing resource",
+          "Reset 9 still uses a global routing resource"
+        ],
+        "gpu_wide_controls": [
+          "gpu_debug_state[44] still uses LW",
+          "gpu_debug_state[48] still uses LW",
+          "gpu_debug_state[53] still uses LW",
+          "u_gpu/mrst[1] still uses LW"
+        ]
+      },
+      "initially_rejected": true,
+      "later_diagnostic": "Exact-SHA parked-CPU observation after minimal JTAG proved LW label inconclusive; AE350 TAP all zeroes, no memory/GPU result."
+    },
+    {
+      "name": "console_neo_n41r0",
+      "loaded": true,
+      "timing": {
+        "setup": -1.597,
+        "hold": 0.138,
+        "recovery": 2.119,
+        "removal": 0.346
+      },
+      "failed_audits": {
+        "gpu_reset_tree": [
+          "Reset 0 still uses a global routing resource",
+          "Reset 1 still uses a global routing resource",
+          "Reset 4 still uses a global routing resource",
+          "Reset 11 still uses a global routing resource"
+        ],
+        "gpu_wide_controls": [
+          "gpu_debug_state[44] still uses LW",
+          "gpu_debug_state[45] still uses LW",
+          "gpu_debug_state[48] still uses LW",
+          "gpu_debug_state[55] still uses LW",
+          "u_gpu/mrst[1] still uses LW"
+        ]
+      },
+      "initially_rejected": true,
+      "later_diagnostic": "Exact-SHA parked-CPU observation after minimal JTAG proved LW label inconclusive; AE350 TAP all zeroes, no memory/GPU result."
+    },
+    {
+      "name": "console_neo_n42r0",
+      "loaded": false,
+      "bitstream_sha256": "11b3e8359132656529fadff26b180bf243a1ba11374625af895625358fceb3b1",
+      "timing_checks_ns": {
+        "setup": -3.646,
+        "hold": 0.124,
+        "recovery": -5.398,
+        "removal": 0.355
+      },
+      "minimum_pulse_slack_ns": 0.474,
+      "violated_endpoints": {
+        "setup": 141,
+        "hold": 0
+      },
+      "failed_audits": {
+        "gpu_reset_tree": [
+          "Reset 0 still uses a global routing resource",
+          "Reset 4 still uses a global routing resource",
+          "Reset 9 still uses a global routing resource",
+          "Reset 11 still uses a global routing resource"
+        ],
+        "gpu_wide_controls": [
+          "gpu_debug_state[44] still uses LW",
+          "gpu_debug_state[48] still uses LW",
+          "gpu_debug_state[53] still uses LW",
+          "gpu_debug_state[55] still uses LW",
+          "u_gpu/mrst[1] still uses LW"
+        ]
+      },
+      "analysis": "n42r0_analysis.json"
+    },
+    {
+      "name": "console_neo_n43r0",
+      "loaded": false,
+      "bitstream_sha256": "abddc415880d3896784c735e24bfe8100b2cce805a7d3fddd382a4dbb89a0c05",
+      "timing_checks_ns": {
+        "setup": -5.404,
+        "hold": 0.124,
+        "recovery": -4.551,
+        "removal": 0.36
+      },
+      "minimum_pulse_slack_ns": 0.474,
+      "violated_endpoints": {
+        "setup": 92,
+        "hold": 0
+      },
+      "failed_audits": {
+        "gpu_reset_tree": [
+          "Reset 0 still uses a global routing resource",
+          "Reset 1 still uses a global routing resource",
+          "Reset 4 still uses a global routing resource",
+          "Reset 11 still uses a global routing resource"
+        ],
+        "gpu_wide_controls": [
+          "gpu_debug_state[44] still uses LW",
+          "gpu_debug_state[45] still uses LW",
+          "gpu_debug_state[48] still uses LW",
+          "gpu_debug_state[55] still uses LW",
+          "u_gpu/mrst[1] still uses LW"
+        ]
+      },
+      "analysis": "n43r0_analysis.json"
+    },
+    {
+      "name": "console_neo_n44r0",
+      "loaded": false,
+      "status": "PNR_FAILED",
+      "reason": "PR0004: 182842 unrouted nets, all primary/LW allocations absent; suspected clock resource conflict under investigation"
+    }
+  ],
+  "face_diagnostics": {
+    "vectors": "geometry_faces",
+    "simulation": "PASS: inside, near_clip, side_clip; all three 3 MiB images exact",
+    "board_inside": "geometry_inside_n38",
+    "board_status": "FAIL: all three cases finish, all initial DDR verified; separate pixel/clip symptoms",
+    "board_near": "geometry_near_n38",
+    "board_side": "geometry_side_n38"
+  },
+  "programming_diagnostic": {
+    "slow_load": "board_n38r0_jtag1m",
+    "status_1mhz": "0x00002220 DONE/no reported CRC error; AE350 JTAG all zeroes twice; no geometry test possible",
+    "recovery": "board_n38r0_recovery6m",
+    "status_6mhz": "0x00026220 DONE/no reported CRC error; memory/GPU preflight PASS",
+    "scope": "Same N38r0 file, only SRAM-programming TCK changed; no Linux/SD/flash",
+    "render_after_recovery": "Same failed counters and exact same depth/texture windows; only four already-incorrect color bytes differ between runs."
+  },
+  "n38_board_tests": {
+    "preflights": [
+      "board_n38r0",
+      "board_n38r0_recovery6m"
+    ],
+    "geometry": "geometry_board_n38",
+    "status": "status_n38_after_geometry",
+    "geometry_passed": false,
+    "first_mesh": "geometry_first_mesh_n38",
+    "first_mesh_reload": "geometry_first_mesh_n38_reload6m"
+  },
+  "python_neo_tests": {
+    "passed": 99,
+    "command": "python3 -m unittest discover -s TESTS -p 'test_neo_*.py'"
+  },
+  "n39r0_board_tests": {
+    "preflights": [
+      "board_n39r0_diagnostic"
+    ],
+    "first_mesh": "geometry_first_mesh_n39",
+    "status": "FAIL: CLEAR at command 2 does not complete; all 3 MiB initialization exact; no rendering result",
+    "snapshot": "gpu_debug_n39_clear_stall",
+    "status_registers": "status_n39_clear_stall"
+  },
+  "n39r1_board_tests": {
+    "preflights": [
+      "board_n39r1_diagnostic"
+    ],
+    "first_mesh": "geometry_first_mesh_n39r1",
+    "status": "FAIL: CLEAR at command 2 does not complete; all initial 3 MiB exact; same snapshot as N39r0",
+    "snapshot": "gpu_debug_n39r1_clear_stall"
+  },
+  "formal_arithmetic": "transform_check_formal/result.json",
+  "optimizer_report": "gpu_route_dashboard_20261016/index.html",
+  "n40r2_board_tests": {
+    "preflight": "board_n40r2_routing_observation",
+    "retry": "board_n40r2_routing_retry",
+    "status": "AE350 TAP all zeroes twice; no memory/GPU observation; explicit diagnostic kept FAIL"
+  },
+  "n41r0_board_tests": {
+    "preflight": "board_n41r0_routing_observation",
+    "retry": "board_n41r0_routing_retry",
+    "status": "AE350 TAP all zeroes twice; no memory/GPU observation; explicit diagnostic kept FAIL"
+  },
+  "toolchain_policy": {
+    "default_ide": "/home/michael/gowin/IDE",
+    "version": "1.9.12.03",
+    "requested_by_user": true,
+    "scope": "Future synthesis, placement/routing and default simulation primitives; frozen builds unchanged",
+    "n41r1_note": "Existing synthesis produced with 1.9.12; P&R uses 1.9.12.03",
+    "startup_checked": true
+  },
+  "n41r1_newide": {
+    "build": "tang/impl/console_neo_n41r1_newide",
+    "bitstream_sha256": "6f6c4d66e0c294d3075437ad88c3f1f537e0b50a7bfadb33a247ec4d3177c360",
+    "tool_version": "V1.9.12.03",
+    "loaded": false,
+    "status": "FAIL",
+    "timing_checks_ns": {
+      "setup": -2.73,
+      "hold": 0.124,
+      "recovery": -5.996,
+      "removal": 0.354
+    },
+    "minimum_pulse_slack_ns": 0.474,
+    "violated_endpoints": {
+      "setup": 89,
+      "hold": 0
+    },
+    "negative_reported_paths_by_clock": {
+      "setup": [
+        {
+          "clock_pair": [
+            "PHY_CLKOUT:[R]",
+            "bus80_clk:[R]"
+          ],
+          "negative_reported_rows": 57,
+          "worst_slack_ns": -2.73,
+          "source": "u_usb_device_controller_top/u_usb_device_controller/u_usb_device_controller_utmi/usb_control_inst/s_confd_s0/Q",
+          "destination": "u_usb_msc_port/online_s_0_s0/D"
+        },
+        {
+          "clock_pair": [
+            "bus80_clk:[R]",
+            "bus80_clk:[R]"
+          ],
+          "negative_reported_rows": 11,
+          "worst_slack_ns": -1.136,
+          "source": "u_soc/u_bridge/st_0_s1/Q",
+          "destination": "u_soc/u_bridge/m_hrdata_11_s0/CE"
+        },
+        {
+          "clock_pair": [
+            "ddr3_sys_clk:[R]",
+            "ddr3_sys_clk:[R]"
+          ],
+          "negative_reported_rows": 6,
+          "worst_slack_ns": -1.139,
+          "source": "u_accel/engine_resetn_6_s0/Q",
+          "destination": "u_accel/u_v1/u_pixels/u_copy/packet_1_s0/CE"
+        },
+        {
+          "clock_pair": [
+            "vid_pclk:[R]",
+            "ddr3_sys_clk:[R]"
+          ],
+          "negative_reported_rows": 2,
+          "worst_slack_ns": -0.518,
+          "source": "u_gpu/request_tag_0_s4/Q",
+          "destination": "u_gpu/g_line_mailbox.row_0_s0/D"
+        }
+      ],
+      "recovery": [
+        {
+          "clock_pair": [
+            "PHY_CLKOUT:[R]",
+            "bus80_clk:[R]"
+          ],
+          "negative_reported_rows": 10,
+          "worst_slack_ns": -5.996,
+          "source": "u_usb_controller_start/reset_s4/Q",
+          "destination": "u_usb_idle_trace/hr_2_s0/CLEAR"
+        },
+        {
+          "clock_pair": [
+            "vid_pclk:[F]",
+            "vid_clk5x:[F]"
+          ],
+          "negative_reported_rows": 3,
+          "worst_slack_ns": -0.997,
+          "source": "u_hdmi/g_reset[2].reset_sync_fall_s1/Q",
+          "destination": "u_hdmi/g_ser[2].u_ser/RESET"
+        },
+        {
+          "clock_pair": [
+            "vid_pclk:[F]",
+            "vid_clk5x:[R]"
+          ],
+          "negative_reported_rows": 3,
+          "worst_slack_ns": -2.349,
+          "source": "u_hdmi/g_reset[2].reset_sync_fall_s1/Q",
+          "destination": "u_hdmi/g_ser[2].u_ser/RESET"
+        }
+      ]
+    },
+    "failed_audits": {
+      "gpu_reset_tree": [
+        "Reset 0 still uses a global routing resource",
+        "Reset 1 still uses a global routing resource",
+        "Reset 4 still uses a global routing resource",
+        "Reset 11 still uses a global routing resource"
+      ],
+      "gpu_wide_controls": [
+        "gpu_debug_state[44] still uses LW",
+        "gpu_debug_state[45] still uses LW",
+        "gpu_debug_state[48] still uses LW",
+        "gpu_debug_state[55] still uses LW",
+        "u_gpu/mrst[1] still uses LW"
+      ]
+    },
+    "caveat": "Reported path rows are not all endpoints. USB cross-clock paths include 9.066 ns source clock latency; no timing exceptions have been changed, and no hardware failure is inferred from this report alone."
+  },
+  "ddr6_candidate": {
+    "build": "tang/impl/neo_ddr6_ip_r1",
+    "profile": "tang/boards/neo/ddr6.json",
+    "ports_identical": 40,
+    "legacy_parameters_unchanged": true,
+    "parameter_additions": [
+      "BURST_LEN=1",
+      "S_AXI_AWID_WIDTH=4",
+      "S_AXI_ARID_WIDTH=4",
+      "Arbitration_Mode=MODE4"
+    ],
+    "generated_buffer_selection": "EBR_BASED",
+    "board_tested": false,
+    "initial_generation": "neo_ddr6_ip_r0 refused: legacy parameters alone miss mandatory v6 fields; replaced by official Tcl generation"
+  },
+  "synthesis_audits": {
+    "n42": "n42_synthesis_audits.json",
+    "n43": "n43_synthesis_audits.json"
+  },
+  "active_simulations": [],
+  "completed_routing": {
+    "n42": "n42r0_analysis.json",
+    "n43": "n43r0_analysis.json",
+    "n44r1": "console_neo_n44r1_analysis.json",
+    "n44r2": "console_neo_n44r2_analysis.json",
+    "n44r3": "console_neo_n44r3_analysis.json",
+    "n44r4": "console_neo_n44r4_analysis.json",
+    "n44r5": "console_neo_n44r5_analysis.json",
+    "n44r6": "console_neo_n44r6_analysis.json",
+    "n44r7": "console_neo_n44r7_analysis.json",
+    "n45r1": "console_neo_n45r1_analysis.json",
+    "n45r4": "console_neo_n45r4_analysis.json",
+    "n45r3": "console_neo_n45r3_analysis.json"
+  },
+  "fifo_mapped_latest_ide": {
+    "result": "fifo_mapped_latest_ide/result.json",
+    "passed": true,
+    "completed_cases": 3,
+    "read_words_compared": 73332,
+    "scope": "Compare both frozen AHB DDR FIFO netlists, RTL, and an independent queue.\n\nOfficial Gowin functional models; no SDF or metastability model. Not a\nsubstitute for timing analysis and the repeated-read hardware experiment.\n"
+  },
+  "board_observation_this_update": true,
+  "optimizer_nextpnr_20261017": {
+    "dashboard": "optimizer_n42_n43/index.html",
+    "toolchain_reinstalled": false,
+    "console_import": {
+      "result": "nextpnr_n43_import/result.json",
+      "status": "FAILED_ON_ENCRYPTED_PRAGMA",
+      "line": 111972
+    },
+    "reset_probe": {
+      "result": "nextpnr_reset_jtag_cells/build/result.json",
+      "mapping_audit": "nextpnr_reset_jtag_cells/mapping_audit.json",
+      "status": "PNR_FAILED",
+      "reason": "Two BUFG required, one available in installed GW5AST-138C database."
+    },
+    "earlier_mapping_rejected": [
+      "nextpnr_reset_jtag",
+      "nextpnr_reset_jtag_kept"
+    ],
+    "hardware_loaded": false
+  },
+  "timing_closure_20261017": {
+    "probes": "timing_closure_probe_results.json",
+    "selected_hdmi_probe": "hdmi_reset_placement_r1_20261017/hdmi_dce_c150",
+    "cdc_evidence": "cdc_compensation_20261017/result.json",
+    "candidate": "console_neo_n45r3",
+    "candidate_qualified": false,
+    "hardware_loaded": false,
+    "synthesis_audits": "n44_synthesis_audits.json",
+    "clock_allocation_probes": [
+      "hdmi_usb_clock_allocation_20261017",
+      "hdmi_usb_clock_allocation_r1_20261017",
+      "hdmi_dce_sites_20261017",
+      "hdmi_dce_sites_r1_20261017"
+    ],
+    "zero_origin_evidence": "generated_cdc_origins_20261017/result.json",
+    "clock_pressure_evidence": "hdmi_clock_pressure_20261017/result.json",
+    "candidates": [
+      "console_neo_n44r1",
+      "console_neo_n44r2",
+      "console_neo_n44r3",
+      "console_neo_n44r4",
+      "console_neo_n44r5",
+      "console_neo_n44r6",
+      "console_neo_n44r7"
+    ],
+    "reset_placement_evidence": "n44r4_reset_regions.json",
+    "hdmi_full_report_checks": {
+      "n44r1": "18 reset edges PASS",
+      "n44r2": "18 reset edges PASS; other paths FAIL"
+    },
+    "n44r3": "Setup +0.320 ns, hold +0.124 ns, recovery -1.479 ns, removal +0.047 ns. All 14 CDC budgets and 18 HDMI reset checks pass; four real recovery paths remain. GPU LW audits also fail.",
+    "clock_resource_evidence": "n44_clock_resource_probes.json",
+    "sg0_evidence": [
+      "hdmi_sg0_reset_columns_20261017",
+      "hdmi_sg0_clock_pressure_20261017"
+    ],
+    "collector_session": 25291,
+    "n44r4": "Four targeted recovery paths now +4.485 to +6.793 ns; full build FAIL with two new setup and seven new USB fabric recovery paths.",
+    "next_placement_evidence": "n44r6_cdc_regions.json",
+    "n44r5": "Full SG0, eight PRIMARY clocks, all 18 HDMI checks and 14 CDC budgets confirmed. Global setup -2.454 ns, recovery -1.006 ns; still FAIL.",
+    "route_strategy_comparison": "N44r6/r7 have the same netlist/CST/SDC and differ only by route_option 2 vs 1.",
+    "prepared_followup": "n44_ddr_followup_regions.json",
+    "n44r6": "FAIL: setup -1.199 ns, recovery -1.561 ns; 163 negative reported paths. Root bus reset fanout 1207; DDR internal reset fanout 663.",
+    "system_reset_equivalence": "system_reset_equivalence/result.json",
+    "n45": "Synthesis PASS: seven distinct DFFCE, identical D/clock/CE/reset/init; copy/scanout/FIFO/transform audits PASS. DDR profile 27 files PASS. N45r1 routing; r0 rejected obsolete port aliases before placement.",
+    "n45_audits": [
+      "n45_synthesis_audits.json",
+      "n45_ddr_audit.json"
+    ],
+    "n45_collector_session": 93118,
+    "n44r7": "FAIL: quality route ends with 122 unrouted nets, no timing result or qualified bitstream.",
+    "n45r1": "Only two violated endpoints: setup -0.404 ns diagnostic DDR PLL status, recovery -0.061 ns HDMI channel1. Hold +0.124, removal +0.303 ns. All seven reset functions confirmed post-PnR. GPU LW guards still fail.",
+    "n45_refinement": "n45r2_diag_region.json; r2/r3 differ only by characterized HDMI C150/C160 placement.",
+    "incremental_characterization": "incremental_hdmi_20261017/result.json",
+    "incremental_place": "Both unchanged C150 and moved C160 probes completed with verified placement and positive setup/hold/recovery/removal. Full-console reuse not tested yet.",
+    "incremental_pnr": "Both unchanged C150 and moved C160 probes completed; actual requested positions, compiler option, and all four timing analyses pass. Full console reuse not measured yet.",
+    "incremental_analysis": "incremental_hdmi_20261017/analysis.json",
+    "incremental_console": "N45r4 FAILED: 115791 unrouted nets despite same netlist/CST/SDC as N45r3. Full-cache reuse is not qualified on the console. No timing result or hardware load.",
+    "incremental_collector_session": 6922,
+    "closed_candidate": "n45r3_timing_closed.json"
+  },
+  "optimizer_python_tests": 36,
+  "neo_python_tests": 109,
+  "n45r3_board_tests": "n45r3_board_summary.json",
+  "ddr_startup_correction": {
+    "selected": "console_neo_n46syn2",
+    "discarded_preparation": "console_neo_n46syn (bad timing-report argument; no synthesis)",
+    "superseded": "console_neo_n46syn1 (startup reset only; does not restart controller on DDR lock loss)",
+    "ip_generator": "neo_ddr6_300_ip_r0",
+    "ip_profile": "neo-ddr6-300-fifo-registers",
+    "memory_clock_mhz": 300,
+    "tCK_ps": 3333,
+    "tests": {
+      "python_passed": 46,
+      "startup_sim_clock_half_periods_ns": [
+        6.25,
+        6.243,
+        6.257,
+        11.731
+      ],
+      "full_cpu_path_cases_passed": 13,
+      "full_cpu_path_evidence": "ddr400_cpu_path/result.json",
+      "coincident_edges_passed": true,
+      "coincident_edges_evidence": "ddr400_coincident/result.json",
+      "mapped_fifo_passed": true,
+      "mapped_fifo_cases_passed": 9,
+      "mapped_fifo_evidence": "ddr400_fifo_mapped/result.json"
+    },
+    "hardware_loaded": false,
+    "mapped_simulation": "ddr_startup_mapped_n46/result.json",
+    "mapped_simulation_passed": true,
+    "synthesis_audits": "n46_synthesis_audits.json",
+    "candidate": "console_neo_n47r2",
+    "stage": "routing-complete-timing-fail",
+    "preferred_candidate": "console_neo_n47r0",
+    "preferred_clock_mhz": 400,
+    "prepared_fallback_profile": "neo-ddr6-325-fifo-registers",
+    "historical_300mhz_basis": "/home/michael/logic_analyser_wifi/TESTS/TESTS_V3.md:72",
+    "hynix_efr_tck_max_ns": 3.3,
+    "legacy_300mhz_inside_published_range": false,
+    "preferred_synthesis": "console_neo_n47syn1",
+    "preferred_mapped_simulation": "ddr_startup_mapped_n47/result.json",
+    "preferred_synthesis_audits": "n47_synthesis_audits.json",
+    "n46_diagnostic_result": {
+      "status": "FAIL",
+      "timing_checks_ns": {
+        "setup": 0.534,
+        "hold": 0.165,
+        "recovery": -2.964,
+        "removal": 0.349
+      },
+      "minimum_pulse_slack_ns": 1.375,
+      "hardware_loaded": false,
+      "reason": "DDR internal reset recovery violation; 300 MHz also outside published EFR normal operating tCK range",
+      "device_clock_range_qualified": false
+    },
+    "summary": "n47r0_summary.json",
+    "next_check": "DDR PHY HOLD/RESET constraints, clock relationships and calibration clock-stop sequencing; no false-path waiver without proof",
+    "n47_result": {
+      "status": "FAIL",
+      "timing_checks_ns": {
+        "setup": -7.395,
+        "hold": 0.165,
+        "recovery": -8.637,
+        "removal": 0.264
+      },
+      "ddr_device_clock_range": {
+        "passed": true,
+        "errors": [],
+        "part": "H5TQ4G63EFR-RDC",
+        "tck_ns": 2.5,
+        "tck_min_ns": 2.5,
+        "tck_max_ns": 3.3,
+        "scope": "Nominal clock range only; electrical and board tests still required"
+      },
+      "bitstream_sha256": "3fa4c726923ab8c59830707aa5af5997336b9922dda894d78bd963e91014299e"
+    },
+    "phy_timing_model": "Sipeed Hynix DDR400 fast-clock separation only; CPU/UI CDC remains bounded",
+    "placement": "81 tighter DDR reset cells + 48 reset/bridge/diagnostic cells",
+    "replicate_resources": 0
+  },
+  "ddr400_n47r1": {
+    "status": "FAIL",
+    "timing_checks_ns": {
+      "setup": -2.346,
+      "hold": 0.124,
+      "recovery": -2.033,
+      "removal": 0.145
+    },
+    "minimum_pulse_slack_ns": 1.328,
+    "bitstream_sha256": "20ea033ee7e13ecb70da6cf9d215e8532bd5ccf0e1f1f50e9d8f4032ca9e2968",
+    "hardware_loaded": false
+  },
+  "ddr400_n47r2": {
+    "status": "FAIL",
+    "timing_checks_ns": {
+      "setup": -3.446,
+      "hold": 0.124,
+      "recovery": -0.222,
+      "removal": 0.193
+    },
+    "minimum_pulse_slack_ns": 2.025,
+    "clock_mhz": {
+      "clk50": 50.0,
+      "bus80_clk": 80.0,
+      "core_clk": 800.0,
+      "rtc_clk": 10.0,
+      "ddr3_mem_clk": 400.0,
+      "ddr3_sys_clk": 100.0,
+      "vid_pclk": 74.375,
+      "vid_clk5x": 371.875,
+      "CLK_48M": 48.0,
+      "PHY_CLKOUT": 60.0,
+      "fclk_960M": 960.0,
+      "sclk": 120.005
+    },
+    "bitstream_sha256": "6dd64a2be5b68c5798826451ad71c898d56c26cba3fcfbcab5c73cce8afd2a4c",
+    "hardware_loaded": false,
+    "data_setup_violations": 1303,
+    "ddr_reset_recovery_violations": 24,
+    "setup_detail_report_limit": 1000,
+    "failed_audits": {
+      "gpu_reset_tree": [
+        "Reset 0 still uses a global routing resource",
+        "Reset 4 still uses a global routing resource",
+        "Reset 9 still uses a global routing resource"
+      ],
+      "gpu_wide_controls": [
+        "gpu_debug_state[44] still uses LW",
+        "gpu_debug_state[48] still uses LW",
+        "gpu_debug_state[53] still uses LW",
+        "u_gpu/mrst[1] still uses LW"
+      ]
+    },
+    "next_step": "Target the 100 MHz GPU/native DDR paths; pure placement has not closed them. Keep reset-clock restart analysis separate from generic STA and do not qualify the build from the functional CLKDIV model alone."
+  },
+  "updated_utc": "2026-10-21T07:42:07.758767+00:00",
+  "stage": "ddr59-n55r2-board-target-failure",
+  "ddr400_n48": {
+    "stage": "routing-complete-failed-timing",
+    "response_latency_cycles": 1,
+    "response_throughput_beats_per_cycle": 1,
+    "geometry_test": "n48_response_geometry/result.json",
+    "response_reset_test": "n48_response_unit_r1/result.json",
+    "hardware_loaded": false,
+    "next": "Validate mapping, place reset OR beside its source FF, then route at DDR400/UI100",
+    "synthesis": "console_neo_n48syn2",
+    "route": "console_neo_n48r0",
+    "synthesis_audits": "n48_synthesis_audits.json",
+    "legacy_test": "n48_response_legacy/result.json",
+    "comparison_route": "console_neo_n48r1"
+  },
+  "ddr400_n49": {
+    "stage": "synthesized-not-routed",
+    "change": "Geometry clipping coefficients prefetched; unchanged engine cycles",
+    "equivalence": "n49_bounds_equivalence/result.json",
+    "hardware_loaded": false
+  },
+  "ddr400_n50": {
+    "stage": "routes-complete-n50r2-loaded-diagnostic",
+    "changes": [
+      "response stage",
+      "bounds coefficient prefetch",
+      "private texture-coordinate prefetch",
+      "alpha rounding after registered product"
+    ],
+    "equivalence": [
+      "n50_shader_geometry_equivalence/result.json",
+      "n50_shader_v1_equivalence/result.json"
+    ],
+    "hardware_loaded": true,
+    "combined_100mhz_test": "n50_combined_geometry_100mhz/result.json",
+    "mapped_alpha": "n50_alpha_mapped/result.json",
+    "synthesis_audits": "n50_synthesis_audits.json",
+    "route": "console_neo_n50r0",
+    "regional_reset_route": "console_neo_n50r1",
+    "board_tests": [
+      "TESTS/neo_720p_20261012/board_n50r2_ddr400",
+      "TESTS/neo_720p_20261012/board_n50r2_ddr400_regions",
+      "TESTS/neo_720p_20261012/board_n50r2_ddr400_pairs",
+      "TESTS/neo_720p_20261012/board_n50r2_ddr400_cpu",
+      "TESTS/neo_720p_20261012/board_n50r2_ddr400_read_phases",
+      "TESTS/neo_720p_20261012/board_n50r2_gpu_legacy",
+      "TESTS/neo_720p_20261012/board_n50r2_target_suite"
+    ]
+  },
+  "n50r0_result": {
+    "status": "FAIL",
+    "timing_checks_ns": {
+      "setup": -4.157,
+      "hold": 0.124,
+      "recovery": -0.563,
+      "removal": 0.301
+    },
+    "minimum_pulse_slack_ns": 2.025,
+    "bitstream_sha256": "4dcc2688f8e2bae98c30fdabc14326fd5ab1c675eb6d425334a7ba3416f13b8a",
+    "violated_endpoints": {
+      "setup": 1627,
+      "hold": 0
+    },
+    "clock_mhz": {
+      "clk50": 50.0,
+      "bus80_clk": 80.0,
+      "core_clk": 800.0,
+      "rtc_clk": 10.0,
+      "ddr3_mem_clk": 400.0,
+      "ddr3_sys_clk": 100.0,
+      "vid_pclk": 74.375,
+      "vid_clk5x": 371.875,
+      "CLK_48M": 48.0,
+      "PHY_CLKOUT": 60.0,
+      "fclk_960M": 960.0,
+      "sclk": 120.005
+    },
+    "failed_audits": {},
+    "qualification_returncode": 1,
+    "observed_utc": "2026-10-18T21:12:07.582124+00:00",
+    "hardware_loaded": false
+  },
+  "latest_action": "N55r2 all static timing/audits PASS; loaded twice. DDR sampled pages and legacy 2D exact; TARGET rejected even word-by-word, coherent debug snapshot times out. No Linux or pixels suite.",
+  "active_synthesis": null,
+  "board_current": "N55r2 loaded twice; parked diagnostic, scanout disabled; TARGET rejected on each load, no Linux.",
+  "latest_results": "TESTS/neo_720p_20261012/n54_mask_work_20261020/n55r2_board_result.json",
+  "previous_reference": {
+    "build": "console_neo_n38r0",
+    "bitstream_sha256": "b734fb21868b4ac840944f944cb5473cbd36bbea256cf7ff88123eb826537ab4",
+    "board_anchor": "TESTS/neo_720p_20261012/board_n38r0_after_n45r3_final",
+    "cpu": "N38 restored; strict memory/TARGET preflight PASS; CPU halted at parking; no Linux.",
+    "timing": {
+      "status": "PASS",
+      "minimum_slack_ns": 0.129,
+      "minimum_pulse_slack_ns": 1.06,
+      "violated_endpoints": {
+        "setup": 0,
+        "hold": 0
+      },
+      "timing_checks_ns": {
+        "setup": 0.259,
+        "hold": 0.129,
+        "recovery": 2.175,
+        "removal": 0.404
+      }
+    }
+  },
+  "ddr400_n52": {
+    "stage": "archived; board restored to DDR5.9",
+    "synthesis_audits": "n52_synthesis_audits.json",
+    "equivalence": "n52_command_equivalence/result.json",
+    "combined_geometry": "n52_combined_geometry_100mhz/result.json",
+    "hardware_loaded": true,
+    "board_summary": "n52r8_board_summary.json",
+    "recovery_anchor": "TESTS/neo_720p_20261012/board_n52r8_user_diagnostic"
+  },
+  "replication_polarity": {
+    "evidence": "n50_replication_polarity/result.json",
+    "audit": "n50_replication_polarity/audit.json",
+    "functional_model_defect_reproduced": true,
+    "bitstream_ab_confirmed": false,
+    "n50r4_comparison": "n50_replication_polarity/n50r2_vs_n50r4_inputs.json"
+  },
+  "ddr400_n52_reset_20261020": {
+    "analysis": "/home/michael/console/TESTS/neo_720p_20261012/n52_reset_placement_20261020/n52r1_analysis.json",
+    "input_proof": "/home/michael/console/TESTS/neo_720p_20261012/n52_reset_placement_20261020/input_equivalence.json",
+    "pending_validation": null,
+    "tests": "/home/michael/console/TESTS/neo_720p_20261012/n52_reset_placement_20261020/automation_tests.json",
+    "original_trials_interrupted_for_placement_warnings": [
+      "console_neo_n52r2",
+      "console_neo_n52r3"
+    ],
+    "input_proof_r6_r7": "TESTS/neo_720p_20261012/n52_reset_placement_20261020/input_equivalence_r6_r7.json",
+    "r6_r7_plan": "TESTS/neo_720p_20261012/n52_reset_placement_20261020/r6_r7_plan.json",
+    "r7_result": "n52_reset_placement_20261020/r7_result.json",
+    "r8_plan": "n52_reset_placement_20261020/r8_plan.json",
+    "prepared_gpu_reset_plan": "n52_reset_placement_20261020/gpu_reset_regions_plan.json",
+    "r6_result": "n52_reset_placement_20261020/r6_result.json",
+    "r8_result": "n52_reset_placement_20261020/r8_result.json",
+    "r9_plan": "n52_reset_placement_20261020/r9_plan.json",
+    "r10_plan": "n52_reset_placement_20261020/r10_plan.json",
+    "validator_session": null,
+    "route_sessions": {},
+    "r11_r12_plan": "n52_reset_placement_20261020/r11_r12_plan.json",
+    "input_proof_r11_r12": "n52_reset_placement_20261020/input_equivalence_r11_r12.json",
+    "stopped_validator": "n52_reset_placement_20261020/validation_r11_r12/status.json",
+    "r12_result": {
+      "state": "routing_failed",
+      "unrouted_nets": 114776,
+      "hardware_loaded": false
+    },
+    "r11_result": {
+      "state": "route_completed_archived_without_board_test",
+      "hardware_loaded": false,
+      "qualification_pending": false,
+      "qualification_note": "Not run: direction changed to DDR5.9 reference restoration"
+    }
+  },
+  "ddr400_n53": {
+    "stage": "routing-complete-timing-fail",
+    "change": "Private pixel packet captured in IDLE; no global payload reset, unchanged acceptance and busy cycles",
+    "hardware_loaded": false,
+    "tests": {
+      "geometry_100mhz": "n53_pixel_geometry_100mhz/result.json",
+      "cycle_equivalence": "n53_pixel_command_equivalence/result.json",
+      "four_state_resets": "n53_pixel_packet_resets/result.json",
+      "source_identity": "n53_tested_sources.json"
+    },
+    "route_pending": false,
+    "route": "console_neo_n53r0",
+    "synthesis_audits": "n53_synthesis_audits.json",
+    "mapped_configuration": "n53_mapped_configuration_r1/result.json",
+    "placement_mapping": "n53_placement_mapping.json",
+    "result": "n53r0_result.json"
+  },
+  "display_preference": "User confirmed keeping the Neo diagnostic state with no image; do not restore scanout merely to show activity.",
+  "frequency_stability_assessment": {
+    "observed_utc": "2026-10-20T12:29:38.140336+00:00",
+    "improvement_demonstrated": false,
+    "controlled_frequency_ab_available": false,
+    "reason": "N38/300, N50r2/400 and N52r8/400 differ in IP/RTL/reset/routing. N50r2 passed targeted DDR checks while N52r8 failed at the same 400 MHz. UI/GPU clock also changes from 75 to 100 MHz.",
+    "next_evidence_needed": "Deferred: user chose DDR5.9/300 reference. Whole-build rollback is not a controlled frequency/IP A/B.",
+    "board_unchanged": "Historical observation before the subsequent user-requested N38 DDR5.9 restoration"
+  },
+  "strategy": "Return to DDR5.9 + register FIFO baseline; no new DDR6/400 MHz sweep",
+  "selected_reference": "console_neo_n38r0",
+  "reference_record": "TESTS/neo_720p_20261012/ddr59_baseline_20261020/reference.json",
+  "restoration": "TESTS/neo_720p_20261012/ddr59_baseline_20261020/restoration.json",
+  "pixel_mask_experiment": "TESTS/neo_720p_20261012/n54_mask_work_20261020/status.json",
+  "active_validator": null,
+  "active_pixel_follower": null,
+  "active_route": null
+}

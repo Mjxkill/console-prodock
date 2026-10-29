@@ -1,0 +1,69 @@
+Je passe en revue uniquement le paquet fourni, sans outil ni action matérielle.
+
+## Défaut fonctionnel réfutable
+
+Dans R21r1 la chaîne de libération du reset du SoC ne se termine pas : `ae350_rstn` reste à 0, donc POR_RSTN et HW_RSTN du AE350 restent actifs. Cette seule cause explique les deux symptômes observés à 100 kHz : le module de debug ne répond pas au DMI alors que le TAP répond, et la mire n'apparaît pas alors qu'elle ne dépend ni de la DDR ni du CPU.
+
+Chaîne concernée, telle que câblée dans les sources :
+
+1. `ddr3_init_completed` devient `ddr_init` dans `ae350_soc.v:156`.
+2. `neo_reset_trial` ne libère que si `ddr_ready` est vrai et, en mode par défaut, stable pendant le délai de 50 ms, voir `neo_reset_trial.v:71`, `neo_reset_trial.v:93-97` et `neo_reset_trial.v:102`. Aucun mode ne force la libération.
+3. `trial_release` est décalé par `init_sync` sur `ahb_clk`, avec clear asynchrone par `rst_key_n`, voir `ae350_soc.v:152-155`. `rst_key_n` vient de `ae350_rst_sync`, lui-même tenu par `pll_ae350_lock`, voir `console_neo.v:148-152`.
+4. `ae350_rstn` alimente POR_RSTN et HW_RSTN, voir `ae350_soc.v:380`.
+5. Le reset vidéo est une copie registrée de EXTS_HRSTN, sortie du SoC, voir `ae350_soc.v:331-332`. Dans `gpu_scanout.v:37-38` `prst` reste à 0 tant que `hresetn` est bas, et avec `prst[1]` à 0 les compteurs `hx` et `vy` sont tenus à 0, voir `gpu_scanout.v:245-246`. Il n'y a alors ni DE, ni HS, ni VS, voir `gpu_scanout.v:522-524`. Écran noir sans synchro, pas de mire.
+
+La mire ne prouve donc ni DDR ni CPU, mais son absence est un témoin de reset tenu, à condition que `hresetn` de `u_gpu` soit bien `vid_hrstn`. Cette connexion n'est pas dans le paquet.
+
+## Faits, ce qu'ils excluent, hypothèses
+
+**Faits issus des logs.** `baseline_r19.log` et `fallback_read100k.log` ont le même SHA256 et montrent examen réussi puis PARKED_CPU 0x80000004. `r21_read100k.log` montre IDCODE 0x1000563d correct puis dix timeouts DMI et échec d'examen. A/B/A à 100 kHz, donc le repli 1 MHz est un problème séparé qui n'explique plus R21.
+
+**Ce que les faits excluent.**
+- **JTAG physique.** Les arcs SDF TCK, TDI, TDO sont identiques entre R19 et R21, TMS diffère de moins de 0,1 ns. À 100 kHz c'est sans effet. Le TAP répond.
+- **CPU planté après démarrage.** Un cœur qui s'arrête laisse le DMI répondre et l'examen réussir. Un DMI qui ne se termine jamais indique un module de debug sans horloge ou sous reset, donc en amont du cœur. Ceci suppose que le DM du AE350 est sous POR_RSTN, topologie interne vendeur non fournie.
+- **Timing du reset.** R19 viole recovery et fonctionne, R21 respecte recovery et échoue. Le pire setup des deux builds est le même chemin `pll_init/state_0` vers `diag_board_meta_3_s0`, un synchroniseur CDC de diagnostic USB, voir `soft_usb.vh:311-318`, sans effet fonctionnel.
+
+| Build | setup | hold | recovery | removal |
+|---|---|---|---|---|
+| R19 | -2,888 | +0,124 | -0,239 | +0,274 |
+| R21 | -2,602 | +0,124 | +0,381 | +0,168 |
+
+- **prst[1] en LW comme cause unique.** `prst[1]` ne touche que le scanout. Il ne peut pas expliquer le DMI. Deux défauts indépendants apparus ensemble est moins parcimonieux qu'une cause amont commune.
+
+**Hypothèses classées.**
+- **H1, la plus probable.** `ddr3_init_completed` ne s'établit pas ou ne reste pas stable 50 ms dans R21. Le socle DDR a été entièrement rerouté sans placement préservé, et le PHY DDR est sensible au placement. Résultat : reset tenu.
+- **H2.** `pll_ae350_lock` ou `bus80_clk` absents. Même effet sur la chaîne. Moins probable, cellules et INIT identiques, arcs PLL quasi identiques.
+- **H3.** `hresetn` du GPU et DMI sont deux pannes distinctes, dont `prst[1]` LW. À ne retenir que si H1 et H2 sont réfutées.
+
+**Limites et preuves manquantes.**
+- Source réelle de `hresetn` de `u_gpu` dans `console_neo.v`, non fournie.
+- Destination des sorties `trial_ahb_tick`, `trial_rtc_tick` et `soc_dbg`, non fournie. Si elles vont sur une broche, ce sont des témoins directs d'horloge et de `ae350_rstn`.
+- Arcs CORE_CLK à 0:0:0 fournis par le vendeur. Le domaine cœur n'est pas vérifiable par ce SDF.
+- Pas de relecture complète du bitstream R21. L'IDCODE Andes prouve un design avec AE350 chargé, pas le fichier R21 exact.
+- Le diagnostic USB EP0 n'est pas présumé accessible.
+
+## Signal observable existant et prochain test
+
+**Signal.** `led_n = ~ddr_init` sur la broche V13, voir `console_neo.v:205`. Pas une photo de LED anonyme, mais le niveau électrique sur le réseau V13, identifié par continuité ou schéma. R19 doit donner V13 bas, LED allumée. Second témoin gratuit : l'OSD du moniteur HDMI, qui distingue « pas de signal » d'une image noire avec synchro.
+
+**Test, sans recompilation, par ROOT.**
+
+1. Charger R19, attendre une seconde après DONE, relever V13 et l'OSD moniteur. Attendu : V13 bas, 720p détecté, mire.
+2. Charger R21r1, mêmes relevés, puis relancer le même Tcl 100 kHz.
+3. Recharger R19 pour clore l'A/B/A.
+
+| Résultat R21 | Conclusion |
+|---|---|
+| V13 haut, OSD « pas de signal » | H1 confirmée, calibration DDR non terminée, reset tenu |
+| V13 bas, OSD « pas de signal », DMI timeout | H1 réfutée, chercher lock ou bus80, ou délai 50 ms non atteint |
+| V13 bas, 720p détecté, DMI timeout | H1 et H2 réfutées, chaîne libérée, panne côté DM ou bus à isoler |
+
+Si le deuxième cas se présente, envoyer la commande mode 0 du module d'essai via le relais BL616 à 2 Mbit/s, octets à moins de 2 ms d'intervalle, voir `neo_reset_trial.v:37-64` :
+
+```
+A5 5A 52 31 35 00 FF 0D
+```
+
+Puis relancer le Tcl 100 kHz. En mode 0 la libération suit `ddr_ready` sans attendre 50 ms, voir `neo_reset_trial.v:102`. Si le DMI répond alors, même par intermittence, `ddr_init` bascule dans R21 et c'est la stabilité de calibration, pas son absence, qui tient le reset. Si le DMI reste muet avec V13 bas, la panne est entre `pll_ae350_lock`, `ae350_rst_sync` et `init_sync`, et il faudra sortir un des témoins existants sur une broche, ce qui sort du périmètre sans RTL.
+
+Aucun patch n'est proposé avant la lecture de V13. Rien dans le paquet ne permet de conclure à un erratum.

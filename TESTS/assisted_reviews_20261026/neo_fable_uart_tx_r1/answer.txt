@@ -1,0 +1,83 @@
+**Verdict.** Les sources fournies montrent que `out_waiting` ne mesure que le côté hôte, que la fermeture a retiré l'URB sans rien purger dans le pont, et que le `RESET_SIO` de la prochaine ouverture purgera le pont sans que personne ne vérifie s'il a été accepté. La réception de la trame sous R21 reste donc indécidable avec les traces actuelles, mais deux contrôles à trafic UART nul permettent de la borner fortement.
+
+## Faits établis par les sources
+
+- **`write()` ne prouve rien sur la livraison.** Les 8 octets entrent dans le kfifo hôte via `generic.c:223` et la fonction retourne aussitôt le compte. L'assertion de la ligne 120 du contrôleur ne valide donc que l'acceptation par le kfifo.
+- **`out_waiting` est purement hôte.** `TIOCOUTQ` aboutit à `generic.c:259` : kfifo plus `tx_bytes`, c'est-à-dire les octets d'URB en vol. Le FIFO TX du pont n'y apparaît jamais, car `ftdi_device` à `ftdi_sio.c:2839-2868` ne fournit pas de `chars_in_buffer`, et `usb-serial.c:1399` installe le générique.
+- **Un STALL aurait fait tomber `out_waiting` à zéro.** Une complétion d'URB, quel que soit son statut, décrémente `tx_bytes` à `generic.c:445`. Une valeur non nulle pendant deux secondes signifie un URB soumis et toujours en attente, donc un périphérique qui répond NAK, ou qui ne répond pas sur ce endpoint bulk OUT. Un échec de soumission aurait aussi tout retiré, avec un message noyau à `generic.c:187`.
+- **La fermeture hôte est propre mais aveugle.** `serial_port_shutdown` à `usb-serial.c:308` appelle le close générique : `usb_kill_urb` sur les URB d'écriture puis `kfifo_reset_out` à `generic.c:125-128`. Aucune requête `PURGE_TX` n'est envoyée au pont. Donc oui, après une fermeture réussie il n'existe plus d'écriture en attente côté hôte. Mais rien n'indique si le dernier paquet a été ACKé entre la dernière lecture d'`out_waiting` et l'annulation.
+- **La fenêtre d'attente de fermeture n'est pas dans le paquet.** Avant le shutdown, le cœur tty attend que `chars_in_buffer` soit nul pendant `closing_wait`. Cette valeur vient de `tty_port_init`, hors sources fournies, avec un défaut usuel de trente secondes à vérifier. Si l'URB restait NAKé, la fermeture a dû bloquer environ ce délai. C'est mesurable a posteriori.
+- **`RESET_SIO` à l'ouverture purge le pont et son résultat est jeté.** `ftdi_sio.c:2320-2325` envoie la requête sans tester le retour, puis `ftdi_set_termios` à `ftdi_sio.c:2332-2333`. L'effet documenté à `ftdi_sio.h:85-94` inclut purge RX, purge TX, flux à none, DTR et RTS effacés. Un STALL ou un timeout de cette requête est invisible pour pySerial : l'ouverture réussit quand même.
+- **`tcflush` n'aurait rien changé.** `reset_output_buffer` appelle `TCOFLUSH`, qui passe par `flush_buffer` du tty. Aucun `flush_buffer` n'existe dans `ftdi_device` ni dans la liste générique de `usb-serial.c:1393-1406`. La table `tty_operations` d'usb-serial n'est pas fournie, mais en l'état `tcflush` n'annule pas d'URB et ne purge pas le pont. Seule la fermeture a retiré l'URB, et seule l'ouverture suivante purgera le pont.
+- **Fermeture et DTR/RTS.** `ftdi_dtr_rts(off)` à `ftdi_sio.c:2342-2357` envoie flux à none puis efface DTR et RTS si `HUPCL` est actif. Le témoin NCP de R19 montre que ces lignes ne déclenchent pas de reset FPGA, ce qui reste valable pour R21 par construction du même chemin.
+
+## Hypothèses et contre-exemples
+
+Ce qui peut subsister dans le pont, par ordre de compatibilité avec les observations.
+
+- **Zéro octet.** Un NAK continu depuis la soumission signifie que le paquet de 8 octets n'a jamais été accepté. Un paquet bulk est atomique : soit ACKé en entier, soit pas du tout. C'est l'hypothèse la plus cohérente avec deux secondes de `out_waiting` non nul.
+- **Huit octets acceptés tardivement.** Si le pont a ACKé pendant l'attente de fermeture, les octets sont dans son anneau TX. Ils partent vers le FPGA dès que le blocage cesse, par exemple après la restauration de R19, ou sont détruits par la purge de la prochaine ouverture si le firmware l'honore.
+- **Un état firmware bloqué.** Le pont est un BL616 émulant un FT2232H, pas du silicium FTDI. Les mécanismes de NAK sont donc ceux du firmware : anneau UART plein, endpoint OUT non réarmé, tâche UART affamée par la session JTAG d'openFPGALoader sur l'interface 0 du même microcontrôleur, ou flux CTS matériel gelé par un changement de broche entre R19 et R21. Rien dans le paquet ne départage ces cas.
+
+Conclusions à ne pas tirer.
+
+- **« TX bloqué, donc R21 bloque l'UART. »** Entre le témoin R19 réussi et l'échec, une session openFPGALoader a eu lieu sur le même BL616. Aucun test UART n'a été fait après la restauration de R19. L'effet « post-JTAG » et l'effet « R21 » ne sont pas séparés.
+- **« Garde R19 à 0/0, donc aucune trame retardée. »** La ligne 141 attend exactement 0, qui est l'état d'une programmation fraîche. Une trame retardée produit aussi 0/0, comme le témoin l'a montré. Cette garde ne discrimine rien ici.
+- **« Fermeture réussie, donc trame jamais partie. »** L'annulation d'URB est synchrone, mais la course entre la dernière lecture et l'annulation n'est pas tracée. Le compte non journalisé et l'absence de durée de fermeture laissent ce trou ouvert.
+- **« Receipt unknown » couvre aussi « reçue et ignorée par R21 ».** DMI ne répondant pas sous R21, aucun témoin NCP n'était possible. Cette branche reste ouverte indépendamment du pont.
+
+## Prochain contrôle borné, sans nouvelle trame UART
+
+Ordre strict : d'abord les relectures à trafic nul, puis une seule requête EP0, puis une ouverture sans écriture sous capture. Ne pas ouvrir le port avant les étapes 1 et 2, car toute ouverture envoie `RESET_SIO` et détruit l'état résiduel du pont. Cela inclut `setserial` et tout outil qui ouvre le tty.
+
+1. **Relire les horodatages existants.** Comparer `started_unix` de l'entrée R21 avec le premier horodatage du `program('restore_r19')`. Un écart proche de `closing_wait` prouve que l'URB est resté NAKé jusqu'à l'annulation. Un écart de quelques secondes signifie soit une acceptation tardive, soit une complétion en erreur. Aucune action matérielle.
+2. **Relire le journal noyau avec root.** Chercher autour de cet instant les chaînes suivantes, et noter toute réénumération ou reset USB déclenché par openFPGALoader. Vérifier aussi que ModemManager ou brltty n'a pas ouvert le port depuis, car ce serait une source de trames non maîtrisée.
+   ```
+   journalctl -k --since "<heure R21 moins 5 min>" | grep -E "ftdi_sio|usb [0-9]+-[0-9.]+|ttyUSB|pipe error|bulk status|reset|disconnect"
+   journalctl --since "<même heure>" | grep -E "ModemManager|brltty|ttyUSB1"
+   ```
+3. **Vérifier l'identité du périphérique sans trafic.** Dans le répertoire parent contenant le fichier `serial`, lire `busnum`, `devnum` et `urbnum`, et vérifier le pilote lié sur `:1.0` et `:1.1`. Un `devnum` différent de celui du témoin R19 prouve une réénumération pendant la programmation.
+4. **Sonde EP0 unique, sans ouvrir le tty, root requis.** Démarrer usbmon sur le bus, puis lire l'attribut sysfs ci-dessous, qui émet une seule requête de contrôle `GET_LATENCY_TIMER`.
+   ```
+   modprobe usbmon; mount -t debugfs none /sys/kernel/debug 2>/dev/null
+   cat /sys/kernel/debug/usb/usbmon/${BUS}u > /tmp/usbmon_${BUS}.txt &
+   cat /sys/bus/usb-serial/devices/ttyUSB1/latency_timer
+   ```
+   Une complétion `Ci` à statut 0 avec 1 octet prouve que le chemin de contrôle du pont répond, donc que `RESET_SIO` pourra être honoré. Un statut -110 ou -32 prouve que le résultat ignoré de `ftdi_sio.c:2320` masquerait un échec, et justifie alors seulement un reset de périphérique.
+5. **Ouverture sans écriture, capture usbmon active.** Ouvrir avec les mêmes paramètres que la ligne 114, ne rien écrire, lire `out_waiting`, `cts`, `dsr`, attendre 500 ms, fermer en mesurant la durée. Dans la capture, chercher le setup `40 00 0000 0002 0000` qui est `RESET_SIO` sur le canal B, puis ses complétions, puis les complétions `Bi` à 2 octets qui servent de battement de cœur FT2232. Leur absence sous émulation n'est qu'un indice, leur présence prouve que la tâche UART du firmware tourne. Si NCP de R19 peut être armé à une valeur non nulle via DMI avant l'ouverture, le relire après : une chute à 0/0 sans écriture hôte prouverait l'émission d'une trame résiduelle.
+
+Règle de décision avant les tests GPU : avancer seulement si l'étape 1 donne un écart proche de `closing_wait`, si l'étape 2 ne montre ni -32 ni -71 ni réénumération, et si les étapes 4 et 5 montrent un chemin de contrôle vivant et un `RESET_SIO` accepté. Sinon l'hypothèse « huit octets acceptés tardivement » reste ouverte, et un reset USB du périphérique devient justifié par la preuve, suivi d'un témoin NCP armé.
+
+Patch minimal du contrôleur, lignes 114 à 130, pour que l'épisode suivant soit décidable.
+
+```python
+link = serial.Serial(str(UART), 2000000, timeout=.05, write_timeout=1,
+                     exclusive=True, xonxoff=False, rtscts=False, dsrdtr=False)
+try:
+    if before_frame is not None: before_frame()
+    entry['bytes_written'] = link.write(FRAME); self.save()
+    assert entry['bytes_written'] == len(FRAME), 'Partial reset frame'
+    deadline = time.monotonic() + 2
+    while link.out_waiting:
+        if time.monotonic() > deadline:
+            entry['out_waiting_at_timeout'] = link.out_waiting
+            try:
+                entry['modem'] = dict(cts=link.cts, dsr=link.dsr, ri=link.ri, cd=link.cd)
+            except Exception as e:
+                entry['modem_error'] = repr(e)
+            self.save()
+            raise TimeoutError('UART transmit queue did not drain')
+        time.sleep(.005)
+    time.sleep(.25)
+    data = link.read(4096)
+    (self.out / (name + '_rx.bin')).write_bytes(data)
+    if after_frame is not None: after_frame()
+finally:
+    t0 = time.monotonic(); link.close()
+    entry['close_seconds'] = time.monotonic() - t0
+    entry['finished_unix'] = time.time(); self.save()
+```
+
+Lecture des lignes usbmon pour l'URB d'écriture : `C Bo ... 0 8` signifie accepté par le pont, `C Bo ... -2 0` signifie annulé sans jamais être accepté, `C Bo ... -2 8` signifie accepté au dernier instant, `-32` signifie STALL. Les propriétés `cts` et `dsr` n'émettent qu'une requête `GET_MODEM_STATUS` sur EP0, aucun octet UART.
+
+Preuves manquantes pour aller plus loin : la valeur réelle de `closing_wait`, la table `tty_operations` d'usb-serial pour confirmer l'absence de `flush_buffer`, le mécanisme qui a amené NCP à 2/2 avant le témoin R19, et le comportement du firmware BL616 face à `RESET_SIO`, `PURGE_TX` et au flux CTS.

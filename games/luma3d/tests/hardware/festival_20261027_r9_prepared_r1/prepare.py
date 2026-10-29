@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Local-only freeze and exact ELF delta reconstruction. No hardware imports."""
+import hashlib,importlib.util,json,shutil,subprocess,tempfile,zlib
+from pathlib import Path
+HERE=Path(__file__).resolve().parent
+ROOT=next(p for p in HERE.parents if (p/'ARCHI/COMPATIBILITE_CARTES.md').is_file())
+PRIOR=ROOT/'games/luma3d/tests/hardware/mesh_cache_20261027_mc1_prepared_r2'
+BASE=ROOT/'games/luma3d/build/maze_events_20261027_r4'
+GAME=ROOT/'games/luma3d/build/festival_20261027_r9'
+PROOFS=ROOT/'games/luma3d/candidates/table_games_20261027_r1/tests/frontend_integration_r1'
+def digest(path):
+ b=path.read_bytes();return dict(bytes=len(b),sha256=hashlib.sha256(b).hexdigest(),crc32=f'{zlib.crc32(b):08x}')
+def main():
+ from festival_trial import DEPS,ANCHOR,BASE_SHA,SAVE_SHA,RELEASE,FPGA_SHA,PORT,LOCK,schedule
+ assert not (HERE/'manifest.json').exists(),'Already frozen; use a new prepared directory'
+ old_manifest=json.loads((PRIOR/'manifest.json').read_text())
+ for name in (*DEPS,'build_delta.py','runtime_inspect.c','prodock-uapi.h','helper-host','mc1-helper','test_helper.c'):
+  assert digest(PRIOR/name)==old_manifest['files'][name],name
+  shutil.copy2(PRIOR/name,HERE/('f9-helper' if name=='mc1-helper' else name))
+ shutil.copy2(PRIOR/'manifest.json',HERE/'transport_source_manifest.json')
+ for path in (BASE,GAME):
+  m=json.loads((path/'manifest.json').read_text());assert digest(path/'luma3d-riscv')==m['riscv']
+  for name,rec in m['files'].items():assert digest(path/'source'/name)['sha256']==rec['sha256']
+ assert digest(BASE/'luma3d-riscv')['sha256']==BASE_SHA
+ for src,dst in [(BASE/'manifest.json','baseline_manifest.json'),(GAME/'manifest.json','game_manifest.json'),(ROOT/'games/luma3d/tests/hardware/mesh_cache_20261027_mc1_result/result.json','prior_result.json'),(ROOT/'games/luma3d/candidates/maze_background_gpu_r1/hardware_protocol_r1/plan.json','anchor_protocol.json')]:shutil.copy2(src,HERE/dst)
+ for name in ('logic_r9','logic_r9_sanitize','temporal_r9','temporal_r9_sanitize','cli_r9'):shutil.copy2(PROOFS/name/'result.json',HERE/(name+'.json'))
+ spec=importlib.util.spec_from_file_location('frozen_delta',HERE/'build_delta.py');mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
+ raw=mod.delta((BASE/'luma3d-riscv').read_bytes(),(GAME/'luma3d-riscv').read_bytes());packed=mod.compress(raw);(HERE/'festival-r9.delta.lz4').write_bytes(packed)
+ game=digest(GAME/'luma3d-riscv');d=dict(file='festival-r9.delta.lz4',old_sha256=BASE_SHA,new_sha256=game['sha256'],new_bytes=game['bytes'],new_crc32=game['crc32'],patch_bytes=len(raw),patch_crc32=f'{zlib.crc32(raw):08x}')
+ with tempfile.TemporaryDirectory(prefix='festival-r9-') as tmp:
+  output=Path('/tmp/'+Path(tmp).name+'.elf');cmd=[str(HERE/'helper-host'),'patch',str(HERE/d['file']),str(output),str(len(raw)),d['patch_crc32'],str(BASE/'luma3d-riscv')]
+  try:
+   q=subprocess.run(cmd,capture_output=True);(HERE/'reconstruction.log').write_bytes(q.stdout+q.stderr);q.check_returncode();assert digest(output)==game
+  finally:
+   if output.exists():output.unlink()
+ (HERE/'reconstruction.json').write_text(json.dumps(dict(passed=True,hardware=False,game=game,delta=d,transport=digest(HERE/d['file']),helper_sha256=digest(HERE/'helper-host')['sha256']),indent=2)+'\n')
+ m=dict(schema=1,candidate=True,hardware_tested=False,hardware_ready=False,board='prodock',host='ax15',port=PORT,lock=LOCK,tag='festivalr9',program='luma3d-f9',helper='f9-helper',expected_identity=ANCHOR,baseline=digest(BASE/'luma3d-riscv'),game=game,game_manifest_sha256=digest(GAME/'manifest.json')['sha256'],save_sha256=SAVE_SHA,kernel=RELEASE,fpga_sha256=FPGA_SHA,delta=d,transfer_files=['f9-helper',d['file']],windows=schedule(),normal_exit='restore_gm1',review_required=True,forbidden_writes=['FPGA','JTAG','kernel','SD','flash','save'])
+ m['transport_bytes']=sum((HERE/n).stat().st_size for n in m['transfer_files'])
+ excluded={'manifest.json','local_tests.json'}
+ m['files']={p.name:digest(p) for p in sorted(HERE.iterdir()) if p.is_file() and p.name not in excluded}
+ (HERE/'manifest.json').write_text(json.dumps(m,indent=2)+'\n');print(json.dumps(dict(manifest_sha256=digest(HERE/'manifest.json')['sha256'],transport_bytes=m['transport_bytes'],game=game)))
+if __name__=='__main__':main()

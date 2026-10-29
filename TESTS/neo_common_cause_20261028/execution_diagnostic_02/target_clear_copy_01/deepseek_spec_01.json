@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "execution_mode": "execution",
+  "task_id": "neo_target_clear_copy_01",
+  "parent_task_id": "neo_copy_descriptor_reject_01",
+  "inputs": [
+    "ANALYSIS.md",
+    "CONTRACT.md",
+    "INPUTS.json",
+    "ahb_exts_bridge.v",
+    "bench.sv",
+    "blitter.v",
+    "cdc_word.v",
+    "ddr_dcfifo.v",
+    "ddr_gpu_arb.v",
+    "font8x16.hex",
+    "font_ram.v",
+    "gpu_accel.v",
+    "gpu_blit_dma.v",
+    "gpu_copy565.v",
+    "gpu_geom_div.v",
+    "gpu_geometry.v",
+    "gpu_perspective.v",
+    "gpu_raster.v",
+    "gpu_texture_cache.v",
+    "gpu_triangle.v",
+    "gpu_v1.v",
+    "neo_gpu_debug.v",
+    "scenario.svh",
+    "validate.py",
+    "video_bus_stage.v"
+  ],
+  "owned": [
+    "scenario.svh",
+    "ANALYSIS.md"
+  ],
+  "tests": [
+    [
+      "/usr/bin/python3",
+      "-B",
+      "validate.py"
+    ]
+  ],
+  "timeout_seconds": 60,
+  "require_initial_failure": true,
+  "require_changes": true,
+  "max_continuations": 0,
+  "required_tool_evidence": {
+    "min_model_steps": 2,
+    "min_tool_calls": 4,
+    "failed_test_before_edit": true,
+    "passed_test_after_edit": true
+  },
+  "domain": "fpga",
+  "task_type": "test_design",
+  "difficulty": "medium",
+  "task_family": "neo_copy_descriptor_rejection",
+  "acceptance_criteria": "Protected exactRTL7cases; sequence gates, public counters, no native traffic, counterexamples and bounded hypotheses.",
+  "prompt": "Read CONTRACT.md, protected bench.sv, validate.py and relevant RTL. Implement only scenario.svh and ANALYSIS.md. Run official taskbox_run_tests before first edit and after the last edit. No source bypass or fabricated observation. Keep report concise, at most2 experiments, distinguish injected counterexamples from measured physical cause."
+}

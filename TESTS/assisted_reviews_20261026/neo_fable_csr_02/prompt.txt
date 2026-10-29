@@ -1,0 +1,964 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Contre-revue du candidat CSR local et de ses tests exécutés. Cherche erreur réelle dans la transformation quatre accumulateurs ou oracle quatre états, couverture des benchs complets CLEAR/COPY sur Neo et G22r0, risques de faux PASS avec X. Propose assertions courtes ou contre-exemple concret. Les lectures AHB CSR réelles seront ajoutées; aucun force de signal interne dans ces tests. Ne propose pas de qualification hardware ni modification du slot. Revue ciblée, code originalfigé inchangé.
+
+EVIDENCE PACKET:
+REVUE CANDIDAT CSR, aucun hardware ni modification commune. Tests exécutés par orchestrateur. Le mux original boucle dans Icarus; candidat identique hors4accumulateurs. Equivalence combinatoire quatre états àoracle indépendamment par bit; decodeAHB encore àcompléter. FullappCLR/COPYtests sourceexacte parprofil saufCSR. Ne pas confondre avec correction du rejet COPY physique.
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/check_csr_candidates.py SHA256 92ac25f2e8448fc90d61205b53e1ce3278a36501011743e39a0dc4f028780c60
+1: #!/usr/bin/env python3
+2: """TESTS-only CSR candidates; four-state equivalence and real full GPU benches."""
+3: import difflib
+4: import hashlib
+5: import json
+6: from pathlib import Path
+7: import re
+8: import shutil
+9: import subprocess
+10: import time
+11: 
+12: HERE = Path(__file__).resolve().parent
+13: ROOT = HERE.parents[2]
+14: IVL = Path('/tmp/console-usb-sim-tools/extracted/usr')
+15: PROFILES = {
+16:     'neo': ROOT / 'tang/impl/console_neo_n56r19_capture_ce_local/source/tang',
+17:     'prodock': ROOT / 'tang/impl/gpu_geometry_g22r0/source/tang',
+18:     'shared': ROOT / 'tang',
+19: }
+20: OLD = '''        integer k;
+21:         always @* begin
+22:             response_data[response_byte*8+:8]=8'd0;
+23:             for(k=0;k<26;k=k+1)
+24:                 response_data[response_byte*8+:8]=response_data[response_byte*8+:8] |
+25:                     ({8{read_select[response_byte*26+k]}} & register_value[k][response_byte*8+:8]);
+26:         end'''
+27: NEW = '''        integer k;
+28:         reg [7:0] accumulator;
+29:         always @* begin
+30:             accumulator=8'd0;
+31:             for(k=0;k<26;k=k+1)
+32:                 accumulator=accumulator |
+33:                     ({8{read_select[response_byte*26+k]}} & register_value[k][response_byte*8+:8]);
+34:             response_data[response_byte*8+:8]=accumulator;
+35:         end'''
+36: 
+37: def sha(p):
+38:     return hashlib.sha256(p.read_bytes()).hexdigest()
+39: 
+40: def rel(p):
+41:     return str(p.relative_to(ROOT))
+42: 
+43: def run_ivl(out, bench, sources, marker, timeout=120):
+44:     command = [str(IVL/'bin/iverilog'), '-B', str(IVL/'lib/x86_64-linux-gnu/ivl'),
+45:                '-g2012', '-s', 'tb', '-o', str(out/'sim.vvp'), str(bench), *map(str,sources)]
+46:     with (out/'compile.log').open('w') as log:
+47:         subprocess.run(command, stdout=log, stderr=log, cwd=out, timeout=90, check=True)
+48:     with (out/'simulation.log').open('w') as log:
+49:         subprocess.run([str(IVL/'bin/vvp'), str(out/'sim.vvp')], stdout=log,
+50:                        stderr=log, cwd=out, timeout=timeout, check=True)
+51:     assert marker in (out/'simulation.log').read_text()
+52:     return {'passed':True, 'command':command,
+53:             'logs':{p.name:sha(p) for p in out.glob('*.log')}}
+54: 
+55: def mux_bench(candidate):
+56:     # Extract exact changed generate block. The oracle evaluates independent
+57:     # per-bit Boolean OR reductions, preserving Verilog four-state semantics.
+58:     block = candidate[candidate.index('    genvar response_byte;'):]
+59:     block = block[:block.index('    end endgenerate')+len('    end endgenerate')]
+60:     return '''`timescale 1ns/1ps
+61: module tb;
+62: reg [103:0] read_select=0;
+63: reg [31:0] register_value[0:25];
+64: reg [31:0] response_data;
+65: reg [31:0] expected;
+66: reg acc;
+67: integer checks=0,seed=32'h7412a9;
+68: ''' + block + '''
+69: task automatic verify;
+70:   #1;
+71:   for(integer b=0;b<32;b++)begin
+72:     acc=0;
+73:     for(integer k=0;k<26;k++)acc=acc | (read_select[(b/8)*26+k] & register_value[k][b]);
+74:     expected[b]=acc;
+75:   end
+76:   if(response_data !== expected)$fatal(1,"CSR mismatch got=%h expected=%h",response_data,expected);
+77:   checks++;
+78: endtask
+79: initial begin
+80:   // Every byte address, including unaligned and unmapped addresses, for
+81:   // deterministic, random and X/Z register payloads.
+82:   for(integer pattern=0;pattern<12;pattern++)begin
+83:     for(integer k=0;k<26;k++)begin
+84:       case(pattern)
+85:         0:register_value[k]=0;
+86:         1:register_value[k]=32'hffffffff;
+87:         2:register_value[k]=32'h424c5432 ^ (32'h1020304*k);
+88:         3:register_value[k]=32'hxxxxxxxx;
+89:         4:register_value[k]=32'hzzzzzzzz;
+90:         5:register_value[k]={8'hxx,8'hzz,8'h0,8'hff};
+91:         default:register_value[k]=$random(seed);
+92:       endcase
+93:     end
+94:     for(integer a=0;a<256;a++)begin
+95:       for(integer i=0;i<104;i++)read_select[i]=(a==(i%26)*4);
+96:       verify();
+97:     end
+98:   end
+99:   // This includes states not reachable from a decoded CSR read: multiple
+100:   // selects, unknown and high-impedance selectors across individual bytes.
+101:   for(integer test=0;test<512;test++)begin
+102:     for(integer k=0;k<26;k++)register_value[k]=$random(seed);
+103:     for(integer i=0;i<104;i++)begin
+104:       case(($unsigned($random(seed)))%4)
+105:         0:read_select[i]=0;1:read_select[i]=1;
+106:         2:read_select[i]=1'bx;3:read_select[i]=1'bz;
+107:       endcase
+108:     end
+109:     verify();
+110:   end
+111:   $display("PASS CSR FOUR STATE checks=%0d addresses=256 patterns=12 arbitrary_selectors=512",checks);
+112:   $finish;
+113: end
+114: initial begin #100000;$fatal(1,"CSR bounded timeout");end
+115: endmodule
+116: '''
+117: 
+118: def main():
+119:     out=HERE/'csr_candidates_01'
+120:     out.mkdir()
+121:     manifest=json.loads((HERE/'rtl_inputs.json').read_text())
+122:     for name,digest in manifest['sources'].items():
+123:         assert sha(ROOT/name)==digest,name
+124:     relative_sources=[Path(p).relative_to(PROFILES['neo'].relative_to(ROOT))
+125:                       for p in manifest['sources']]
+126:     result={'passed':False,'hardware_access':False,'shared_sources_modified':False,
+127:             'scope':'TESTS-only CSR delta-event fix; arithmetic equivalence and complete application RTL, no hardware/timing qualification',
+128:             'started_unix':time.time(),'inputs':{rel(Path(__file__)):sha(Path(__file__))},'profiles':{}}
+129:     try:
+130:         for profile,base in PROFILES.items():
+131:             folder=out/profile
+132:             folder.mkdir()
+133:             source=base/'rtl/video/gpu_accel.v'
+134:             original=source.read_text()
+135:             assert original.count(OLD)==1,profile
+136:             candidate=original.replace(OLD,NEW)
+137:             path=folder/'gpu_accel.v'
+138:             path.write_text(candidate)
+139:             (folder/'candidate.diff').write_text(''.join(difflib.unified_diff(
+140:                 original.splitlines(True),candidate.splitlines(True),fromfile=rel(source),tofile=rel(path))))
+141:             result['inputs'][rel(source)]=sha(source)
+142:             p={'source':rel(source),'source_sha256':sha(source),'candidate':rel(path),
+143:                'candidate_sha256':sha(path),'only_change':'four byte-local CSR accumulators','tests':{}}
+144:             result['profiles'][profile]=p
+145:             mux=folder/'mux'
+146:             mux.mkdir()
+147:             bench=mux/'tb.sv'
+148:             bench.write_text(mux_bench(candidate))
+149:             p['tests']['mux']=run_ivl(mux,bench,[],'PASS CSR FOUR STATE')
+150:             p['tests']['mux']['bench_sha256']=sha(bench)
+151:             if profile=='shared':
+152:                 continue
+153:             sources=[]
+154:             for relative in relative_sources:
+155:                 real=base/relative
+156:                 assert real.is_file(),real
+157:                 result['inputs'][rel(real)]=sha(real)
+158:                 if relative.suffix=='.v':
+159:                     sources.append(path if relative.name=='gpu_accel.v' else real)
+160:             for task,bench_name,marker in [('clear','tb_reviewed_r3.sv','PASS R19 REAL SLOT CLEAR'),
+161:                                           ('copy','tb_copy.sv','PASS R19 REAL SLOT COPY')]:
+162:                 run=folder/task
+163:                 run.mkdir()
+164:                 text=(HERE/bench_name).read_text()
+165:                 if profile=='prodock':
+166:                     old=',\n        .debug_state(),.debug_accept(),.observe_packet_words()'
+167:                     assert text.count(old)==1
+168:                     text=text.replace(old,'')
+169:                 bench=run/'tb.sv'
+170:                 bench.write_text(text)
+171:                 shutil.copy2(base/'rtl/video/font8x16.hex',run/'font8x16.hex')
+172:                 p['tests'][task]=run_ivl(run,bench,sources,marker)
+173:                 p['tests'][task]['bench_sha256']=sha(bench)
+174:                 p['tests'][task]['adaptations']=[] if profile=='neo' else ['remove three absent diagnostic output port connections only']
+175:         for name,digest in result['inputs'].items():
+176:             assert sha(ROOT/name)==digest,name
+177:         result['passed']=True
+178:     except Exception as exc:
+179:         result['error']=repr(exc)
+180:     finally:
+181:         result['finished_unix']=time.time()
+182:         (out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
+183:         print(json.dumps(result),flush=True)
+184:     if not result['passed']:
+185:         raise SystemExit(1)
+186: 
+187: if __name__=='__main__':
+188:     main()
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/result.json SHA256 81fe70cd53a4dc2f0a27384d6297433c4fa8799e5bf4814e381f1e56ff3332d9
+1: {
+2:   "passed": true,
+3:   "hardware_access": false,
+4:   "shared_sources_modified": false,
+5:   "scope": "TESTS-only CSR delta-event fix; arithmetic equivalence and complete application RTL, no hardware/timing qualification",
+6:   "started_unix": 1793057046.3506322,
+7:   "inputs": {
+8:     "TESTS/assisted_reviews_20261026/neo_fable_sim_01/check_csr_candidates.py": "92ac25f2e8448fc90d61205b53e1ce3278a36501011743e39a0dc4f028780c60",
+9:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_accel.v": "0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e",
+10:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geometry.v": "9f0b3183fdb6a856ccf15ff17dc87c7f008e3906edc7ece0c64f615beb4b5ca8",
+11:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geom_div.v": "d1c6206a9c32e0315263739a6ece4dc76398fe533ef5524799745d82c9499b7b",
+12:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/blitter.v": "c2f17b9944b83b667c2e06e59b5d2c4244b606c42fce46a769ca99da64f5833c",
+13:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_raster.v": "d54f68ec19b92cdde9364651b5c1c0e7ed6113549aa485124b89dbc669542bab",
+14:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v": "2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71",
+15:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_texture_cache.v": "1b6e2c46f0335f5741e321327881770d4690b4956641beaea1be6a6e031292b6",
+16:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_copy565.v": "c0cbb102eb701ae861cc389b30827b7ac856e3b4b3ff341cda092fd61ecd0741",
+17:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_perspective.v": "a3c98ba32adc408a1c855d47a802d7ffb0c105744746a018cdafe30f0504681c",
+18:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_triangle.v": "992dda01586192f7bd8c031f897e5a0810f61d4500879a807b7c6953f49126a1",
+19:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_blit_dma.v": "2118e643422cc732d3e8f52afb6115baeb81683f999df0affbc482a09113f20d",
+20:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/font_ram.v": "46bc4a89e4fb1321d3e1357b481d33beb303e21a74e57ad8b09cac1adec82edc",
+21:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_dcfifo.v": "449b5d7e65d3290f0b9cc1d5e574e09191d40bbfe8960f45374d9690e965103b",
+22:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/cdc_word.v": "6f2caebf6680fe1ffbf8bbbbf4e600c25181789cf8269bb5e2e54db23b12c848",
+23:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v": "b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5",
+24:     "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/font8x16.hex": "4846bbd5a627479a58a6fc2f7aec106c7566812f8340d82febd21dd8c63d879f",
+25:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_accel.v": "54e8f9cbfc09f4bda3ddbdd2df8bfc36f588718ebe583ca327da460a577aca35",
+26:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_geometry.v": "9bb0231c332306e68b89ed6b74b549a9e7b0f47e099cd5089758c9874dfb61fc",
+27:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_geom_div.v": "d1c6206a9c32e0315263739a6ece4dc76398fe533ef5524799745d82c9499b7b",
+28:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/blitter.v": "2bbc9e44547eac010f09fc91d59b65d1df2e69f7b8247e50f02b1f9d0c841b77",
+29:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_raster.v": "05a9e598be09e51349889cc72957542262a51e0a875606017f7df8a1f0124a0e",
+30:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_v1.v": "ab3e9d762f51267a226b1556df5867f777a8e9c7519fc706b1dc6b222a22404b",
+31:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_texture_cache.v": "461ff22e87b689518da2d654b79487e07a3cf4376a8e48e8ad3cbf53294c1443",
+32:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_copy565.v": "34ae725da505f234f6be2191a8ae813f4edbcab5ca7d88ec3ff4b471f3ba4538",
+33:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_perspective.v": "ea614c9510b3371116dabb5261a1e6e7393d946417c5d5c8479902a73e074236",
+34:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_triangle.v": "992dda01586192f7bd8c031f897e5a0810f61d4500879a807b7c6953f49126a1",
+35:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_blit_dma.v": "2118e643422cc732d3e8f52afb6115baeb81683f999df0affbc482a09113f20d",
+36:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/font_ram.v": "46bc4a89e4fb1321d3e1357b481d33beb303e21a74e57ad8b09cac1adec82edc",
+37:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ddr_dcfifo.v": "87dedbb9bf9d14b2f8737921200a77e9f6314369ea977ad9c1985d84a1dd7be4",
+38:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/cdc_word.v": "6f2caebf6680fe1ffbf8bbbbf4e600c25181789cf8269bb5e2e54db23b12c848",
+39:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ddr_gpu_arb.v": "b8908c16227eb73b370d7cf950b6153ad767d5e09e53acd8e29c29e4ab2170c5",
+40:     "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/font8x16.hex": "4846bbd5a627479a58a6fc2f7aec106c7566812f8340d82febd21dd8c63d879f",
+41:     "tang/rtl/video/gpu_accel.v": "7e30dbe8ca3c9b886ef3922b56a7ae4cc4fdfb12e80519885c5600531375957a"
+42:   },
+43:   "profiles": {
+44:     "neo": {
+45:       "source": "tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_accel.v",
+46:       "source_sha256": "0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e",
+47:       "candidate": "TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/gpu_accel.v",
+48:       "candidate_sha256": "1de1728190cde4ef8bfe5810e19fe28b466e15d12a66a6c1f630468c9fb80482",
+49:       "only_change": "four byte-local CSR accumulators",
+50:       "tests": {
+51:         "mux": {
+52:           "passed": true,
+53:           "command": [
+54:             "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+55:             "-B",
+56:             "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+57:             "-g2012",
+58:             "-s",
+59:             "tb",
+60:             "-o",
+61:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/mux/sim.vvp",
+62:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/mux/tb.sv"
+63:           ],
+64:           "logs": {
+65:             "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+66:             "simulation.log": "c4c54f026d8e91789184b8843d4f80dfd6973d85660069cda3c8ed9ea13b4cd2"
+67:           },
+68:           "bench_sha256": "dc2546e14d844e3685c8420583eee132060b29f9a6e4970371f3635b3c9d299a"
+69:         },
+70:         "clear": {
+71:           "passed": true,
+72:           "command": [
+73:             "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+74:             "-B",
+75:             "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+76:             "-g2012",
+77:             "-s",
+78:             "tb",
+79:             "-o",
+80:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/clear/sim.vvp",
+81:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/clear/tb.sv",
+82:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/gpu_accel.v",
+83:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geometry.v",
+84:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geom_div.v",
+85:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/blitter.v",
+86:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_raster.v",
+87:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v",
+88:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_texture_cache.v",
+89:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_copy565.v",
+90:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_perspective.v",
+91:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_triangle.v",
+92:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_blit_dma.v",
+93:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/font_ram.v",
+94:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_dcfifo.v",
+95:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/cdc_word.v",
+96:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v"
+97:           ],
+98:           "logs": {
+99:             "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+100:             "simulation.log": "f276d77fa4e8445b105d2f76325f4a1b1a0741f8522a7cba8404f438d7fed5a0"
+101:           },
+102:           "bench_sha256": "cef9de88b5e484c1b75f38788cf075ea81d438dcdaa84d9267c4b3e76a65eaa3",
+103:           "adaptations": []
+104:         },
+105:         "copy": {
+106:           "passed": true,
+107:           "command": [
+108:             "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+109:             "-B",
+110:             "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+111:             "-g2012",
+112:             "-s",
+113:             "tb",
+114:             "-o",
+115:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/copy/sim.vvp",
+116:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/copy/tb.sv",
+117:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/gpu_accel.v",
+118:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geometry.v",
+119:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_geom_div.v",
+120:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/blitter.v",
+121:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_raster.v",
+122:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_v1.v",
+123:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_texture_cache.v",
+124:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_copy565.v",
+125:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_perspective.v",
+126:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_triangle.v",
+127:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_blit_dma.v",
+128:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/font_ram.v",
+129:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_dcfifo.v",
+130:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/cdc_word.v",
+131:             "/home/michael/console/tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/board/ddr_gpu_arb.v"
+132:           ],
+133:           "logs": {
+134:             "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+135:             "simulation.log": "4134e86011ce31882041767d38a78ab6a9a59b11a1e3c7df41e5835ba8e25817"
+136:           },
+137:           "bench_sha256": "734b51c884069637b715a159a84df6f1540e3c759ec0de61e5e2f43b0ee0f0e5",
+138:           "adaptations": []
+139:         }
+140:       }
+141:     },
+142:     "prodock": {
+143:       "source": "tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_accel.v",
+144:       "source_sha256": "54e8f9cbfc09f4bda3ddbdd2df8bfc36f588718ebe583ca327da460a577aca35",
+145:       "candidate": "TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/gpu_accel.v",
+146:       "candidate_sha256": "a953a4ea67c400c572069c30033236b929043eee1b83bfd063f425a33e0bd357",
+147:       "only_change": "four byte-local CSR accumulators",
+148:       "tests": {
+149:         "mux": {
+150:           "passed": true,
+151:           "command": [
+152:             "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+153:             "-B",
+154:             "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+155:             "-g2012",
+156:             "-s",
+157:             "tb",
+158:             "-o",
+159:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/mux/sim.vvp",
+160:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/mux/tb.sv"
+161:           ],
+162:           "logs": {
+163:             "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+164:             "simulation.log": "ce25806605911e86459d1d870d8844686b1b335495bdfb8ddc72845d9cca0080"
+165:           },
+166:           "bench_sha256": "dc2546e14d844e3685c8420583eee132060b29f9a6e4970371f3635b3c9d299a"
+167:         },
+168:         "clear": {
+169:           "passed": true,
+170:           "command": [
+171:             "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+172:             "-B",
+173:             "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+174:             "-g2012",
+175:             "-s",
+176:             "tb",
+177:             "-o",
+178:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/clear/sim.vvp",
+179:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/clear/tb.sv",
+180:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/gpu_accel.v",
+181:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_geometry.v",
+182:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_geom_div.v",
+183:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/blitter.v",
+184:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_raster.v",
+185:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_v1.v",
+186:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_texture_cache.v",
+187:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_copy565.v",
+188:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_perspective.v",
+189:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_triangle.v",
+190:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_blit_dma.v",
+191:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/font_ram.v",
+192:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ddr_dcfifo.v",
+193:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/cdc_word.v",
+194:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ddr_gpu_arb.v"
+195:           ],
+196:           "logs": {
+197:             "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+198:             "simulation.log": "a6e7e03cc89faf6aab5bda7564ed8caef5be109174e05d232b10097805189266"
+199:           },
+200:           "bench_sha256": "aa63500c69a8f5a9f5b4c69ac2d98f4808ca3f743574d49855d62516a320652a",
+201:           "adaptations": [
+202:             "remove three absent diagnostic output port connections only"
+203:           ]
+204:         },
+205:         "copy": {
+206:           "passed": true,
+207:           "command": [
+208:             "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+209:             "-B",
+210:             "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+211:             "-g2012",
+212:             "-s",
+213:             "tb",
+214:             "-o",
+215:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/copy/sim.vvp",
+216:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/copy/tb.sv",
+217:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/gpu_accel.v",
+218:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_geometry.v",
+219:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_geom_div.v",
+220:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/blitter.v",
+221:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_raster.v",
+222:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_v1.v",
+223:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_texture_cache.v",
+224:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_copy565.v",
+225:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_perspective.v",
+226:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_triangle.v",
+227:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_blit_dma.v",
+228:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/font_ram.v",
+229:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ddr_dcfifo.v",
+230:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/cdc_word.v",
+231:             "/home/michael/console/tang/impl/gpu_geometry_g22r0/source/tang/rtl/board/ddr_gpu_arb.v"
+232:           ],
+233:           "logs": {
+234:             "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+235:             "simulation.log": "7af4632d76d4cbf1d6db358023d7a631c130d2d02aae6848ea80ce5ba6baf7dd"
+236:           },
+237:           "bench_sha256": "04797f43046752317934d1c74b0a592c4414aa0cab5e4c8e1e65763ce6efa969",
+238:           "adaptations": [
+239:             "remove three absent diagnostic output port connections only"
+240:           ]
+241:         }
+242:       }
+243:     },
+244:     "shared": {
+245:       "source": "tang/rtl/video/gpu_accel.v",
+246:       "source_sha256": "7e30dbe8ca3c9b886ef3922b56a7ae4cc4fdfb12e80519885c5600531375957a",
+247:       "candidate": "TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/shared/gpu_accel.v",
+248:       "candidate_sha256": "4ecc3dead46a940533c5e514d760592b972019cfdb2679ec5eec026bf3992874",
+249:       "only_change": "four byte-local CSR accumulators",
+250:       "tests": {
+251:         "mux": {
+252:           "passed": true,
+253:           "command": [
+254:             "/tmp/console-usb-sim-tools/extracted/usr/bin/iverilog",
+255:             "-B",
+256:             "/tmp/console-usb-sim-tools/extracted/usr/lib/x86_64-linux-gnu/ivl",
+257:             "-g2012",
+258:             "-s",
+259:             "tb",
+260:             "-o",
+261:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/shared/mux/sim.vvp",
+262:             "/home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/shared/mux/tb.sv"
+263:           ],
+264:           "logs": {
+265:             "compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+266:             "simulation.log": "38d94dfb493969c3e145ab4a085b941b52d0cb171d17e45f59f8aa7bf70c192e"
+267:           },
+268:           "bench_sha256": "dc2546e14d844e3685c8420583eee132060b29f9a6e4970371f3635b3c9d299a"
+269:         }
+270:       }
+271:     }
+272:   },
+273:   "finished_unix": 1793057053.5472195
+274: }
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/candidate.diff SHA256 ab867d79950d9497d69f594a5e212b3c139b9346064017d5cf38041a7a8e1808
+1: --- tang/impl/console_neo_n56r19_capture_ce_local/source/tang/rtl/video/gpu_accel.v
+2: +++ TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/gpu_accel.v
+3: @@ -153,11 +153,13 @@
+4:      genvar response_byte;
+5:      generate for(response_byte=0;response_byte<4;response_byte=response_byte+1)begin: read_response
+6:          integer k;
+7: +        reg [7:0] accumulator;
+8:          always @* begin
+9: -            response_data[response_byte*8+:8]=8'd0;
+10: +            accumulator=8'd0;
+11:              for(k=0;k<26;k=k+1)
+12: -                response_data[response_byte*8+:8]=response_data[response_byte*8+:8] |
+13: +                accumulator=accumulator |
+14:                      ({8{read_select[response_byte*26+k]}} & register_value[k][response_byte*8+:8]);
+15: +            response_data[response_byte*8+:8]=accumulator;
+16:          end
+17:      end endgenerate
+18:      wire [95:0] debug_blitter;
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/candidate.diff SHA256 0a13c511211f578e25ff6209be76d003c9701b927bcc74d4061fd30e2dff3391
+1: --- tang/impl/gpu_geometry_g22r0/source/tang/rtl/video/gpu_accel.v
+2: +++ TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/gpu_accel.v
+3: @@ -145,11 +145,13 @@
+4:      genvar response_byte;
+5:      generate for(response_byte=0;response_byte<4;response_byte=response_byte+1)begin: read_response
+6:          integer k;
+7: +        reg [7:0] accumulator;
+8:          always @* begin
+9: -            response_data[response_byte*8+:8]=8'd0;
+10: +            accumulator=8'd0;
+11:              for(k=0;k<26;k=k+1)
+12: -                response_data[response_byte*8+:8]=response_data[response_byte*8+:8] |
+13: +                accumulator=accumulator |
+14:                      ({8{read_select[response_byte*26+k]}} & register_value[k][response_byte*8+:8]);
+15: +            response_data[response_byte*8+:8]=accumulator;
+16:          end
+17:      end endgenerate
+18:      wire [11:0] font_addr;
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/clear/simulation.log SHA256 f276d77fa4e8445b105d2f76325f4a1b1a0741f8522a7cba8404f438d7fed5a0
+1: SAME_ADDRESS_PASS writes=2 native_grants=1
+2: NATIVE_INVARIANTS rises=14 ack_drops=13
+3: PASS R19 REAL SLOT CLEAR tests=13 bytes_per_check=73728 writes=14 loads=14 grants=13 acks=13 held=232 cmd_stall=62 data_stall=76 mem_half=6.666000
+4: /home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/clear/tb.sv:222: $finish called at 22397760 (1ps)
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/clear/simulation.log SHA256 a6e7e03cc89faf6aab5bda7564ed8caef5be109174e05d232b10097805189266
+1: SAME_ADDRESS_PASS writes=2 native_grants=1
+2: NATIVE_INVARIANTS rises=14 ack_drops=13
+3: PASS R19 REAL SLOT CLEAR tests=13 bytes_per_check=73728 writes=14 loads=14 grants=13 acks=13 held=227 cmd_stall=62 data_stall=76 mem_half=6.666000
+4: /home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/clear/tb.sv:221: $finish called at 22197780 (1ps)
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/copy/simulation.log SHA256 4134e86011ce31882041767d38a78ab6a9a59b11a1e3c7df41e5835ba8e25817
+1: PASS R19 REAL SLOT COPY reads=2 writes=2 loads=4 acks=4 bytes_per_check=73728 data_stall=57
+2: /home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/neo/copy/tb.sv:199: $finish called at 5786088 (1ps)
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/copy/simulation.log SHA256 7af4632d76d4cbf1d6db358023d7a631c130d2d02aae6848ea80ce5ba6baf7dd
+1: PASS R19 REAL SLOT COPY reads=2 writes=2 loads=4 acks=4 bytes_per_check=73728 data_stall=54
+2: /home/michael/console/TESTS/assisted_reviews_20261026/neo_fable_sim_01/csr_candidates_01/prodock/copy/tb.sv:198: $finish called at 5626104 (1ps)
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/tb_reviewed_r3.sv SHA256 cef9de88b5e484c1b75f38788cf075ea81d438dcdaa84d9267c4b3e76a65eaa3
+1: `timescale 1ns/1ps
+2: // Real frozen R19 gpu_accel + ddr_gpu_arb. Only the external DDR endpoint
+3: // is modeled here. No force/deposit, no replacement pending/accepted logic.
+4: module tb;
+5:     reg hc=0, mc=0, rst=0, hc_run=1, mc_run=1;
+6:     realtime mem_half=6.666;
+7:     always #6.25 if(hc_run) hc=~hc;
+8:     always #(mem_half) if(mc_run) mc=~mc;
+9:     reg sel=0, wr=0;
+10:     reg [31:0] address=0, data=0;
+11:     reg [1:0] trans=0;
+12:     wire hready;
+13:     wire [31:0] result;
+14:     wire bv,bw,br,brv;
+15:     wire [28:0] ba;
+16:     wire [255:0] bwd,brd;
+17:     wire [31:0] bm;
+18:     gpu_accel #(.FONT_FILE("font8x16.hex")) dut (
+19:         .hclk(hc),.hresetn(rst),.hsel(sel),.hwrite(wr),.haddr(address),.hwdata(data),.htrans(trans),
+20:         .hrdata(result),.hready(hready),.mem_clk(mc),.valid(bv),.write(bw),.addr(ba),
+21:         .wr_data(bwd),.wr_mask(bm),.ready(br),.rd_data(brd),.rd_valid(brv),
+22:         .debug_state(),.debug_accept(),.observe_packet_words());
+23:     wire me,mwe,mend;
+24:     wire [2:0] cmd;
+25:     wire [28:0] ma;
+26:     wire [255:0] md;
+27:     wire [31:0] mm;
+28:     reg mready=0, mwready=0;
+29:     integer tick=0, mode=0;
+30:     // mode1 independently blocks command acceptance, mode2 write-data
+31:     // acceptance, mode3 both. Mode0 has bounded, distinct periodic stalls.
+32:     always @(negedge mc)begin
+33:         tick++;
+34:         mready=rst && mode!=1 && mode!=3 && tick%7!=0;
+35:         mwready=rst && mode!=2 && mode!=3 && tick%11>2;
+36:     end
+37:     ddr_gpu_arb arb (
+38:         .clk(mc),.rst_n(rst),.c_en(1'b0),.c_cmd(3'b001),.c_addr(29'd0),.c_ready(),
+39:         .c_wr_en(1'b0),.c_wr_end(1'b0),.c_wr_data(256'd0),.c_wr_mask(32'hffffffff),
+40:         .c_wr_ready(),.c_rd_data(),.c_rd_valid(),.c_rd_end(),
+41:         .g_valid(1'b0),.g_addr(29'd0),.g_ready(),.g_data(),.g_data_valid(),
+42:         .b_valid(bv),.b_write(bw),.b_addr(ba),.b_wr_data(bwd),.b_wr_mask(bm),
+43:         .b_ready(br),.b_rd_data(brd),.b_rd_valid(brv),
+44:         .m_en(me),.m_cmd(cmd),.m_addr(ma),.m_ready(mready),.m_wr_en(mwe),.m_wr_end(mend),
+45:         .m_wr_data(md),.m_wr_mask(mm),.m_wr_ready(mwready),.m_rd_data(256'd0),
+46:         .m_rd_valid(1'b0),.m_rd_end(1'b0));
+47:     localparam BASE=32'h00800000, COLOR=32'h00800020, DEPTH=32'h00810000, BYTES=32'h12000;
+48:     reg [7:0] memory[0:BYTES-1],expected[0:BYTES-1];
+49:     integer writes=0, native_grants=0, returned_acks=0, slot_loads=0;
+50:     integer held_checks=0, command_only_blocked=0, data_only_blocked=0;
+51:     integer aborted_slots=0,canceled_acks=0;
+52:     reg old_native_issue;integer ack_drop_checks=0,native_rise_checks=0;
+53:     reg previous_rst=0,old_pixel_ack,old_native_valid;
+54:     integer negative=0;
+55:     integer address_byte, completed_tests=0;
+56:     reg old_pending,old_grant,old_active;
+57:     reg [317:0] old_payload;
+58:     always @(posedge mc) begin
+59:         old_pending=dut.v1_pending;
+60:         old_pixel_ack=dut.v1_accepted && dut.v1_select && !dut.u_v1.fetch_valid;
+61:         old_native_valid=dut.u_v1.u_pixels.native_valid;
+62:         old_native_issue=dut.u_v1.u_pixels.native_issue;
+63:         if(!rst && previous_rst)begin
+64:             if(dut.v1_pending)aborted_slots++;
+65:             if(dut.v1_accepted)canceled_acks++;
+66:         end
+67:         previous_rst=rst;
+68:         old_grant=dut.v1_pending && br;
+69:         old_active=rst && dut.mrst[1];
+70:         old_payload={dut.v1_tx_write,dut.v1_tx_addr,dut.v1_tx_data,dut.v1_tx_mask};
+71:         if(negative==2 && old_pending && mode!=0)old_payload[0]=!old_payload[0];
+72:         if(rst)begin
+73:             if(me)begin
+74:                 if(!mready || cmd!==0 || !mwe || !mend || !mwready)
+75:                     $fatal(1,"Unexpected/ungated DDR command: cmd=%h ready=%b/%b",cmd,mready,mwready);
+76:                 if(ma[2:0]!==0)$fatal(1,"DDR address alignment");
+77:                 address_byte=int'(ma)*4-BASE;
+78:                 if(address_byte<0 || address_byte+32>BYTES)$fatal(1,"Out of guarded region: %h",ma);
+79:                 for(integer b=0;b<32;b++)if(negative==1 ? mm[b]:!mm[b])memory[address_byte+b]=md[b*8+:8];
+80:                 writes++;
+81:             end
+82:             if(dut.mrst[1])begin
+83:                 if(!dut.v1_pending && dut.extended_request && !dut.v1_accepted)slot_loads++;
+84:                 if(old_grant)native_grants++;
+85:                 if(dut.v1_accepted)returned_acks++;
+86:                 if(dut.v1_pending && !mready && mwready)command_only_blocked++;
+87:                 if(dut.v1_pending && mready && !mwready)data_only_blocked++;
+88:                 if(dut.v1_pending && dut.legacy_valid)$fatal(1,"Simultaneous legacy/native owner");
+89:                 if(dut.v1_pending && (!dut.ext_active || !dut.v1_select))$fatal(1,"Pending native transaction lost owner");
+90:             end
+91:         end
+92:         #1;
+93:         if(rst && dut.mrst[1])begin
+94:             if(slot_loads-native_grants-aborted_slots!=int'(dut.v1_pending))$fatal(1,"Slot conservation per cycle");
+95:             if(native_grants-returned_acks-canceled_acks!=int'(dut.v1_accepted))$fatal(1,"ACK conservation per cycle");
+96:         end
+97:         if(old_active && rst && dut.mrst[1])begin
+98:             if(!old_native_valid && dut.u_v1.u_pixels.native_valid)begin
+99:                 native_rise_checks++;
+100:                 if(!old_native_issue)$fatal(1,"Native VALID rose outside issue state");
+101:             end
+102:             if(old_pixel_ack && old_native_valid && !dut.u_v1.u_pixels.native_valid)ack_drop_checks++;
+103:             if(old_pixel_ack && old_native_valid && dut.u_v1.u_pixels.native_valid)$fatal(1,"Native producer retained VALID after ACK");
+104:             if(dut.v1_accepted!==old_grant)$fatal(1,"Acceptance pulse is not delayed DDR grant");
+105:             if(old_pending)begin
+106:                 held_checks++;
+107:                 if({dut.v1_tx_write,dut.v1_tx_addr,dut.v1_tx_data,dut.v1_tx_mask}!==old_payload)
+108:                     $fatal(1,"Payload changed while slot held");
+109:             end
+110:         end
+111:     end
+112:     task automatic write_reg(input [31:0] a,input [31:0] d);
+113:         integer deadline;
+114:         @(negedge hc);sel=1;wr=1;trans=2;address=a;deadline=0;
+115:         do begin @(posedge hc);deadline++;if(deadline>20000)$fatal(1,"AHB address timeout");end while(!hready);
+116:         @(negedge hc);sel=0;trans=0;data=d;deadline=0;
+117:         do begin @(posedge hc);deadline++;if(deadline>20000)$fatal(1,"AHB data timeout");end while(!hready);
+118:         @(negedge hc);wr=0;
+119:     endtask
+120:     task automatic packet(input [255:0] words,input integer gap);
+121:         for(integer k=0;k<8;k++)begin
+122:             write_reg('h10,words[k*32+:32]);
+123:             repeat(gap+(k%3))@(negedge hc);
+124:         end
+125:     endtask
+126:     task automatic fence(input integer count);
+127:         integer deadline,fenced_writes;
+128:         deadline=0;
+129:         while(dut.done_count!=count && deadline<30000)begin @(negedge mc);deadline++;end
+130:         if(dut.done_count!=count)$fatal(1,"Fence timeout done=%0d expected=%0d pixel=%h pending=%b valid=%b ready=%b take=%b",
+131:             dut.done_count,count,dut.u_v1.u_pixels.state,dut.v1_pending,dut.u_v1.u_pixels.native_valid,br,arb.take_blitter);
+132:         fenced_writes=writes;
+133:         repeat(24)@(negedge mc);
+134:         if(writes!=fenced_writes)$fatal(1,"Late write after completion fence");
+135:         if(dut.v1_pending || dut.v1_accepted || dut.u_v1.u_pixels.native_valid || bv)
+136:             $fatal(1,"Transaction survived completion");
+137:         if(dut.v1_rejected || dut.command_bad || dut.command_lost || dut.queue_lost)
+138:             $fatal(1,"Unexpected error/rejection");
+139:     endtask
+140:     task automatic compare_memory;
+141:         for(integer k=0;k<BYTES;k++)if(memory[k]!==expected[k])
+142:             $fatal(1,"Memory/guard mismatch @%h got=%h expected=%h",BASE+k,memory[k],expected[k]);
+143:         completed_tests++;
+144:     endtask
+145:     task automatic target;
+146:         packet({96'd0,32'h01000100,32'h00800010,32'(DEPTH),32'(COLOR),32'h16000000},1);
+147:     endtask
+148:     task automatic clear(input integer flags,x,y,w,h,input [15:0] color,depth);
+149:         packet({64'd0,32'((w<<16)|h),32'((x<<16)|y),16'd0,depth,16'd0,color,32'(flags),32'h1c000000},2);
+150:     endtask
+151:     task automatic expected_clear(input integer flags,x,y,w,h,input [15:0] color,depth);
+152:         integer p;
+153:         for(integer yy=y;yy<y+h;yy++)for(integer xx=x;xx<x+w;xx++)begin
+154:             if(flags&1)begin p=COLOR-BASE+yy*256+xx*2;expected[p]=color[7:0];expected[p+1]=color[15:8];end
+155:             if(flags&2)begin p=DEPTH-BASE+yy*256+xx*2;expected[p]=depth[7:0];expected[p+1]=depth[15:8];end
+156:         end
+157:     endtask
+158:     task automatic wait_pending;
+159:         integer deadline;
+160:         deadline=0;
+161:         while(!dut.v1_pending && deadline<10000)begin @(negedge mc);deadline++;end
+162:         if(!dut.v1_pending)$fatal(1,"No pending request to exercise backpressure/reset");
+163:     endtask
+164:     task automatic reset_all;
+165:         @(negedge hc);rst=0;sel=0;wr=0;trans=0;
+166:         repeat(12)@(negedge mc);
+167:         if(dut.v1_pending || dut.v1_accepted || bv)$fatal(1,"Reset did not flush native request");
+168:         @(negedge hc);rst=1;
+169:         repeat(40)@(negedge mc);
+170:     endtask
+171:     integer before_writes,before_grants;
+172:     initial begin
+173:         if($value$plusargs("mem_half=%f",mem_half))begin end
+174:         if($value$plusargs("negative=%d",negative))begin end
+175:         for(integer k=0;k<BYTES;k++)begin memory[k]=8'(k*37+19);expected[k]=memory[k];end
+176:         reset_all();target();fence(1);compare_memory();
+177:         packet({160'd0,32'h00200001,32'h00200000,32'h0100a600},0);fence(2);
+178:         for(integer k=32;k<64;k++)expected[k]=8'ha6;
+179:         compare_memory();
+180:         before_writes=writes;clear(0,0,0,16,1,16'h5aa5,16'h7bde);fence(3);compare_memory();
+181:         clear(3,0,0,0,0,16'h5aa5,16'h7bde);fence(4);compare_memory();
+182:         if(writes!=before_writes)$fatal(1,"No-op CLEAR issued memory write");
+183:         clear(1,0,0,16,1,16'h5aa5,16'h7bde);fence(5);
+184:         expected_clear(1,0,0,16,1,16'h5aa5,16'h7bde);compare_memory();
+185:         if(writes!=before_writes+1)$fatal(1,"Same-address CLEAR burst duplication/loss");
+186:         $display("SAME_ADDRESS_PASS writes=%0d native_grants=%0d",writes,native_grants);
+187:         // Block each handshake input independently, then prove recovery.
+188:         for(integer blocking=1;blocking<=2;blocking++)begin
+189:             mode=blocking;repeat(4)@(negedge mc);before_writes=writes;
+190:             clear(1,16*blocking,1,16,1,16'h1234+16'(blocking),16'h7bde);wait_pending();
+191:             repeat(80)@(negedge mc);
+192:             if(writes!=before_writes)$fatal(1,"Write escaped independent backpressure");
+193:             compare_memory();mode=0;fence(5+blocking);
+194:             expected_clear(1,16*blocking,1,16,1,16'h1234+16'(blocking),16'h7bde);compare_memory();
+195:             if(writes!=before_writes+1)$fatal(1,"Released write duplicated/lost");
+196:         end
+197:         before_writes=writes;clear(3,3,2,19,2,16'h2345,16'h6789);fence(8);
+198:         expected_clear(3,3,2,19,2,16'h2345,16'h6789);compare_memory();
+199:         if(writes!=before_writes+8)$fatal(1,"Partial masks/burst count");
+200:         // Stop only the AHB clock after pending is present; GPU/arbiter
+201:         // must finish autonomously when DDR becomes ready.
+202:         mode=3;clear(1,48,4,16,1,16'hbeef,16'h7bde);wait_pending();
+203:         @(negedge hc);hc_run=0;repeat(20)@(negedge mc);mode=0;fence(9);
+204:         hc_run=1;expected_clear(1,48,4,16,1,16'hbeef,16'h7bde);compare_memory();
+205:         // Abort a held request. No stale write may replay after reset.
+206:         mode=3;clear(1,64,5,16,1,16'hdead,16'h7bde);wait_pending();
+207:         repeat(16)@(negedge mc);before_writes=writes;reset_all();mode=0;
+208:         repeat(200)@(negedge mc);
+209:         if(writes!=before_writes || dut.done_count!=0)$fatal(1,"Pre-reset transaction replay");
+210:         compare_memory();target();fence(1);
+211:         clear(1,64,5,16,1,16'hcafe,16'h7bde);fence(2);
+212:         expected_clear(1,64,5,16,1,16'hcafe,16'h7bde);compare_memory();
+213:         if(writes!=before_writes+1)$fatal(1,"Post-reset write count");
+214:         if(native_grants!=returned_acks+canceled_acks || slot_loads!=native_grants+aborted_slots || aborted_slots!=1)
+215:             $fatal(1,"Grant/ACK/slot conservation: loads=%0d grants=%0d ack=%0d",slot_loads,native_grants,returned_acks);
+216:         if(ack_drop_checks!=returned_acks || native_rise_checks!=slot_loads)$fatal(1,"Native issue/ACK assertions vacuous");
+217:         $display("NATIVE_INVARIANTS rises=%0d ack_drops=%0d",native_rise_checks,ack_drop_checks);
+218:         if(held_checks<160 || command_only_blocked<50 || data_only_blocked<50)
+219:             $fatal(1,"Missing independent stall coverage");
+220:         $display("PASS R19 REAL SLOT CLEAR tests=%0d bytes_per_check=%0d writes=%0d loads=%0d grants=%0d acks=%0d held=%0d cmd_stall=%0d data_stall=%0d mem_half=%f",
+221:             completed_tests,BYTES,writes,slot_loads,native_grants,returned_acks,held_checks,command_only_blocked,data_only_blocked,mem_half);
+222:         $finish;
+223:     end
+224:     initial begin #10000000;$fatal(1,"Global bounded timeout");end
+225: endmodule
+
+SOURCE TESTS/assisted_reviews_20261026/neo_fable_sim_01/tb_copy.sv SHA256 734b51c884069637b715a159a84df6f1540e3c759ec0de61e5e2f43b0ee0f0e5
+1: `timescale 1ns/1ps
+2: // Real frozen R19 gpu_accel + ddr_gpu_arb. Only the external DDR endpoint
+3: // is modeled here. No force/deposit, no replacement pending/accepted logic.
+4: module tb;
+5:     reg hc=0, mc=0, rst=0, hc_run=1, mc_run=1;
+6:     realtime mem_half=6.666;
+7:     always #6.25 if(hc_run) hc=~hc;
+8:     always #(mem_half) if(mc_run) mc=~mc;
+9:     reg sel=0, wr=0;
+10:     reg [31:0] address=0, data=0;
+11:     reg [1:0] trans=0;
+12:     wire hready;
+13:     wire [31:0] result;
+14:     wire bv,bw,br,brv;
+15:     wire [28:0] ba;
+16:     wire [255:0] bwd,brd;
+17:     wire [31:0] bm;
+18:     gpu_accel #(.FONT_FILE("font8x16.hex")) dut (
+19:         .hclk(hc),.hresetn(rst),.hsel(sel),.hwrite(wr),.haddr(address),.hwdata(data),.htrans(trans),
+20:         .hrdata(result),.hready(hready),.mem_clk(mc),.valid(bv),.write(bw),.addr(ba),
+21:         .wr_data(bwd),.wr_mask(bm),.ready(br),.rd_data(brd),.rd_valid(brv),
+22:         .debug_state(),.debug_accept(),.observe_packet_words());
+23:     wire me,mwe,mend;
+24:     wire [2:0] cmd;
+25:     wire [28:0] ma;
+26:     wire [255:0] md;
+27:     wire [31:0] mm;
+28:     reg mready=0, mwready=0;
+29:     integer tick=0, mode=0;
+30:     reg model_rv=0;reg [255:0] model_rd=0;
+31:     integer read_due=-1,read_address=0,reads=0;
+32:     // mode1 independently blocks command acceptance, mode2 write-data
+33:     // acceptance, mode3 both. Mode0 has bounded, distinct periodic stalls.
+34:     always @(negedge mc)begin
+35:         tick++;
+36:         model_rv=0;
+37:         if(read_due==tick)begin
+38:             model_rv=1;read_due=-1;
+39:             for(integer k=0;k<32;k++)model_rd[k*8+:8]=memory[read_address+k];
+40:         end
+41:         mready=rst && mode!=1 && mode!=3 && tick%7!=0;
+42:         mwready=rst && mode!=2 && mode!=3 && tick%11>2;
+43:     end
+44:     ddr_gpu_arb arb (
+45:         .clk(mc),.rst_n(rst),.c_en(1'b0),.c_cmd(3'b001),.c_addr(29'd0),.c_ready(),
+46:         .c_wr_en(1'b0),.c_wr_end(1'b0),.c_wr_data(256'd0),.c_wr_mask(32'hffffffff),
+47:         .c_wr_ready(),.c_rd_data(),.c_rd_valid(),.c_rd_end(),
+48:         .g_valid(1'b0),.g_addr(29'd0),.g_ready(),.g_data(),.g_data_valid(),
+49:         .b_valid(bv),.b_write(bw),.b_addr(ba),.b_wr_data(bwd),.b_wr_mask(bm),
+50:         .b_ready(br),.b_rd_data(brd),.b_rd_valid(brv),
+51:         .m_en(me),.m_cmd(cmd),.m_addr(ma),.m_ready(mready),.m_wr_en(mwe),.m_wr_end(mend),
+52:         .m_wr_data(md),.m_wr_mask(mm),.m_wr_ready(mwready),.m_rd_data(model_rd),
+53:         .m_rd_valid(model_rv),.m_rd_end(model_rv));
+54:     localparam BASE=32'h00800000, COLOR=32'h00800020, DEPTH=32'h00810000, BYTES=32'h12000;
+55:     reg [7:0] memory[0:BYTES-1],expected[0:BYTES-1];
+56:     integer writes=0, native_grants=0, returned_acks=0, slot_loads=0;
+57:     integer held_checks=0, command_only_blocked=0, data_only_blocked=0;
+58:     integer aborted_slots=0,canceled_acks=0;
+59:     reg previous_rst=0,old_pixel_ack,old_native_valid;
+60:     integer negative=0;
+61:     integer address_byte, completed_tests=0;
+62:     reg old_pending,old_grant,old_active;
+63:     reg [317:0] old_payload;
+64:     always @(posedge mc) begin
+65:         old_pending=dut.v1_pending;
+66:         old_pixel_ack=dut.v1_accepted && dut.v1_select && !dut.u_v1.fetch_valid;
+67:         old_native_valid=dut.u_v1.u_pixels.native_valid;
+68:         if(!rst && previous_rst)begin
+69:             if(dut.v1_pending)aborted_slots++;
+70:             if(dut.v1_accepted)canceled_acks++;
+71:         end
+72:         previous_rst=rst;
+73:         old_grant=dut.v1_pending && br;
+74:         old_active=rst && dut.mrst[1];
+75:         old_payload={dut.v1_tx_write,dut.v1_tx_addr,dut.v1_tx_data,dut.v1_tx_mask};
+76:         if(negative==2 && old_pending && mode!=0)old_payload[0]=!old_payload[0];
+77:         if(rst)begin
+78:             if(me)begin
+79:                 if(!mready || (cmd!==0 && cmd!==1) || (cmd==0 && (!mwe || !mend || !mwready)) || (cmd==1 && mwe))
+80:                     $fatal(1,"Unexpected/ungated DDR command: cmd=%h ready=%b/%b",cmd,mready,mwready);
+81:                 if(ma[2:0]!==0)$fatal(1,"DDR address alignment");
+82:                 address_byte=int'(ma)*4-BASE;
+83:                 if(address_byte<0 || address_byte+32>BYTES)$fatal(1,"Out of guarded region: %h",ma);
+84:                 if(cmd==0)begin
+85:                     for(integer b=0;b<32;b++)if(!mm[b])memory[address_byte+b]=md[b*8+:8];
+86:                     writes++;
+87:                 end else begin
+88:                     if(read_due!=-1)$fatal(1,"Read model queue overrun");
+89:                     read_address=address_byte;read_due=tick+5;reads++;
+90:                 end
+91:             end
+92:             if(dut.mrst[1])begin
+93:                 if(!dut.v1_pending && dut.extended_request && !dut.v1_accepted)slot_loads++;
+94:                 if(old_grant)native_grants++;
+95:                 if(dut.v1_accepted)returned_acks++;
+96:                 if(dut.v1_pending && !mready && mwready)command_only_blocked++;
+97:                 if(dut.v1_pending && mready && !mwready)data_only_blocked++;
+98:                 if(dut.v1_pending && dut.legacy_valid)$fatal(1,"Simultaneous legacy/native owner");
+99:                 if(dut.v1_pending && (!dut.ext_active || !dut.v1_select))$fatal(1,"Pending native transaction lost owner");
+100:             end
+101:         end
+102:         #1;
+103:         if(rst && dut.mrst[1])begin
+104:             if(slot_loads-native_grants-aborted_slots!=int'(dut.v1_pending))$fatal(1,"Slot conservation per cycle");
+105:             if(native_grants-returned_acks-canceled_acks!=int'(dut.v1_accepted))$fatal(1,"ACK conservation per cycle");
+106:         end
+107:         if(old_active && rst && dut.mrst[1])begin
+108:             if(old_pixel_ack && old_native_valid && dut.u_v1.u_pixels.native_valid)$fatal(1,"Native producer retained VALID after ACK");
+109:             if(dut.v1_accepted!==old_grant)$fatal(1,"Acceptance pulse is not delayed DDR grant");
+110:             if(old_pending)begin
+111:                 held_checks++;
+112:                 if({dut.v1_tx_write,dut.v1_tx_addr,dut.v1_tx_data,dut.v1_tx_mask}!==old_payload)
+113:                     $fatal(1,"Payload changed while slot held");
+114:             end
+115:         end
+116:     end
+117:     task automatic write_reg(input [31:0] a,input [31:0] d);
+118:         integer deadline;
+119:         @(negedge hc);sel=1;wr=1;trans=2;address=a;deadline=0;
+120:         do begin @(posedge hc);deadline++;if(deadline>20000)$fatal(1,"AHB address timeout");end while(!hready);
+121:         @(negedge hc);sel=0;trans=0;data=d;deadline=0;
+122:         do begin @(posedge hc);deadline++;if(deadline>20000)$fatal(1,"AHB data timeout");end while(!hready);
+123:         @(negedge hc);wr=0;
+124:     endtask
+125:     task automatic packet(input [255:0] words,input integer gap);
+126:         for(integer k=0;k<8;k++)begin
+127:             write_reg('h10,words[k*32+:32]);
+128:             repeat(gap+(k%3))@(negedge hc);
+129:         end
+130:     endtask
+131:     task automatic fence(input integer count);
+132:         integer deadline,fenced_writes;
+133:         deadline=0;
+134:         while(dut.done_count!=count && deadline<30000)begin @(negedge mc);deadline++;end
+135:         if(dut.done_count!=count)$fatal(1,"Fence timeout done=%0d expected=%0d pixel=%h pending=%b valid=%b ready=%b take=%b",
+136:             dut.done_count,count,dut.u_v1.u_pixels.state,dut.v1_pending,dut.u_v1.u_pixels.native_valid,br,arb.take_blitter);
+137:         fenced_writes=writes;
+138:         repeat(24)@(negedge mc);
+139:         if(writes!=fenced_writes)$fatal(1,"Late write after completion fence");
+140:         if(dut.v1_pending || dut.v1_accepted || dut.u_v1.u_pixels.native_valid || bv)
+141:             $fatal(1,"Transaction survived completion");
+142:         if(dut.v1_rejected || dut.command_bad || dut.command_lost || dut.queue_lost)
+143:             $fatal(1,"Unexpected error/rejection");
+144:     endtask
+145:     task automatic compare_memory;
+146:         for(integer k=0;k<BYTES;k++)if(memory[k]!==expected[k])
+147:             $fatal(1,"Memory/guard mismatch @%h got=%h expected=%h",BASE+k,memory[k],expected[k]);
+148:         completed_tests++;
+149:     endtask
+150:     task automatic target;
+151:         packet({96'd0,32'h01000100,32'h00800010,32'(DEPTH),32'(COLOR),32'h16000000},1);
+152:     endtask
+153:     task automatic clear(input integer flags,x,y,w,h,input [15:0] color,depth);
+154:         packet({64'd0,32'((w<<16)|h),32'((x<<16)|y),16'd0,depth,16'd0,color,32'(flags),32'h1c000000},2);
+155:     endtask
+156:     task automatic expected_clear(input integer flags,x,y,w,h,input [15:0] color,depth);
+157:         integer p;
+158:         for(integer yy=y;yy<y+h;yy++)for(integer xx=x;xx<x+w;xx++)begin
+159:             if(flags&1)begin p=COLOR-BASE+yy*256+xx*2;expected[p]=color[7:0];expected[p+1]=color[15:8];end
+160:             if(flags&2)begin p=DEPTH-BASE+yy*256+xx*2;expected[p]=depth[7:0];expected[p+1]=depth[15:8];end
+161:         end
+162:     endtask
+163:     task automatic wait_pending;
+164:         integer deadline;
+165:         deadline=0;
+166:         while(!dut.v1_pending && deadline<10000)begin @(negedge mc);deadline++;end
+167:         if(!dut.v1_pending)$fatal(1,"No pending request to exercise backpressure/reset");
+168:     endtask
+169:     task automatic reset_all;
+170:         @(negedge hc);rst=0;sel=0;wr=0;trans=0;
+171:         repeat(12)@(negedge mc);
+172:         if(dut.v1_pending || dut.v1_accepted || bv)$fatal(1,"Reset did not flush native request");
+173:         @(negedge hc);rst=1;
+174:         repeat(40)@(negedge mc);
+175:     endtask
+176:     task automatic copy(input integer sx,dx,w);
+177:         packet({32'd0,32'((w<<16)|1),32'(dx<<16),32'(sx<<16),32'h00000020,32'h00100001,32'h00808000,32'h1d000000},1);
+178:     endtask
+179:     task automatic expect_copy(input integer sx,dx,w);
+180:         for(integer k=0;k<w*2;k++)expected[COLOR-BASE+dx*2+k]=memory['h8000+sx*2+k];
+181:     endtask
+182:     integer limit;
+183:     initial begin
+184:         for(integer k=0;k<BYTES;k++)begin memory[k]=8'(k*37+19);expected[k]=memory[k];end
+185:         reset_all();target();fence(1);compare_memory();
+186:         copy(0,0,16);fence(2);expect_copy(0,0,16);compare_memory();
+187:         if(reads!=1 || writes!=1 || native_grants!=2)$fatal(1,"COPY16 expected one read and one write");
+188:         // Data-only backpressure must allow the source read, then hold write.
+189:         for(integer k=0;k<32;k++)begin memory['h8000+k]=8'(k*53+41);expected['h8000+k]=memory['h8000+k];end
+190:         mode=2;repeat(4)@(negedge mc);copy(5,3,7);limit=0;
+191:         while(!(dut.v1_pending && dut.v1_tx_write) && limit<10000)begin @(negedge mc);limit++;end
+192:         if(limit==10000)$fatal(1,"COPY never reached held write after read");
+193:         repeat(60)@(negedge mc);compare_memory();
+194:         if(reads!=2 || writes!=1)$fatal(1,"Read/write independent backpressure");
+195:         mode=0;fence(3);expect_copy(5,3,7);compare_memory();
+196:         if(reads!=2 || writes!=2 || slot_loads!=4 || native_grants!=4 || returned_acks!=4)$fatal(1,"COPY conservation");
+197:         if(dut.u_v1.u_pixels.native_valid)$fatal(1,"COPY accidentally uses native_valid");
+198:         $display("PASS R19 REAL SLOT COPY reads=%0d writes=%0d loads=%0d acks=%0d bytes_per_check=%0d data_stall=%0d",reads,writes,slot_loads,returned_acks,BYTES,data_only_blocked);
+199:         $finish;
+200:     end
+201:     initial begin #10000000;$fatal(1,"Global bounded timeout");end
+202: endmodule

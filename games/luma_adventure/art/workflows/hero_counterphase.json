@@ -1,0 +1,98 @@
+{
+  "load": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "luma_hero_stride_b_00001_.png [output]"
+    }
+  },
+  "legs": {
+    "class_type": "ImageCrop",
+    "inputs": {
+      "image": [
+        "load",
+        0
+      ],
+      "x": 0,
+      "y": 350,
+      "width": 512,
+      "height": 162
+    }
+  },
+  "counter": {
+    "class_type": "ImageFlip",
+    "inputs": {
+      "image": [
+        "legs",
+        0
+      ],
+      "flip_method": "y-axis: horizontally"
+    }
+  },
+  "combine": {
+    "class_type": "ImageCompositeMasked",
+    "inputs": {
+      "destination": [
+        "load",
+        0
+      ],
+      "source": [
+        "counter",
+        0
+      ],
+      "x": 0,
+      "y": 350,
+      "resize_source": false
+    }
+  },
+  "model": {
+    "class_type": "LoadBackgroundRemovalModel",
+    "inputs": {
+      "bg_removal_name": "birefnet.safetensors"
+    }
+  },
+  "mask": {
+    "class_type": "RemoveBackground",
+    "inputs": {
+      "bg_removal_model": [
+        "model",
+        0
+      ],
+      "image": [
+        "combine",
+        0
+      ]
+    }
+  },
+  "invert": {
+    "class_type": "InvertMask",
+    "inputs": {
+      "mask": [
+        "mask",
+        0
+      ]
+    }
+  },
+  "rgba": {
+    "class_type": "JoinImageWithAlpha",
+    "inputs": {
+      "image": [
+        "combine",
+        0
+      ],
+      "alpha": [
+        "invert",
+        0
+      ]
+    }
+  },
+  "save": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "rgba",
+        0
+      ],
+      "filename_prefix": "luma_hero_counterphase"
+    }
+  }
+}

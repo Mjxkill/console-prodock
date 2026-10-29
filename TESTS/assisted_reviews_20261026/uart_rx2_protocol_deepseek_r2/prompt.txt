@@ -1,0 +1,264 @@
+You are an independent engineering reviewer helping a real FPGA console project. Analyze ONLY the supplied packet. No tools, file modifications or hardware actions. Separate facts, hypotheses and missing evidence. Cite supplied filenames/line numbers. Do not claim to have executed tests. Prefer concrete minimal patches and discriminating tests over generic advice. Answer in French. User-facing quality and reproducible proof matter.
+
+TASK FOCUS:
+Concrete contradictions and minimal fixes: bounded Linux IO, checkpoint retries, shell inertness, malformed/truncated header, duplicate ACK, ENOSPC rollback. No tools or hardware.
+
+EVIDENCE PACKET:
+Review of NEW standalone temporary RX2 protocol, not deployed. Prior RX had no deadline and block116 stalled; preserve old receiver. Pure Base64+NUL host wire after launch (no LF/CR). Header CRC, payload CRC, session nonce, checkpoint offset+prefixCRC. Sender retries only explicit coherent NACK; after silence waits fresh wrapper RETURN before CtrlU/LF. Static RV32 ELF13132bytes. Find concrete remaining silent errors, deadline hazards, early shell return, resume/duplicate mistakes. Propose small fixes and focused tests, no general architecture. SIGKILL/kernel D-state/output unavailable outside guaranteed exit delivery. IO caller exclusive lock and verified bootstrap remain separate.
+
+FILE receiver.c
+1: #define _GNU_SOURCE
+2: /* Temporary userspace receiver. No board, GPU, SD or historical RX access. */
+3: #include <errno.h>
+4: #include <fcntl.h>
+5: #include <poll.h>
+6: #include <signal.h>
+7: #include <stdint.h>
+8: #include <string.h>
+9: #include <sys/stat.h>
+10: #include <termios.h>
+11: #include <time.h>
+12: #include <unistd.h>
+13: 
+14: #define BLOCK 512u
+15: #define HEADER 44u
+16: #define ARMOR 744u
+17: #define MAXFILE (32u*1024u*1024u)
+18: enum { DONE=0, STOPPED=1, IDLE=2, TOTAL=3, IO=4, ARGS=5, SIGNAL=6, RESUME=7, BAD_LIMIT=8 };
+19: static volatile sig_atomic_t stopped;
+20: static uint8_t nonce[16];
+21: static char nonce_hex[33];
+22: static uint32_t committed, running_crc, nextseq;
+23: static uint64_t end_ms;
+24: static int flags0=-1,flags1=-1,have_term;
+25: static struct termios saved_term;
+26: static uint64_t now(void){struct timespec t;if(clock_gettime(CLOCK_MONOTONIC,&t))return UINT64_MAX;return(uint64_t)t.tv_sec*1000u+(unsigned)t.tv_nsec/1000000u;}
+27: static uint32_t crc_more(uint32_t crc,const uint8_t *p,unsigned n){crc=~crc;while(n--){crc^=*p++;for(unsigned j=0;j<8;j++)crc=(crc>>1)^(0xedb88320u&-(crc&1));}return~crc;}
+28: static uint32_t u32(const uint8_t*p){return(uint32_t)p[0]|(uint32_t)p[1]<<8|(uint32_t)p[2]<<16|(uint32_t)p[3]<<24;}
+29: static void signal_stop(int sig){(void)sig;stopped=1;}
+30: static int hexval(int c){if(c>='0'&&c<='9')return c-'0';if(c>='a'&&c<='f')return c-'a'+10;return-1;}
+31: static int number(const char*s,uint32_t*v,int base){uint32_t n=0;unsigned k=0;for(;*s;s++,k++){int d=base==16?hexval(*s):(*s>='0'&&*s<='9'?*s-'0':-1);if(d<0||n>(UINT32_MAX-(unsigned)d)/(unsigned)base)return 0;n=n*base+(unsigned)d;}*v=n;return k>0;}
+32: static int waitfd(int fd,short events,uint64_t deadline,int stop_sensitive){for(;;){uint64_t t=now();if((stop_sensitive&&stopped)||t>=deadline)return 0;unsigned remain=(unsigned)(deadline-t);struct pollfd p={fd,events,0};int q=poll(&p,1,remain>1000?1000:(int)remain);if(q>0)return(p.revents&events)!=0;if(q<0&&errno!=EINTR)return 0;}}
+33: static int sendall(const void*data,unsigned n,uint64_t deadline){const uint8_t*p=data;while(n){if(!waitfd(1,POLLOUT,deadline,0))return 0;ssize_t k=write(1,p,n);if(k<0&&(errno==EAGAIN||errno==EINTR))continue;if(k<=0)return 0;p+=k;n-=(unsigned)k;}return 1;}
+34: static void puthex(char*p,uint32_t v){for(unsigned i=0;i<8;i++){p[7-i]="0123456789abcdef"[v&15];v>>=4;}}
+35: static int reply(char kind,unsigned reason){
+36:  char b[90];unsigned n=0;memcpy(b+n,"RX2 ",4);n+=4;memcpy(b+n,nonce_hex,32);n+=32;b[n++]=' ';b[n++]=kind;
+37:  uint32_t a[]={nextseq,committed,running_crc,reason};for(unsigned i=0;i<4;i++){b[n++]=' ';puthex(b+n,a[i]);n+=8;}
+38:  uint32_t h=crc_more(0,(const uint8_t*)b,n);b[n++]=' ';puthex(b+n,h);n+=8;b[n++]='\n';
+39:  return sendall(b,n,now()+1000);
+40: }
+41: static void restore(void){if(have_term)tcsetattr(0,TCSANOW,&saved_term);if(flags0>=0)fcntl(0,F_SETFL,flags0);if(flags1>=0)fcntl(1,F_SETFL,flags1);}
+42: static int b64val(int c){if(c>='A'&&c<='Z')return c-'A';if(c>='a'&&c<='z')return c-'a'+26;if(c>='0'&&c<='9')return c-'0'+52;if(c=='+')return 62;if(c=='/')return 63;return-1;}
+43: static int decode(const char*s,unsigned n,uint8_t*out){
+44:  if(!n||(n&3)||n>ARMOR)return-1;unsigned k=0;
+45:  for(unsigned i=0;i<n;i+=4){int a=b64val(s[i]),b=b64val(s[i+1]),c=b64val(s[i+2]),d=b64val(s[i+3]);if(a<0||b<0)return-1;out[k++]=(uint8_t)((a<<2)|(b>>4));
+46:   if(s[i+2]=='='){if(s[i+3]!='='||i+4!=n||(b&15))return-1;break;}if(c<0)return-1;out[k++]=(uint8_t)((b<<4)|(c>>2));
+47:   if(s[i+3]=='='){if(i+4!=n||(c&3))return-1;break;}if(d<0)return-1;out[k++]=(uint8_t)((c<<6)|d);
+48:  }return(int)k;
+49: }
+50: static int safe_path(const char*p){if(strncmp(p,"/tmp/rx2-",9)||strlen(p)>220||strstr(p,".."))return 0;for(const char*s=p+9;*s;s++)if(!((*s>='a'&&*s<='z')||(*s>='0'&&*s<='9')||*s=='-'||*s=='_'||*s=='.'||*s=='/'))return 0;return p[9]!=0;}
+51: int main(int argc,char**argv){
+52:  uint32_t total=0,wantcrc=0,idle=0,limit=0;int fd=-1,result=ARGS,ready=0;uint8_t prefix[4096];
+53:  if(argc!=8||!safe_path(argv[1])||strlen(argv[2])!=32||!number(argv[3],&total,10)||total>MAXFILE||!number(argv[4],&wantcrc,16)||!number(argv[6],&idle,10)||idle<100||idle>30000||!number(argv[7],&limit,10)||limit<idle||limit>3600000)return ARGS;
+54:  if(strcmp(argv[5],"new")&&strcmp(argv[5],"resume"))return ARGS;
+55:  for(unsigned i=0;i<16;i++){int a=hexval(argv[2][i*2]),b=hexval(argv[2][i*2+1]);if(a<0||b<0)return ARGS;nonce[i]=(uint8_t)(a*16+b);}memcpy(nonce_hex,argv[2],33);
+56:  end_ms=now()+limit;
+57:  struct sigaction sa;memset(&sa,0,sizeof(sa));sa.sa_handler=signal_stop;sigemptyset(&sa.sa_mask);sigaction(SIGINT,&sa,NULL);sigaction(SIGTERM,&sa,NULL);sigaction(SIGHUP,&sa,NULL);sa.sa_handler=SIG_IGN;sigaction(SIGPIPE,&sa,NULL);
+58:  /* Read both saved flags before altering either: they may share an OFD. */
+59:  flags0=fcntl(0,F_GETFL);flags1=fcntl(1,F_GETFL);if(flags0<0||flags1<0)goto done;
+60:  if(fcntl(0,F_SETFL,flags0|O_NONBLOCK)||fcntl(1,F_SETFL,flags1|O_NONBLOCK))goto done;
+61:  if(!tcgetattr(0,&saved_term)){struct termios raw=saved_term;cfmakeraw(&raw);have_term=1;if(tcsetattr(0,TCSANOW,&raw))goto done;}
+62:  fd=open(argv[1],O_RDWR|O_CLOEXEC|O_NOFOLLOW|(argv[5][0]=='n'?(O_CREAT|O_EXCL):0),0600);if(fd<0){result=IO;goto done;}
+63:  struct stat st;if(fstat(fd,&st)||!S_ISREG(st.st_mode)||st.st_nlink!=1||st.st_size<0||(uint64_t)st.st_size>total||((unsigned)st.st_size%BLOCK&&(uint32_t)st.st_size!=total)){result=RESUME;goto done;}
+64:  committed=(uint32_t)st.st_size;nextseq=(committed+BLOCK-1)/BLOCK;
+65:  for(unsigned left=committed;left;){if(stopped||now()>=end_ms){result=stopped?SIGNAL:TOTAL;goto done;}unsigned n=left>sizeof(prefix)?sizeof(prefix):left;ssize_t k=read(fd,prefix,n);if(k<0&&errno==EINTR)continue;if(k<=0){result=IO;goto done;}running_crc=crc_more(running_crc,prefix,(unsigned)k);left-=(unsigned)k;}
+66:  if(!reply('R',0)){result=IO;goto done;}ready=1;
+67:  char armor[ARMOR];uint8_t packet[HEADER+BLOCK+4];unsigned used=0,bad=0;int oversized=0;uint64_t deadline=now()+idle;
+68:  for(;;){
+69:   uint64_t n=now();if(stopped){result=SIGNAL;break;}if(n>=end_ms){result=TOTAL;break;}if(n>=deadline){result=IDLE;break;}
+70:   uint64_t until=deadline<end_ms?deadline:end_ms;if(!waitfd(0,POLLIN,until,1))continue;
+71:   uint8_t ch;ssize_t k=read(0,&ch,1);if(k<0&&(errno==EAGAIN||errno==EINTR))continue;if(k<=0){result=IO;break;}
+72:   if(ch){if(used<ARMOR)armor[used++]=(char)ch;else oversized=1;continue;}
+73:   if(!used&&!oversized)continue;
+74:   int bytes=oversized?-1:decode(armor,used,packet);used=0;oversized=0;
+75:   if(bytes<(int)HEADER||memcmp(packet,"LX2P",4)||memcmp(packet+4,nonce,16)||u32(packet+40)!=crc_more(0,packet,40))goto nack;
+76:   uint32_t op=u32(packet+20),seq=u32(packet+24),offset=u32(packet+28),len=u32(packet+32),hash=u32(packet+36);
+77:   if(len>BLOCK||bytes!=(int)(HEADER+len)||hash!=crc_more(0,packet+HEADER,len))goto nack;
+78:   if(op==2||op==3){if(len||seq!=nextseq||offset!=committed)goto nack;if(op==3){result=STOPPED;break;}if(committed!=total||running_crc!=wantcrc)goto nack;if(fsync(fd)){result=IO;break;}result=DONE;break;}
+79:   if(op!=1||!len||offset>=total||len!=(total-offset>BLOCK?BLOCK:total-offset)||offset%BLOCK||seq!=offset/BLOCK)goto nack;
+80:   if(offset<committed&&len<=committed-offset){if(!reply('A',0)){result=IO;break;}deadline=now()+idle;continue;}
+81:   if(offset!=committed||seq!=nextseq)goto nack;
+82:   for(unsigned at=0;at<len;){ssize_t w=write(fd,packet+HEADER+at,len-at);if(w<0&&errno==EINTR&&!stopped)continue;if(w<=0){(void)ftruncate(fd,committed);result=IO;goto done;}at+=(unsigned)w;}
+83:   if(fdatasync(fd)){(void)ftruncate(fd,committed);result=IO;break;}
+84:   running_crc=crc_more(running_crc,packet+HEADER,len);committed+=len;nextseq++;bad=0;
+85:   if(!reply('A',0)){result=IO;break;}deadline=now()+idle;continue;
+86:  nack:
+87:   if(++bad>16){result=BAD_LIMIT;break;}if(!reply('N',1)){result=IO;break;}
+88:  }
+89: done:
+90:  if(fd>=0&&close(fd)&&result==DONE)result=IO;
+91:  if(flags0>=0&&flags1>=0)(void)reply('X',(unsigned)result);
+92:  restore();(void)ready;return result;
+93: }
+
+FILE sender.py
+1: """RX2 host protocol. Generic I/O only: no device open or shell launch by default.
+2: 
+3: The caller owns the exclusive console lock, identity, storage and bootstrap.
+4: After launch, this module emits only Base64/NUL until a fresh RETURN is observed.
+5: """
+6: import base64
+7: import dataclasses
+8: import re
+9: import struct
+10: import time
+11: import zlib
+12: 
+13: BLOCK=512
+14: SAFE=frozenset(b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\0')
+15: LINE=re.compile(rb'RX2 ([0-9a-f]{32}) ([RANX]) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8}) ([0-9a-f]{8})')
+16: 
+17: def crc(data):return zlib.crc32(data)&0xffffffff
+18: def frame(nonce,op,seq,offset,data=b''):
+19:     head=b'LX2P'+bytes.fromhex(nonce)+struct.pack('<5I',op,seq,offset,len(data),crc(data))
+20:     assert len(head)==40 and len(data)<=BLOCK
+21:     wire=b'\0'+base64.b64encode(head+struct.pack('<I',crc(head))+data)+b'\0'
+22:     assert set(wire)<=SAFE
+23:     return wire
+24: 
+25: @dataclasses.dataclass(frozen=True)
+26: class Reply:
+27:     kind:str; seq:int; offset:int; prefix:int; reason:int
+28: 
+29: class TransferError(RuntimeError):pass
+30: class Uncertain(TransferError):pass
+31: 
+32: class Session:
+33:     def __init__(self,io,nonce,data,idle_ms=5000,total_ms=1800000,chunk=16,pause=.002):
+34:         if not re.fullmatch('[0-9a-f]{32}',nonce):raise ValueError('nonce')
+35:         if len(data)>32*1024*1024 or not 100<=idle_ms<=30000 or not idle_ms<=total_ms<=3600000:raise ValueError('bounds')
+36:         self.io,self.nonce,self.data=io,nonce,bytes(data)
+37:         self.idle_ms,self.total_ms,self.chunk,self.pause=idle_ms,total_ms,chunk,pause
+38:         self.pending=bytearray();self.replies=[];self.returncode=None;self.ready=False;self.offset=0;self.seq=0;self.sent_frames=0;self.retries=0;self.terminal=None
+39:         self.started=time.monotonic();self.return_seen=False;self.cancelled=False
+40:         self.return_line=re.compile(rb'RX2_RETURN_'+nonce.encode()+rb':([0-9]+)')
+41: 
+42:     def command(self,executable,path,resume=False):
+43:         if not re.fullmatch('/tmp/luma-rx2-[a-z0-9_-]+',executable):raise ValueError('RX path')
+44:         if not re.fullmatch('/tmp/rx2-[a-z0-9_./-]+',path) or '..' in path:raise ValueError('target path')
+45:         # Sole textual command, BEFORE this Session receives READY. Root must
+46:         # confirm a shell and verify executable bytes before issuing it.
+47:         return (f"{executable} {path} {self.nonce} {len(self.data)} {crc(self.data):08x} "
+48:                 f"{'resume' if resume else 'new'} {self.idle_ms} {self.total_ms}; "
+49:                 f"rc=$?; printf '\\nRX2_RETURN_{self.nonce}:%s\\n' \"$rc\"\n").encode()
+50: 
+51:     def _line(self,line):
+52:         line=line.rstrip(b'\r')
+53:         m=self.return_line.fullmatch(line)
+54:         if m:
+55:             self.returncode=int(m[1]);self.return_seen=True;return ('return',self.returncode)
+56:         m=LINE.fullmatch(line)
+57:         if m:
+58:             if m[1].decode()!=self.nonce:raise Uncertain('foreign nonce reply')
+59:             if crc(line.rsplit(b' ',1)[0])!=int(m[7],16):raise Uncertain('reply CRC')
+60:             r=Reply(m[2].decode(),*[int(m[i],16) for i in range(3,7)])
+61:             self.replies.append(r)
+62:             if r.kind=='X':self.terminal=r
+63:             return ('reply',r)
+64:         if line.startswith(b'RX2 '):raise Uncertain('malformed reply')
+65:         if self.ready and line and line not in (b'RX2_PROMPT> ',):
+66:             raise Uncertain('unexpected receiver output '+repr(line[:100]))
+67:         # A bounded printable command echo/banner may precede READY.
+68:         if not self.ready and any(c<32 and c not in (9,13) for c in line):raise Uncertain('nontext preamble')
+69:         return None
+70: 
+71:     def event(self,timeout):
+72:         end=time.monotonic()+timeout;received=0
+73:         while time.monotonic()<end:
+74:             while b'\n' in self.pending:
+75:                 line,_,tail=self.pending.partition(b'\n');self.pending[:]=tail
+76:                 r=self._line(bytes(line))
+77:                 if r:return r
+78:             b=self.io.read(min(.1,max(0,end-time.monotonic())))
+79:             if b:self.pending.extend(b);received+=len(b)
+80:             if len(self.pending)>8192 or received>32768:raise Uncertain('bounded output exceeded')
+81:         raise Uncertain('receive timeout; no retransmission allowed')
+82: 
+83:     def _checkpoint(self,r):
+84:         if r.offset>len(self.data) or r.offset%BLOCK and r.offset!=len(self.data):raise Uncertain('checkpoint offset')
+85:         if r.seq!=(r.offset+BLOCK-1)//BLOCK or r.prefix!=crc(self.data[:r.offset]):raise Uncertain('checkpoint prefix')
+86: 
+87:     def begin(self):
+88:         kind,r=self.event(self.idle_ms/1000+2)
+89:         if kind!='reply' or r.kind!='R' or r.reason:raise TransferError('receiver not ready')
+90:         self._checkpoint(r);self.offset,self.seq=r.offset,r.seq;self.ready=True
+91:         return r
+92: 
+93:     def send(self,wire):
+94:         if not self.ready or self.return_seen or self.terminal:raise TransferError('receiver not active')
+95:         if not wire or not set(wire)<=SAFE:raise ValueError('unsafe wire alphabet')
+96:         self.sent_frames+=1
+97:         # io.write must itself have a finite timeout. A partial write error
+98:         # abandons this session; it never causes a replay of the frame.
+99:         for i in range(0,len(wire),self.chunk):
+100:             part=wire[i:i+self.chunk];n=self.io.write(part)
+101:             if n!=len(part):raise Uncertain('partial transmit')
+102:             if self.pause:time.sleep(self.pause)
+103: 
+104:     def block(self,mutate=None):
+105:         if self.offset>=len(self.data):raise TransferError('no block remains')
+106:         initial=self.offset;data=self.data[initial:initial+BLOCK];end=initial+len(data)
+107:         packet=frame(self.nonce,1,self.seq,initial,data)
+108:         for attempt in range(4):
+109:             wire=mutate(packet,attempt) if mutate else packet;self.send(wire)
+110:             deadline=time.monotonic()+self.idle_ms/1000+1
+111:             while True:
+112:                 kind,r=self.event(max(.001,deadline-time.monotonic()))
+113:                 if kind!='reply':raise TransferError('receiver returned during DATA')
+114:                 self._checkpoint(r)
+115:                 if r.kind=='X':raise TransferError('receiver terminal reason '+str(r.reason))
+116:                 if r.kind=='A' and r.offset==end and r.reason==0:
+117:                     self.offset,self.seq=r.offset,r.seq;return r
+118:                 if r.kind=='A' and r.offset<=initial and r.reason==0:continue
+119:                 if r.kind=='N' and r.offset==initial and r.reason==1:
+120:                     self.retries+=1;break
+121:                 raise Uncertain('unexpected acknowledgement')
+122:         raise TransferError('NACK retry limit')
+123: 
+124:     def finish(self,stop=False):
+125:         if not stop and self.offset!=len(self.data):raise TransferError('incomplete source')
+126:         self.send(frame(self.nonce,3 if stop else 2,self.seq,self.offset))
+127:         deadline=time.monotonic()+self.idle_ms/1000+2
+128:         # A duplicate prior ACK may precede the terminal response.
+129:         while not self.terminal:
+130:             kind,r=self.event(max(.001,deadline-time.monotonic()))
+131:             if kind!='reply':raise Uncertain('return without terminal checkpoint')
+132:             self._checkpoint(r)
+133:             if r.kind=='A' and r.offset<=self.offset:continue
+134:             if r.kind!='X':raise Uncertain('unexpected FIN response')
+135:         self._checkpoint(self.terminal)
+136:         expected=1 if stop else 0
+137:         if self.terminal.reason!=expected:raise TransferError('terminal failure')
+138:         self.await_return(max(.001,deadline-time.monotonic()))
+139:         if self.returncode!=expected:raise TransferError('wrapper/terminal mismatch')
+140:         return self.terminal
+141: 
+142:     def await_return(self,timeout=None):
+143:         # This method NEVER writes. Use it even following timeout/corruption.
+144:         if timeout is None:timeout=self.idle_ms/1000+3
+145:         end=time.monotonic()+timeout
+146:         while not self.return_seen:
+147:             if time.monotonic()>=end:raise Uncertain('shell return not confirmed')
+148:             try:self.event(max(.001,end-time.monotonic()))
+149:             except Uncertain:
+150:                 # Malformed reply is not permission to send. Preserve the
+151:                 # remaining bytes and continue looking for the fresh wrapper.
+152:                 if time.monotonic()>=end:raise
+153:         return self.returncode
+154: 
+155:     def cancel_line(self):
+156:         if not self.return_seen:raise Uncertain('no fresh process return')
+157:         if self.cancelled:raise TransferError('already cancelled')
+158:         # A separate caller must now verify the prompt before a new command.
+159:         if self.io.write(b'\x15\n')!=2:raise Uncertain('line cancellation partial')
+160:         self.cancelled=True

@@ -1,0 +1,119 @@
+{
+  "passed": true,
+  "hardware": false,
+  "scope": "Exact historical RV32 receiver ELF, Linux/QEMU PTYs; controlled header corruption, not board cause proof",
+  "cases": [
+    {
+      "case": 0,
+      "passed": true,
+      "receiver_exit": 0,
+      "terminal_restored": true,
+      "isig_during_rx": 0,
+      "vmin": 1,
+      "vtime": 0,
+      "acknowledgements": [
+        {
+          "code": "R",
+          "value": 0
+        },
+        {
+          "code": "N",
+          "value": 0
+        },
+        {
+          "code": "A",
+          "value": 0
+        },
+        {
+          "code": "D",
+          "value": 512
+        }
+      ]
+    },
+    {
+      "case": 1,
+      "passed": true,
+      "receiver_exit": 1,
+      "terminal_restored": true,
+      "isig_during_rx": 0,
+      "vmin": 1,
+      "vtime": 0,
+      "acknowledgements": [
+        {
+          "code": "R",
+          "value": 0
+        },
+        {
+          "code": "A",
+          "value": 0
+        },
+        {
+          "code": "F",
+          "value": 512
+        }
+      ]
+    },
+    {
+      "case": 2,
+      "passed": true,
+      "receiver_exit": 0,
+      "terminal_restored": true,
+      "isig_during_rx": 0,
+      "vmin": 1,
+      "vtime": 0,
+      "acknowledgements": [
+        {
+          "code": "R",
+          "value": 0
+        },
+        {
+          "code": "A",
+          "value": 0
+        },
+        {
+          "code": "A",
+          "value": 0
+        },
+        {
+          "code": "D",
+          "value": 512
+        }
+      ]
+    }
+  ],
+  "artifacts": {
+    "init": "ef7562dd58e2529987b1dc4f580d237108ad30de35a3d758505af15ba0d3ff51",
+    "initrd.cpio.gz": "54e100f7459ea33111f2bc880708de0c20d5d992f4bb401415d7900287d38f5f",
+    "qemu.log": "08fb2cd850173447b8721781a21a2a89484dc6e40ccafe7c0158cec328cbea23"
+  },
+  "inputs": {
+    "games/luma3d/candidates/festival_transport_guard_20261027_r1/run_receiver_exact.py": "393d44088b3c219e9b90e0caf3a265efd0c333ccaf5d0232cd285c7ba81d65c9",
+    "games/luma3d/candidates/festival_transport_guard_20261027_r1/receiver_exact_init.c": "0721d73fc08b23d994d508eff689898db131360c4c6774db4d0df0110c81eaab",
+    "games/luma_adventure/tests/hardware/trial_20261024_r9b/uart-receiver": "5964389b8244dc73b58bf916a7856da3cc3aba2c2efa58779d1f755bb8410ae4",
+    "games/luma3d/build-kernel/prodock_g3d1_20261024_r1/kernel/arch/riscv/boot/Image": "c1da479552951b611d2ef5462616ce85743109b4d38275864e92bc00439a93ac",
+    "linux/build/opensbi-qemu-virt/platform/generic/firmware/fw_dynamic.bin": "a8b88d9bedd0e71527d926da03eb58e2b71efa16fce059de816e2407f65d9c61"
+  },
+  "command": [
+    "qemu-system-riscv32",
+    "-machine",
+    "virt",
+    "-cpu",
+    "rv32",
+    "-m",
+    "256M",
+    "-smp",
+    "1",
+    "-nographic",
+    "-monitor",
+    "none",
+    "-no-reboot",
+    "-bios",
+    "/home/michael/console/linux/build/opensbi-qemu-virt/platform/generic/firmware/fw_dynamic.bin",
+    "-kernel",
+    "/home/michael/console/games/luma3d/build-kernel/prodock_g3d1_20261024_r1/kernel/arch/riscv/boot/Image",
+    "-initrd",
+    "/home/michael/console/games/luma3d/candidates/festival_transport_guard_20261027_r1/receiver_exact_r2/initrd.cpio.gz",
+    "-append",
+    "console=ttyS0 earlycon=sbi panic=1 rdinit=/init kunit.enable=0 prodock.selftest=0"
+  ]
+}

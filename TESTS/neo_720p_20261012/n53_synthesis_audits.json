@@ -1,0 +1,123 @@
+{
+  "pixel_packet": {
+    "passed": true,
+    "errors": [],
+    "registers": 256,
+    "netlist_sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064",
+    "scope": "Mapped packet capture structure; functional and physical checks remain required"
+  },
+  "command": {
+    "passed": true,
+    "errors": [],
+    "registers": 312,
+    "netlist_sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064",
+    "scope": "Structure of the mapped capture enable; no timing or functional waiver"
+  },
+  "raster": {
+    "passed": true,
+    "errors": [],
+    "payload_registers": 512,
+    "netlist_sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064",
+    "scope": "Mapped clock and local synchronous clear; RTL equivalence and reset tests remain required"
+  },
+  "response": {
+    "passed": true,
+    "errors": [],
+    "payload_registers": 256,
+    "control_registers": 3,
+    "netlist_sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064",
+    "scope": "Structure only; functional and full timing checks remain required"
+  },
+  "bounds": {
+    "passed": true,
+    "errors": [],
+    "coefficient_registers": 64,
+    "netlist_sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064"
+  },
+  "shader": {
+    "passed": true,
+    "errors": [],
+    "coordinate_registers": 18,
+    "registered_alpha_multiplier": "n18325_s",
+    "netlist_sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064"
+  },
+  "transform": {
+    "passed": true,
+    "errors": [],
+    "primitive": "DFFRE",
+    "ports": {
+      "Q": "transform_overflow",
+      "D": "n12641_2",
+      "CLK": "gpu_clk",
+      "RESET": "GND",
+      "CE": "n56149_3"
+    },
+    "netlist_sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064"
+  },
+  "ddr_startup": {
+    "passed": true,
+    "errors": [],
+    "chains": {
+      "start_sync": [
+        {
+          "Q": "start_sync[0]",
+          "D": "VCC",
+          "CLK": "clk_d",
+          "CLEAR": "n7_5",
+          "CE": "VCC"
+        },
+        {
+          "Q": "start_sync[1]",
+          "D": "start_sync[0]",
+          "CLK": "clk_d",
+          "CLEAR": "n7_5",
+          "CE": "VCC"
+        }
+      ],
+      "cpu_sync": [
+        {
+          "Q": "cpu_sync[0]",
+          "D": "VCC",
+          "CLK": "vid_hclk",
+          "CLEAR": "n64_5",
+          "CE": "VCC"
+        },
+        {
+          "Q": "soc_dbg_152[0]",
+          "D": "cpu_sync[0]",
+          "CLK": "vid_hclk",
+          "CLEAR": "n64_5",
+          "CE": "VCC"
+        }
+      ]
+    },
+    "netlist_sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064"
+  },
+  "cpu_ddr_fifo": {
+    "passed": true,
+    "netlist": "tang/impl/console_neo_n53syn/impl/gwsynthesis/console_neo.vg",
+    "sha256": "73ad36c815e0d478c40b2acc118541c96aa83cedbcfdb7c00997dc72a29a8064",
+    "scope": "Neo AHB DDR four-slot command/response stores only",
+    "stores": {
+      "u_requests": {
+        "module": "ddr_dcfifo_5",
+        "width": 100,
+        "slots": 4,
+        "storage_cells": {
+          "DFFRE": 400
+        },
+        "forbidden_cells": []
+      },
+      "u_responses": {
+        "module": "ddr_dcfifo_6",
+        "width": 64,
+        "slots": 4,
+        "storage_cells": {
+          "DFFRE": 256
+        },
+        "forbidden_cells": []
+      }
+    },
+    "errors": []
+  }
+}

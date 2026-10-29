@@ -1,0 +1,7462 @@
+{
+  "passed": true,
+  "hardware_access": false,
+  "synthesis": false,
+  "timing_qualification": false,
+  "bitstream_sha256": "51841fe4ae76a7eb635a0398534f35b6c7030fa8b768d88b892fede3b1601c35",
+  "source_sha256": {
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route9_usb_startup_analysis/trace_command_echo.py": "d46eb8a9fa0901e27090422e09aab9d49bc58ea2e842b424517f21056b302e76",
+    "/home/michael/console/tang/impl/console_neo_n56r8_hdmi_sg4/impl/pnr/console_neo.vo": "33c919d5c8ab6e90ec6b68f44849ff9d6f2c5682a40192d12c55298494afccc9",
+    "/home/michael/console/tang/impl/console_neo_n56r8_hdmi_sg4/impl/pnr/console_neo.sdf": "4d31b9cae497625f2fa7ec2cafc38475977a556de77cd32520d9e6a17dd4b9e0",
+    "/home/michael/console/tang/impl/console_neo_n56r8_hdmi_sg4/source/tang/rtl/usb/usb_idle_trace.v": "97854f943d523304877e4fafc52c53e71ef03cb3e54940f13cd1a7a0bdbe8d9f",
+    "/home/michael/console/tang/impl/console_neo_n56r8_hdmi_sg4/source/tang/rtl/board/ddr_dcfifo.v": "449b5d7e65d3290f0b9cc1d5e574e09191d40bbfe8960f45374d9690e965103b"
+  },
+  "combinational_mux_proof": [
+    {
+      "send_index": 2,
+      "snapshot_bit": 64,
+      "snapshot_value": 0,
+      "reply_ram_DI_bit": 0,
+      "possible_output_values": [
+        0
+      ],
+      "all_other_sequential_terminal_values": "unconstrained"
+    },
+    {
+      "send_index": 2,
+      "snapshot_bit": 64,
+      "snapshot_value": 1,
+      "reply_ram_DI_bit": 0,
+      "possible_output_values": [
+        1
+      ],
+      "all_other_sequential_terminal_values": "unconstrained"
+    },
+    {
+      "send_index": 2,
+      "snapshot_bit": 66,
+      "snapshot_value": 0,
+      "reply_ram_DI_bit": 2,
+      "possible_output_values": [
+        0
+      ],
+      "all_other_sequential_terminal_values": "unconstrained"
+    },
+    {
+      "send_index": 2,
+      "snapshot_bit": 66,
+      "snapshot_value": 1,
+      "reply_ram_DI_bit": 2,
+      "possible_output_values": [
+        1
+      ],
+      "all_other_sequential_terminal_values": "unconstrained"
+    }
+  ],
+  "selected_primitives": {
+    "u_usb_idle_trace/armed_s1": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/n5320_9",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/armed_8",
+          "RESET": "GND",
+          "Q": "u_usb_idle_trace/armed"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/armed_s3": {
+      "cell": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "u_usb_idle_trace/cmd_pop",
+          "I1": "u_usb_idle_trace/command[2]",
+          "I2": "u_usb_idle_trace/n5310_5",
+          "F": "u_usb_idle_trace/armed_8"
+        }
+      },
+      "parameters": {
+        "INIT": "8'hF8"
+      }
+    },
+    "u_usb_idle_trace/bank_bank_0_0_s": {
+      "cell": {
+        "kind": "RAM16SDP4",
+        "pins": {
+          "CLK": "vid_hclk",
+          "WRE": "u_usb_idle_trace/bank_245",
+          "DI": "{\\u_usb_idle_trace/reply[3:0]}",
+          "WAD": "{\\u_usb_idle_trace/receive_index[3:0]}",
+          "RAD": "{\\u_usb_idle_trace/address[5:2]}",
+          "DO": "{\\u_usb_idle_trace/bank_179,\\u_usb_idle_trace/bank_178,\\u_usb_idle_trace/bank_177,\\u_usb_idle_trace/bank_176}"
+        }
+      },
+      "parameters": {
+        "INIT_0": "16'h0000",
+        "INIT_1": "16'h0000",
+        "INIT_2": "16'h0000",
+        "INIT_3": "16'h0000"
+      }
+    },
+    "u_usb_idle_trace/bank_bank_1_0_s": {
+      "cell": {
+        "kind": "RAM16SDP4",
+        "pins": {
+          "CLK": "vid_hclk",
+          "WRE": "u_usb_idle_trace/bank_247",
+          "DI": "{\\u_usb_idle_trace/reply[3:0]}",
+          "WAD": "{\\u_usb_idle_trace/receive_index[3:0]}",
+          "RAD": "{\\u_usb_idle_trace/address[5:2]}",
+          "DO": "{\\u_usb_idle_trace/bank_211,\\u_usb_idle_trace/bank_210,\\u_usb_idle_trace/bank_209,\\u_usb_idle_trace/bank_208}"
+        }
+      },
+      "parameters": {
+        "INIT_0": "16'h0000",
+        "INIT_1": "16'h0000",
+        "INIT_2": "16'h0000",
+        "INIT_3": "16'h0000"
+      }
+    },
+    "u_usb_idle_trace/n1170_s0": {
+      "cell": {
+        "kind": "LUT2",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending",
+          "I1": "u_usb_idle_trace/cmd_valid",
+          "F": "u_usb_idle_trace/n1170_3"
+        }
+      },
+      "parameters": {
+        "INIT": "4'h4"
+      }
+    },
+    "u_usb_idle_trace/n150_s66": {
+      "cell": {
+        "kind": "LUT2",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[3]",
+          "I1": "u_usb_idle_trace/send_index[4]",
+          "F": "u_usb_idle_trace/n150_70"
+        }
+      },
+      "parameters": {
+        "INIT": "4'h4"
+      }
+    },
+    "u_usb_idle_trace/n150_s68": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[1]",
+          "I1": "u_usb_idle_trace/send_index[2]",
+          "I2": "u_usb_idle_trace/send_index[0]",
+          "I3": "u_usb_idle_trace/n150_70",
+          "F": "u_usb_idle_trace/n150_73"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h1000"
+      }
+    },
+    "u_usb_idle_trace/n150_s69": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_11",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/send_index[0]",
+          "F": "u_usb_idle_trace/n150_75"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0200"
+      }
+    },
+    "u_usb_idle_trace/n150_s70": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_11",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/send_index[1]",
+          "F": "u_usb_idle_trace/n150_77"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0200"
+      }
+    },
+    "u_usb_idle_trace/n150_s71": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_11",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n150_79"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0200"
+      }
+    },
+    "u_usb_idle_trace/n150_s72": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_11",
+          "I1": "u_usb_idle_trace/send_index[2]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[0]",
+          "F": "u_usb_idle_trace/n150_81"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h2000"
+      }
+    },
+    "u_usb_idle_trace/n150_s73": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[1]",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/n150_70",
+          "F": "u_usb_idle_trace/n150_83"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h4000"
+      }
+    },
+    "u_usb_idle_trace/n150_s74": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_11",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[0]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n150_85"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h2000"
+      }
+    },
+    "u_usb_idle_trace/n150_s75": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_11",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n150_87"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0002"
+      }
+    },
+    "u_usb_idle_trace/n150_s76": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/n150_70",
+          "F": "u_usb_idle_trace/n150_89"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0100"
+      }
+    },
+    "u_usb_idle_trace/n150_s77": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/n150_70",
+          "F": "u_usb_idle_trace/n150_91"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h4000"
+      }
+    },
+    "u_usb_idle_trace/n150_s78": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/n150_70",
+          "F": "u_usb_idle_trace/n150_93"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/n151_s54": {
+      "cell": {
+        "kind": "LUT2",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[4]",
+          "I1": "u_usb_idle_trace/send_index[3]",
+          "F": "u_usb_idle_trace/n151_58"
+        }
+      },
+      "parameters": {
+        "INIT": "4'h4"
+      }
+    },
+    "u_usb_idle_trace/n151_s55": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_11",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n151_60"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h2000"
+      }
+    },
+    "u_usb_idle_trace/n151_s56": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/n151_58",
+          "F": "u_usb_idle_trace/n151_62"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/n154_s52": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[2]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[0]",
+          "I3": "u_usb_idle_trace/n150_70",
+          "F": "u_usb_idle_trace/n154_57"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h4000"
+      }
+    },
+    "u_usb_idle_trace/n155_s66": {
+      "cell": {
+        "kind": "LUT2",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[3]",
+          "I1": "u_usb_idle_trace/send_index[4]",
+          "F": "u_usb_idle_trace/n155_70"
+        }
+      },
+      "parameters": {
+        "INIT": "4'h1"
+      }
+    },
+    "u_usb_idle_trace/n155_s67": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[1]",
+          "I1": "u_usb_idle_trace/send_index[2]",
+          "I2": "u_usb_idle_trace/send_index[0]",
+          "I3": "u_usb_idle_trace/n151_58",
+          "F": "u_usb_idle_trace/n155_72"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h1000"
+      }
+    },
+    "u_usb_idle_trace/n155_s68": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_70",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/send_index[1]",
+          "F": "u_usb_idle_trace/n155_74"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0200"
+      }
+    },
+    "u_usb_idle_trace/n155_s69": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[2]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/n151_58",
+          "F": "u_usb_idle_trace/n155_76"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h1000"
+      }
+    },
+    "u_usb_idle_trace/n155_s70": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_70",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n155_78"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0200"
+      }
+    },
+    "u_usb_idle_trace/n155_s71": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n151_58",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n155_80"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0200"
+      }
+    },
+    "u_usb_idle_trace/n155_s72": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_70",
+          "I1": "u_usb_idle_trace/send_index[2]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[0]",
+          "F": "u_usb_idle_trace/n155_82"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h2000"
+      }
+    },
+    "u_usb_idle_trace/n155_s73": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[2]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[0]",
+          "I3": "u_usb_idle_trace/n151_58",
+          "F": "u_usb_idle_trace/n155_84"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h4000"
+      }
+    },
+    "u_usb_idle_trace/n155_s74": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_70",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[0]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n155_86"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h2000"
+      }
+    },
+    "u_usb_idle_trace/n155_s75": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n151_58",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[0]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n155_88"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h2000"
+      }
+    },
+    "u_usb_idle_trace/n155_s76": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n151_58",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n155_90"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0002"
+      }
+    },
+    "u_usb_idle_trace/n155_s77": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_70",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n155_92"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h2000"
+      }
+    },
+    "u_usb_idle_trace/n155_s78": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n151_58",
+          "I1": "u_usb_idle_trace/send_index[0]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/send_index[2]",
+          "F": "u_usb_idle_trace/n155_94"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h2000"
+      }
+    },
+    "u_usb_idle_trace/n155_s79": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/n155_70",
+          "F": "u_usb_idle_trace/n155_96"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/n158_s53": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[2]",
+          "I2": "u_usb_idle_trace/send_index[1]",
+          "I3": "u_usb_idle_trace/n150_70",
+          "F": "u_usb_idle_trace/n158_58"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h1000"
+      }
+    },
+    "u_usb_idle_trace/n167_s54": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/n150_70",
+          "F": "u_usb_idle_trace/n167_59"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h1000"
+      }
+    },
+    "u_usb_idle_trace/n179_s33": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n179_38",
+          "I1": "u_usb_idle_trace/n179_39",
+          "I2": "u_usb_idle_trace/n179_40",
+          "I3": "u_usb_idle_trace/n179_41",
+          "F": "u_usb_idle_trace/n179_37"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h7FFF"
+      }
+    },
+    "u_usb_idle_trace/n179_s34": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n179_42",
+          "I1": "u_usb_idle_trace/n179_43",
+          "I2": "u_usb_idle_trace/n179_44",
+          "I3": "u_usb_idle_trace/n179_45",
+          "F": "u_usb_idle_trace/n179_38"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/n179_s35": {
+      "cell": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "u_usb_idle_trace/n179_46",
+          "I1": "u_usb_idle_trace/n179_47",
+          "I2": "u_usb_idle_trace/n179_48",
+          "F": "u_usb_idle_trace/n179_39"
+        }
+      },
+      "parameters": {
+        "INIT": "8'h80"
+      }
+    },
+    "u_usb_idle_trace/n179_s36": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n179_49",
+          "I1": "u_usb_idle_trace/n179_50",
+          "I2": "u_usb_idle_trace/n179_51",
+          "I3": "u_usb_idle_trace/n179_52",
+          "F": "u_usb_idle_trace/n179_40"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/n179_s37": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n150_81",
+          "I1": "u_usb_idle_trace/snapshot[866]",
+          "I2": "u_usb_idle_trace/snapshot[834]",
+          "I3": "u_usb_idle_trace/n150_77",
+          "F": "u_usb_idle_trace/n179_41"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s38": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n179_53",
+          "I1": "u_usb_idle_trace/n179_54",
+          "I2": "u_usb_idle_trace/n179_55",
+          "I3": "u_usb_idle_trace/n179_56",
+          "F": "u_usb_idle_trace/n179_42"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/n179_s39": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_84",
+          "I1": "u_usb_idle_trace/snapshot[354]",
+          "I2": "u_usb_idle_trace/snapshot[322]",
+          "I3": "u_usb_idle_trace/n155_76",
+          "F": "u_usb_idle_trace/n179_43"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s40": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_88",
+          "I1": "u_usb_idle_trace/snapshot[418]",
+          "I2": "u_usb_idle_trace/snapshot[386]",
+          "I3": "u_usb_idle_trace/n155_80",
+          "F": "u_usb_idle_trace/n179_44"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s41": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n151_62",
+          "I1": "u_usb_idle_trace/snapshot[482]",
+          "I2": "u_usb_idle_trace/snapshot[450]",
+          "I3": "u_usb_idle_trace/n155_94",
+          "F": "u_usb_idle_trace/n179_45"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s42": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n150_73",
+          "I1": "u_usb_idle_trace/snapshot[546]",
+          "I2": "u_usb_idle_trace/snapshot[514]",
+          "I3": "u_usb_idle_trace/n150_89",
+          "F": "u_usb_idle_trace/n179_46"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s43": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[578]",
+          "I1": "u_usb_idle_trace/n158_58",
+          "I2": "u_usb_idle_trace/snapshot[690]",
+          "I3": "u_usb_idle_trace/n154_57",
+          "F": "u_usb_idle_trace/n179_47"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s44": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[642]",
+          "I1": "u_usb_idle_trace/n167_59",
+          "I2": "u_usb_idle_trace/snapshot[674]",
+          "I3": "u_usb_idle_trace/n150_83",
+          "F": "u_usb_idle_trace/n179_48"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s45": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[738]",
+          "I1": "u_usb_idle_trace/n150_93",
+          "I2": "u_usb_idle_trace/snapshot[706]",
+          "I3": "u_usb_idle_trace/n150_91",
+          "F": "u_usb_idle_trace/n179_49"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s46": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[802]",
+          "I1": "u_usb_idle_trace/n150_75",
+          "I2": "u_usb_idle_trace/snapshot[770]",
+          "I3": "u_usb_idle_trace/n150_87",
+          "F": "u_usb_idle_trace/n179_50"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s47": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[930]",
+          "I1": "u_usb_idle_trace/n150_85",
+          "I2": "u_usb_idle_trace/snapshot[898]",
+          "I3": "u_usb_idle_trace/n150_79",
+          "F": "u_usb_idle_trace/n179_51"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s48": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_13",
+          "I1": "u_usb_idle_trace/snapshot[994]",
+          "I2": "u_usb_idle_trace/snapshot[962]",
+          "I3": "u_usb_idle_trace/n151_60",
+          "F": "u_usb_idle_trace/n179_52"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s49": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_72",
+          "I1": "u_usb_idle_trace/snapshot[290]",
+          "I2": "u_usb_idle_trace/snapshot[258]",
+          "I3": "u_usb_idle_trace/n155_90",
+          "F": "u_usb_idle_trace/n179_53"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s50": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_86",
+          "I1": "u_usb_idle_trace/snapshot[162]",
+          "I2": "u_usb_idle_trace/snapshot[130]",
+          "I3": "u_usb_idle_trace/n155_78",
+          "F": "u_usb_idle_trace/n179_54"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s51": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_96",
+          "I1": "u_usb_idle_trace/snapshot[226]",
+          "I2": "u_usb_idle_trace/snapshot[194]",
+          "I3": "u_usb_idle_trace/n155_92",
+          "F": "u_usb_idle_trace/n179_55"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n179_s52": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_82",
+          "I1": "u_usb_idle_trace/snapshot[98]",
+          "I2": "u_usb_idle_trace/snapshot[66]",
+          "I3": "u_usb_idle_trace/n155_74",
+          "F": "u_usb_idle_trace/n179_56"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s33": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n151_60",
+          "I1": "u_usb_idle_trace/snapshot[960]",
+          "I2": "u_usb_idle_trace/n181_38",
+          "I3": "u_usb_idle_trace/n181_39",
+          "F": "u_usb_idle_trace/n181_37"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8FFF"
+      }
+    },
+    "u_usb_idle_trace/n181_s34": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n181_40",
+          "I1": "u_usb_idle_trace/n181_41",
+          "I2": "u_usb_idle_trace/n181_42",
+          "I3": "u_usb_idle_trace/n181_43",
+          "F": "u_usb_idle_trace/n181_38"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/n181_s35": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/sending_13",
+          "I1": "u_usb_idle_trace/snapshot[992]",
+          "I2": "u_usb_idle_trace/snapshot[928]",
+          "I3": "u_usb_idle_trace/n150_85",
+          "F": "u_usb_idle_trace/n181_39"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s36": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n181_44",
+          "I1": "u_usb_idle_trace/n181_45",
+          "I2": "u_usb_idle_trace/n181_46",
+          "I3": "u_usb_idle_trace/n181_47",
+          "F": "u_usb_idle_trace/n181_40"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/n181_s37": {
+      "cell": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "u_usb_idle_trace/n181_48",
+          "I1": "u_usb_idle_trace/n181_49",
+          "I2": "u_usb_idle_trace/n181_50",
+          "F": "u_usb_idle_trace/n181_41"
+        }
+      },
+      "parameters": {
+        "INIT": "8'h80"
+      }
+    },
+    "u_usb_idle_trace/n181_s38": {
+      "cell": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "u_usb_idle_trace/n181_51",
+          "I1": "u_usb_idle_trace/n181_52",
+          "I2": "u_usb_idle_trace/n181_53",
+          "F": "u_usb_idle_trace/n181_42"
+        }
+      },
+      "parameters": {
+        "INIT": "8'h80"
+      }
+    },
+    "u_usb_idle_trace/n181_s39": {
+      "cell": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "u_usb_idle_trace/n181_54",
+          "I1": "u_usb_idle_trace/n181_55",
+          "I2": "u_usb_idle_trace/n181_56",
+          "F": "u_usb_idle_trace/n181_43"
+        }
+      },
+      "parameters": {
+        "INIT": "8'h80"
+      }
+    },
+    "u_usb_idle_trace/n181_s40": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_92",
+          "I1": "u_usb_idle_trace/snapshot[192]",
+          "I2": "u_usb_idle_trace/snapshot[160]",
+          "I3": "u_usb_idle_trace/n155_86",
+          "F": "u_usb_idle_trace/n181_44"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s41": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_90",
+          "I1": "u_usb_idle_trace/snapshot[256]",
+          "I2": "u_usb_idle_trace/snapshot[224]",
+          "I3": "u_usb_idle_trace/n155_96",
+          "F": "u_usb_idle_trace/n181_45"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s42": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[320]",
+          "I1": "u_usb_idle_trace/n155_76",
+          "I2": "u_usb_idle_trace/snapshot[288]",
+          "I3": "u_usb_idle_trace/n155_72",
+          "F": "u_usb_idle_trace/n181_46"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s43": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_74",
+          "I1": "u_usb_idle_trace/snapshot[64]",
+          "I2": "u_usb_idle_trace/n181_57",
+          "I3": "u_usb_idle_trace/n181_58",
+          "F": "u_usb_idle_trace/n181_47"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0700"
+      }
+    },
+    "u_usb_idle_trace/n181_s44": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n155_80",
+          "I1": "u_usb_idle_trace/snapshot[384]",
+          "I2": "u_usb_idle_trace/snapshot[352]",
+          "I3": "u_usb_idle_trace/n155_84",
+          "F": "u_usb_idle_trace/n181_48"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s45": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[448]",
+          "I1": "u_usb_idle_trace/n155_94",
+          "I2": "u_usb_idle_trace/snapshot[416]",
+          "I3": "u_usb_idle_trace/n155_88",
+          "F": "u_usb_idle_trace/n181_49"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s46": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[512]",
+          "I1": "u_usb_idle_trace/n150_89",
+          "I2": "u_usb_idle_trace/snapshot[480]",
+          "I3": "u_usb_idle_trace/n151_62",
+          "F": "u_usb_idle_trace/n181_50"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s47": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[576]",
+          "I1": "u_usb_idle_trace/n158_58",
+          "I2": "u_usb_idle_trace/snapshot[544]",
+          "I3": "u_usb_idle_trace/n150_73",
+          "F": "u_usb_idle_trace/n181_51"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s48": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[640]",
+          "I1": "u_usb_idle_trace/n167_59",
+          "I2": "u_usb_idle_trace/snapshot[688]",
+          "I3": "u_usb_idle_trace/n154_57",
+          "F": "u_usb_idle_trace/n181_52"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s49": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n150_91",
+          "I1": "u_usb_idle_trace/snapshot[704]",
+          "I2": "u_usb_idle_trace/snapshot[672]",
+          "I3": "u_usb_idle_trace/n150_83",
+          "F": "u_usb_idle_trace/n181_53"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s50": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n150_87",
+          "I1": "u_usb_idle_trace/snapshot[768]",
+          "I2": "u_usb_idle_trace/snapshot[736]",
+          "I3": "u_usb_idle_trace/n150_93",
+          "F": "u_usb_idle_trace/n181_54"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s51": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n150_77",
+          "I1": "u_usb_idle_trace/snapshot[832]",
+          "I2": "u_usb_idle_trace/snapshot[800]",
+          "I3": "u_usb_idle_trace/n150_75",
+          "F": "u_usb_idle_trace/n181_55"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s52": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/n150_79",
+          "I1": "u_usb_idle_trace/snapshot[896]",
+          "I2": "u_usb_idle_trace/snapshot[864]",
+          "I3": "u_usb_idle_trace/n150_81",
+          "F": "u_usb_idle_trace/n181_56"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n181_s53": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[1]",
+          "I1": "u_usb_idle_trace/send_index[2]",
+          "I2": "u_usb_idle_trace/snapshot[32]",
+          "I3": "u_usb_idle_trace/n155_70",
+          "F": "u_usb_idle_trace/n181_57"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h1000"
+      }
+    },
+    "u_usb_idle_trace/n181_s54": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/snapshot[128]",
+          "I1": "u_usb_idle_trace/n155_78",
+          "I2": "u_usb_idle_trace/snapshot[96]",
+          "I3": "u_usb_idle_trace/n155_82",
+          "F": "u_usb_idle_trace/n181_58"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h0777"
+      }
+    },
+    "u_usb_idle_trace/n5310_s1": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/command[0]",
+          "I1": "u_usb_idle_trace/sending",
+          "I2": "u_usb_idle_trace/cmd_valid",
+          "I3": "u_usb_idle_trace/n5312_3",
+          "F": "u_usb_idle_trace/n5310_5"
+        }
+      },
+      "parameters": {
+        "INIT": "16'hFF20"
+      }
+    },
+    "u_usb_idle_trace/n5320_s3": {
+      "cell": {
+        "kind": "LUT3",
+        "pins": {
+          "I0": "u_usb_idle_trace/ur[2]",
+          "I1": "u_usb_idle_trace/hu[1]",
+          "I2": "u_usb_idle_trace/n5310_5",
+          "F": "u_usb_idle_trace/n5320_9"
+        }
+      },
+      "parameters": {
+        "INIT": "8'h80"
+      }
+    },
+    "u_usb_idle_trace/sending_s6": {
+      "cell": {
+        "kind": "LUT2",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[3]",
+          "I1": "u_usb_idle_trace/send_index[4]",
+          "F": "u_usb_idle_trace/sending_11"
+        }
+      },
+      "parameters": {
+        "INIT": "4'h8"
+      }
+    },
+    "u_usb_idle_trace/sending_s7": {
+      "cell": {
+        "kind": "LUT4",
+        "pins": {
+          "I0": "u_usb_idle_trace/send_index[0]",
+          "I1": "u_usb_idle_trace/send_index[1]",
+          "I2": "u_usb_idle_trace/send_index[2]",
+          "I3": "u_usb_idle_trace/sending_11",
+          "F": "u_usb_idle_trace/sending_13"
+        }
+      },
+      "parameters": {
+        "INIT": "16'h8000"
+      }
+    },
+    "u_usb_idle_trace/snapshot_128_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/in2[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[128]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_130_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/in2[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[130]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_160_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/in3[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[160]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_162_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/in3[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[162]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_192_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/nak2[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[192]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_194_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/nak2[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[194]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_224_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/nak3[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[224]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_226_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/nak3[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[226]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_256_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/data2[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[256]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_258_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/data2[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[258]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_288_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/data3[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[288]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_290_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/data3[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[290]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_320_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/miss2[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[320]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_322_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/miss2[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[322]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_32_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "VCC",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[32]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_352_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/miss3[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[352]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_354_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/miss3[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[354]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_384_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/bad_response[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[384]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_386_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/bad_response[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[386]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_416_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/rx_errors[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[416]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_418_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/rx_errors[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[418]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_448_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/bad_token[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[448]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_450_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/bad_token[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[450]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_480_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/resets[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[480]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_482_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/resets[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[482]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_512_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/sofs[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[512]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_514_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/sofs[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[514]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_544_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/stalls[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[544]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_546_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/stalls[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[546]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_576_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/last_token[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[576]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_578_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/last_token[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[578]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_640_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/max_offer[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[640]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_642_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/max_offer[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[642]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_64_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/command[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[64]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_66_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/command[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[66]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_672_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/last_response[8]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[672]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_674_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/last_response[10]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[674]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_688_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/last_response[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[688]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_690_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/last_response[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[690]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_704_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[32]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[704]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_706_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[34]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[706]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_736_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[64]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[736]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_738_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[66]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[738]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_768_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[96]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[768]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_770_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[98]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[770]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_800_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[128]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[800]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_802_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[130]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[802]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_832_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[160]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[832]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_834_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[162]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[834]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_864_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[192]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[864]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_866_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[194]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[866]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_896_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[224]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[896]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_898_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/history[226]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[898]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_928_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/first_fault[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[928]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_930_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/first_fault[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[930]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_960_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/first_fault[32]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[960]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_962_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/first_fault[34]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[962]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_96_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/ticks[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[96]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_98_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/ticks[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[98]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_992_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/target[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[992]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/snapshot_994_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/target[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/n1170_3",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/snapshot[994]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/u_commands/head_0_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/u_commands/storage_read[0]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/u_commands/pop",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/command[0]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/u_commands/head_2_s0": {
+      "cell": {
+        "kind": "DFFRE",
+        "pins": {
+          "D": "u_usb_idle_trace/u_commands/storage_read[2]",
+          "CLK": "phy_clk",
+          "CE": "u_usb_idle_trace/u_commands/pop",
+          "RESET": "u_usb_idle_trace/n5312_3",
+          "Q": "u_usb_idle_trace/command[2]"
+        }
+      },
+      "parameters": {
+        "INIT": "1'b0"
+      }
+    },
+    "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s": {
+      "cell": {
+        "kind": "SDPB",
+        "pins": {
+          "CLKA": "phy_clk",
+          "CEA": "u_usb_idle_trace/g_inferred_storage.mem_7",
+          "CLKB": "vid_hclk",
+          "CEB": "u_usb_idle_trace/u_replies/pop",
+          "OCE": "GND",
+          "RESET": "u_usb_idle_trace/hreset",
+          "BLKSELA": "{GND,GND,GND}",
+          "BLKSELB": "{GND,GND,GND}",
+          "DI": "{GND,GND,GND,GND,GND,GND,GND,GND,GND,GND,GND,GND,GND,GND,GND,GND,\\u_usb_idle_trace/n166_37,\\u_usb_idle_trace/n167_37,\\u_usb_idle_trace/n168_37,\\u_usb_idle_trace/n169_37,\\u_usb_idle_trace/n170_37,\\u_usb_idle_trace/n171_37,\\u_usb_idle_trace/n172_37,\\u_usb_idle_trace/n173_37,\\u_usb_idle_trace/n174_37,\\u_usb_idle_trace/n175_37,\\u_usb_idle_trace/n176_37,\\u_usb_idle_trace/n177_37,\\u_usb_idle_trace/n178_37,\\u_usb_idle_trace/n179_37,\\u_usb_idle_trace/n180_37,\\u_usb_idle_trace/n181_37}",
+          "ADA": "{GND,GND,GND,GND,\\u_usb_idle_trace/u_replies/wr_bin[4:0],GND,GND,GND,VCC,VCC}",
+          "ADB": "{GND,GND,GND,GND,\\u_usb_idle_trace/u_replies/rd_bin[4:0],GND,GND,GND,GND,GND}",
+          "DO": "{\\g_inferred_storage.mem_g_inferred_storage.mem_0_0_s_reply[15:0],\\u_usb_idle_trace/reply[15:0]}"
+        }
+      },
+      "parameters": {
+        "READ_MODE": "1'b0",
+        "BIT_WIDTH_0": "16",
+        "BIT_WIDTH_1": "16",
+        "RESET_MODE": "\"SYNC\"",
+        "BLK_SEL_0": "3'b000",
+        "BLK_SEL_1": "3'b000"
+      }
+    },
+    "u_usb_idle_trace/ureset_s0": {
+      "cell": {
+        "kind": "LUT2",
+        "pins": {
+          "I0": "u_usb_idle_trace/ur[2]",
+          "I1": "u_usb_idle_trace/hu[1]",
+          "F": "u_usb_idle_trace/n5312_3"
+        }
+      },
+      "parameters": {
+        "INIT": "4'h7"
+      }
+    }
+  },
+  "boundary_connections": {
+    "u_usb_idle_trace/command[0]": {
+      "drivers": [
+        [
+          "u_usb_idle_trace/u_commands/head_0_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_usb_idle_trace/n5310_s1",
+          "LUT4",
+          "I0"
+        ],
+        [
+          "u_usb_idle_trace/snapshot_64_s0",
+          "DFFRE",
+          "D"
+        ]
+      ]
+    },
+    "u_usb_idle_trace/command[2]": {
+      "drivers": [
+        [
+          "u_usb_idle_trace/u_commands/head_2_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_usb_idle_trace/armed_s3",
+          "LUT3",
+          "I1"
+        ],
+        [
+          "u_usb_idle_trace/snapshot_66_s0",
+          "DFFRE",
+          "D"
+        ]
+      ]
+    },
+    "u_usb_idle_trace/snapshot[64]": {
+      "drivers": [
+        [
+          "u_usb_idle_trace/snapshot_64_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_usb_idle_trace/n181_s43",
+          "LUT4",
+          "I1"
+        ]
+      ]
+    },
+    "u_usb_idle_trace/snapshot[66]": {
+      "drivers": [
+        [
+          "u_usb_idle_trace/snapshot_66_s0",
+          "DFFRE",
+          "Q"
+        ]
+      ],
+      "loads": [
+        [
+          "u_usb_idle_trace/n179_s52",
+          "LUT4",
+          "I2"
+        ]
+      ]
+    },
+    "u_usb_idle_trace/n181_37": {
+      "drivers": [
+        [
+          "u_usb_idle_trace/n181_s33",
+          "LUT4",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s",
+          "SDPB",
+          "DI[0]"
+        ]
+      ]
+    },
+    "u_usb_idle_trace/n179_37": {
+      "drivers": [
+        [
+          "u_usb_idle_trace/n179_s33",
+          "LUT4",
+          "F"
+        ]
+      ],
+      "loads": [
+        [
+          "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s",
+          "SDPB",
+          "DI[2]"
+        ]
+      ]
+    },
+    "u_usb_idle_trace/reply[0]": {
+      "drivers": [
+        [
+          "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s",
+          "SDPB",
+          "DO[0]"
+        ]
+      ],
+      "loads": [
+        [
+          "u_usb_idle_trace/bank_bank_0_0_s",
+          "RAM16SDP4",
+          "DI[0]"
+        ],
+        [
+          "u_usb_idle_trace/bank_bank_1_0_s",
+          "RAM16SDP4",
+          "DI[0]"
+        ]
+      ]
+    },
+    "u_usb_idle_trace/reply[2]": {
+      "drivers": [
+        [
+          "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s",
+          "SDPB",
+          "DO[2]"
+        ]
+      ],
+      "loads": [
+        [
+          "u_usb_idle_trace/bank_bank_0_0_s",
+          "RAM16SDP4",
+          "DI[2]"
+        ],
+        [
+          "u_usb_idle_trace/bank_bank_1_0_s",
+          "RAM16SDP4",
+          "DI[2]"
+        ]
+      ]
+    }
+  },
+  "selected_interconnects": [
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/n5310_s1/I3",
+      "line": 2257482,
+      "rise_ns": [
+        0.402,
+        0.67,
+        0.937
+      ],
+      "fall_ns": [
+        0.402,
+        0.67,
+        0.937
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_994_s0/RESET",
+      "line": 2257489,
+      "rise_ns": [
+        0.629,
+        1.1,
+        1.57
+      ],
+      "fall_ns": [
+        0.629,
+        1.1,
+        1.57
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_992_s0/RESET",
+      "line": 2257491,
+      "rise_ns": [
+        0.721,
+        1.248,
+        1.775
+      ],
+      "fall_ns": [
+        0.721,
+        1.248,
+        1.775
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_962_s0/RESET",
+      "line": 2257521,
+      "rise_ns": [
+        0.913,
+        1.564,
+        2.214
+      ],
+      "fall_ns": [
+        0.913,
+        1.564,
+        2.214
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_960_s0/RESET",
+      "line": 2257523,
+      "rise_ns": [
+        0.537,
+        0.955,
+        1.374
+      ],
+      "fall_ns": [
+        0.537,
+        0.955,
+        1.374
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_930_s0/RESET",
+      "line": 2257553,
+      "rise_ns": [
+        1.51,
+        2.531,
+        3.552
+      ],
+      "fall_ns": [
+        1.51,
+        2.531,
+        3.552
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_928_s0/RESET",
+      "line": 2257555,
+      "rise_ns": [
+        1.147,
+        1.938,
+        2.728
+      ],
+      "fall_ns": [
+        1.147,
+        1.938,
+        2.728
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_898_s0/RESET",
+      "line": 2257585,
+      "rise_ns": [
+        1.705,
+        2.864,
+        4.023
+      ],
+      "fall_ns": [
+        1.705,
+        2.864,
+        4.023
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_896_s0/RESET",
+      "line": 2257587,
+      "rise_ns": [
+        0.912,
+        1.571,
+        2.23
+      ],
+      "fall_ns": [
+        0.912,
+        1.571,
+        2.23
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_866_s0/RESET",
+      "line": 2257617,
+      "rise_ns": [
+        1.518,
+        2.545,
+        3.572
+      ],
+      "fall_ns": [
+        1.518,
+        2.545,
+        3.572
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_864_s0/RESET",
+      "line": 2257619,
+      "rise_ns": [
+        1.0,
+        1.709,
+        2.419
+      ],
+      "fall_ns": [
+        1.0,
+        1.709,
+        2.419
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_834_s0/RESET",
+      "line": 2257649,
+      "rise_ns": [
+        1.518,
+        2.545,
+        3.572
+      ],
+      "fall_ns": [
+        1.518,
+        2.545,
+        3.572
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_832_s0/RESET",
+      "line": 2257651,
+      "rise_ns": [
+        1.003,
+        1.719,
+        2.434
+      ],
+      "fall_ns": [
+        1.003,
+        1.719,
+        2.434
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_802_s0/RESET",
+      "line": 2257681,
+      "rise_ns": [
+        1.232,
+        2.076,
+        2.919
+      ],
+      "fall_ns": [
+        1.232,
+        2.076,
+        2.919
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_800_s0/RESET",
+      "line": 2257683,
+      "rise_ns": [
+        0.913,
+        1.564,
+        2.214
+      ],
+      "fall_ns": [
+        0.913,
+        1.564,
+        2.214
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_770_s0/RESET",
+      "line": 2257713,
+      "rise_ns": [
+        1.705,
+        2.864,
+        4.023
+      ],
+      "fall_ns": [
+        1.705,
+        2.864,
+        4.023
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_768_s0/RESET",
+      "line": 2257715,
+      "rise_ns": [
+        0.815,
+        1.404,
+        1.993
+      ],
+      "fall_ns": [
+        0.815,
+        1.404,
+        1.993
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_738_s0/RESET",
+      "line": 2257745,
+      "rise_ns": [
+        1.503,
+        2.525,
+        3.547
+      ],
+      "fall_ns": [
+        1.503,
+        2.525,
+        3.547
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_736_s0/RESET",
+      "line": 2257747,
+      "rise_ns": [
+        1.0,
+        1.709,
+        2.419
+      ],
+      "fall_ns": [
+        1.0,
+        1.709,
+        2.419
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_706_s0/RESET",
+      "line": 2257777,
+      "rise_ns": [
+        1.503,
+        2.525,
+        3.547
+      ],
+      "fall_ns": [
+        1.503,
+        2.525,
+        3.547
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_704_s0/RESET",
+      "line": 2257779,
+      "rise_ns": [
+        0.815,
+        1.404,
+        1.993
+      ],
+      "fall_ns": [
+        0.815,
+        1.404,
+        1.993
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_690_s0/RESET",
+      "line": 2257793,
+      "rise_ns": [
+        1.221,
+        2.057,
+        2.892
+      ],
+      "fall_ns": [
+        1.221,
+        2.057,
+        2.892
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_688_s0/RESET",
+      "line": 2257795,
+      "rise_ns": [
+        1.222,
+        2.06,
+        2.897
+      ],
+      "fall_ns": [
+        1.222,
+        2.06,
+        2.897
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_674_s0/RESET",
+      "line": 2257809,
+      "rise_ns": [
+        1.125,
+        1.893,
+        2.661
+      ],
+      "fall_ns": [
+        1.125,
+        1.893,
+        2.661
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_672_s0/RESET",
+      "line": 2257811,
+      "rise_ns": [
+        1.003,
+        1.722,
+        2.441
+      ],
+      "fall_ns": [
+        1.003,
+        1.722,
+        2.441
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_642_s0/RESET",
+      "line": 2257825,
+      "rise_ns": [
+        1.604,
+        2.687,
+        3.77
+      ],
+      "fall_ns": [
+        1.604,
+        2.687,
+        3.77
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_640_s0/RESET",
+      "line": 2257827,
+      "rise_ns": [
+        1.097,
+        1.878,
+        2.659
+      ],
+      "fall_ns": [
+        1.097,
+        1.878,
+        2.659
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_578_s0/RESET",
+      "line": 2257853,
+      "rise_ns": [
+        1.696,
+        2.835,
+        3.975
+      ],
+      "fall_ns": [
+        1.696,
+        2.835,
+        3.975
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_576_s0/RESET",
+      "line": 2257855,
+      "rise_ns": [
+        1.003,
+        1.719,
+        2.434
+      ],
+      "fall_ns": [
+        1.003,
+        1.719,
+        2.434
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_546_s0/RESET",
+      "line": 2257885,
+      "rise_ns": [
+        1.787,
+        2.986,
+        4.185
+      ],
+      "fall_ns": [
+        1.787,
+        2.986,
+        4.185
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_544_s0/RESET",
+      "line": 2257887,
+      "rise_ns": [
+        1.296,
+        2.206,
+        3.116
+      ],
+      "fall_ns": [
+        1.296,
+        2.206,
+        3.116
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_514_s0/RESET",
+      "line": 2257917,
+      "rise_ns": [
+        0.776,
+        1.355,
+        1.935
+      ],
+      "fall_ns": [
+        0.776,
+        1.355,
+        1.935
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_512_s0/RESET",
+      "line": 2257919,
+      "rise_ns": [
+        1.279,
+        2.169,
+        3.059
+      ],
+      "fall_ns": [
+        1.279,
+        2.169,
+        3.059
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_482_s0/RESET",
+      "line": 2257949,
+      "rise_ns": [
+        1.092,
+        1.859,
+        2.627
+      ],
+      "fall_ns": [
+        1.092,
+        1.859,
+        2.627
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_480_s0/RESET",
+      "line": 2257951,
+      "rise_ns": [
+        1.279,
+        2.169,
+        3.059
+      ],
+      "fall_ns": [
+        1.279,
+        2.169,
+        3.059
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_450_s0/RESET",
+      "line": 2257981,
+      "rise_ns": [
+        1.092,
+        1.859,
+        2.627
+      ],
+      "fall_ns": [
+        1.092,
+        1.859,
+        2.627
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_448_s0/RESET",
+      "line": 2257983,
+      "rise_ns": [
+        1.093,
+        1.865,
+        2.636
+      ],
+      "fall_ns": [
+        1.093,
+        1.865,
+        2.636
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_418_s0/RESET",
+      "line": 2258013,
+      "rise_ns": [
+        0.675,
+        1.116,
+        1.557
+      ],
+      "fall_ns": [
+        0.675,
+        1.116,
+        1.557
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_416_s0/RESET",
+      "line": 2258015,
+      "rise_ns": [
+        1.093,
+        1.865,
+        2.636
+      ],
+      "fall_ns": [
+        1.093,
+        1.865,
+        2.636
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_386_s0/RESET",
+      "line": 2258045,
+      "rise_ns": [
+        0.675,
+        1.116,
+        1.557
+      ],
+      "fall_ns": [
+        0.675,
+        1.116,
+        1.557
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_384_s0/RESET",
+      "line": 2258047,
+      "rise_ns": [
+        0.899,
+        1.531,
+        2.163
+      ],
+      "fall_ns": [
+        0.899,
+        1.531,
+        2.163
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_354_s0/RESET",
+      "line": 2258077,
+      "rise_ns": [
+        1.474,
+        2.488,
+        3.502
+      ],
+      "fall_ns": [
+        1.474,
+        2.488,
+        3.502
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_352_s0/RESET",
+      "line": 2258079,
+      "rise_ns": [
+        1.298,
+        2.214,
+        3.13
+      ],
+      "fall_ns": [
+        1.298,
+        2.214,
+        3.13
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_322_s0/RESET",
+      "line": 2258109,
+      "rise_ns": [
+        1.478,
+        2.501,
+        3.523
+      ],
+      "fall_ns": [
+        1.478,
+        2.501,
+        3.523
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_320_s0/RESET",
+      "line": 2258111,
+      "rise_ns": [
+        1.696,
+        2.835,
+        3.975
+      ],
+      "fall_ns": [
+        1.696,
+        2.835,
+        3.975
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_290_s0/RESET",
+      "line": 2258141,
+      "rise_ns": [
+        0.359,
+        0.606,
+        0.853
+      ],
+      "fall_ns": [
+        0.359,
+        0.606,
+        0.853
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_288_s0/RESET",
+      "line": 2258143,
+      "rise_ns": [
+        1.474,
+        2.488,
+        3.502
+      ],
+      "fall_ns": [
+        1.474,
+        2.488,
+        3.502
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_258_s0/RESET",
+      "line": 2258173,
+      "rise_ns": [
+        0.359,
+        0.606,
+        0.853
+      ],
+      "fall_ns": [
+        0.359,
+        0.606,
+        0.853
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_256_s0/RESET",
+      "line": 2258175,
+      "rise_ns": [
+        1.39,
+        2.362,
+        3.334
+      ],
+      "fall_ns": [
+        1.39,
+        2.362,
+        3.334
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_226_s0/RESET",
+      "line": 2258205,
+      "rise_ns": [
+        0.871,
+        1.517,
+        2.162
+      ],
+      "fall_ns": [
+        0.871,
+        1.517,
+        2.162
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_224_s0/RESET",
+      "line": 2258207,
+      "rise_ns": [
+        1.39,
+        2.362,
+        3.334
+      ],
+      "fall_ns": [
+        1.39,
+        2.362,
+        3.334
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_194_s0/RESET",
+      "line": 2258237,
+      "rise_ns": [
+        0.776,
+        1.355,
+        1.935
+      ],
+      "fall_ns": [
+        0.776,
+        1.355,
+        1.935
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_192_s0/RESET",
+      "line": 2258239,
+      "rise_ns": [
+        1.204,
+        2.052,
+        2.9
+      ],
+      "fall_ns": [
+        1.204,
+        2.052,
+        2.9
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_162_s0/RESET",
+      "line": 2258269,
+      "rise_ns": [
+        1.3,
+        2.214,
+        3.127
+      ],
+      "fall_ns": [
+        1.3,
+        2.214,
+        3.127
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_160_s0/RESET",
+      "line": 2258271,
+      "rise_ns": [
+        1.474,
+        2.488,
+        3.502
+      ],
+      "fall_ns": [
+        1.474,
+        2.488,
+        3.502
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_130_s0/RESET",
+      "line": 2258301,
+      "rise_ns": [
+        0.708,
+        1.206,
+        1.704
+      ],
+      "fall_ns": [
+        0.708,
+        1.206,
+        1.704
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_128_s0/RESET",
+      "line": 2258303,
+      "rise_ns": [
+        0.913,
+        1.564,
+        2.214
+      ],
+      "fall_ns": [
+        0.913,
+        1.564,
+        2.214
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_98_s0/RESET",
+      "line": 2258333,
+      "rise_ns": [
+        0.708,
+        1.206,
+        1.704
+      ],
+      "fall_ns": [
+        0.708,
+        1.206,
+        1.704
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_96_s0/RESET",
+      "line": 2258335,
+      "rise_ns": [
+        0.913,
+        1.564,
+        2.214
+      ],
+      "fall_ns": [
+        0.913,
+        1.564,
+        2.214
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_66_s0/RESET",
+      "line": 2258365,
+      "rise_ns": [
+        0.64,
+        1.048,
+        1.457
+      ],
+      "fall_ns": [
+        0.64,
+        1.048,
+        1.457
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_64_s0/RESET",
+      "line": 2258367,
+      "rise_ns": [
+        0.359,
+        0.606,
+        0.853
+      ],
+      "fall_ns": [
+        0.359,
+        0.606,
+        0.853
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_32_s0/RESET",
+      "line": 2258368,
+      "rise_ns": [
+        1.086,
+        1.831,
+        2.576
+      ],
+      "fall_ns": [
+        1.086,
+        1.831,
+        2.576
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/u_commands/head_2_s0/RESET",
+      "line": 2258419,
+      "rise_ns": [
+        0.748,
+        1.281,
+        1.815
+      ],
+      "fall_ns": [
+        0.748,
+        1.281,
+        1.815
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/ureset_s0/F",
+      "destination": "u_usb_idle_trace/u_commands/head_0_s0/RESET",
+      "line": 2258421,
+      "rise_ns": [
+        0.721,
+        1.193,
+        1.665
+      ],
+      "fall_ns": [
+        0.721,
+        1.193,
+        1.665
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_994_s0/CE",
+      "line": 2258802,
+      "rise_ns": [
+        0.717,
+        1.171,
+        1.624
+      ],
+      "fall_ns": [
+        0.717,
+        1.171,
+        1.624
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_992_s0/CE",
+      "line": 2258804,
+      "rise_ns": [
+        0.809,
+        1.319,
+        1.829
+      ],
+      "fall_ns": [
+        0.809,
+        1.319,
+        1.829
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_962_s0/CE",
+      "line": 2258834,
+      "rise_ns": [
+        0.825,
+        1.359,
+        1.892
+      ],
+      "fall_ns": [
+        0.825,
+        1.359,
+        1.892
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_960_s0/CE",
+      "line": 2258836,
+      "rise_ns": [
+        0.728,
+        1.192,
+        1.656
+      ],
+      "fall_ns": [
+        0.728,
+        1.192,
+        1.656
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_930_s0/CE",
+      "line": 2258866,
+      "rise_ns": [
+        2.075,
+        3.388,
+        4.701
+      ],
+      "fall_ns": [
+        2.075,
+        3.388,
+        4.701
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_928_s0/CE",
+      "line": 2258868,
+      "rise_ns": [
+        1.145,
+        1.863,
+        2.581
+      ],
+      "fall_ns": [
+        1.145,
+        1.863,
+        2.581
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_898_s0/CE",
+      "line": 2258898,
+      "rise_ns": [
+        2.039,
+        3.349,
+        4.659
+      ],
+      "fall_ns": [
+        2.039,
+        3.349,
+        4.659
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_896_s0/CE",
+      "line": 2258900,
+      "rise_ns": [
+        1.102,
+        1.83,
+        2.557
+      ],
+      "fall_ns": [
+        1.102,
+        1.83,
+        2.557
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_866_s0/CE",
+      "line": 2258930,
+      "rise_ns": [
+        1.327,
+        2.167,
+        3.008
+      ],
+      "fall_ns": [
+        1.327,
+        2.167,
+        3.008
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_864_s0/CE",
+      "line": 2258932,
+      "rise_ns": [
+        0.712,
+        1.153,
+        1.594
+      ],
+      "fall_ns": [
+        0.712,
+        1.153,
+        1.594
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_834_s0/CE",
+      "line": 2258962,
+      "rise_ns": [
+        1.327,
+        2.167,
+        3.008
+      ],
+      "fall_ns": [
+        1.327,
+        2.167,
+        3.008
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_832_s0/CE",
+      "line": 2258964,
+      "rise_ns": [
+        1.102,
+        1.83,
+        2.557
+      ],
+      "fall_ns": [
+        1.102,
+        1.83,
+        2.557
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_802_s0/CE",
+      "line": 2258994,
+      "rise_ns": [
+        1.33,
+        2.167,
+        3.004
+      ],
+      "fall_ns": [
+        1.33,
+        2.167,
+        3.004
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_800_s0/CE",
+      "line": 2258996,
+      "rise_ns": [
+        0.825,
+        1.359,
+        1.892
+      ],
+      "fall_ns": [
+        0.825,
+        1.359,
+        1.892
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_770_s0/CE",
+      "line": 2259026,
+      "rise_ns": [
+        2.039,
+        3.349,
+        4.659
+      ],
+      "fall_ns": [
+        2.039,
+        3.349,
+        4.659
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_768_s0/CE",
+      "line": 2259028,
+      "rise_ns": [
+        0.982,
+        1.583,
+        2.185
+      ],
+      "fall_ns": [
+        0.982,
+        1.583,
+        2.185
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_738_s0/CE",
+      "line": 2259058,
+      "rise_ns": [
+        1.604,
+        2.621,
+        3.638
+      ],
+      "fall_ns": [
+        1.604,
+        2.621,
+        3.638
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_736_s0/CE",
+      "line": 2259060,
+      "rise_ns": [
+        0.712,
+        1.153,
+        1.594
+      ],
+      "fall_ns": [
+        0.712,
+        1.153,
+        1.594
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_706_s0/CE",
+      "line": 2259090,
+      "rise_ns": [
+        1.604,
+        2.621,
+        3.638
+      ],
+      "fall_ns": [
+        1.604,
+        2.621,
+        3.638
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_704_s0/CE",
+      "line": 2259092,
+      "rise_ns": [
+        0.89,
+        1.435,
+        1.98
+      ],
+      "fall_ns": [
+        0.89,
+        1.435,
+        1.98
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_690_s0/CE",
+      "line": 2259106,
+      "rise_ns": [
+        1.41,
+        2.305,
+        3.199
+      ],
+      "fall_ns": [
+        1.41,
+        2.305,
+        3.199
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_688_s0/CE",
+      "line": 2259108,
+      "rise_ns": [
+        1.325,
+        2.162,
+        2.999
+      ],
+      "fall_ns": [
+        1.325,
+        2.162,
+        2.999
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_674_s0/CE",
+      "line": 2259122,
+      "rise_ns": [
+        1.226,
+        1.99,
+        2.755
+      ],
+      "fall_ns": [
+        1.226,
+        1.99,
+        2.755
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_672_s0/CE",
+      "line": 2259124,
+      "rise_ns": [
+        0.982,
+        1.583,
+        2.185
+      ],
+      "fall_ns": [
+        0.982,
+        1.583,
+        2.185
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_642_s0/CE",
+      "line": 2259138,
+      "rise_ns": [
+        1.711,
+        2.823,
+        3.935
+      ],
+      "fall_ns": [
+        1.711,
+        2.823,
+        3.935
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_640_s0/CE",
+      "line": 2259140,
+      "rise_ns": [
+        1.194,
+        1.978,
+        2.762
+      ],
+      "fall_ns": [
+        1.194,
+        1.978,
+        2.762
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_578_s0/CE",
+      "line": 2259166,
+      "rise_ns": [
+        1.619,
+        2.675,
+        3.73
+      ],
+      "fall_ns": [
+        1.619,
+        2.675,
+        3.73
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_576_s0/CE",
+      "line": 2259168,
+      "rise_ns": [
+        1.102,
+        1.83,
+        2.557
+      ],
+      "fall_ns": [
+        1.102,
+        1.83,
+        2.557
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_546_s0/CE",
+      "line": 2259198,
+      "rise_ns": [
+        1.713,
+        2.831,
+        3.949
+      ],
+      "fall_ns": [
+        1.713,
+        2.831,
+        3.949
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_544_s0/CE",
+      "line": 2259200,
+      "rise_ns": [
+        1.391,
+        2.301,
+        3.211
+      ],
+      "fall_ns": [
+        1.391,
+        2.301,
+        3.211
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_514_s0/CE",
+      "line": 2259230,
+      "rise_ns": [
+        0.795,
+        1.27,
+        1.745
+      ],
+      "fall_ns": [
+        0.795,
+        1.27,
+        1.745
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_512_s0/CE",
+      "line": 2259232,
+      "rise_ns": [
+        1.505,
+        2.528,
+        3.552
+      ],
+      "fall_ns": [
+        1.505,
+        2.528,
+        3.552
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_482_s0/CE",
+      "line": 2259262,
+      "rise_ns": [
+        1.868,
+        3.105,
+        4.343
+      ],
+      "fall_ns": [
+        1.868,
+        3.105,
+        4.343
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_480_s0/CE",
+      "line": 2259264,
+      "rise_ns": [
+        1.505,
+        2.528,
+        3.552
+      ],
+      "fall_ns": [
+        1.505,
+        2.528,
+        3.552
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_450_s0/CE",
+      "line": 2259294,
+      "rise_ns": [
+        1.868,
+        3.105,
+        4.343
+      ],
+      "fall_ns": [
+        1.868,
+        3.105,
+        4.343
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_448_s0/CE",
+      "line": 2259296,
+      "rise_ns": [
+        1.413,
+        2.38,
+        3.347
+      ],
+      "fall_ns": [
+        1.413,
+        2.38,
+        3.347
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_418_s0/CE",
+      "line": 2259326,
+      "rise_ns": [
+        1.372,
+        2.259,
+        3.145
+      ],
+      "fall_ns": [
+        1.372,
+        2.259,
+        3.145
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_416_s0/CE",
+      "line": 2259328,
+      "rise_ns": [
+        1.413,
+        2.38,
+        3.347
+      ],
+      "fall_ns": [
+        1.413,
+        2.38,
+        3.347
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_386_s0/CE",
+      "line": 2259358,
+      "rise_ns": [
+        1.372,
+        2.259,
+        3.145
+      ],
+      "fall_ns": [
+        1.372,
+        2.259,
+        3.145
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_384_s0/CE",
+      "line": 2259360,
+      "rise_ns": [
+        1.678,
+        2.783,
+        3.888
+      ],
+      "fall_ns": [
+        1.678,
+        2.783,
+        3.888
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_354_s0/CE",
+      "line": 2259390,
+      "rise_ns": [
+        1.404,
+        2.346,
+        3.287
+      ],
+      "fall_ns": [
+        1.404,
+        2.346,
+        3.287
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_352_s0/CE",
+      "line": 2259392,
+      "rise_ns": [
+        1.204,
+        1.992,
+        2.78
+      ],
+      "fall_ns": [
+        1.204,
+        1.992,
+        2.78
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_322_s0/CE",
+      "line": 2259422,
+      "rise_ns": [
+        1.312,
+        2.197,
+        3.082
+      ],
+      "fall_ns": [
+        1.312,
+        2.197,
+        3.082
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_320_s0/CE",
+      "line": 2259424,
+      "rise_ns": [
+        1.706,
+        2.809,
+        3.912
+      ],
+      "fall_ns": [
+        1.706,
+        2.809,
+        3.912
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_290_s0/CE",
+      "line": 2259454,
+      "rise_ns": [
+        0.959,
+        1.681,
+        2.403
+      ],
+      "fall_ns": [
+        0.959,
+        1.681,
+        2.403
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_288_s0/CE",
+      "line": 2259456,
+      "rise_ns": [
+        1.404,
+        2.346,
+        3.287
+      ],
+      "fall_ns": [
+        1.404,
+        2.346,
+        3.287
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_258_s0/CE",
+      "line": 2259486,
+      "rise_ns": [
+        0.959,
+        1.681,
+        2.403
+      ],
+      "fall_ns": [
+        0.959,
+        1.681,
+        2.403
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_256_s0/CE",
+      "line": 2259488,
+      "rise_ns": [
+        1.213,
+        2.02,
+        2.827
+      ],
+      "fall_ns": [
+        1.213,
+        2.02,
+        2.827
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_226_s0/CE",
+      "line": 2259518,
+      "rise_ns": [
+        0.885,
+        1.413,
+        1.942
+      ],
+      "fall_ns": [
+        0.885,
+        1.413,
+        1.942
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_224_s0/CE",
+      "line": 2259520,
+      "rise_ns": [
+        1.213,
+        2.02,
+        2.827
+      ],
+      "fall_ns": [
+        1.213,
+        2.02,
+        2.827
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_194_s0/CE",
+      "line": 2259550,
+      "rise_ns": [
+        0.795,
+        1.27,
+        1.745
+      ],
+      "fall_ns": [
+        0.795,
+        1.27,
+        1.745
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_192_s0/CE",
+      "line": 2259552,
+      "rise_ns": [
+        1.116,
+        1.853,
+        2.591
+      ],
+      "fall_ns": [
+        1.116,
+        1.853,
+        2.591
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_162_s0/CE",
+      "line": 2259582,
+      "rise_ns": [
+        1.217,
+        2.036,
+        2.855
+      ],
+      "fall_ns": [
+        1.217,
+        2.036,
+        2.855
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_160_s0/CE",
+      "line": 2259584,
+      "rise_ns": [
+        1.404,
+        2.346,
+        3.287
+      ],
+      "fall_ns": [
+        1.404,
+        2.346,
+        3.287
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_130_s0/CE",
+      "line": 2259614,
+      "rise_ns": [
+        1.086,
+        1.774,
+        2.463
+      ],
+      "fall_ns": [
+        1.086,
+        1.774,
+        2.463
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_128_s0/CE",
+      "line": 2259616,
+      "rise_ns": [
+        0.825,
+        1.359,
+        1.892
+      ],
+      "fall_ns": [
+        0.825,
+        1.359,
+        1.892
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_98_s0/CE",
+      "line": 2259646,
+      "rise_ns": [
+        1.086,
+        1.774,
+        2.463
+      ],
+      "fall_ns": [
+        1.086,
+        1.774,
+        2.463
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_96_s0/CE",
+      "line": 2259648,
+      "rise_ns": [
+        0.825,
+        1.359,
+        1.892
+      ],
+      "fall_ns": [
+        0.825,
+        1.359,
+        1.892
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_66_s0/CE",
+      "line": 2259678,
+      "rise_ns": [
+        0.19,
+        0.283,
+        0.377
+      ],
+      "fall_ns": [
+        0.19,
+        0.283,
+        0.377
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_64_s0/CE",
+      "line": 2259680,
+      "rise_ns": [
+        0.19,
+        0.283,
+        0.377
+      ],
+      "fall_ns": [
+        0.19,
+        0.283,
+        0.377
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n1170_s0/F",
+      "destination": "u_usb_idle_trace/snapshot_32_s0/CE",
+      "line": 2259681,
+      "rise_ns": [
+        1.097,
+        1.785,
+        2.474
+      ],
+      "fall_ns": [
+        1.097,
+        1.785,
+        2.474
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/armed_s3/F",
+      "destination": "u_usb_idle_trace/armed_s1/CE",
+      "line": 2259903,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s33/F",
+      "destination": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DI[2]",
+      "line": 2259933,
+      "rise_ns": [
+        0.638,
+        1.054,
+        1.469
+      ],
+      "fall_ns": [
+        0.638,
+        1.054,
+        1.469
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s33/F",
+      "destination": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DI[0]",
+      "line": 2259935,
+      "rise_ns": [
+        0.592,
+        0.967,
+        1.342
+      ],
+      "fall_ns": [
+        0.592,
+        0.967,
+        1.342
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s34/F",
+      "destination": "u_usb_idle_trace/n179_s33/I0",
+      "line": 2260204,
+      "rise_ns": [
+        0.207,
+        0.411,
+        0.614
+      ],
+      "fall_ns": [
+        0.207,
+        0.411,
+        0.614
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s35/F",
+      "destination": "u_usb_idle_trace/n179_s33/I1",
+      "line": 2260205,
+      "rise_ns": [
+        0.003,
+        0.004,
+        0.005
+      ],
+      "fall_ns": [
+        0.003,
+        0.004,
+        0.005
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s36/F",
+      "destination": "u_usb_idle_trace/n179_s33/I2",
+      "line": 2260206,
+      "rise_ns": [
+        0.256,
+        0.394,
+        0.531
+      ],
+      "fall_ns": [
+        0.256,
+        0.394,
+        0.531
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s37/F",
+      "destination": "u_usb_idle_trace/n179_s33/I3",
+      "line": 2260207,
+      "rise_ns": [
+        0.091,
+        0.25,
+        0.41
+      ],
+      "fall_ns": [
+        0.091,
+        0.25,
+        0.41
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s34/F",
+      "destination": "u_usb_idle_trace/n181_s33/I2",
+      "line": 2260212,
+      "rise_ns": [
+        0.377,
+        0.573,
+        0.77
+      ],
+      "fall_ns": [
+        0.377,
+        0.573,
+        0.77
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s35/F",
+      "destination": "u_usb_idle_trace/n181_s33/I3",
+      "line": 2260213,
+      "rise_ns": [
+        0.003,
+        0.004,
+        0.005
+      ],
+      "fall_ns": [
+        0.003,
+        0.004,
+        0.005
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s6/F",
+      "destination": "u_usb_idle_trace/n150_s69/I0",
+      "line": 2260261,
+      "rise_ns": [
+        0.102,
+        0.167,
+        0.232
+      ],
+      "fall_ns": [
+        0.102,
+        0.167,
+        0.232
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s6/F",
+      "destination": "u_usb_idle_trace/n150_s70/I0",
+      "line": 2260262,
+      "rise_ns": [
+        0.102,
+        0.167,
+        0.232
+      ],
+      "fall_ns": [
+        0.102,
+        0.167,
+        0.232
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s6/F",
+      "destination": "u_usb_idle_trace/n150_s71/I0",
+      "line": 2260263,
+      "rise_ns": [
+        0.102,
+        0.167,
+        0.232
+      ],
+      "fall_ns": [
+        0.102,
+        0.167,
+        0.232
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s6/F",
+      "destination": "u_usb_idle_trace/n150_s72/I0",
+      "line": 2260264,
+      "rise_ns": [
+        0.19,
+        0.305,
+        0.421
+      ],
+      "fall_ns": [
+        0.19,
+        0.305,
+        0.421
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s6/F",
+      "destination": "u_usb_idle_trace/n150_s74/I0",
+      "line": 2260265,
+      "rise_ns": [
+        0.102,
+        0.167,
+        0.232
+      ],
+      "fall_ns": [
+        0.102,
+        0.167,
+        0.232
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s6/F",
+      "destination": "u_usb_idle_trace/n150_s75/I0",
+      "line": 2260266,
+      "rise_ns": [
+        0.19,
+        0.305,
+        0.421
+      ],
+      "fall_ns": [
+        0.19,
+        0.305,
+        0.421
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s6/F",
+      "destination": "u_usb_idle_trace/n151_s55/I0",
+      "line": 2260267,
+      "rise_ns": [
+        0.008,
+        0.011,
+        0.014
+      ],
+      "fall_ns": [
+        0.008,
+        0.011,
+        0.014
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s6/F",
+      "destination": "u_usb_idle_trace/sending_s7/I3",
+      "line": 2260268,
+      "rise_ns": [
+        0.098,
+        0.14,
+        0.182
+      ],
+      "fall_ns": [
+        0.098,
+        0.14,
+        0.182
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s38/F",
+      "destination": "u_usb_idle_trace/n179_s34/I0",
+      "line": 2260516,
+      "rise_ns": [
+        0.436,
+        0.677,
+        0.918
+      ],
+      "fall_ns": [
+        0.436,
+        0.677,
+        0.918
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s39/F",
+      "destination": "u_usb_idle_trace/n179_s34/I1",
+      "line": 2260517,
+      "rise_ns": [
+        0.314,
+        0.48,
+        0.647
+      ],
+      "fall_ns": [
+        0.314,
+        0.48,
+        0.647
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s40/F",
+      "destination": "u_usb_idle_trace/n179_s34/I2",
+      "line": 2260518,
+      "rise_ns": [
+        0.17,
+        0.257,
+        0.343
+      ],
+      "fall_ns": [
+        0.17,
+        0.257,
+        0.343
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s41/F",
+      "destination": "u_usb_idle_trace/n179_s34/I3",
+      "line": 2260519,
+      "rise_ns": [
+        0.382,
+        0.581,
+        0.781
+      ],
+      "fall_ns": [
+        0.382,
+        0.581,
+        0.781
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s42/F",
+      "destination": "u_usb_idle_trace/n179_s35/I0",
+      "line": 2260520,
+      "rise_ns": [
+        0.314,
+        0.48,
+        0.647
+      ],
+      "fall_ns": [
+        0.314,
+        0.48,
+        0.647
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s43/F",
+      "destination": "u_usb_idle_trace/n179_s35/I1",
+      "line": 2260521,
+      "rise_ns": [
+        0.003,
+        0.004,
+        0.005
+      ],
+      "fall_ns": [
+        0.003,
+        0.004,
+        0.005
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s44/F",
+      "destination": "u_usb_idle_trace/n179_s35/I2",
+      "line": 2260522,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s45/F",
+      "destination": "u_usb_idle_trace/n179_s36/I0",
+      "line": 2260523,
+      "rise_ns": [
+        0.319,
+        0.488,
+        0.658
+      ],
+      "fall_ns": [
+        0.319,
+        0.488,
+        0.658
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s46/F",
+      "destination": "u_usb_idle_trace/n179_s36/I1",
+      "line": 2260524,
+      "rise_ns": [
+        0.17,
+        0.257,
+        0.343
+      ],
+      "fall_ns": [
+        0.17,
+        0.257,
+        0.343
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s47/F",
+      "destination": "u_usb_idle_trace/n179_s36/I2",
+      "line": 2260525,
+      "rise_ns": [
+        0.309,
+        0.46,
+        0.612
+      ],
+      "fall_ns": [
+        0.309,
+        0.46,
+        0.612
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s48/F",
+      "destination": "u_usb_idle_trace/n179_s36/I3",
+      "line": 2260526,
+      "rise_ns": [
+        0.207,
+        0.394,
+        0.581
+      ],
+      "fall_ns": [
+        0.207,
+        0.394,
+        0.581
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s36/F",
+      "destination": "u_usb_idle_trace/n181_s34/I0",
+      "line": 2260538,
+      "rise_ns": [
+        0.17,
+        0.257,
+        0.343
+      ],
+      "fall_ns": [
+        0.17,
+        0.257,
+        0.343
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s37/F",
+      "destination": "u_usb_idle_trace/n181_s34/I1",
+      "line": 2260539,
+      "rise_ns": [
+        0.238,
+        0.357,
+        0.477
+      ],
+      "fall_ns": [
+        0.238,
+        0.357,
+        0.477
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s38/F",
+      "destination": "u_usb_idle_trace/n181_s34/I2",
+      "line": 2260540,
+      "rise_ns": [
+        0.084,
+        0.119,
+        0.155
+      ],
+      "fall_ns": [
+        0.084,
+        0.119,
+        0.155
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s39/F",
+      "destination": "u_usb_idle_trace/n181_s34/I3",
+      "line": 2260541,
+      "rise_ns": [
+        0.17,
+        0.257,
+        0.343
+      ],
+      "fall_ns": [
+        0.17,
+        0.257,
+        0.343
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s49/F",
+      "destination": "u_usb_idle_trace/n179_s38/I0",
+      "line": 2260658,
+      "rise_ns": [
+        0.205,
+        0.315,
+        0.424
+      ],
+      "fall_ns": [
+        0.205,
+        0.315,
+        0.424
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s50/F",
+      "destination": "u_usb_idle_trace/n179_s38/I1",
+      "line": 2260659,
+      "rise_ns": [
+        0.003,
+        0.004,
+        0.005
+      ],
+      "fall_ns": [
+        0.003,
+        0.004,
+        0.005
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s51/F",
+      "destination": "u_usb_idle_trace/n179_s38/I2",
+      "line": 2260660,
+      "rise_ns": [
+        0.417,
+        0.639,
+        0.862
+      ],
+      "fall_ns": [
+        0.417,
+        0.639,
+        0.862
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n179_s52/F",
+      "destination": "u_usb_idle_trace/n179_s38/I3",
+      "line": 2260661,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s40/F",
+      "destination": "u_usb_idle_trace/n181_s36/I0",
+      "line": 2260666,
+      "rise_ns": [
+        0.003,
+        0.004,
+        0.005
+      ],
+      "fall_ns": [
+        0.003,
+        0.004,
+        0.005
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s41/F",
+      "destination": "u_usb_idle_trace/n181_s36/I1",
+      "line": 2260667,
+      "rise_ns": [
+        0.184,
+        0.28,
+        0.377
+      ],
+      "fall_ns": [
+        0.184,
+        0.28,
+        0.377
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s42/F",
+      "destination": "u_usb_idle_trace/n181_s36/I2",
+      "line": 2260668,
+      "rise_ns": [
+        0.189,
+        0.3,
+        0.412
+      ],
+      "fall_ns": [
+        0.189,
+        0.3,
+        0.412
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s43/F",
+      "destination": "u_usb_idle_trace/n181_s36/I3",
+      "line": 2260669,
+      "rise_ns": [
+        0.287,
+        0.441,
+        0.594
+      ],
+      "fall_ns": [
+        0.287,
+        0.441,
+        0.594
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s44/F",
+      "destination": "u_usb_idle_trace/n181_s37/I0",
+      "line": 2260670,
+      "rise_ns": [
+        0.003,
+        0.004,
+        0.005
+      ],
+      "fall_ns": [
+        0.003,
+        0.004,
+        0.005
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s45/F",
+      "destination": "u_usb_idle_trace/n181_s37/I1",
+      "line": 2260671,
+      "rise_ns": [
+        0.233,
+        0.363,
+        0.494
+      ],
+      "fall_ns": [
+        0.233,
+        0.363,
+        0.494
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s46/F",
+      "destination": "u_usb_idle_trace/n181_s37/I2",
+      "line": 2260672,
+      "rise_ns": [
+        0.319,
+        0.501,
+        0.682
+      ],
+      "fall_ns": [
+        0.319,
+        0.501,
+        0.682
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s47/F",
+      "destination": "u_usb_idle_trace/n181_s38/I0",
+      "line": 2260673,
+      "rise_ns": [
+        0.089,
+        0.14,
+        0.19
+      ],
+      "fall_ns": [
+        0.089,
+        0.14,
+        0.19
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s48/F",
+      "destination": "u_usb_idle_trace/n181_s38/I1",
+      "line": 2260674,
+      "rise_ns": [
+        0.256,
+        0.394,
+        0.531
+      ],
+      "fall_ns": [
+        0.256,
+        0.394,
+        0.531
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s49/F",
+      "destination": "u_usb_idle_trace/n181_s38/I2",
+      "line": 2260675,
+      "rise_ns": [
+        0.084,
+        0.119,
+        0.155
+      ],
+      "fall_ns": [
+        0.084,
+        0.119,
+        0.155
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s50/F",
+      "destination": "u_usb_idle_trace/n181_s39/I0",
+      "line": 2260676,
+      "rise_ns": [
+        0.157,
+        0.24,
+        0.324
+      ],
+      "fall_ns": [
+        0.157,
+        0.24,
+        0.324
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s51/F",
+      "destination": "u_usb_idle_trace/n181_s39/I1",
+      "line": 2260677,
+      "rise_ns": [
+        0.256,
+        0.394,
+        0.531
+      ],
+      "fall_ns": [
+        0.256,
+        0.394,
+        0.531
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s52/F",
+      "destination": "u_usb_idle_trace/n181_s39/I2",
+      "line": 2260678,
+      "rise_ns": [
+        0.084,
+        0.119,
+        0.155
+      ],
+      "fall_ns": [
+        0.084,
+        0.119,
+        0.155
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s66/F",
+      "destination": "u_usb_idle_trace/n150_s68/I3",
+      "line": 2260696,
+      "rise_ns": [
+        0.104,
+        0.166,
+        0.228
+      ],
+      "fall_ns": [
+        0.104,
+        0.166,
+        0.228
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s66/F",
+      "destination": "u_usb_idle_trace/n158_s53/I3",
+      "line": 2260697,
+      "rise_ns": [
+        0.196,
+        0.315,
+        0.433
+      ],
+      "fall_ns": [
+        0.196,
+        0.315,
+        0.433
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s66/F",
+      "destination": "u_usb_idle_trace/n167_s54/I3",
+      "line": 2260698,
+      "rise_ns": [
+        0.196,
+        0.315,
+        0.433
+      ],
+      "fall_ns": [
+        0.196,
+        0.315,
+        0.433
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s66/F",
+      "destination": "u_usb_idle_trace/n154_s52/I3",
+      "line": 2260699,
+      "rise_ns": [
+        0.196,
+        0.315,
+        0.433
+      ],
+      "fall_ns": [
+        0.196,
+        0.315,
+        0.433
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s66/F",
+      "destination": "u_usb_idle_trace/n150_s73/I3",
+      "line": 2260700,
+      "rise_ns": [
+        0.088,
+        0.124,
+        0.16
+      ],
+      "fall_ns": [
+        0.088,
+        0.124,
+        0.16
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s66/F",
+      "destination": "u_usb_idle_trace/n150_s76/I3",
+      "line": 2260701,
+      "rise_ns": [
+        0.104,
+        0.166,
+        0.228
+      ],
+      "fall_ns": [
+        0.104,
+        0.166,
+        0.228
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s66/F",
+      "destination": "u_usb_idle_trace/n150_s77/I3",
+      "line": 2260702,
+      "rise_ns": [
+        0.175,
+        0.261,
+        0.348
+      ],
+      "fall_ns": [
+        0.175,
+        0.261,
+        0.348
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s66/F",
+      "destination": "u_usb_idle_trace/n150_s78/I3",
+      "line": 2260703,
+      "rise_ns": [
+        0.196,
+        0.315,
+        0.433
+      ],
+      "fall_ns": [
+        0.196,
+        0.315,
+        0.433
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s54/F",
+      "destination": "u_usb_idle_trace/n155_s67/I3",
+      "line": 2260709,
+      "rise_ns": [
+        0.096,
+        0.139,
+        0.182
+      ],
+      "fall_ns": [
+        0.096,
+        0.139,
+        0.182
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s54/F",
+      "destination": "u_usb_idle_trace/n155_s69/I3",
+      "line": 2260710,
+      "rise_ns": [
+        0.192,
+        0.296,
+        0.399
+      ],
+      "fall_ns": [
+        0.192,
+        0.296,
+        0.399
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s54/F",
+      "destination": "u_usb_idle_trace/n155_s71/I0",
+      "line": 2260711,
+      "rise_ns": [
+        0.192,
+        0.296,
+        0.399
+      ],
+      "fall_ns": [
+        0.192,
+        0.296,
+        0.399
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s54/F",
+      "destination": "u_usb_idle_trace/n155_s73/I3",
+      "line": 2260712,
+      "rise_ns": [
+        0.192,
+        0.296,
+        0.399
+      ],
+      "fall_ns": [
+        0.192,
+        0.296,
+        0.399
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s54/F",
+      "destination": "u_usb_idle_trace/n155_s75/I0",
+      "line": 2260713,
+      "rise_ns": [
+        0.192,
+        0.296,
+        0.399
+      ],
+      "fall_ns": [
+        0.192,
+        0.296,
+        0.399
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s54/F",
+      "destination": "u_usb_idle_trace/n155_s76/I0",
+      "line": 2260714,
+      "rise_ns": [
+        0.096,
+        0.139,
+        0.182
+      ],
+      "fall_ns": [
+        0.096,
+        0.139,
+        0.182
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s54/F",
+      "destination": "u_usb_idle_trace/n155_s78/I0",
+      "line": 2260715,
+      "rise_ns": [
+        0.192,
+        0.296,
+        0.399
+      ],
+      "fall_ns": [
+        0.192,
+        0.296,
+        0.399
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s54/F",
+      "destination": "u_usb_idle_trace/n151_s56/I3",
+      "line": 2260716,
+      "rise_ns": [
+        0.192,
+        0.296,
+        0.399
+      ],
+      "fall_ns": [
+        0.192,
+        0.296,
+        0.399
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s66/F",
+      "destination": "u_usb_idle_trace/n181_s53/I3",
+      "line": 2260729,
+      "rise_ns": [
+        0.008,
+        0.011,
+        0.014
+      ],
+      "fall_ns": [
+        0.008,
+        0.011,
+        0.014
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s66/F",
+      "destination": "u_usb_idle_trace/n155_s68/I0",
+      "line": 2260730,
+      "rise_ns": [
+        0.302,
+        0.463,
+        0.623
+      ],
+      "fall_ns": [
+        0.302,
+        0.463,
+        0.623
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s66/F",
+      "destination": "u_usb_idle_trace/n155_s70/I0",
+      "line": 2260731,
+      "rise_ns": [
+        0.098,
+        0.14,
+        0.182
+      ],
+      "fall_ns": [
+        0.098,
+        0.14,
+        0.182
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s66/F",
+      "destination": "u_usb_idle_trace/n155_s72/I0",
+      "line": 2260732,
+      "rise_ns": [
+        0.302,
+        0.463,
+        0.623
+      ],
+      "fall_ns": [
+        0.302,
+        0.463,
+        0.623
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s66/F",
+      "destination": "u_usb_idle_trace/n155_s74/I0",
+      "line": 2260733,
+      "rise_ns": [
+        0.179,
+        0.266,
+        0.352
+      ],
+      "fall_ns": [
+        0.179,
+        0.266,
+        0.352
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s66/F",
+      "destination": "u_usb_idle_trace/n155_s77/I0",
+      "line": 2260734,
+      "rise_ns": [
+        0.179,
+        0.266,
+        0.352
+      ],
+      "fall_ns": [
+        0.179,
+        0.266,
+        0.352
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s66/F",
+      "destination": "u_usb_idle_trace/n155_s79/I3",
+      "line": 2260735,
+      "rise_ns": [
+        0.398,
+        0.616,
+        0.834
+      ],
+      "fall_ns": [
+        0.398,
+        0.616,
+        0.834
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s53/F",
+      "destination": "u_usb_idle_trace/n181_s43/I2",
+      "line": 2260776,
+      "rise_ns": [
+        0.098,
+        0.155,
+        0.213
+      ],
+      "fall_ns": [
+        0.098,
+        0.155,
+        0.213
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n181_s54/F",
+      "destination": "u_usb_idle_trace/n181_s43/I3",
+      "line": 2260777,
+      "rise_ns": [
+        0.084,
+        0.119,
+        0.155
+      ],
+      "fall_ns": [
+        0.084,
+        0.119,
+        0.155
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s67/F",
+      "destination": "u_usb_idle_trace/n179_s49/I0",
+      "line": 2260841,
+      "rise_ns": [
+        0.387,
+        0.599,
+        0.81
+      ],
+      "fall_ns": [
+        0.387,
+        0.599,
+        0.81
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s67/F",
+      "destination": "u_usb_idle_trace/n181_s42/I3",
+      "line": 2260843,
+      "rise_ns": [
+        0.997,
+        1.739,
+        2.481
+      ],
+      "fall_ns": [
+        0.997,
+        1.739,
+        2.481
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s68/F",
+      "destination": "u_usb_idle_trace/n179_s42/I0",
+      "line": 2260878,
+      "rise_ns": [
+        0.284,
+        0.552,
+        0.82
+      ],
+      "fall_ns": [
+        0.284,
+        0.552,
+        0.82
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s68/F",
+      "destination": "u_usb_idle_trace/n181_s47/I3",
+      "line": 2260890,
+      "rise_ns": [
+        0.508,
+        0.8,
+        1.092
+      ],
+      "fall_ns": [
+        0.508,
+        0.8,
+        1.092
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s69/F",
+      "destination": "u_usb_idle_trace/n179_s46/I1",
+      "line": 2260920,
+      "rise_ns": [
+        0.146,
+        0.314,
+        0.483
+      ],
+      "fall_ns": [
+        0.146,
+        0.314,
+        0.483
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s69/F",
+      "destination": "u_usb_idle_trace/n181_s51/I3",
+      "line": 2260922,
+      "rise_ns": [
+        0.104,
+        0.146,
+        0.189
+      ],
+      "fall_ns": [
+        0.104,
+        0.146,
+        0.189
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n158_s53/F",
+      "destination": "u_usb_idle_trace/n179_s43/I1",
+      "line": 2260938,
+      "rise_ns": [
+        0.411,
+        0.74,
+        1.069
+      ],
+      "fall_ns": [
+        0.411,
+        0.74,
+        1.069
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n158_s53/F",
+      "destination": "u_usb_idle_trace/n181_s47/I1",
+      "line": 2260950,
+      "rise_ns": [
+        0.517,
+        0.806,
+        1.094
+      ],
+      "fall_ns": [
+        0.517,
+        0.806,
+        1.094
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s68/F",
+      "destination": "u_usb_idle_trace/n179_s52/I3",
+      "line": 2260967,
+      "rise_ns": [
+        0.23,
+        0.349,
+        0.468
+      ],
+      "fall_ns": [
+        0.23,
+        0.349,
+        0.468
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s68/F",
+      "destination": "u_usb_idle_trace/n181_s43/I0",
+      "line": 2260969,
+      "rise_ns": [
+        0.483,
+        0.853,
+        1.222
+      ],
+      "fall_ns": [
+        0.483,
+        0.853,
+        1.222
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s69/F",
+      "destination": "u_usb_idle_trace/n179_s39/I3",
+      "line": 2260992,
+      "rise_ns": [
+        0.329,
+        0.509,
+        0.688
+      ],
+      "fall_ns": [
+        0.329,
+        0.509,
+        0.688
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s69/F",
+      "destination": "u_usb_idle_trace/n181_s42/I1",
+      "line": 2261005,
+      "rise_ns": [
+        0.489,
+        0.744,
+        0.999
+      ],
+      "fall_ns": [
+        0.489,
+        0.744,
+        0.999
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s70/F",
+      "destination": "u_usb_idle_trace/n179_s37/I3",
+      "line": 2261022,
+      "rise_ns": [
+        1.199,
+        1.988,
+        2.777
+      ],
+      "fall_ns": [
+        1.199,
+        1.988,
+        2.777
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s70/F",
+      "destination": "u_usb_idle_trace/n181_s51/I0",
+      "line": 2261046,
+      "rise_ns": [
+        0.097,
+        0.14,
+        0.182
+      ],
+      "fall_ns": [
+        0.097,
+        0.14,
+        0.182
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n167_s54/F",
+      "destination": "u_usb_idle_trace/n179_s44/I1",
+      "line": 2261052,
+      "rise_ns": [
+        0.224,
+        0.438,
+        0.651
+      ],
+      "fall_ns": [
+        0.224,
+        0.438,
+        0.651
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n167_s54/F",
+      "destination": "u_usb_idle_trace/n181_s48/I1",
+      "line": 2261062,
+      "rise_ns": [
+        0.588,
+        0.999,
+        1.41
+      ],
+      "fall_ns": [
+        0.588,
+        0.999,
+        1.41
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s70/F",
+      "destination": "u_usb_idle_trace/n179_s50/I3",
+      "line": 2261079,
+      "rise_ns": [
+        0.18,
+        0.266,
+        0.352
+      ],
+      "fall_ns": [
+        0.18,
+        0.266,
+        0.352
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s70/F",
+      "destination": "u_usb_idle_trace/n181_s54/I1",
+      "line": 2261089,
+      "rise_ns": [
+        0.092,
+        0.127,
+        0.162
+      ],
+      "fall_ns": [
+        0.092,
+        0.127,
+        0.162
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s71/F",
+      "destination": "u_usb_idle_trace/n179_s40/I3",
+      "line": 2261104,
+      "rise_ns": [
+        0.357,
+        0.546,
+        0.735
+      ],
+      "fall_ns": [
+        0.357,
+        0.546,
+        0.735
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s71/F",
+      "destination": "u_usb_idle_trace/n181_s44/I0",
+      "line": 2261117,
+      "rise_ns": [
+        0.821,
+        1.349,
+        1.878
+      ],
+      "fall_ns": [
+        0.821,
+        1.349,
+        1.878
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s71/F",
+      "destination": "u_usb_idle_trace/n179_s47/I3",
+      "line": 2261156,
+      "rise_ns": [
+        0.546,
+        0.891,
+        1.236
+      ],
+      "fall_ns": [
+        0.546,
+        0.891,
+        1.236
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s71/F",
+      "destination": "u_usb_idle_trace/n181_s52/I0",
+      "line": 2261158,
+      "rise_ns": [
+        0.269,
+        0.411,
+        0.553
+      ],
+      "fall_ns": [
+        0.269,
+        0.411,
+        0.553
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s72/F",
+      "destination": "u_usb_idle_trace/n179_s52/I0",
+      "line": 2261175,
+      "rise_ns": [
+        0.222,
+        0.338,
+        0.454
+      ],
+      "fall_ns": [
+        0.222,
+        0.338,
+        0.454
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s72/F",
+      "destination": "u_usb_idle_trace/n181_s54/I3",
+      "line": 2261185,
+      "rise_ns": [
+        0.482,
+        0.751,
+        1.019
+      ],
+      "fall_ns": [
+        0.482,
+        0.751,
+        1.019
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s73/F",
+      "destination": "u_usb_idle_trace/n179_s39/I0",
+      "line": 2261200,
+      "rise_ns": [
+        0.323,
+        0.501,
+        0.678
+      ],
+      "fall_ns": [
+        0.323,
+        0.501,
+        0.678
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s73/F",
+      "destination": "u_usb_idle_trace/n181_s44/I3",
+      "line": 2261213,
+      "rise_ns": [
+        0.674,
+        1.041,
+        1.408
+      ],
+      "fall_ns": [
+        0.674,
+        1.041,
+        1.408
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n154_s52/F",
+      "destination": "u_usb_idle_trace/n179_s43/I3",
+      "line": 2261235,
+      "rise_ns": [
+        0.421,
+        0.733,
+        1.044
+      ],
+      "fall_ns": [
+        0.421,
+        0.733,
+        1.044
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n154_s52/F",
+      "destination": "u_usb_idle_trace/n181_s48/I3",
+      "line": 2261247,
+      "rise_ns": [
+        0.532,
+        0.822,
+        1.113
+      ],
+      "fall_ns": [
+        0.532,
+        0.822,
+        1.113
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s72/F",
+      "destination": "u_usb_idle_trace/n179_s37/I0",
+      "line": 2261253,
+      "rise_ns": [
+        0.945,
+        1.596,
+        2.248
+      ],
+      "fall_ns": [
+        0.945,
+        1.596,
+        2.248
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s72/F",
+      "destination": "u_usb_idle_trace/n181_s52/I3",
+      "line": 2261279,
+      "rise_ns": [
+        0.274,
+        0.419,
+        0.562
+      ],
+      "fall_ns": [
+        0.274,
+        0.419,
+        0.562
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s74/F",
+      "destination": "u_usb_idle_trace/n179_s50/I0",
+      "line": 2261294,
+      "rise_ns": [
+        0.103,
+        0.145,
+        0.187
+      ],
+      "fall_ns": [
+        0.103,
+        0.145,
+        0.187
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s74/F",
+      "destination": "u_usb_idle_trace/n181_s40/I3",
+      "line": 2261296,
+      "rise_ns": [
+        0.788,
+        1.237,
+        1.686
+      ],
+      "fall_ns": [
+        0.788,
+        1.237,
+        1.686
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s75/F",
+      "destination": "u_usb_idle_trace/n179_s40/I0",
+      "line": 2261321,
+      "rise_ns": [
+        0.69,
+        1.162,
+        1.634
+      ],
+      "fall_ns": [
+        0.69,
+        1.162,
+        1.634
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s75/F",
+      "destination": "u_usb_idle_trace/n181_s45/I3",
+      "line": 2261334,
+      "rise_ns": [
+        0.886,
+        1.47,
+        2.054
+      ],
+      "fall_ns": [
+        0.886,
+        1.47,
+        2.054
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s73/F",
+      "destination": "u_usb_idle_trace/n179_s44/I3",
+      "line": 2261366,
+      "rise_ns": [
+        0.463,
+        0.844,
+        1.225
+      ],
+      "fall_ns": [
+        0.463,
+        0.844,
+        1.225
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s73/F",
+      "destination": "u_usb_idle_trace/n181_s49/I3",
+      "line": 2261375,
+      "rise_ns": [
+        0.446,
+        0.692,
+        0.938
+      ],
+      "fall_ns": [
+        0.446,
+        0.692,
+        0.938
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s74/F",
+      "destination": "u_usb_idle_trace/n181_s35/I3",
+      "line": 2261385,
+      "rise_ns": [
+        0.195,
+        0.293,
+        0.39
+      ],
+      "fall_ns": [
+        0.195,
+        0.293,
+        0.39
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s74/F",
+      "destination": "u_usb_idle_trace/n179_s47/I1",
+      "line": 2261406,
+      "rise_ns": [
+        0.671,
+        1.133,
+        1.595
+      ],
+      "fall_ns": [
+        0.671,
+        1.133,
+        1.595
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s76/F",
+      "destination": "u_usb_idle_trace/n179_s49/I3",
+      "line": 2261424,
+      "rise_ns": [
+        0.484,
+        0.753,
+        1.023
+      ],
+      "fall_ns": [
+        0.484,
+        0.753,
+        1.023
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s76/F",
+      "destination": "u_usb_idle_trace/n181_s41/I0",
+      "line": 2261426,
+      "rise_ns": [
+        0.347,
+        0.551,
+        0.755
+      ],
+      "fall_ns": [
+        0.347,
+        0.551,
+        0.755
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s75/F",
+      "destination": "u_usb_idle_trace/n179_s46/I3",
+      "line": 2261469,
+      "rise_ns": [
+        0.655,
+        1.125,
+        1.595
+      ],
+      "fall_ns": [
+        0.655,
+        1.125,
+        1.595
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s75/F",
+      "destination": "u_usb_idle_trace/n181_s50/I0",
+      "line": 2261471,
+      "rise_ns": [
+        0.235,
+        0.37,
+        0.505
+      ],
+      "fall_ns": [
+        0.235,
+        0.37,
+        0.505
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s76/F",
+      "destination": "u_usb_idle_trace/n179_s42/I3",
+      "line": 2261491,
+      "rise_ns": [
+        0.459,
+        0.816,
+        1.172
+      ],
+      "fall_ns": [
+        0.459,
+        0.816,
+        1.172
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s76/F",
+      "destination": "u_usb_idle_trace/n181_s46/I1",
+      "line": 2261503,
+      "rise_ns": [
+        0.819,
+        1.398,
+        1.977
+      ],
+      "fall_ns": [
+        0.819,
+        1.398,
+        1.977
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s77/F",
+      "destination": "u_usb_idle_trace/n179_s51/I3",
+      "line": 2261518,
+      "rise_ns": [
+        0.382,
+        0.598,
+        0.813
+      ],
+      "fall_ns": [
+        0.382,
+        0.598,
+        0.813
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s77/F",
+      "destination": "u_usb_idle_trace/n181_s40/I0",
+      "line": 2261520,
+      "rise_ns": [
+        0.439,
+        0.709,
+        0.979
+      ],
+      "fall_ns": [
+        0.439,
+        0.709,
+        0.979
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s78/F",
+      "destination": "u_usb_idle_trace/n179_s41/I3",
+      "line": 2261545,
+      "rise_ns": [
+        0.603,
+        0.963,
+        1.323
+      ],
+      "fall_ns": [
+        0.603,
+        0.963,
+        1.323
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s78/F",
+      "destination": "u_usb_idle_trace/n181_s45/I1",
+      "line": 2261558,
+      "rise_ns": [
+        0.603,
+        0.963,
+        1.323
+      ],
+      "fall_ns": [
+        0.603,
+        0.963,
+        1.323
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s77/F",
+      "destination": "u_usb_idle_trace/n179_s45/I3",
+      "line": 2261597,
+      "rise_ns": [
+        1.24,
+        2.048,
+        2.855
+      ],
+      "fall_ns": [
+        1.24,
+        2.048,
+        2.855
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s77/F",
+      "destination": "u_usb_idle_trace/n181_s49/I0",
+      "line": 2261599,
+      "rise_ns": [
+        0.483,
+        0.734,
+        0.986
+      ],
+      "fall_ns": [
+        0.483,
+        0.734,
+        0.986
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s55/F",
+      "destination": "u_usb_idle_trace/n181_s33/I0",
+      "line": 2261613,
+      "rise_ns": [
+        0.472,
+        0.736,
+        0.999
+      ],
+      "fall_ns": [
+        0.472,
+        0.736,
+        0.999
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s55/F",
+      "destination": "u_usb_idle_trace/n179_s48/I3",
+      "line": 2261630,
+      "rise_ns": [
+        0.472,
+        0.736,
+        0.999
+      ],
+      "fall_ns": [
+        0.472,
+        0.736,
+        0.999
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s79/F",
+      "destination": "u_usb_idle_trace/n179_s51/I0",
+      "line": 2261695,
+      "rise_ns": [
+        0.331,
+        0.486,
+        0.64
+      ],
+      "fall_ns": [
+        0.331,
+        0.486,
+        0.64
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n155_s79/F",
+      "destination": "u_usb_idle_trace/n181_s41/I3",
+      "line": 2261697,
+      "rise_ns": [
+        0.384,
+        0.671,
+        0.957
+      ],
+      "fall_ns": [
+        0.384,
+        0.671,
+        0.957
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s56/F",
+      "destination": "u_usb_idle_trace/n179_s41/I0",
+      "line": 2261724,
+      "rise_ns": [
+        0.475,
+        0.824,
+        1.172
+      ],
+      "fall_ns": [
+        0.475,
+        0.824,
+        1.172
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n151_s56/F",
+      "destination": "u_usb_idle_trace/n181_s46/I3",
+      "line": 2261737,
+      "rise_ns": [
+        0.405,
+        0.721,
+        1.036
+      ],
+      "fall_ns": [
+        0.405,
+        0.721,
+        1.036
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s78/F",
+      "destination": "u_usb_idle_trace/n179_s45/I1",
+      "line": 2261772,
+      "rise_ns": [
+        0.81,
+        1.26,
+        1.71
+      ],
+      "fall_ns": [
+        0.81,
+        1.26,
+        1.71
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n150_s78/F",
+      "destination": "u_usb_idle_trace/n181_s50/I3",
+      "line": 2261774,
+      "rise_ns": [
+        0.488,
+        0.745,
+        1.002
+      ],
+      "fall_ns": [
+        0.488,
+        0.745,
+        1.002
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s7/F",
+      "destination": "u_usb_idle_trace/n181_s35/I0",
+      "line": 2261776,
+      "rise_ns": [
+        0.18,
+        0.267,
+        0.354
+      ],
+      "fall_ns": [
+        0.18,
+        0.267,
+        0.354
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/sending_s7/F",
+      "destination": "u_usb_idle_trace/n179_s48/I0",
+      "line": 2261783,
+      "rise_ns": [
+        0.18,
+        0.267,
+        0.354
+      ],
+      "fall_ns": [
+        0.18,
+        0.267,
+        0.354
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n5310_s1/F",
+      "destination": "u_usb_idle_trace/armed_s3/I2",
+      "line": 2261924,
+      "rise_ns": [
+        0.093,
+        0.128,
+        0.164
+      ],
+      "fall_ns": [
+        0.093,
+        0.128,
+        0.164
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n5310_s1/F",
+      "destination": "u_usb_idle_trace/n5320_s3/I2",
+      "line": 2261926,
+      "rise_ns": [
+        0.093,
+        0.128,
+        0.164
+      ],
+      "fall_ns": [
+        0.093,
+        0.128,
+        0.164
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/n5320_s3/F",
+      "destination": "u_usb_idle_trace/armed_s1/D",
+      "line": 2262883,
+      "rise_ns": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "fall_ns": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_32_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s53/I2",
+      "line": 2265286,
+      "rise_ns": [
+        0.086,
+        0.122,
+        0.157
+      ],
+      "fall_ns": [
+        0.086,
+        0.122,
+        0.157
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_64_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s43/I1",
+      "line": 2265288,
+      "rise_ns": [
+        0.207,
+        0.402,
+        0.597
+      ],
+      "fall_ns": [
+        0.207,
+        0.402,
+        0.597
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_66_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s52/I2",
+      "line": 2265290,
+      "rise_ns": [
+        0.292,
+        0.452,
+        0.612
+      ],
+      "fall_ns": [
+        0.292,
+        0.452,
+        0.612
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_96_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s54/I2",
+      "line": 2265320,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_98_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s52/I1",
+      "line": 2265322,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_128_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s54/I0",
+      "line": 2265352,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_130_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s50/I2",
+      "line": 2265354,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_160_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s40/I2",
+      "line": 2265384,
+      "rise_ns": [
+        0.333,
+        0.524,
+        0.716
+      ],
+      "fall_ns": [
+        0.333,
+        0.524,
+        0.716
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_162_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s50/I1",
+      "line": 2265386,
+      "rise_ns": [
+        0.487,
+        0.755,
+        1.023
+      ],
+      "fall_ns": [
+        0.487,
+        0.755,
+        1.023
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_192_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s40/I1",
+      "line": 2265416,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_194_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s51/I2",
+      "line": 2265418,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_224_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s41/I2",
+      "line": 2265448,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_226_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s51/I1",
+      "line": 2265450,
+      "rise_ns": [
+        0.089,
+        0.14,
+        0.19
+      ],
+      "fall_ns": [
+        0.089,
+        0.14,
+        0.19
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_256_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s41/I1",
+      "line": 2265480,
+      "rise_ns": [
+        0.003,
+        0.004,
+        0.005
+      ],
+      "fall_ns": [
+        0.003,
+        0.004,
+        0.005
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_258_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s49/I2",
+      "line": 2265482,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_288_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s42/I2",
+      "line": 2265512,
+      "rise_ns": [
+        0.17,
+        0.257,
+        0.343
+      ],
+      "fall_ns": [
+        0.17,
+        0.257,
+        0.343
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_290_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s49/I1",
+      "line": 2265514,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_320_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s42/I0",
+      "line": 2265544,
+      "rise_ns": [
+        0.297,
+        0.471,
+        0.646
+      ],
+      "fall_ns": [
+        0.297,
+        0.471,
+        0.646
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_322_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s39/I2",
+      "line": 2265546,
+      "rise_ns": [
+        0.084,
+        0.119,
+        0.155
+      ],
+      "fall_ns": [
+        0.084,
+        0.119,
+        0.155
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_352_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s44/I2",
+      "line": 2265576,
+      "rise_ns": [
+        0.184,
+        0.28,
+        0.377
+      ],
+      "fall_ns": [
+        0.184,
+        0.28,
+        0.377
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_354_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s39/I1",
+      "line": 2265578,
+      "rise_ns": [
+        0.256,
+        0.394,
+        0.531
+      ],
+      "fall_ns": [
+        0.256,
+        0.394,
+        0.531
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_384_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s44/I1",
+      "line": 2265608,
+      "rise_ns": [
+        0.233,
+        0.363,
+        0.494
+      ],
+      "fall_ns": [
+        0.233,
+        0.363,
+        0.494
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_386_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s40/I2",
+      "line": 2265610,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_416_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s45/I2",
+      "line": 2265640,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_418_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s40/I1",
+      "line": 2265642,
+      "rise_ns": [
+        0.244,
+        0.539,
+        0.835
+      ],
+      "fall_ns": [
+        0.244,
+        0.539,
+        0.835
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_448_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s45/I0",
+      "line": 2265672,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_450_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s41/I2",
+      "line": 2265674,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_480_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s46/I2",
+      "line": 2265704,
+      "rise_ns": [
+        0.084,
+        0.119,
+        0.155
+      ],
+      "fall_ns": [
+        0.084,
+        0.119,
+        0.155
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_482_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s41/I1",
+      "line": 2265706,
+      "rise_ns": [
+        0.238,
+        0.528,
+        0.817
+      ],
+      "fall_ns": [
+        0.238,
+        0.528,
+        0.817
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_512_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s46/I0",
+      "line": 2265736,
+      "rise_ns": [
+        0.084,
+        0.119,
+        0.155
+      ],
+      "fall_ns": [
+        0.084,
+        0.119,
+        0.155
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_514_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s42/I2",
+      "line": 2265738,
+      "rise_ns": [
+        0.242,
+        0.426,
+        0.611
+      ],
+      "fall_ns": [
+        0.242,
+        0.426,
+        0.611
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_544_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s47/I2",
+      "line": 2265768,
+      "rise_ns": [
+        0.314,
+        0.48,
+        0.647
+      ],
+      "fall_ns": [
+        0.314,
+        0.48,
+        0.647
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_546_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s42/I1",
+      "line": 2265770,
+      "rise_ns": [
+        0.262,
+        0.414,
+        0.566
+      ],
+      "fall_ns": [
+        0.262,
+        0.414,
+        0.566
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_576_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s47/I0",
+      "line": 2265800,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_578_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s43/I0",
+      "line": 2265802,
+      "rise_ns": [
+        0.228,
+        0.343,
+        0.459
+      ],
+      "fall_ns": [
+        0.228,
+        0.343,
+        0.459
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_640_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s48/I0",
+      "line": 2265828,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_642_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s44/I0",
+      "line": 2265830,
+      "rise_ns": [
+        0.387,
+        0.601,
+        0.816
+      ],
+      "fall_ns": [
+        0.387,
+        0.601,
+        0.816
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_672_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s49/I2",
+      "line": 2265845,
+      "rise_ns": [
+        0.159,
+        0.243,
+        0.326
+      ],
+      "fall_ns": [
+        0.159,
+        0.243,
+        0.326
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_674_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s44/I2",
+      "line": 2265848,
+      "rise_ns": [
+        0.062,
+        0.1,
+        0.138
+      ],
+      "fall_ns": [
+        0.062,
+        0.1,
+        0.138
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_688_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s48/I2",
+      "line": 2265869,
+      "rise_ns": [
+        0.129,
+        0.28,
+        0.431
+      ],
+      "fall_ns": [
+        0.129,
+        0.28,
+        0.431
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_690_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s43/I2",
+      "line": 2265873,
+      "rise_ns": [
+        0.091,
+        0.142,
+        0.193
+      ],
+      "fall_ns": [
+        0.091,
+        0.142,
+        0.193
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_704_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s49/I1",
+      "line": 2265897,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_706_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s45/I2",
+      "line": 2265899,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_736_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s50/I2",
+      "line": 2265929,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_738_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s45/I0",
+      "line": 2265931,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_768_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s50/I1",
+      "line": 2265961,
+      "rise_ns": [
+        0.262,
+        0.414,
+        0.566
+      ],
+      "fall_ns": [
+        0.262,
+        0.414,
+        0.566
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_770_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s46/I2",
+      "line": 2265963,
+      "rise_ns": [
+        0.319,
+        0.501,
+        0.682
+      ],
+      "fall_ns": [
+        0.319,
+        0.501,
+        0.682
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_800_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s51/I2",
+      "line": 2265993,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_802_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s46/I0",
+      "line": 2265995,
+      "rise_ns": [
+        0.093,
+        0.135,
+        0.178
+      ],
+      "fall_ns": [
+        0.093,
+        0.135,
+        0.178
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_832_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s51/I1",
+      "line": 2266025,
+      "rise_ns": [
+        0.4,
+        0.605,
+        0.811
+      ],
+      "fall_ns": [
+        0.4,
+        0.605,
+        0.811
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_834_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s37/I2",
+      "line": 2266027,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_864_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s52/I2",
+      "line": 2266057,
+      "rise_ns": [
+        0.084,
+        0.119,
+        0.155
+      ],
+      "fall_ns": [
+        0.084,
+        0.119,
+        0.155
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_866_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s37/I1",
+      "line": 2266059,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_896_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s52/I1",
+      "line": 2266089,
+      "rise_ns": [
+        0.17,
+        0.257,
+        0.343
+      ],
+      "fall_ns": [
+        0.17,
+        0.257,
+        0.343
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_898_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s47/I2",
+      "line": 2266091,
+      "rise_ns": [
+        0.175,
+        0.277,
+        0.378
+      ],
+      "fall_ns": [
+        0.175,
+        0.277,
+        0.378
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_928_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s35/I2",
+      "line": 2266121,
+      "rise_ns": [
+        0.211,
+        0.335,
+        0.459
+      ],
+      "fall_ns": [
+        0.211,
+        0.335,
+        0.459
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_930_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s47/I0",
+      "line": 2266123,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_960_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s33/I1",
+      "line": 2266153,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_962_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s48/I2",
+      "line": 2266155,
+      "rise_ns": [
+        0.059,
+        0.098,
+        0.136
+      ],
+      "fall_ns": [
+        0.059,
+        0.098,
+        0.136
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_992_s0/Q",
+      "destination": "u_usb_idle_trace/n181_s35/I1",
+      "line": 2266185,
+      "rise_ns": [
+        0.256,
+        0.394,
+        0.531
+      ],
+      "fall_ns": [
+        0.256,
+        0.394,
+        0.531
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/snapshot_994_s0/Q",
+      "destination": "u_usb_idle_trace/n179_s48/I1",
+      "line": 2266187,
+      "rise_ns": [
+        0.262,
+        0.414,
+        0.566
+      ],
+      "fall_ns": [
+        0.262,
+        0.414,
+        0.566
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_commands/head_0_s0/Q",
+      "destination": "u_usb_idle_trace/n5310_s1/I0",
+      "line": 2268196,
+      "rise_ns": [
+        0.32,
+        0.49,
+        0.66
+      ],
+      "fall_ns": [
+        0.32,
+        0.49,
+        0.66
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_commands/head_0_s0/Q",
+      "destination": "u_usb_idle_trace/snapshot_64_s0/D",
+      "line": 2268197,
+      "rise_ns": [
+        0.519,
+        0.787,
+        1.054
+      ],
+      "fall_ns": [
+        0.519,
+        0.787,
+        1.054
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_commands/head_2_s0/Q",
+      "destination": "u_usb_idle_trace/armed_s3/I1",
+      "line": 2268199,
+      "rise_ns": [
+        0.311,
+        0.475,
+        0.638
+      ],
+      "fall_ns": [
+        0.311,
+        0.475,
+        0.638
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_commands/head_2_s0/Q",
+      "destination": "u_usb_idle_trace/snapshot_66_s0/D",
+      "line": 2268200,
+      "rise_ns": [
+        0.443,
+        0.67,
+        0.898
+      ],
+      "fall_ns": [
+        0.443,
+        0.67,
+        0.898
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DO[0]",
+      "destination": "u_usb_idle_trace/bank_bank_0_0_s/DI[0]",
+      "line": 2268237,
+      "rise_ns": [
+        0.299,
+        0.473,
+        0.648
+      ],
+      "fall_ns": [
+        0.299,
+        0.473,
+        0.648
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DO[0]",
+      "destination": "u_usb_idle_trace/bank_bank_1_0_s/DI[0]",
+      "line": 2268238,
+      "rise_ns": [
+        0.212,
+        0.336,
+        0.46
+      ],
+      "fall_ns": [
+        0.212,
+        0.336,
+        0.46
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DO[1]",
+      "destination": "u_usb_idle_trace/bank_bank_0_0_s/DI[1]",
+      "line": 2268239,
+      "rise_ns": [
+        0.299,
+        0.473,
+        0.648
+      ],
+      "fall_ns": [
+        0.299,
+        0.473,
+        0.648
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DO[1]",
+      "destination": "u_usb_idle_trace/bank_bank_1_0_s/DI[1]",
+      "line": 2268240,
+      "rise_ns": [
+        0.28,
+        0.437,
+        0.594
+      ],
+      "fall_ns": [
+        0.28,
+        0.437,
+        0.594
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DO[2]",
+      "destination": "u_usb_idle_trace/bank_bank_0_0_s/DI[2]",
+      "line": 2268241,
+      "rise_ns": [
+        0.212,
+        0.337,
+        0.461
+      ],
+      "fall_ns": [
+        0.212,
+        0.337,
+        0.461
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DO[2]",
+      "destination": "u_usb_idle_trace/bank_bank_1_0_s/DI[2]",
+      "line": 2268242,
+      "rise_ns": [
+        0.212,
+        0.337,
+        0.461
+      ],
+      "fall_ns": [
+        0.212,
+        0.337,
+        0.461
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DO[3]",
+      "destination": "u_usb_idle_trace/bank_bank_0_0_s/DI[3]",
+      "line": 2268243,
+      "rise_ns": [
+        0.212,
+        0.337,
+        0.461
+      ],
+      "fall_ns": [
+        0.212,
+        0.337,
+        0.461
+      ]
+    },
+    {
+      "source": "u_usb_idle_trace/u_replies/g_inferred_storage.mem_g_inferred_storage.mem_0_0_s/DO[3]",
+      "destination": "u_usb_idle_trace/bank_bank_1_0_s/DI[3]",
+      "line": 2268244,
+      "rise_ns": [
+        0.212,
+        0.337,
+        0.461
+      ],
+      "fall_ns": [
+        0.212,
+        0.337,
+        0.461
+      ]
+    }
+  ],
+  "limitations": [
+    "Zero-delay LUT logic only; hardware timing, RAM contents and dynamic register state not measured.",
+    "A successful mux proof does not prove that snapshot[64] was captured as one on hardware.",
+    "RAM primitive interfaces are recorded; no unsupported RAM behavior is assumed."
+  ]
+}

@@ -16,10 +16,10 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = Path('/tmp/console-usb-sim-tools/extracted/usr')
-PRIMITIVES = Path('/home/michael/gowin/Gowin_V1.9.12_linux/IDE/simlib/gw5a/prim_sim.v')
 
 
 def sha(path):

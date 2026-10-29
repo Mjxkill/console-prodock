@@ -1,0 +1,161 @@
+## Revue indépendante (lecture packet, aucune exécution JTAG/bitstream)
+
+### 1. Faits établis par les pièces fournies
+
+| Élément | Preuve dans le packet |
+|---|---|
+| En-tête capturé R19 : `0x55544e41 / 0 / 1` | journal R19, ligne 43 ; comparaison hors carte, ligne 11 et 15 |
+| Commande ARM ACKée, séquence 1 | journal R19, lignes 40-47 ; `utna_protocol.tcl`, lignes 37-41 |
+| Deux banques identiques avant/milieu/après | journal R19, lignes 31-40 |
+| TTL/RTL de la version est bien `32'd1` | `usb_idle_trace.v`, lignes 155 et 159 (`...,command,32'd1,32'h55544e41`) |
+| Netlist R19 : `snapshot_32_s0`, D=VCC, CE=`n1170_3`, reset=`n5312_3` | netlist R19, lignes 70133-70139 |
+| La banque physique est implémentée en `RAM16SDP4` | netlist R19, lignes 77015-77022 (`WAD=receive_index[3:0]`, `RAD=address[5:2]`, clk=`vid_hclk`) |
+| `hrdata` de la banque est enregistré avec CE=`read_pending` et RESET=`hreset` | netlist R19, lignes 63299-63333 |
+| `read_pending` est calculé avec `hready` comme condition active | `usb_idle_trace.v`, lignes 62-64 (`write_pending/read_pending <= ... && hready`) |
+| `hready` USB trace est l'inverse direct de `read_pending` | `usb_idle_trace.v`, ligne 43 |
+| `video_bus_stage` ajoute une FSM d'étage et un registre `s_hrdata` | `video_bus_stage.v`, lignes 15-32 |
+| Le mux des réponses passe par `selected`, registre AHB retardé | `console_neo.v` excerpt, lignes 58-66 |
+| R19 a été restauré ; état UTNA frais | `restored_guard.log`, lignes 14-18 |
+| R21r2 n'a pas fourni d'observation | énoncé utilisateur ; module `usb_idle_trace` identique pour R19 et R21r2 |
+
+### 2. Ce qui est prouvé, ce qui n'est pas prouvé
+
+**Prouvé par le coupure dynamique :**
+
+- La capture R19 est reproductible au premier ARM : ID mot0 correct, word2 commande `1` correct, word1 à `0` au lieu de `1`.
+- La banque AHB est stable sur deux lectures successives : la valeur `0` n'est pas un simple glitch visible.
+- La constante logique de la version dans le RTL est bien `1` et n'est pas `0` dans la source.
+- La netlist R19 présente bien une DFFRE dont l'entrée D est `VCC` pour ce bit constant.
+
+**Non prouvé par le packet :**
+
+- Quelle valeur physique a exactement traversé la pile command FIFO, reply FIFO, RAM16SDP4 et mux jusqu'au CPU.
+- La déqualification de reset à l'instant du premier `cmd_pop`.
+- Le niveau exact auquel la valeur manque (le bit DFF `snapshot[32]`, l'écriture RAM, l'adresse AHB, ou l'échantillonnage `hrdata`).
+- Les compteurs USB fournis ne qualifient ni fréquence host/HS, ni défaut silicium, ni une instabilité de bus reset.
+
+### 3. Hypothèses hiérarchisées (aucune n'est une conclusion silicium)
+
+1. **Hypothèse principale — capture complète, mais rendu du bit constant corrompu par la mémoire/la lecture**  
+   Le comptage reply doit normalement incrémenter le compteur snapshot (`snapshot_count`) de 0 à 1 après 32 mots reçus. Si ce compteur est bien à 1, le constante RTL `1` a été présentée en entrée de la pile AHB. La valeur lue `0` désigne alors plutôt la RAM16SDP4, le reset de cette mémoire, ou le chemin `bank → read_pending → hrdata DFFRE → selected/bus_hready`.  
+   Indices : word0 ID et word2 commande sont corrects, donc le mapping AHB basique n'est pas totalement déréglé.
+
+2. **Hypothèse secondaire — déqualification reset du côté phy (reset-validity)**  
+   `snapshot_32` est une DFFRE avec RESET=`n5312_3` (ureset). Si ce reset est encore actif à l'instant où le premier `cmd_pop` devient vrai, le bit constant reste 0 pendant que d'autres bits de trajectoire captent leur valeur. Cela explique un seul mot manquant avec comptage et ID valides.  
+   Ce n'est toutefois pas prouvé : le même reset est aussi cité pour les autres bits de snapshot.
+
+3. **Hypothèse tertiaire — latence d'échantillonnage AHB/stage**  
+   `video_bus_stage` enregistre `s_hrdata<=m_hrdata` en état `DATA`, tandis que `hrdata` DFFRE de la banque n'est relâché que pendant `read_pending`. Une erreur d'alignement d'un cycle peut faire lire un état antérieur.  
+   Faiblesse : cette latence devrait a priori affecter aussi word0/word2, qui sont néanmoins corrects. À ne pas écarter sans lecture discriminante.
+
+4. **Hypothèse quaternaire — non pertinence RTL**  
+   À exclure ici car la source place la constante à `32'd1` et le netlist présente `D=VCC` exactement. La valeur `0` n'est pas une preuve que la constante RTL est fausse.
+
+### 4. Plan discriminant sur le bitstream R19 existant uniquement (pour root, sans exécution ici)
+
+**Contraintes respectées :** pas de commande GPU/DDR, pas de nouveau bitstream, pas d'affaiblissement du contrôle d'en-tête. Seules les lectures UTNA identifiées et l'observation de l'en-tête comptent.
+
+#### L1 — Distinguer transfert complet et corruption de rendu
+
+Lire `0xe9002008` (snapshot count) :
+
+- avant ARM : attendu `0` ;
+- immédiatement après ACK séquence 1 ;
+- puis avec délais 2 ms, 50 ms, 200 ms.
+
+**Interprétation :**
+
+- si count ne passe jamais à `1` : la capture/reply est incomplète ; suspecter reset FIFO ou invalidité `ureset` ;
+- si count = `1` et word1 reste `0` : la constante a pourtant été envoyée ; faute localisée dans `RAM16SDP4`, dans le reset de cette mémoire, ou dans l'échantillonnage AHB ;
+- si word1 devient `1` plus tard : problème de latence, et la FSM stage est fortement suspectée.
+
+#### L2 — Word1 avec délais croissants
+
+Relire uniquement l'offset mot word1 (`0xe9002044`) après les délais 0, 2, 50, 200 ms.
+
+But : distinguer une écriture tardive / latence RAM (`RAM16SDP4`) d'une stale valeur persistante.
+
+#### L3 — Validation complète du mapping logical → physique après DISARM
+
+Après la commande DISARM de la séquence, lire les 32 mots `0xe9002040..0xe90020bc` et comparer les champs connus :
+
+- `bank[0]` = ID ;
+- `bank[2]` = command ;
+- `bank[3]` = ticks ;
+- `bank[31]` bits `0x400` armé/non armé.
+
+But : vérifier que le chemin de lecture différencie bien chaque mot, et non seulement mots 0/2/3.
+
+#### L4 — Alias low-nibble de la RAM16SDP4
+
+Après DISARM, lire les paires suivantes :
+
+- `0xe9002040` contre `0xe9002080` (indices 0 et 16, même nibble bas) ;
+- `0xe9002044` contre `0xe9002084` (indices 1 et 17).
+
+But : détecter une sélection de banque haute (`address[5]/[6]` dans le mux) erronée. Si les deux adresses d'une paire restent égales alors qu'elles devraient représenter deux words logiques distincts, l'aliasing de la RAM16SDP4 ou son mux de sortie est compromis.
+
+#### L5 — Deuxième ARM dans la même session, sans restauration
+
+Après le premier ARM incomplet, root peut lancer un second `UTNA_WRITE command=1` avec séquence suivante, puis relire word1.
+
+**Interprétation :**
+
+- si le deuxième ARM donne `1`, la première défaillance est compatible avec une condition de reset/de premier cycle ;
+- s'il reste `0`, la défaillance est systématique et pointe plutôt vers la pile de lecture/mémoire.
+
+Cette opération n'efface ni ne relâche le critère d'en-tête ; elle sert uniquement à dissocier une condition initiale d'un défaut permanent.
+
+#### L6 — Baseline post-restauration sans commande
+
+Sans exécuter UTX/UTNA writes au-delà de l'état restauré, lire immédiatement les 32 mots de banque après `RESTORED_UTNA_FRESH`.
+
+But : établir si la RAM16SDP4 revient à un état connu/prévisible après restauration. Si une valeur `1` à l'indice 1 apparaît sans commande, la source de la constante est suspecte ; si tout est 0, la mémoire est réellement mise à zéro mais le premier ARM peut encore échouer.
+
+#### L7 — Inspection statique de la netlist fournie (pas d'exécution)
+
+Root peut comparer dans le netlist R19 :
+
+1. la net RESET de `snapshot_32_s0` (`n5312_3`) avec celles des autres `snapshot_*`;
+2. les équations de `read_pending` et des HRDATA DFFRE;
+3. la présence ou non d'un reset sur le primitive RAM16SDP4.
+
+Cela ne requiert pas de GPU, de DDR, ni de rebuild. C'est un travail d'analyse statique pour root ou pour la revue, pas une nouvelle exécution.
+
+### 5. Ce que ces lectures ne pourraient pas résoudre seules
+
+- **Confirmer le bit physique dans le bloc sous reset** sans accès aux nodes internes. Même si count=1, une copie interne peut rester 0.
+- **Prouver une latence silicium** : les lectures host ne datent pas exactement les fronts FPGA. Elles indiqueraient seulement une variation ou une constance observables.
+- **Éliminer toutes causes radicales** si plusieurs couches ont chacune un cycle de latence et accuser `video_bus_stage`.
+
+### 6. Patchs minimaux proposés (pour évaluation future, pas pour produire un bitstream ici)
+
+1. **Ne pas relaxer le contrôle Tcl**  
+   Le test `usb_idle_trace.v`/`utna_protocol.tcl`, ligne 41 doit rester exactement `first[1]==1`. C'est le critère de preuve utile.
+
+2. **Rendre la version extraite du chemin incertain**  
+   Dans une future révision, éviter que le mot version dépende d'une DFFRE soumise au même reset que la pile command. Par exemple, dans `usb_idle_trace.v`, autour des lignes 155-159 :
+   ```verilog
+   // Hypothèse d'évaluation future seulement
+   // verifier si la field version peut être encodée comme constante non dépendant d'un reset race
+   ```
+   Sans rebuild, impossible de valider.
+
+3. **Instrumenter count & read-latency sans GPU/DDR**  
+   Ajouter un statut read-only supplémentaire si une révision future est finalement construite, par exemple une valeur `hrdata_last_index` ou un compteur d'attente AHB. Cela cible explicitement la couche que le packet indique comme suspecte.
+
+4. **Réduire l'ambiguïté sur la RAM inférée**  
+   Documenter dans `ddr_dcfifo`/bank inference que le RAM16SDP4 n'a pas de reset synchrone, et que le reset HCLK ne garantit pas une vide physique. Si le placement change, rendre cette hypothèse explicite dans la revue.
+
+### 7. Verdict opérationnel pour root
+
+- **Ne pas conclure à un défaut silicium**, ni à une fréquence host/HS, à partir de ces compteurs.
+- **Ne pas reconstruire** ni envoyer de bitstream supplémentaire à ce stade.
+- **Ne pas transformer l'en-tête** : la version capteur doit rester égale à 1.
+- R19 est la seule observation à conserver comme référence. Les lectures ci-dessus permettent de savoir si la défaillance se situe dans :
+  - l'émisson du constante (`snapshot_32`),
+  - la mémoire `RAM16SDP4`,
+  - le timing `read_pending/hrdata/hready`,
+  - ou l'étage `video_bus_stage/mux`.
+
+Si une seule couche reste compatible avec toutes les lectures discriminantes, seulement alors root pourra décider d'une correction minimale et d'un nouveau bitstream.

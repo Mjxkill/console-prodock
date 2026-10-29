@@ -1,0 +1,385 @@
+{
+  "scope": "Published STA paths and clock-resource allocation; no electrical eye or on-board calibration margin measurement; path limits differ between reports",
+  "builds": {
+    "neo_n31": {
+      "report": "/home/michael/console/tang/impl/console_neo_n31/impl/pnr/console_neo.tr",
+      "sha256": "ed3cfcec82d1581b3f27f88e4a156b00c0a0356de0d33c0ee073b92eaa7f8d8b",
+      "clocks_mhz": {
+        "clk50": 50.0,
+        "bus80_clk": 80.0,
+        "core_clk": 800.0,
+        "rtc_clk": 10.0,
+        "ddr3_mem_clk": 300.03,
+        "ddr3_sys_clk": 75.002,
+        "sclk": 120.005,
+        "vid_clk5x": 371.875,
+        "vid_pclk": 74.375,
+        "CLK_48M": 48.0,
+        "PHY_CLKOUT": 60.0,
+        "fclk_960M": 960.0
+      },
+      "phy_published_paths": {
+        "setup": {
+          "reported_count": 102,
+          "minimum_reported_slack_ns": 1.724,
+          "worst_reported": [
+            {
+              "analysis": "setup",
+              "slack_ns": 1.724,
+              "source": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_init/ddr_init_complete_d_3_s0",
+              "destination": "u_scan_queue/count_1_s1",
+              "launch_clock": "ddr3_sys_clk:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "setup",
+              "slack_ns": 2.837,
+              "source": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_ddr_phy_data_io/u_dqs",
+              "destination": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_ddr_phy_data_io/iserdes_gen[7].u_ides8_mem",
+              "launch_clock": "ddr3_mem_clk:[R]",
+              "clock": "ddr3_mem_clk:[R]"
+            },
+            {
+              "analysis": "setup",
+              "slack_ns": 2.837,
+              "source": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_ddr_phy_data_io/u_dqs",
+              "destination": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_ddr_phy_data_io/iserdes_gen[7].u_ides8_mem",
+              "launch_clock": "ddr3_mem_clk:[R]",
+              "clock": "ddr3_mem_clk:[R]"
+            }
+          ]
+        },
+        "hold": {
+          "reported_count": 58,
+          "minimum_reported_slack_ns": 0.14,
+          "worst_reported": [
+            {
+              "analysis": "hold",
+              "slack_ns": 0.14,
+              "source": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/u_ddr_phy_cmd_lane/u_ddr_phy_cmd_io/oserdes_d_rr_49_s0",
+              "destination": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/u_ddr_phy_cmd_lane/u_ddr_phy_cmd_io/cmd_oserdes_gen[12].u_cmd_gen",
+              "launch_clock": "ddr3_sys_clk:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "hold",
+              "slack_ns": 0.141,
+              "source": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/u_ddr_phy_cmd_lane/u_ddr_phy_cmd_io/oserdes_d_rr_72_s0",
+              "destination": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/u_ddr_phy_cmd_lane/u_ddr_phy_cmd_io/cmd_oserdes_gen[18].u_cmd_gen",
+              "launch_clock": "ddr3_sys_clk:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "hold",
+              "slack_ns": 0.141,
+              "source": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/u_ddr_phy_cmd_lane/u_ddr_phy_cmd_io/oserdes_d_rr_43_s0",
+              "destination": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/u_ddr_phy_cmd_lane/u_ddr_phy_cmd_io/cmd_oserdes_gen[10].u_cmd_gen",
+              "launch_clock": "ddr3_sys_clk:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            }
+          ]
+        },
+        "recovery": {
+          "reported_count": 0,
+          "minimum_reported_slack_ns": null,
+          "worst_reported": []
+        },
+        "removal": {
+          "reported_count": 0,
+          "minimum_reported_slack_ns": null,
+          "worst_reported": []
+        }
+      },
+      "clock_routing": {
+        "entries": [
+          {
+            "net": "clk_d",
+            "resource": "PRIMARY",
+            "location": "PTR0 PTR1 PTR3 PBR0 PBR1 PBR3"
+          },
+          {
+            "net": "pixel_clk",
+            "resource": "PRIMARY",
+            "location": "PTR2 PTR3 PBR2 PBR3"
+          },
+          {
+            "net": "clk48",
+            "resource": "PRIMARY",
+            "location": "PTR3"
+          },
+          {
+            "net": "fclk_960m",
+            "resource": "PRIMARY",
+            "location": "PBR3"
+          },
+          {
+            "net": "phy_clk",
+            "resource": "PRIMARY",
+            "location": "PTR1 PTR2 PTR3 PBR3"
+          },
+          {
+            "net": "vid_hclk",
+            "resource": "PRIMARY",
+            "location": "PTR0 PTR1 PTR2 PTR3 PBR1 PBR2 PBR3"
+          },
+          {
+            "net": "gpu_clk",
+            "resource": "PRIMARY",
+            "location": "PTR0 PTR1 PTR2 PTR3 PBR0 PBR1 PBR2 PBR3"
+          },
+          {
+            "net": "u_usb_softphy_top/usb2_0_softphy/u_usb_20_phy_utmi/u_usb2_0_softphy/u_usb_phy_hs/sclk",
+            "resource": "PRIMARY",
+            "location": "PBR3"
+          },
+          {
+            "net": "usb_app_reset",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "rtc_clk",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "u_gpu/mrst[1]",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "u_accel/engine_resetn[0]",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "u_accel/engine_resetn[1]",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "u_accel/engine_resetn[2]",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "u_accel/u_v1/u_pixels/n34369_4",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/gowin_reg_ddr_rst_23",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "clk5x_raw",
+            "resource": "HCLK",
+            "location": "BANK3_HCLK3"
+          },
+          {
+            "net": "fclk_960m",
+            "resource": "HCLK",
+            "location": "BANK3_HCLK0"
+          },
+          {
+            "net": "u_soc/ddr3_memory_clk",
+            "resource": "HCLK",
+            "location": "BANK6_HCLK0 BANK7_HCLK0"
+          }
+        ],
+        "lw_nets": [
+          "usb_app_reset",
+          "rtc_clk",
+          "u_gpu/mrst[1]",
+          "u_accel/engine_resetn[0]",
+          "u_accel/engine_resetn[1]",
+          "u_accel/engine_resetn[2]",
+          "u_accel/u_v1/u_pixels/n34369_4",
+          "u_soc/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/gowin_reg_ddr_rst_23"
+        ],
+        "warnings": [],
+        "scope": "Routage publi\u00e9 par Gowin ; une allocation LW ne prouve pas un d\u00e9faut sur carte."
+      }
+    },
+    "analyser_l31r8": {
+      "report": "/home/michael/logic_analyser_wifi/tang/impl/linux_l31r8_local_20261012/workspace/tang/impl/pnr/la16_usb.tr",
+      "sha256": "3d6756dc392e052f4f38fddad296a4c8073f456dcc418dd951257d1ba3a8a231",
+      "clocks_mhz": {
+        "clk50": 50.0,
+        "clk100": 100.0,
+        "core_clk": 800.0,
+        "rtc_clk": 10.0,
+        "ddr3_mem_clk": 300.03,
+        "ddr3_sys_clk": 75.002,
+        "vid_clk5x": 371.885,
+        "vid_pclk": 74.377,
+        "pclk": 125.0,
+        "upar_clk": 59.999,
+        "rx_pcs_clk": 125.0,
+        "sd_clk": 100.0
+      },
+      "phy_published_paths": {
+        "setup": {
+          "reported_count": 5902,
+          "minimum_reported_slack_ns": 2.217,
+          "worst_reported": [
+            {
+              "analysis": "setup",
+              "slack_ns": 2.217,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/ddr_sync/ddr_init_st_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_init/timer_cnt0_0_s1",
+              "launch_clock": "clk50:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "setup",
+              "slack_ns": 2.217,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/ddr_sync/ddr_init_st_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_init/timer_cnt0_1_s1",
+              "launch_clock": "clk50:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "setup",
+              "slack_ns": 2.217,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/ddr_sync/ddr_init_st_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_init/timer_cnt0_0_s1",
+              "launch_clock": "clk50:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            }
+          ]
+        },
+        "hold": {
+          "reported_count": 247,
+          "minimum_reported_slack_ns": 0.138,
+          "worst_reported": [
+            {
+              "analysis": "hold",
+              "slack_ns": 0.138,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_ddr_phy_data_io/oserdes_dq_r_64_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_ddr_phy_data_io/oserdes_gen[8].u_oser8_mem",
+              "launch_clock": "ddr3_sys_clk:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "hold",
+              "slack_ns": 0.138,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[0].u_ddr_phy_data_lane/u_ddr_phy_data_io/oserdes_dq_r_30_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[0].u_ddr_phy_data_lane/u_ddr_phy_data_io/oserdes_gen[3].u_oser8_mem",
+              "launch_clock": "ddr3_sys_clk:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "hold",
+              "slack_ns": 0.138,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_ddr_phy_data_io/oserdes_dq_r_38_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/data_lane_gen[3].u_ddr_phy_data_lane/u_ddr_phy_data_io/oserdes_gen[4].u_oser8_mem",
+              "launch_clock": "ddr3_sys_clk:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            }
+          ]
+        },
+        "recovery": {
+          "reported_count": 295,
+          "minimum_reported_slack_ns": 0.811,
+          "worst_reported": [
+            {
+              "analysis": "recovery",
+              "slack_ns": 0.811,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/ddr_rsti_reg_2_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/fifo_ctrl_gen[0].fifo_ctrl/if_Empty_reg_s0",
+              "launch_clock": "clk50:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "recovery",
+              "slack_ns": 0.811,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/ddr_rsti_reg_2_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/fifo_ctrl_gen[0].fifo_ctrl/if_rbin_0_s0",
+              "launch_clock": "clk50:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            },
+            {
+              "analysis": "recovery",
+              "slack_ns": 0.811,
+              "source": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/ddr_rsti_reg_2_s0",
+              "destination": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/u_ddr_phy_top/u_ddr_phy_wds/fifo_ctrl_gen[0].fifo_ctrl/if_rbin_1_s0",
+              "launch_clock": "clk50:[R]",
+              "clock": "ddr3_sys_clk:[R]"
+            }
+          ]
+        },
+        "removal": {
+          "reported_count": 0,
+          "minimum_reported_slack_ns": null,
+          "worst_reported": []
+        }
+      },
+      "clock_routing": {
+        "entries": [
+          {
+            "net": "clk50_d",
+            "resource": "PRIMARY",
+            "location": "PTR0 PTR1 PTR3 PBR0 PBR3"
+          },
+          {
+            "net": "u/vid_hclk",
+            "resource": "PRIMARY",
+            "location": "PTR0 PTR1 PTR2 PTR3 PBR0 PBR1 PBR2 PBR3"
+          },
+          {
+            "net": "u/g_hdmi.vid_clk5x_raw",
+            "resource": "PRIMARY",
+            "location": "PBR3"
+          },
+          {
+            "net": "u/g_hdmi.vid_pclk",
+            "resource": "PRIMARY",
+            "location": "PTR1 PTR2 PBR0 PBR1 PBR2 PBR3"
+          },
+          {
+            "net": "u/u_soc_wrap/exts_hclk",
+            "resource": "PRIMARY",
+            "location": "PTR0 PTR1 PTR2 PTR3 PBR0 PBR1"
+          },
+          {
+            "net": "u/g_usb.u_usb/la16_rx_clk",
+            "resource": "PRIMARY",
+            "location": "PTR1"
+          },
+          {
+            "net": "u/g_usb.u_usb/u_serdes/q0_lane2_pcs_tx_o_fabric_clk",
+            "resource": "PRIMARY",
+            "location": "PTR1 PTR2"
+          },
+          {
+            "net": "u/g_usb.u_usb/u_serdes/upar_arbiter_wrap_SerDes_Top_inst_drp_clk_o[2]",
+            "resource": "PRIMARY",
+            "location": "PTR1 PTR2 PTR3"
+          },
+          {
+            "net": "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/ddr_rst",
+            "resource": "LW",
+            "location": "-"
+          },
+          {
+            "net": "u/g_hdmi.vid_clk5x_raw",
+            "resource": "HCLK",
+            "location": "BANK3_HCLK3"
+          },
+          {
+            "net": "u/u_soc_wrap/ddr3_memory_clk",
+            "resource": "HCLK",
+            "location": "BANK6_HCLK0 BANK7_HCLK0"
+          }
+        ],
+        "lw_nets": [
+          "u/u_soc_wrap/g_ddr.u_ddr/u_ip/gw3_top/ddr_rst"
+        ],
+        "warnings": [],
+        "scope": "Routage publi\u00e9 par Gowin ; une allocation LW ne prouve pas un d\u00e9faut sur carte."
+      }
+    }
+  }
+}

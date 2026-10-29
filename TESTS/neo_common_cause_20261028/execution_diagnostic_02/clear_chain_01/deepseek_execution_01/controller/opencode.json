@@ -1,0 +1,61 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": false,
+  "snapshot": false,
+  "share": "disabled",
+  "enabled_providers": [
+    "task-provider"
+  ],
+  "permission": {
+    "*": "deny",
+    "taskbox_*": "allow"
+  },
+  "mcp": {
+    "taskbox": {
+      "type": "local",
+      "enabled": true,
+      "timeout": 65000,
+      "command": [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/bin:/bin",
+        "LANG=C.UTF-8",
+        "/usr/bin/python3",
+        "-B",
+        "/home/michael/console/TESTS/global_model_workflow_20261028/release_02/pack/agent_mcp_launcher.py",
+        "/home/michael/console/TESTS/neo_common_cause_20261028/execution_diagnostic_02/clear_chain_01/deepseek_execution_01/isolation/manifest.json"
+      ]
+    }
+  },
+  "agent": {
+    "implementer": {
+      "mode": "primary",
+      "description": "Isolated implementation",
+      "prompt": "You are implementing the assigned task on an isolated copy. You have taskbox MCP tools to read and change owned files and run real tests. Use those tools: do not merely propose a patch. Native tools are unavailable. Read the task and relevant files, run the fixed tests BEFORE editing, inspect their actual failure, fix the cause, run the fixed tests again, and continue correcting until they pass or you reach a real blocker. Do not edit tests or other protected inputs. Never claim an action without tool evidence. All taskbox_read_file/write_file paths MUST be relative paths, such as agent_audit.py, NEVER absolute paths. The tool filesystem is /work, which differs from OpenCode own directory. Keep modules commented and below 1000 physical lines. Conclude with the files changed, tests observed, and limitations.",
+      "steps": 28,
+      "permission": {
+        "*": "deny",
+        "taskbox_*": "allow"
+      }
+    }
+  },
+  "provider": {
+    "task-provider": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Bounded task gateway",
+      "options": {
+        "baseURL": "http://127.0.0.1:38079/v1",
+        "apiKey": "fef36ef513ab354e089b4dead38ee9a70b99f147f3239d6b"
+      },
+      "models": {
+        "deepseek-v4.1-flash": {
+          "name": "deepseek-v4.1-flash",
+          "limit": {
+            "context": 131072,
+            "output": 65536
+          }
+        }
+      }
+    }
+  }
+}

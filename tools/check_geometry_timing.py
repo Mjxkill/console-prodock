@@ -15,17 +15,19 @@ def family(node):
     return re.sub(r'_\d+_s\d*$', '', node.rsplit('/', 1)[0] if node.endswith(('/D', '/Q')) else node)
 
 
-def inspect(stage):
-    name = 'console_'+stage.name
+def inspect(stage, name=None):
+    name = name or 'console_'+stage.name
     report = stage/f'impl/pnr/{name}.tr'
     text = report.read_text()
     groups = [dict(clock=c, analysis=a, tns=float(t), endpoints=int(n)) for c, a, t, n in
               re.findall(r'^\s*(\S+)\s+(setup|hold)\s+([-\d.]+)\s+(\d+)\s*$', text, re.M)]
     slacks = [float(s) for s in re.findall(r'^Slack\s*:\s*([-\d.]+)', text, re.M)]
+    pulse_slacks = [float(s) for s in re.findall(
+        r'^\s*\d+\s+([-\d.]+)\s+[\d.]+\s+[\d.]+\s+(?:High|Low) Pulse Width\s+', text, re.M)]
     counts = {kind.lower(): int(value) for kind, value in
               re.findall(r'<Numbers of (Setup|Hold) Violated Endpoints>:(\d+)', text)}
-    complete = bool(slacks and groups and set(counts) == {'setup', 'hold'})
-    clean = complete and min(slacks) >= 0 and not any(counts.values()) and all(g['tns'] == 0 and g['endpoints'] == 0 for g in groups)
+    complete = bool(slacks and pulse_slacks and groups and set(counts) == {'setup', 'hold'})
+    clean = complete and min(slacks+pulse_slacks) >= 0 and not any(counts.values()) and all(g['tns'] == 0 and g['endpoints'] == 0 for g in groups)
     paths = []
     for block in text.split('Path Summary:')[1:]:
         def field(label):
@@ -42,11 +44,12 @@ def inspect(stage):
     resources = {}
     resource_text = (stage/f'impl/pnr/{name}.rpt.txt').read_text()
     for resource in ('Logic', 'Register', 'CLS', 'BSRAM', 'DSP'):
-        found = re.search(r'^\s*'+resource+r'\s*\|\s*(\d+)/(\d+)', resource_text, re.M)
+        found = re.search(r'^\s*'+resource+r'\s*\|\s*(\d+(?:\.\d+)?)/(\d+)', resource_text, re.M)
         if found:
-            resources[resource] = dict(used=int(found[1]), available=int(found[2]))
+            resources[resource] = dict(used=float(found[1]) if '.' in found[1] else int(found[1]), available=int(found[2]))
     return dict(status='PASS' if clean else 'FAIL', stage=stage.name, timing_sha256=sha(report),
-                minimum_slack_ns=min(slacks) if slacks else None, violated_endpoints=counts,
+                minimum_slack_ns=min(slacks+pulse_slacks) if slacks else None,
+                minimum_pulse_slack_ns=min(pulse_slacks) if pulse_slacks else None, violated_endpoints=counts,
                 groups=groups, worst_families=list(worst.values()), resources=resources)
 
 

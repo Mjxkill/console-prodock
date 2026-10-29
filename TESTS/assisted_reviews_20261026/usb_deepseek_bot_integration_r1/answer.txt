@@ -1,0 +1,176 @@
+Je n’ai exécuté aucune simulation et je n’ai modifié aucun fichier. Analyse statique uniquement du paquet fourni.
+
+## 1. Faits utiles du paquet
+
+- `msc_in(send_ack=0)` laisse réellement le paquet EP1 IN sans ACK et mémorise `msc_in_pending = n` ; la reprise suivante est censée renvoyer le même paquet (`TESTS/rtl/usb_msc_controller_tasks.svh:233-264`, notamment `:247-260`).
+- `control_nodata()` permet une vraie requête EP0 sans donnée (`..._tasks.svh:134-142`). La suite existante utilise déjà la vraie requête Bulk-Only Reset `bm=0x21, bRequest=0xff, wIndex=2` puis vérifie `seen_bot_reset` par le bit 3 (`..._tasks.svh:308-309`). Elle utilise aussi `CLEAR_FEATURE` EP1 IN/OUT (`..._tasks.svh:386`, `:391-396`).
+- Le contrat AHB expose une purge locale documentée `+0x14 bit0` (`tang/rtl/usb/usb_msc_port.v:18-20`, `:255-257`). L’écriture AHB ne change pas l’endpoint UTMI courant ; donc une purge déclenchée juste après une transaction EP0 se produit pendant que `endpt_sel == 0`.
+- Dans `usb_msc_guard.v`, `bot_reset` remet le garde BOT à zéro (`tang/rtl/usb/usb_msc_guard.v:33-37`) ; il ne faut pas compter sur `CLEAR_FEATURE` seul pour sortir du verrou BOT (`..._tasks.svh:386-388`).
+- Le patch candidat montre l’ancien comportement : `tx_pending[1]` n’était purgé que si `i_usb_endpt == 1` (`candidate.patch:43-49`). Le candidat purge `tx_pending[1]` indépendamment de l’endpoint sélectionné (`candidate.patch:44-57`) et masque aussi une offre EP1 pendant la purge (`candidate.patch:7-19`, `:67-70`, `:79-83`).
+
+## 2. Hypothèses non prouvées par le paquet
+
+- Que `control_nodata(8'h21,8'hff,0,2)` génère bien `msc_bot_reset` : le générateur n’est pas fourni. L’usage existant et `seen_bot_reset` le rendent très probable, mais ce n’est pas une preuve de câblage.
+- Que `i_ep1_flush` du patch candidat est bien relié à `msc_flush` / `ep_flush` du port. La déclaration fournie ne montre pas ce port sur `u_usb_fifo` (`TESTS/rtl/usb_msc_controller_decl.svh:62-86`) alors que le patch utilise `i_ep1_flush` (`candidate.patch:10`, `:46`). C’est un manque de contrat important.
+- Que `CLEAR_FEATURE(HALT)` remet bien les toggles EP1 à DATA0. La suite existante le suppose en réinitialisant `msc_in_pid = 8'hc3` (`..._tasks.svh:392-393`), mais le comportement du contrôleur/FIFO n’est pas explicitement fourni.
+
+## 3. Bloc SV minimal à insérer
+
+À insérer **après la ligne 474** de `TESTS/rtl/usb_controller_packet_tb.sv` et **avant le contrôle FIN ligne 475**, donc avant `$finish` ligne 479.
+
+```systemverilog
+        // ------------------------------------------------------------------
+        // F01 : EP1 IN non ACKé, activité EP2, vraie requête BOT Reset EP0,
+        // puis purge locale pendant EP0, reset recovery, reprise firmware.
+        // Aucun force, aucun accès hiérarchique interne.
+        // ------------------------------------------------------------------
+        begin : f01_ep1_pending_ep0_ep2
+            integer n, old_base, new_base, old_len;
+            old_len = 64;
+
+            // L'hôte avait abandonné le transfert EP1 précédent.
+            msc_in_pending = -1;
+            check_pattern  = 0;
+            ahb_write(32'h14, 32'h8);          // efface seen_bot_reset résiduel
+
+            // Le firmware prend le disque.
+            ahb_write(32'h14, 32'h2);
+            wait_status(32'h100, 32'h100);
+
+            // Prépare un vrai paquet EP1 IN de 64 octets.
+            old_base = fw_pushed;
+            fw_push(old_len, 0);
+            gap(400);
+            ahb_write(32'h10, 0);              // validation EP1 IN
+            gap(60);
+
+            // L'hôte reçoit le DATA EP1 mais perd volontairement l'ACK.
+            msc_in(0, n);
+            if (n != old_len)
+                $fatal(1, "F01 setup EP1 IN: %0d bytes, expected %0d", n, old_len);
+            if (msc_in_pending != old_len)
+                $fatal(1, "F01 host pending not armed: %0d", msc_in_pending);
+
+            // Activité CDC EP2 pendant que EP1 reste non ACKé.
+            // drain() termine par un poll EP2 : l'endpoint courant devient EP2.
+            append_byte();
+            gap(40);
+            drain();
+
+            // Vraie requête Bulk-Only Mass Storage Reset sur EP0.
+            // Le firmware reste propriétaire du disque à ce stade.
+            control_nodata(8'h21, 8'hff, 16'h0000, 16'h0002);
+            wait_status(32'h8, 32'h8);          // seen_bot_reset
+            ahb_write(32'h14, 32'h8);           // efface seen_bot_reset
+
+            // Purge locale contractuelle, exécutée alors que EP0 est
+            // l'endpoint UTMI courant. C'est le point discriminant :
+            // l'ancien FIFO ne purgeait EP1 que si EP1 était sélectionné.
+            ahb_write(32'h14, 32'h1);           // purge des deux sens
+            wait_status(32'h10, 32'h10);        // quiet_h asserté
+            wait_status(32'h10, 32'h00);        // purge terminée
+
+            // Reset Recovery hôte : CLEAR_FEATURE(HALT) EP1 IN et OUT.
+            control_nodata(8'h02, 8'h01, 16'h0000, 16'h0081);
+            control_nodata(8'h02, 8'h01, 16'h0000, 16'h0001);
+
+            // Fin du BOT Reset / CLEAR_FEATURE : le firmware rend le disque.
+            ahb_write(32'h14, 32'h20);
+            wait_status(32'h300, 32'h000);
+            gap(20);
+
+            // L'hôte abandonne le DATA non ACKé et repart en DATA0.
+            msc_in_pending = -1;
+            msc_in_pid     = 8'hc3;
+            msc_out_pid    = 8'hc3;
+
+            // Reprise firmware.
+            ahb_write(32'h14, 32'h2);
+            wait_status(32'h100, 32'h100);
+
+            // Aucun ancien paquet ne doit être présent : le premier poll
+            // EP1 IN doit être NAK, sans ACK host. On ne se fie pas au PID
+            // pour cette sonde : tout DATA ici est un ancien paquet.
+            begin : f01_no_stale_probe
+                integer old;
+                old = responses;
+                token(8'h69, host_address, 1);
+                await_response(old);
+                if (!(response_len == 1 && response[0] == 8'h5a)) begin
+                    $display("F01_ORIGINAL_FAIL stale EP1 after EP0/EP2 purge: pid=%02x len=%0d raw0=%02x",
+                             response[0], response_len - 3,
+                             response_len > 3 ? response[1] : 8'h00);
+                    $fatal(1, "F01 stale EP1 IN survived BOT Reset/purge");
+                end
+            end
+            gap(20);
+            $display("F01_NO_STALE_EP1 n=NAK");
+
+            // Nouveaux octets, avec une base de pattern distincte de l'ancien
+            // paquet pour qu'une reprise de l'ancien DATA échoue au premier octet.
+            new_base = old_base + 4096;
+            while (msc_pattern(new_base) === msc_pattern(old_base))
+                new_base = new_base + 1;
+
+            fw_pushed    = new_base;
+            msc_in_count = new_base;
+            msc_in_pid   = 8'hc3;
+            msc_in_pending = -1;
+
+            fw_push(13, 0);
+            gap(200);
+            ahb_write(32'h10, 0);
+            gap(60);
+
+            // Utilise msc_in existant, mais sans vérification automatique de
+            // pattern afin de produire un marqueur F01 précis.
+            msc_in(1, n);
+            if (n != 13) begin
+                $display("F01_ORIGINAL_FAIL new EP1 after retake: len=%0d expected=13 old_len=%0d",
+                         n, old_len);
+                $fatal(1, "F01 new EP1 packet length/retake failed");
+            end
+            for (integer i = 0; i < 13; i++) begin
+                if (raw[i] !== msc_pattern(new_base + i)) begin
+                    $display("F01_ORIGINAL_FAIL new EP1 byte %0d got=%02x expected=%02x",
+                             i, raw[i], msc_pattern(new_base + i));
+                    $fatal(1, "F01 new EP1 bytes are not the expected post-retake data");
+                end
+            end
+            msc_in_count = new_base + 13;
+
+            $display("F01_CANDIDATE_PASS old_len=%0d old_base=%0d new_base=%0d new_len=13 first=%02x",
+                     old_len, old_base, new_base, raw[0]);
+        end
+```
+
+## 4. Pourquoi ce bloc est discriminant
+
+- L’ancien paquet EP1 IN est réellement laissé sans ACK (`msc_in(0, n)`).
+- EP2 est réellement sélectionné par `append_byte/drain` (`usb_controller_packet_tb.sv:439-505`).
+- La vraie requête EP0 BOT Reset est envoyée et contrôlée par `seen_bot_reset`.
+- La purge `0x14[0]` est lancée sans transaction UTMI intermédiaire, donc avec `endpt_sel == EP0`. Dans l’ancien comportement, `tx_pending[1]` n’est pas purgé car `i_usb_endpt != 1` (`candidate.patch:43-49`). Le candidat le purge sans condition (`candidate.patch:44-57`).
+- Après reprise, aucun EP1 n’est sélectionné avant la sonde. Si l’ancien `tx_pending[1]`/ancienne longueur a survécu, l’ancien DATA part ; le marqueur `F01_ORIGINAL_FAIL` est imprimé.
+- Si le candidat a purgé, le premier poll EP1 IN est NAK (`F01_NO_STALE_EP1`), puis les 13 nouveaux octets sont poussés à une base de pattern volontairement différente. Toute reprise résiduelle échoue en longueur ou au premier octet.
+- Le bloc ne modifie que des variables hôte/tâches (`msc_in_pending`, `msc_in_pid`, `fw_pushed`, `msc_in_count`, `check_pattern`) et aucun registre interne du DUT.
+
+## 5. Marqueurs et preuve attendue
+
+Preuve attendue, sans prétendre l’avoir exécutée :
+
+- original : `F01_ORIGINAL_FAIL stale EP1 after EP0/EP2 purge: ...` puis arrêt ;
+- candidat : `F01_NO_STALE_EP1 n=NAK` puis `F01_CANDIDATE_PASS ...` ;
+- dans les deux cas, la suite doit conserver le contrôle FIN existant `usb_controller_packet_tb.sv:475`.
+
+Si l’original produit un NAK au premier poll, le test n’a pas atteint le coin F01 : vérifier en priorité le lien `i_ep1_flush`/`msc_flush` et que la purge est bien faite pendant `endpt_sel == EP0`. Ne pas conclure « original PASS » sur ce seul NAK.
+
+## 6. Contrat manquant à déclarer
+
+Le paquet ne fournit pas :
+
+- le `usb_fifo.v` complet ni le câblage de `i_ep1_flush` vers `msc_flush`/`ep_flush` ; la déclaration fournie ne le montre pas (`usb_msc_controller_decl.svh:4`, `:62-86`) ;
+- le générateur exact de `msc_bot_reset` ;
+- la sémantique exacte de reset des toggles DATA0/DATA1 après BOT Reset et `CLEAR_FEATURE` ;
+- la commande de compilation/simulation reproductible.
+
+Le bloc reste valable si l’unique ligne de purge `ahb_write(32'h14,32'h1)` correspond bien au mécanisme `i_ep1_flush` du staging candidat. Si le contrat candidat prouve qu’une requête EP0 seule arme déjà ce flush, cette ligne peut être supprimée ; sinon, la conserver est nécessaire pour garantir la purge sous EP0.

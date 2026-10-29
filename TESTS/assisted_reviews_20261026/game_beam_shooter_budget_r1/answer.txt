@@ -1,0 +1,70 @@
+## Revue adversariale du shooter figé (rendu)
+
+### Faits confirmés dans le paquet
+
+1. `shooter_render.c::l3_shooter_render` remet `r->sprite_count=0`, écrit les couches de fond `s->layers[0]` et `s->layers[1]`, puis dessine les acteurs. Les acteurs non-boss utilisent `picture(..., cosmetic=0)` ; le boss utilise `image(s, 2, art, x, y)` (`games/luma3d/build/.../shooter_render.c`).
+2. Les effets (flamme, bouclier, explosions) sont dessinés après les acteurs, avec `cosmetic=1`, donc `picture()` peut les abandonner sans échec de rendu.
+3. Le manifeste art indique les bornes critiques `58` (profil 800) et `60` (profil 1280), avec `hardware_limit: 64` (`candidates/arcade_polish_r1/art/shooter/manifest.json`). La vue ne peut contenir que `1 joueur + 8 ennemis + 32 tirs + 4 bonus = 45` acteurs ; les bornes statiques sont donc cohérentes avec le code de pool (`L3_SHOOTER_ACTORS 45`, `minigames/l3_shooter.c`).
+4. La transparence est par palette index `0` : générateur `indexed()` met `pix[alpha<64]=0`, après décalage `+128`, et `hud_palette.rgb[128..239]` est envoyée. L’index `0` est bien le trou de transparence (`build_shooter_art.py`, `l3_shooter_art_open`).
+5. La mémoire GPU statique reste dans `28..32 MiB` : champs de `28 MiB` à `ART_BASE=31 MiB`, puis `sh_pixels` jusqu’à `31 MiB + ~0.9 MiB`; le code vérifie `FIELD_BASE+2*bytes>ART_BASE` et `sizeof(sh_pixels)>L3_MAP_BYTES-ART_BASE` (`shooter_render.c`).
+6. La scène UAPI (`prodock-uapi.h`) ne contient pas de compteur explicite de sprites/couches actifs : `s->layers[16][8]`, `s->sprites[64][4]`, plus flags `layers_enabled/sprites_enabled`. Il faut donc considérer que toute entrée non nulle dans ces tableaux peut rester interprétable par le host.
+
+### Hypothèse de défaut principal
+
+**Défaut concret probable : effacement incomplet des couches et des sprites résiduels.**
+
+`l3_shooter_render` n’efface pas explicitement :
+
+- la couche `s->layers[2]` si le boss n’est pas présent dans la vue courante ;
+- les entrées `s->sprites[i]` au-delà de `r->sprite_count`.
+
+Actuellement, le renderer n’écrit que les couches 0/1 toujours, la couche 2 seulement si un boss est dans la vue, et les sprites séquentiellement de `0` à `sprite_count-1`. Si la scène est réutilisée par le host sans remise à zéro complète chaque frame, un cadre précédent peut laisser un boss fantôme dans la couche 2 après sa mort ou après sortie du jeu, ainsi que d’anciens sprites dans la queue du tableau.
+
+C’est précisément le point mentionné par la tâche : « initialisation and zeroing boss after exit ». Dans la vue moderne, `kill_enemy()` fait bien `vanish(e)` pour le boss, puis `finish(..., WON)`, donc le boss disparaît de `v.actors`. Mais le rendu ne remet pas à zéro la couche 2 correspondante. Le bug est donc plus probable côté rendu/scene que côté état de jeu.
+
+### Test discriminant proposé (sans modifier le code)
+
+Un test étroit, reproductible :
+
+1. Profil choisi : width `400` puis `640`.
+2. Frame A : injecter/construire via un état de shooter valide une scène contenant le boss (acteur de kind `L3_SHOOTER_BOSS`) et au maximum de sprites critiques (58/60), dans un `struct prodock_scene s` prérempli par une sentinelle non nulle (par exemple `0xAAAAAAAA` dans tous les mots de couches et sprites).
+3. Appeler `l3_shooter_render(r, game, &s)` une fois.
+4. Vérifier :
+   - `s.layers[2][0]` correspond bien à l’adresse de base du boss (`PRODOCK_GPU_BASE + ART_BASE + offset boss`) ;
+   - seuls les slots `0..n-1` des sprites ont été écrasés ; les slots `n..63` restent sentinelle **siaucun effacement n’est fait**.
+5. Frame B : même scène, même état initial, mais état de jeu où le boss est mort/sorti (`status` terminé, `actor_count` sans boss), puis reappel sans remettre `s` à zéro.
+6. Attendu si le comportement est sûr : couche 2 nulle et tail de sprites nulle. État actuel attendu selon l’hypothèse : couche 2 reste à l’ancienne adresse/nouvelle non écrite, et la queue garde l’ancienne sentinelle.
+
+Ce test ne suppose aucun FPS et n’exige pas de modifier le runtime ; il isole le cas « boss disparu mais couche non effacée ».
+
+### Patch minimal proposé (pour une version future, non appliqué ici)
+
+Dans `l3_shooter_render`, avant la boucle des acteurs, effacer la couche boss puis la réécrire uniquement si présent :
+
+```c
+memset(s->layers[2], 0, sizeof(s->layers[2]));
+```
+
+Après la dernière insertion d’effet, effacer la queue des sprites :
+
+```c
+for (unsigned i = r->sprite_count; i < 64; ++i)
+    memset(s->sprites[i], 0, sizeof(s->sprites[i]));
+```
+
+On peut aussi étendre à toutes les couches non écrites si le host ne remet pas la scène à zéro :
+
+```c
+for (unsigned l = 3; l < 16; ++l)
+    memset(s->layers[l], 0, sizeof(s->layers[l]));
+```
+
+Ce patch est minimal et cohérent avec le fait que les bornes critiques `58/60` laissent déjà de la marge pour les effets ; il ne change pas les bornes ni le pool.
+
+### Points qui restent incertains
+
+- Le paquet ne montre pas le code appelant `l3_shooter_render` ni la façon dont `struct prodock_scene` est préinitialisée entre deux `PRESENT`. **Fait nécessaire pour confirmer à 100 %** : si le host appelle `memset(s,0,sizeof(*s))` avant chaque render, le défaut residuel n’existe pas. La formulation de la tâche (« zeroing boss after exit ») indique plutôt que ce remise à zéro n’est pas garantie.
+- Les tableaux d’en-tête `sh_art`/`sh_pixels` sont omis, mais le manifeste est exact et les calculs d’offset/parcours de tuiles sont cohérents avec le générateur.
+- Le fait que le boss utilise une couche image plutôt que des sprites implique que son Z-order est déterminé par l’index de couche, pas par l’ordre d’appel. Le relation exacte (couche 2 au-dessus ou en dessous des sprites) n’est pas prouvée par le paquet ; on ne doit donc pas déduire un problème visuel définitif sans spécification host. Le problème certain, lui, est la **persistance d’une entrée non nulle**.
+
+Conclusion : le défaut le mieux justifié n’est pas une omission d’acteur critique (les bornes sont respectées et testées), mais un **effacement incomplet de la scène, particulièrement la couche 2 du boss et la queue des sprites**, qui peut créer une apparence de sprite/couche fantôme après mort ou sortie.

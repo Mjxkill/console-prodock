@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Reject native cold atomics in the actual linked production binaries."""
+import os
 from pathlib import Path
 import re
 import subprocess
 HERE = Path(__file__).resolve().parents[1]
-BUILD = HERE / 'build'
-objdump = BUILD / 'riscv32-ilp32d--musl--stable-2025.08-1/bin/riscv32-buildroot-linux-musl-objdump'
+BUILD = HERE / ('build-neo' if os.environ.get('CONSOLE_BOARD')=='neo' else 'build')
+objdump = HERE / 'build' / 'riscv32-ilp32d--musl--stable-2025.08-1/bin/riscv32-buildroot-linux-musl-objdump'
 files = [('kernel/vmlinux', True), ('opensbi/platform/generic/firmware/fw_payload.elf', False),
          ('busybox/busybox_unstripped', False), ('rootfs/bin/prodockctl', False),
-         ('rootfs/bin/prodock-runtime', False), ('uboot/out/u-boot', False)]
+         ('rootfs/bin/prodock-runtime', False)]
 files += [('rootfs/bin/' + name, False) for name in
           ['prodock-terminal', 'prodock-game', 'prodock-text-test', 'nebula']]
+if os.environ.get('CONSOLE_BOARD')!='neo':files.append(('uboot/out/u-boot',False))
 total = 0
 for name, kernel in files:
     # SBI's executable .payload embeds the kernel/initramfs as raw bytes;

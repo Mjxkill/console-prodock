@@ -1,0 +1,56 @@
+{
+  "parent": "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset",
+  "name": "console_neo_n56r9_route8_hdmi_c150",
+  "netlist_sha256": "0b5ea22b83faf2bae943f399bdb734dc1e66c8507310dc25e054290e24ad6157",
+  "source_changes": [
+    "tang/boards/neo/neo.cst",
+    "tang/boards/neo/timing_closure.json"
+  ],
+  "changed_locations": 3,
+  "old_column": 160,
+  "new_column": 150,
+  "additional_grouping": false,
+  "additional_ce_constraints": false,
+  "measured_reference": "/home/michael/console/tang/impl/console_neo_n56r9_route7_hdmi_c140",
+  "measured_checks_ns": {
+    "setup": -3.447,
+    "hold": 0.124,
+    "recovery": -0.759,
+    "removal": 0.277
+  },
+  "measured_timing_sha256": "7727550c6d134de0974785e55602fef807a03d8a6f740a06264a83007d9a70af",
+  "measured_channel1": {
+    "removal_ns": 0.757,
+    "recovery_ns": -0.395,
+    "min_route_ns": 0.96,
+    "max_route_ns": 2.288
+  },
+  "motivation_control": {
+    "build": "console_neo_n56r9_route4_c150",
+    "hdmi_minimum_recovery_ns": 0.385,
+    "hdmi_minimum_removal_ns": 0.1,
+    "caveat": "R4 also regrouped 62 cells and changed CE routing; not an isolated control"
+  },
+  "measured_clock_latency_warning": "R7 capture requirements changed vs R6 by -0.421ns max and -0.528ns min; no linear column-delay prediction",
+  "hardware_access": false,
+  "synthesis": false,
+  "inputs_sha256": {
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route8_hdmi_reset_only.py": "aca1040b252b120de93ff2d0415bd96da5ab5c3b4d45df09f9a7d1369f3c5bfa",
+    "/home/michael/console/TESTS/neo_720p_20261012/reload_r1_cold_20261022/route_scan_timing_candidates.py": "6a655936f20312f4e16f5d0423f337edf88d7e03888bb7780e58af772fe3c514",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/sources.json": "b64ed4906476f6695ae626aba42baf4f14d0945b01c095e8244ea7b6d1da66f6",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/console_neo.vg": "0b5ea22b83faf2bae943f399bdb734dc1e66c8507310dc25e054290e24ad6157",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/source/tang/boards/neo/neo.cst": "583037fa38352fa5baeabbb6b61380ddfc5b66e056c3e164ad5b96bccd345c62",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/source/tang/boards/neo/neo.sdc": "c8da535e839157a361e78b06b2f65b2912891f8e9dc48b02d5b315ae9f953113",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/source/tang/boards/neo/timing_closure.json": "cb09d9616a9dc15eb40b876f330fe461554a6c9a29412ebdb1afddfc4d493407",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/impl/pnr/console_neo.vo": "7cf78fb953d1257f07cc83490a6abca84bd33bb1490bee8301cb3cd1f0335b17",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/impl/pnr/console_neo.tr": "e3d73ef7d4573b952d540b42965c081daecc39e0a5d0dc88b23794e6a83e5a36",
+    "/home/michael/console/tang/impl/console_neo_n56r9_route3_scan_reset/impl/pnr/console_neo.fs": "42c4edc4a079c1ed3f9759a860ccbf30bb8d4ecfa041e2699870fcc8072e2f4a"
+  },
+  "constraints_diff": "--- route3\n+++ route8\n@@ -177,13 +177,13 @@\n CLOCK_LOC \"vid_hrstn\" LOCAL_CLOCK;\n CLOCK_LOC \"pixel_clk\" BUFG[1] = CLK;\n CLOCK_LOC \"clk_d\" BUFG[0] = CLK;\n-INS_LOC \"u_hdmi/g_reset[0].reset_sync_fall_s1\" R102C160[1][A];\n+INS_LOC \"u_hdmi/g_reset[0].reset_sync_fall_s1\" R102C150[1][A];\n INS_LOC \"u_hdmi/g_reset[0].reset_sync_0_s1\" R102C181[0][A];\n INS_LOC \"u_hdmi/g_reset[0].reset_sync_1_s1\" R102C181[0][B];\n-INS_LOC \"u_hdmi/g_reset[1].reset_sync_fall_s1\" R102C160[2][A];\n+INS_LOC \"u_hdmi/g_reset[1].reset_sync_fall_s1\" R102C150[2][A];\n INS_LOC \"u_hdmi/g_reset[1].reset_sync_0_s1\" R101C181[0][A];\n INS_LOC \"u_hdmi/g_reset[1].reset_sync_1_s1\" R101C181[0][B];\n-INS_LOC \"u_hdmi/g_reset[2].reset_sync_fall_s1\" R57C160[1][A];\n+INS_LOC \"u_hdmi/g_reset[2].reset_sync_fall_s1\" R57C150[1][A];\n INS_LOC \"u_hdmi/g_reset[2].reset_sync_0_s1\" R58C181[0][A];\n INS_LOC \"u_hdmi/g_reset[2].reset_sync_1_s1\" R58C181[0][B];\n IO_LOC \"usb_dxp_io\" J19,H19;\n",
+  "limits": "Whole placement/routing changes despite three constraints; no timing or hardware guarantee.",
+  "local_regressions": {
+    "result": "TESTS/dual_board/20261024_linux_g3d1_r1/result.json",
+    "sha256": "45681e386f6fcc9289d8e09f6a811d0035edcde16c7992dcedc989606568503f",
+    "hardware_validation": false
+  }
+}
