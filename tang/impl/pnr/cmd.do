@@ -1,9 +1,9 @@
--d /home/michael/console/tang/impl/gwsynthesis/ddr_e1_cdc.vg
+-d /home/michael/console/tang/impl/gwsynthesis/refdemo.vg
 -p GW5AST-138B-FCPBGA676A-1
 -pn GW5AST-LV138FPG676AC1/I0
--cst /home/michael/console/tang/constr/ddr_e1_cdc.cst
+-cst /home/michael/console/tang/ref_demo/ae350_customized_demo.cst
 -cfg /home/michael/console/tang/impl/pnr/device.cfg
--sdc /home/michael/console/tang/constr/ddr_e1.sdc
+-sdc /home/michael/console/tang/ref_demo/ae350_customized_demo.sdc
 -bit
 -tr
 -ph
