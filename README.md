@@ -2,6 +2,8 @@
 
 **A hardware graphics engine, Linux on RISC-V, and games rendered on a Gowin FPGA.**
 
+**[Watch the demonstration video on YouTube](https://youtu.be/G8LfKqb-1sY)**
+
 An Electrosens R&D project for the Gowin **GW5AST-138** family and Sipeed boards.
 The AE350/A25 processor runs game logic at **800 MHz**; FPGA logic accelerates
 rendering, reads shared DDR3 and composes the display. This is real-time
