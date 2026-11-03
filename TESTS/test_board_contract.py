@@ -24,7 +24,7 @@ class BoardContractTests(unittest.TestCase):
         self.write('reference.fs', 'preserved bitstream')
         self.write(bc.REFERENCE, json.dumps(dict(commit='measured', bitstream_sha256=bc.sha(self.root/'reference.fs'),
             protected_files={'reference.fs':bc.sha(self.root/'reference.fs')})))
-        self.write('assets/nebula/packed/nebula.bin', 'assets')
+        self.write('games/nebula/assets/packed/nebula.bin', 'assets')
         self.mock = patch.object(bc, 'discover', side_effect=lambda root:list(self.names))
         self.mock.start(); self.addCleanup(self.mock.stop)
 

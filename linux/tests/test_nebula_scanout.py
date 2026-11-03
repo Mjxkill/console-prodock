@@ -32,12 +32,12 @@ def main():
             with (out/(name+'.log')).open('w') as log:
                 subprocess.run(list(map(str,args)),cwd=ROOT,stdout=log,stderr=subprocess.STDOUT,check=True)
         run('host_build',['cc','-std=c11','-O2','-Wall','-Wextra','-Werror','-DNEBULA_HOST',
-                         '-I',ROOT/'linux/drivers',ROOT/'linux/userspace/nebula.c','-lm','-o',work/'game'])
+                         '-I',ROOT/'linux/drivers','-I',ROOT/'linux/userspace',ROOT/'games/nebula/src/nebula.c','-lm','-o',work/'game'])
         run('rtl_build',['verilator','--binary','-j','4','--timing','-Wno-fatal','--top-module',
                         'nebula_scanout_tb','--Mdir',work/'obj',*(['-GWIDTH=1280','-GHEIGHT=720','-GH_TOTAL=1650','-GV_TOTAL=750','-GH_START=260','-GV_START=25','-GH_SYNC=40','-GV_SYNC=5','-GHALF_PIXEL=6.722689'] if a.neo else []),*[ROOT/s for s in sources]])
         for name,pose,boss in [('wave700',700,False),('boss310',310,True),('nova5740',5740,False)]:
             capture=work/name
-            run(name+'_game',[work/'game',*(['--720p'] if a.neo else []),'--pose',pose,'--frames',1,'--assets',ROOT/'assets/nebula/packed/nebula.bin',
+            run(name+'_game',[work/'game',*(['--720p'] if a.neo else []),'--pose',pose,'--frames',1,'--assets',ROOT/'games/nebula/assets/packed/nebula.bin',
                              '--capture',capture,*(['--boss'] if boss else [])])
             run(name+'_reference',['python3',ROOT/'tools/preview_nebula.py',capture,'--scanout-inputs',work/'inputs'])
             run(name+'_rtl',[work/'obj/Vnebula_scanout_tb','+inputs='+str(work/'inputs')])

@@ -9,12 +9,9 @@ qualified on hardware**. The latest experiment replacing both command memories
 with banked flip-flop storage failed to route: **4,243 unrouted connections and
 no bitstream**. The preceding implementation failed with 6,960.
 
-For routine operation, the intended deployment path is **SD autoboot and the
-SOFT-USB console**. J-Link/OpenOCD RAM loading is a diagnostic facility retained
-in the repository, not the normal Linux/game installation procedure. Its use
-requires agreement on the diagnostic, exclusive ownership of the target and a
-verified board identity. The intended Neo SD/USB workflow must not be described
-as an already qualified end-to-end installation.
+See [installation](INSTALLATION.md) for SD packages and the SOFT-USB console,
+and [debugger connections](DEBUGGING.md#tang-mega-neo--tang-console-138k) for
+the Neo CPU JTAG pinout. End-to-end Neo SD boot remains unqualified.
 
 ## 1. Platform differences and shared architecture
 
@@ -358,9 +355,8 @@ generic validator must not be bypassed or falsely reported as accepting them.
 See [optimization and report workflows](OPTIMIZATION.md). A fresh source build
 does not reproduce an old diagnostic solely by choosing the same name. Its
 exact frozen netlist, helper substitution, CST/SDC, engine settings and
-manifests determine that identity. Runtime JTAG loading scripts are retained
-for explicitly agreed diagnostics only; routine deployment remains the
-SD-autoboot/SOFT-USB workflow described by the main installation documentation.
+manifests determine that identity. The CPU debugger interface is described in
+[Debugging connections](DEBUGGING.md).
 
 ## 10. Evidence index for maintainers and vendor discussion
 

@@ -16,7 +16,7 @@ ROOT=Path(__file__).resolve().parents[1]
 C37='6f47a8cdab5857a0b652f791ff61fbed9a26c3c7ba7f4f30de01da95f0c076e2'
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--firmware-only',action='store_true');p.add_argument('--out',type=Path,required=True);a=p.parse_args()
- out=a.out.resolve();out.mkdir(parents=True,exist_ok=False);pack=ROOT/'assets/astra/packed'
+ out=a.out.resolve();out.mkdir(parents=True,exist_ok=False);pack=ROOT/'games/astra/assets/packed'
  meta=json.loads((pack/'firmware.json').read_text());assets=(pack/'astra.bin').read_bytes();fw=pack/'astra_fw.bin'
  require(hashlib.sha256(assets).hexdigest()==meta['assets_sha256'] and hashlib.sha256(fw.read_bytes()).hexdigest()==meta['sha256'],'Pack SHA mismatch')
  require(meta['fpga_sha256']==C37,'C37 ABI reference required')

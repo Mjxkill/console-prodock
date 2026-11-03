@@ -75,14 +75,14 @@ unsigned meter_cps(void){return meter.commands_s;}
 '''
   if geometry:code+='\nint prepare_geometry(uint8_t *p){return as3_hw_prepare(p); }\n'
   (work/'scene.c').write_text(code)
-  subprocess.run(['cc','-std=c11','-O2','-ffp-contract=off','-Wall','-Wextra','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),str(work/'scene.c'),str(ROOT/'fw_console/gpu_v1.c'),*([str(ROOT/'fw_console/gpu_geometry.c')] if geometry else []),'-o',str(work/'scene.so')],check=True)
+  subprocess.run(['cc','-std=c11','-O2','-ffp-contract=off','-Wall','-Wextra','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),'-I',str(ROOT/'games/common/astrilla'),str(work/'scene.c'),str(ROOT/'fw_console/gpu_v1.c'),*([str(ROOT/'fw_console/gpu_geometry.c')] if geometry else []),'-o',str(work/'scene.so')],check=True)
   self.lib=ctypes.CDLL(str(work/'scene.so'));self.lib.command_words.restype=ctypes.POINTER(ctypes.c_uint32)
   self.lib.sine.argtypes=[ctypes.c_float];self.lib.sine.restype=ctypes.c_float
   self.geometry_bytes=b''
   if geometry:
    data=(ctypes.c_uint8*32768)();assert self.lib.prepare_geometry(data);self.geometry_bytes=bytes(data)
   self.hud_pixels=bytes(800*32)
-  self.raw=(ROOT/'assets/astrilla/packed/astrilla.bin').read_bytes();self.manifest=json.loads((ROOT/'assets/astrilla/packed/manifest.json').read_text());self.base=self.manifest['base']
+  self.raw=(ROOT/'games/astrilla/assets/packed/astrilla.bin').read_bytes();self.manifest=json.loads((ROOT/'games/astrilla/assets/packed/manifest.json').read_text());self.base=self.manifest['base']
   self.palette=struct.unpack('<256I',self.read(self.manifest['regions']['palette']['address'],1024))
  def read(self,a,n):
   if 0x1000000<=a and a+n<=0x1000000+800*32:return self.hud_pixels[a-0x1000000:a-0x1000000+n]

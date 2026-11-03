@@ -38,7 +38,7 @@ def main():
         p.error('Invalid phase interval')
     if a.hardware_geometry and not a.firmware_manifest:
         p.error('--hardware-geometry requires --firmware-manifest')
-    snapshot = json.loads((a.firmware_manifest or ROOT/'assets/astrilla/packed/firmware.json').read_text())
+    snapshot = json.loads((a.firmware_manifest or ROOT/'games/astrilla/assets/packed/firmware.json').read_text())
     if a.hardware_geometry and snapshot.get('geometry_abi') != 'G3D1':
         p.error('The supplied manifest does not identify G3D1')
     count = (a.last_frame-a.first_frame)*a.fps//55

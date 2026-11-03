@@ -57,7 +57,7 @@ def main():
         f'#define PAYLOAD_RLE_BYTES {len(packed)}U\n#define PAYLOAD_RLE_CRC 0x{zlib.crc32(packed):08x}U\n')
     subprocess.run(['make', '-B', '-s', '-C', str(ROOT.parent / 'fw_console'),
                     'MAIN=../linux/boot/launch.c', 'BUILD=build/linux_launch' + SUFFIX,
-                    'LD=' + str(ROOT.parent / 'fw_console/orbital.ld'),
+                    'LD=' + str(ROOT.parent / 'games/orbital/src/orbital.ld'),
                     'CFLAGS_EXTRA=-I' + str(BUILD)], check=True)
     launch = (ROOT.parent / ('fw_console/build/linux_launch' + SUFFIX + '/console_test.bin')).read_bytes()
     if len(launch) > 65536:
@@ -67,7 +67,7 @@ def main():
                           'bytes': len(launch), 'sha256': hashlib.sha256(launch).hexdigest()}
     subprocess.run(['make', '-B', '-s', '-C', str(ROOT.parent / 'fw_console'),
                     'MAIN=../linux/boot/launch.c', 'BUILD=build/linux_launch_usb' + SUFFIX,
-                    'LD=' + str(ROOT.parent / 'fw_console/orbital.ld'),
+                    'LD=' + str(ROOT.parent / 'games/orbital/src/orbital.ld'),
                     'CFLAGS_EXTRA=-DPAYLOAD_USB_STAGE -I' + str(BUILD)], check=True)
     launch = (ROOT.parent / ('fw_console/build/linux_launch_usb' + SUFFIX + '/console_test.bin')).read_bytes()
     if not 12 < len(launch) <= 65536:
@@ -77,7 +77,7 @@ def main():
         'stage': 0x08000000, 'bytes': len(launch), 'sha256': hashlib.sha256(launch).hexdigest()}
     subprocess.run(['make', '-B', '-s', '-C', str(ROOT.parent / 'fw_console'),
                     'MAIN=../linux/boot/launch.c', 'BUILD=build/linux_launch_packed' + SUFFIX,
-                    'LD=' + str(ROOT.parent / 'fw_console/orbital.ld'),
+                    'LD=' + str(ROOT.parent / 'games/orbital/src/orbital.ld'),
                     'CFLAGS_EXTRA=-DPAYLOAD_RLE_STAGE -I' + str(BUILD)], check=True)
     launch = (ROOT.parent / ('fw_console/build/linux_launch_packed' + SUFFIX + '/console_test.bin')).read_bytes()
     if not 12 < len(launch) <= 65536: raise ValueError('Packed launcher exceeds ILM')

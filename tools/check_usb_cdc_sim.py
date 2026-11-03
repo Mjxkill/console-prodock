@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from vendor_reference import USB as SIPEED_USB
 import subprocess
 import tempfile
 from gowin_toolchain import PRIMITIVES
@@ -16,8 +17,7 @@ def main():
     p.add_argument('--iverilog', default='iverilog')
     p.add_argument('--vvp', default='vvp')
     p.add_argument('--ivl-root', type=Path)
-    p.add_argument('--reference', type=Path, default=Path(
-        '/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller'))
+    p.add_argument('--reference', type=Path, default=SIPEED_USB / 'usb_device_controller')
     p.add_argument('--primitives', type=Path, default=PRIMITIVES)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--reset-only', action='store_true', help='run only the controller/FIFO reset regression')

@@ -1,4 +1,6 @@
 JOBS ?= 4
+CONSOLE_DOWNLOADS ?= $(abspath ../downloads)
+ARCHIVE := $(CONSOLE_DOWNLOADS)/u-boot-2025.10.tar.bz2
 BUILD := $(CURDIR)/../build/uboot
 SRC := $(BUILD)/src
 OUT := $(BUILD)/out
@@ -10,5 +12,5 @@ all: prepare
 	python3 ../tests/test_uboot_config.py
 	$(MAKE) -C $(SRC) O=$(OUT) CROSS_COMPILE=$(TC) -j$(JOBS)
 prepare:
-	python3 prepare.py /tmp/la16-u-boot-2025.10.tar.bz2 $(SRC)
+	python3 prepare.py $(ARCHIVE) $(SRC)
 .PHONY: all prepare

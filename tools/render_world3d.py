@@ -46,7 +46,7 @@ int render(unsigned t,const world3d_state *s,world3d_info *i){
         (work/'world.c').write_text(code)
         subprocess.run(['cc', '-std=c11', '-O2', '-ffp-contract=off', '-Wall', '-Wextra',
                         '-Wno-unused-function', '-Werror', '-fsanitize=undefined,float-cast-overflow',
-                        '-fno-sanitize-recover=all', '-shared', '-fPIC', '-I', str(ROOT/'fw_console'),
+                        '-fno-sanitize-recover=all', '-shared', '-fPIC', '-I', str(ROOT/'fw_console'), '-I', str(ROOT/'games/world3d/src'), '-I', str(ROOT/'games/common/astrilla'),
                         str(work/'world.c'), str(ROOT/'fw_console/gpu_v1.c'),
                         str(ROOT/'fw_console/gpu_geometry.c'), '-o', str(work/'world.so')], check=True)
         self.lib = ctypes.CDLL(str(work/'world.so'))
@@ -54,8 +54,8 @@ int render(unsigned t,const world3d_state *s,world3d_info *i){
         mesh = (ctypes.c_uint8 * 33792)()
         assert self.lib.prepare(mesh)
         self.mesh = bytes(mesh)
-        self.assets = (ROOT/'assets/astrilla/packed/astrilla.bin').read_bytes()
-        self.base = json.loads((ROOT/'assets/astrilla/packed/manifest.json').read_text())['base']
+        self.assets = (ROOT/'games/astrilla/assets/packed/astrilla.bin').read_bytes()
+        self.base = json.loads((ROOT/'games/astrilla/assets/packed/manifest.json').read_text())['base']
 
     def state(self, frame):
         state = State()

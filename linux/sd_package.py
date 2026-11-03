@@ -37,7 +37,7 @@ def main():
     items = [('UBOOT.BIN', 1, BUILD / 'uboot/out/u-boot.bin'),
              ('LINUX.BIN', 2, BUILD / 'opensbi/platform/generic/firmware/fw_payload.bin')]
     for game, code in [('luma', 3), ('orbital', 4)]:
-        pack = HERE.parent / 'assets' / game / 'packed'
+        pack = HERE.parent / 'games' / game / 'assets/packed'
         meta = json.loads((pack / 'firmware.json').read_text())
         for suffix, kind, key, dest in [('_fw.bin', code, 'sha256', '.BIN'),
                                       ('.bin', code + 2, 'assets_sha256', '.DAT')]:
@@ -58,7 +58,7 @@ def main():
         f'#define UBOOT_BYTES {len(raw)}U\n#define UBOOT_CRC 0x{zlib.crc32(raw):08x}U\n')
     subprocess.run(['make', '-B', '-s', '-C', str(HERE.parent / 'fw_console'),
         'MAIN=../linux/boot/uboot_ram.c', 'BUILD=build/linux_uboot_ram',
-        'LD=' + str(HERE.parent / 'fw_console/orbital.ld'),
+        'LD=' + str(HERE.parent / 'games/orbital/src/orbital.ld'),
         'EXTRA_SRCS=../linux/boot/image.c',
         f'CFLAGS_EXTRA=-I{HERE / "boot"} -I{BUILD}'], check=True)
     launcher = (HERE.parent / 'fw_console/build/linux_uboot_ram/console_test.bin').read_bytes()

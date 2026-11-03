@@ -119,10 +119,10 @@ def world_image(w,index,terrain):
  return im
 
 def fallback_actors(optics=False):
- result={};sheet=Image.open(REPO/'assets/luma/source/hero.png').convert('RGBA')
+ result={};sheet=Image.open(REPO/'games/luma/assets/source/hero.png').convert('RGBA')
  for i in range(4):result['player'+str(i)]=sheet.crop((i*sheet.width//4,0,(i+1)*sheet.width//4,sheet.height//4)).resize((64,64),Image.Resampling.LANCZOS)
  result['player']=result['player0'];result['npc']=result['player1']
- enemies=Image.open(REPO/'assets/luma/source/enemies.png').convert('RGBA')
+ enemies=Image.open(REPO/'games/luma/assets/source/enemies.png').convert('RGBA')
  for name,row in [('enemy',0),('boss',2)]:result[name]=enemies.crop((0,row*enemies.height//4,enemies.width//4,(row+1)*enemies.height//4)).resize((64,64),Image.Resampling.LANCZOS)
  for name in ART:
   if name in result:continue

@@ -1,4 +1,0 @@
-#define PACKED_BYTES 5805324u
-#define PACKED_CRC 0x2f0d700au
-#define ELF_BYTES 16640496u
-#define ELF_CRC 0xfa358bf4u

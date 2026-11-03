@@ -78,10 +78,8 @@ code must follow the project's modularity and header rules.
 
 ## Deployment scope
 
-The intended normal path is SD boot and SOFT-USB transfer/console, subject to
-the platform installation guide and its current qualification. Do not treat
-this source package as a qualified full USB installer. J-Link is only for
-explicitly agreed diagnostics, not a routine loading requirement.
+For installation and game commands, see [Installation](../../docs/INSTALLATION.md)
+and [Games](../../docs/GAMES.md).
 
 The recorded restoration used a diagnostic RAM boot, left the SD unmounted and
 did not write flash or SD. It does not prove autonomous startup after power-off.

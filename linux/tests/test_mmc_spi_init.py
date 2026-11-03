@@ -16,7 +16,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT/'linux/build/src/linux-6.12.112/drivers/mmc/host/mmc_spi.c'
+SOURCE = ROOT/'linux/tests/vendor/mmc_spi.c'
 REFERENCE_SHA = '33997892d8f86f31d774959a375b05705b96c8c8d75f9c64f95def9237318b3c'
 PATCH = ROOT/'linux/patches/linux/0002-mmc-spi-clock-before-power-on.patch'
 

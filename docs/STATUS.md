@@ -1,11 +1,10 @@
 # Project status
 
-Updated **3 November 2026**.
+Updated **4 November 2026**.
 
 **The Tang Mega Pro Dock runs the project's graphics demonstrations and Linux
-games. The Tang Neo port is still in development.** The next major delivery is
-a complete installation and startup experience: boot from SD, connect through
-SOFT-USB, and load games without a CPU debugger.
+games. The Tang Neo port is still in development.** SD startup to Linux and the game works on Pro Dock R6, with slow loading.
+SOFT-USB software installation and the Neo graphics port remain in development.
 
 [Watch the demonstration video](https://youtu.be/G8LfKqb-1sY) ·
 [Explore the games](GAMES.md) · [Installation guide](INSTALLATION.md)
@@ -14,7 +13,7 @@ SOFT-USB, and load games without a CPU debugger.
 
 | Board | What works today | What remains to finish |
 |---|---|---|
-| **Tang Mega Pro Dock 138K** | Real-time 2D/3D graphics and Linux games on its **800 × 480 LCD**, with a text terminal and on-screen diagnostics | Reliable automatic startup from SD, a complete USB loading/update workflow, and faster game loading |
+| **Tang Mega Pro Dock 138K** | Real-time 2D/3D graphics and Linux games on its **800 × 480 LCD**, with a text terminal and on-screen diagnostics | Persistent FPGA startup qualification, a complete USB loading/update workflow, and faster SD/game loading |
 | **Tang Neo / Console 138K** | **720p HDMI test patterns** have been displayed | The graphics engine still needs debugging before Linux games can be offered on this board |
 
 These boards are two targets for the same console project. They use shared
@@ -46,19 +45,18 @@ share the rendering work.
 
 ### Installation, startup and updates
 
-Linux has booted from an SD card during development. The full sequence from
-power-on to an automatically launched game still needs to be completed and
-repeatedly tested.
+Pro Dock R6 has booted from its resident loader through U-Boot and Linux on SD
+to an automatically launched game. Boot is functional but slow. That recorded
+test loaded the FPGA into SRAM first; persistent FPGA flash startup is a
+separate verification. See [the selected releases](RELEASES.md).
 
 SOFT-USB is intended for both the terminal and software transfers. The terminal
 exists; the complete game/kernel installation and update workflow is unfinished.
-USB2 High-Speed is the target. A CPU debugger is not part of the normal user
-experience. See [SOFT-USB](USB_TRANSPORT.md) for the implementation status.
+USB2 High-Speed is the target. See [SOFT-USB](USB_TRANSPORT.md) for the implementation status.
 
 The repository includes source code, build tools and a reproducible snapshot
-of the demonstrated game. Some full-system build dependencies still need to be
-prepared separately, so this is not yet a download-and-play console release.
-The [installation guide](INSTALLATION.md) identifies those dependencies.
+of the demonstrated game. The pinned FPGA baseline inputs are included with a verification/install script.
+The [installation guide](INSTALLATION.md) gives tool setup and build commands.
 
 ### Loading speed and game performance
 

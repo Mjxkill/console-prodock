@@ -5,7 +5,7 @@ import hashlib, json, math, struct, zlib
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'assets/astrilla/packed'
+OUT = ROOT / 'games/astrilla/assets/packed'
 BASE = 0x04000000
 CHAPTERS = [
     (0, 'LE GRAND DÉPART', 'SYSTÈME D’ORIGINE  /  CAP SUR L’INCONNU'),
@@ -35,7 +35,7 @@ def main():
     pal=[(0,0,0),(0,0,0)]
     for color in [(200,245,255),(50,210,255),(255,165,62),(209,100,255),(80,255,182),(255,244,212)]:
         pal += [tuple(round(c*(i+1)/32) for c in color) for i in range(32)]
-    carrier_source=Image.open(ROOT/'assets/astrilla/source/carrier.png').convert('RGBA')
+    carrier_source=Image.open(ROOT/'games/astrilla/assets/source/carrier.png').convert('RGBA')
     sample=np.asarray(carrier_source);opaque=sample[:,:,:3][sample[:,:,3]>128]
     colours=Image.fromarray(opaque.reshape(1,-1,3)).quantize(colors=60,method=Image.Quantize.MEDIANCUT).getpalette()[:180]
     pal += [tuple(colours[i:i+3]) for i in range(0,180,3)]
@@ -46,7 +46,7 @@ def main():
         alpha=np.asarray(im)[:,:,3]>=80;a[~alpha]=0;a[alpha&(a==0)]=1;return a.tobytes()
     add('palette',struct.pack('<256I',*[((r*63+127)//255<<12)|((g*63+127)//255<<6)|((b*63+127)//255) for r,g,b in pal]))
     for name,source,size in [('cosmos','cosmos',(1024,352)),('valley','elysia',(800,400)),('planet','planet',(256,128))]:
-        im=Image.open(ROOT/f'assets/astra/source/{source}.png').resize(size,Image.Resampling.LANCZOS)
+        im=Image.open(ROOT/f'games/astra/assets/source/{source}.png').resize(size,Image.Resampling.LANCZOS)
         add(name,rgb565(im),width=size[0],height=size[1],stride=size[0]*2)
     # Analytic gas giant / solar photosphere / moon textures: deterministic
     # material data, mapped and lit on real geometry at runtime.
@@ -104,26 +104,26 @@ def main():
     add('progress',bytes([65])*800*2,width=800,height=2)
     # Cinematic plates retain enough detail for dolly, bank and filtered pan.
     for name in ('blackhole','wormhole'):
-        im=Image.open(ROOT/f'assets/astrilla/source/{name}.png').resize((1024,512),Image.Resampling.LANCZOS)
+        im=Image.open(ROOT/f'games/astrilla/assets/source/{name}.png').resize((1024,512),Image.Resampling.LANCZOS)
         add(name,rgb565(im),width=1024,height=512,stride=2048)
     for name,size in [('canyon',(1024,512)),('forest',(1024,512)),('clearing',(800,400))]:
-        im=Image.open(ROOT/f'assets/astrilla/source/{name}.png').resize(size,Image.Resampling.LANCZOS)
+        im=Image.open(ROOT/f'games/astrilla/assets/source/{name}.png').resize(size,Image.Resampling.LANCZOS)
         add(name,rgb565(im),width=size[0],height=size[1],stride=size[0]*2)
     cells=[]
     def argb(im):
         a=np.asarray(im.convert('RGBA'),dtype=np.uint32)
         return (((a[:,:,3]*15+127)//255<<12)|((a[:,:,0]*15+127)//255<<8)|((a[:,:,1]*15+127)//255<<4)|((a[:,:,2]*15+127)//255)).astype('<u2')
     for name in ('corvette','carrier','corvette_front','corvette_side','corvette_landed'):
-        im=Image.open(ROOT/f'assets/astrilla/source/{name}.png').convert('RGBA')
+        im=Image.open(ROOT/f'games/astrilla/assets/source/{name}.png').convert('RGBA')
         im.thumbnail((256,192),Image.Resampling.LANCZOS);canvas=Image.new('RGBA',(256,192));canvas.paste(im,((256-im.width)//2,(192-im.height)//2))
         v=argb(canvas);occupied=(v>>12).reshape(6,32,8,32).max(axis=(1,3))>0
         cells.append([int(sum(1<<c for c in range(8) if row[c])) for row in occupied])
         add(name,v.tobytes(),width=256,height=192,stride=512)
     for name,size in [('station',(256,256)),('interceptor',(256,192))]:
-        im=Image.open(ROOT/f'assets/astrilla/source/{name}.png').convert('RGBA');im.thumbnail(size,Image.Resampling.LANCZOS)
+        im=Image.open(ROOT/f'games/astrilla/assets/source/{name}.png').convert('RGBA');im.thumbnail(size,Image.Resampling.LANCZOS)
         canvas=Image.new('RGBA',size);canvas.paste(im,((size[0]-im.width)//2,(size[1]-im.height)//2))
         add(name,argb(canvas).tobytes(),width=size[0],height=size[1],stride=size[0]*2)
-    fern=Image.open(ROOT/'assets/astrilla/source/fern.png').convert('RGBA');fern.thumbnail((128,192),Image.Resampling.LANCZOS)
+    fern=Image.open(ROOT/'games/astrilla/assets/source/fern.png').convert('RGBA');fern.thumbnail((128,192),Image.Resampling.LANCZOS)
     canvas=Image.new('RGBA',(128,192));canvas.paste(fern,((128-fern.width)//2,192-fern.height));add('fern',argb(canvas).tobytes(),width=128,height=192,stride=256)
     fern.thumbnail((104,176),Image.Resampling.LANCZOS)
     sway=[]
@@ -147,7 +147,7 @@ def main():
     alpha=np.clip(np.exp(-r*r*7)*(1-np.minimum(r,1)),0,1)
     flare=((np.rint(alpha*15).astype(np.uint16)<<12)|0xfff).astype('<u2')
     add('glow',flare.tobytes(),width=64,height=64,stride=128)
-    sheet=Image.open(ROOT/'assets/astrilla/source/explosions.png').convert('RGBA')
+    sheet=Image.open(ROOT/'games/astrilla/assets/source/explosions.png').convert('RGBA')
     hw,hh=sheet.width//2,sheet.height//2
     fire=[sheet.crop((i%2*hw,i//2*hh,(i%2+1)*hw,(i//2+1)*hh)).resize((128,128),Image.Resampling.LANCZOS) for i in range(4)]
     native_fire=[];large_fire=[]
@@ -175,7 +175,7 @@ def main():
     panel=np.where(((xx%32==5)|(xx%32==26))&((yy%16==4)|(yy%16==12)),214,panel)
     add('hull3d',rgb565(Image.fromarray(np.stack([panel]*3,axis=-1).astype(np.uint8))),width=128,height=128,stride=256)
     for name,source,box in [('rock3d','spire',(380,400,650,850)),('bark3d','tree',(360,800,700,1350)),('leaf3d','tree',(300,90,620,410))]:
-        im=Image.open(ROOT/f'assets/astrilla/source/{source}.png').crop(box).convert('RGB').resize((128,128),Image.Resampling.LANCZOS)
+        im=Image.open(ROOT/f'games/astrilla/assets/source/{source}.png').crop(box).convert('RGB').resize((128,128),Image.Resampling.LANCZOS)
         add(name,rgb565(im),width=128,height=128,stride=256)
     im=Image.new('RGBA',(640,128));d=ImageDraw.Draw(im)
     for text,y,size in [('LOADING',5,58),('ASTRILLA  /  PRÉPARATION DU VOYAGE',94,17)]:
@@ -186,12 +186,12 @@ def main():
     (OUT/'astrilla.bin').write_bytes(data)
     m=dict(version=1,base=BASE,bytes=len(data),crc32=f'{crc:08x}',sha256=hashlib.sha256(data).hexdigest(),regions=regions,
            duration_seconds=300,battle_seconds=[130,160],chapters=CHAPTERS,
-           sources={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(list((ROOT/'assets/astrilla/source').glob('*.png'))+[ROOT/f'assets/astra/source/{n}.png' for n in ('cosmos','elysia','planet')])})
+           sources={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(list((ROOT/'games/astrilla/assets/source').glob('*.png'))+[ROOT/f'games/astra/assets/source/{n}.png' for n in ('cosmos','elysia','planet')])})
     (OUT/'manifest.json').write_text(json.dumps(m,indent=2,ensure_ascii=False)+'\n')
     h=['// Generated by tools/build_astrilla_assets.py','#ifndef ASTRILLA_ASSETS_H','#define ASTRILLA_ASSETS_H',
        f'#define ASTRILLA_BASE 0x{BASE:08x}UL',f'#define ASTRILLA_BYTES {len(data)}UL',f'#define ASTRILLA_CRC 0x{crc:08x}U']
     h += [f'#define ASTRILLA_{n.upper()} 0x{r["address"]:08x}UL' for n,r in regions.items()]
     h += ['#define ASTRILLA_SHIP_CELLS {'+','.join('{'+','.join(str(x) for x in row)+'}' for row in cells)+'}',
           'static const int16_t as_sines[257]={'+','.join(str(round(math.sin(i*math.pi/128)*16384)) for i in range(257))+'};','#endif','']
-    (ROOT/'fw_console/astrilla_assets.h').write_text('\n'.join(h)); print(json.dumps({k:m[k] for k in ('bytes','crc32','sha256')},indent=2))
+    (ROOT/'games/common/astrilla/astrilla_assets.h').write_text('\n'.join(h)); print(json.dumps({k:m[k] for k in ('bytes','crc32','sha256')},indent=2))
 if __name__=='__main__':main()

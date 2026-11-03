@@ -3,12 +3,11 @@
 ## Product contract
 
 **SOFT-USB is the intended PC connection for using and loading the console.**
-Users should boot from SD and transfer applications, assets and updates over
-USB. They should not need a J-Link to install or launch a game.
+It carries the serial console and software transfers; SD holds the startup
+packages and persistent application files.
 
-The CDC console and experimental checked transfer mechanisms exist. A complete
-reliable loading/update workflow remains under qualification. Routine CPU JTAG
-loading is no longer a substitute for completing this workflow.
+The CDC console and checked transfer mechanisms exist. A complete reusable
+loading/update workflow remains under qualification.
 
 ## Connections and responsibilities
 
@@ -16,7 +15,7 @@ loading is no longer a substitute for completing this workflow.
 |---|---|---|
 | FPGA programmer USB | Initial FPGA configuration, developer SRAM loads and persistent configuration programming | Initial provisioning; not the Linux terminal |
 | **SOFT-USB device port** | **USB2 HS console and software transfers between FPGA and PC** | **Normal PC connection** |
-| CPU JTAG / J-Link | AE350 halt, registers, memory inspection, exceptional recovery | Explicit diagnostic use only |
+| CPU JTAG / J-Link | AE350 processor debug interface | [Pins and configuration](DEBUGGING.md) |
 | Neo USB-A host ports | Two host ports for controllers | Game input; not the upstream PC connection |
 
 USB3 is **not** part of the console plan. SOFT-USB and the Neo host ports
@@ -124,9 +123,10 @@ Initial FPGA provisioning and Linux/application updates are separate operations.
 A future FPGA update over SOFT-USB needs a persistent configuration writer and
 a recoverable boot image. Copying a `.fs` file into DDR does not provide that.
 
-The second-board tests reached U-Boot/Linux from SD. Persistent cold boot through
-all stages and subsequent USB-only deployment still need repeatable qualification.
-No routine J-Link step is included in the normal-user procedure.
+The R6 test on the second Pro Dock observed ROM bootstrap → U-Boot → Linux →
+game autostart from SD, without CPU program injection or UART commands. The
+FPGA image was loaded into SRAM for that run; flash programming and autonomous
+FPGA power-on were outside its scope. See [the boot evidence](SD_SPI.md#observed-sd-boot-chain).
 
 ## Completion criteria
 
@@ -145,7 +145,7 @@ CRC detects accidental corruption; it is not an authenticity signature. Existing
 boot packages do not implement secure boot. Authenticated updates would require
 a separate trust/key-management design.
 
-## Diagnose without bypassing the normal path
+## Transport diagnosis
 
 1. Identify the board, physical USB path and negotiated HS mode.
 2. Separate absent USB, enumerated-but-silent CDC, and a running shell with a
@@ -154,6 +154,4 @@ a separate trust/key-management design.
 4. Inspect transport/receiver errors before changing the implementation.
 5. Keep transfer, SD installation and program launch results separate.
 
-Do not automatically reload through CPU JTAG on failure. Preserve evidence
-and repair the normal path. CPU inspection, if necessary, is a separately
-agreed diagnostic operation.
+CPU debugger connector details are in [Debugging connections](DEBUGGING.md).

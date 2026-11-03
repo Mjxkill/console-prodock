@@ -9,12 +9,13 @@ import concurrent.futures
 import hashlib
 import json
 from pathlib import Path
+from vendor_reference import USB as SIPEED_USB
 import subprocess
 import tempfile
 from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
-REFERENCE = Path('/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src')
+REFERENCE = SIPEED_USB
 
 
 def sha(path):

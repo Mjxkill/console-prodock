@@ -1,5 +1,25 @@
 # SD, SPI and boot performance
 
+## Observed SD boot chain
+
+The **30 October 2026 R6 test on Pro Dock** observed the complete software chain:
+
+```text
+resident ROM bootstrap → U-Boot from SD → Linux from SD → game autostart
+```
+
+The [boot receipt](../TESTS/prodock_new_20261028/sd_update_20261030_01/boot_observation.json)
+records autostart, graphics-ready and game telemetry, without CPU program
+injection or UART commands to start those stages. The FPGA image SHA-256 was
+`0a0ab081f12739767493bac8bac9247fe20d6a9cf83d54405f64d2a34015ed60`.
+The FPGA had been loaded into SRAM by the host; the run did not program flash
+or test autonomous FPGA configuration after power-on. Its UART capture has no
+reliable end-to-end boot duration. **SD boot worked; its speed remained an issue.**
+
+This is a result for that exact R6/SD package, not a claim that every later
+instrumented kernel or SD image has been qualified. See
+[installation](INSTALLATION.md) for preparing and selecting packages.
+
 ## Actual controller path
 
 The maintained SD path uses the **native Andes ATCSPI200 SPI controller inside
@@ -143,5 +163,6 @@ Measurements are stored in RAM and printed after transfers. Full-screen game
 mode suppresses dashboard redraw/SD collection, but other system traffic must
 still be accounted for.
 
-The objective is a fast, correct normal SD/USB startup path. Reloading a different
-image through JTAG without explaining the measured change is not a fix for it.
+Boot functionality and storage performance are separate results: the R6 SD
+startup chain works in the recorded test, while the long transfer times remain
+under investigation.

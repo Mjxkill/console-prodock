@@ -36,6 +36,8 @@ def production_path(name):
     if any(x in ('temp', '__pycache__') or x == 'build' or x.startswith('build-')
            for x in p.parts[:-1]):
         return False
+    if name.startswith('games/'):
+        return (len(p.parts) > 3 and p.parts[2] == 'src') or name.startswith('games/common/')
     if name.startswith('tools/'):
         return p.suffix == '.py'
     return name.startswith(SCOPES) or name == 'tang/build_gpu.tcl'
@@ -86,7 +88,7 @@ def regression_inputs(root=ROOT):
     for pattern in ('TESTS/*.py', 'TESTS/rtl/*.sv', 'TESTS/rtl/*.v', 'TESTS/rtl/*.svh'):
         for p in root.glob(pattern):
             inputs[str(p.relative_to(root))] = sha(p)
-    for name in (CATALOG, REFERENCE, 'assets/nebula/packed/nebula.bin'):
+    for name in (CATALOG, REFERENCE, 'games/nebula/assets/packed/nebula.bin'):
         inputs[name] = sha(root/name)
     return inputs
 

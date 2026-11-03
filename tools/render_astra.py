@@ -35,9 +35,9 @@ int sine(int p){return as_sin(p);}
 void layers(unsigned t,gpu_layer *l,gpu_sprite *s,astra_info *i){astra_layers(t,l,s,i);}
 '''
   (work/'scene.c').write_text(code)
-  subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),str(work/'scene.c'),str(ROOT/'fw_console/gpu_v1.c'),'-o',str(work/'scene.so')],check=True)
+  subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),'-I',str(ROOT/'games/astra/src'),str(work/'scene.c'),str(ROOT/'fw_console/gpu_v1.c'),'-o',str(work/'scene.so')],check=True)
   self.lib=ctypes.CDLL(str(work/'scene.so'));self.lib.command_words.restype=ctypes.POINTER(ctypes.c_uint32)
-  self.raw=(ROOT/'assets/astra/packed/astra.bin').read_bytes();self.manifest=json.loads((ROOT/'assets/astra/packed/manifest.json').read_text());self.base=self.manifest['base']
+  self.raw=(ROOT/'games/astra/assets/packed/astra.bin').read_bytes();self.manifest=json.loads((ROOT/'games/astra/assets/packed/manifest.json').read_text());self.base=self.manifest['base']
   self.palette=struct.unpack('<256I',self.read(self.manifest['regions']['palette']['address'],1024))
  def read(self,a,n):
   assert self.base<=a<=self.base+len(self.raw)-n,(hex(a),n)

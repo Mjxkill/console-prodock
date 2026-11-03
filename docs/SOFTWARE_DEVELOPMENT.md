@@ -96,17 +96,17 @@ SDK/toolchain/IP dependencies and the board contract must be satisfied first.
 The kernel software does not itself set the FPGA's CPU/bus/pixel clocks;
 those come from the selected hardware design and boot configuration.
 
-The [bare-metal Makefile](../fw_console/Makefile) uses `MAIN` and `EXTRA_SRCS`
-to select an application, linker script and additional modules. It currently
-contains machine-specific toolchain/SDK references: configure those for a new
-workstation rather than assuming a fresh clone builds without prerequisites.
+The [bare-metal Makefile](../fw_console/Makefile) uses `MAIN`, `LD` and
+`EXTRA_SRCS` to select an application, linker script and additional modules.
+Its support files are local to this repository. Set `AE350_SDK` to the SDK's
+`library/` directory and `CROSS_COMPILE` (or the legacy `TC`) to the compiler
+prefix; see [firmware build support](../fw_console/support/PROVENANCE.md).
 Include the geometry implementation explicitly when the application needs it;
 a header dependency alone does not add a translation unit to the link.
 
-Normal deployment is intended to use SD boot and SOFT-USB. J-Link is only for
-explicitly agreed diagnostics. The recent RAM restoration does not qualify
-complete USB installation or autonomous SD startup; follow the installation
-status instead of converting a diagnostic command into a routine workflow.
+See [installation](INSTALLATION.md) for SD/software packages,
+[SD boot evidence](SD_SPI.md#observed-sd-boot-chain) for the demonstrated R6
+startup chain, and [debugger connections](DEBUGGING.md) for CPU JTAG settings.
 
 ## Shared SPI implementation
 

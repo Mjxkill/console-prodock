@@ -128,7 +128,7 @@ def main():
                   f'static const as3_mesh as3_{name}={{as3_{name}_vertices,as3_{name}_faces,{len(mesh.points)},{len(mesh.faces)}}};']
         print(name, len(mesh.points), 'vertices', len(mesh.faces), 'triangles')
     lines += ['#endif','']
-    (ROOT/'fw_console/astrilla_meshes.h').write_text('\n'.join(lines))
+    (ROOT/'games/common/astrilla/astrilla_meshes.h').write_text('\n'.join(lines))
 
 
 if __name__ == '__main__':

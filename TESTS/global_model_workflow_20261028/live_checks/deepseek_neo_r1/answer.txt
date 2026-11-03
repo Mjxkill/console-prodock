@@ -1,6 +1,0 @@
-{
-  "invalid_assertion": "L'égalité H == R imposée après une lecture séquentielle H puis R est incorrecte : H et R sont observés à des dates différentes. H peut avancer après la réception alors que R reste figé. Un FAIL de ce test ne prouve ni perte de paquet, ni défaut CDC, ni correction du FPGA.",
-  "correct_invariant": "Entre deux observations sans événement de réception, R doit rester identique ; H peut évoluer. Lorsqu'une capture au même événement est disponible, la valeur de R doit correspondre à celle de H à cet événement, selon la sémantique documentée. Aucune égalité H == R n'est exigée entre deux dates distinctes.",
-  "discriminating_test": "Utiliser un unique événement de capture pour échantillonner H et R (même trigger ou fenêtre atomique déjà exposée), puis comparer uniquement ces valeurs du même événement. Vérifier aussi que R reste constant sans réception, tandis que H peut changer. Sans capture atomique disponible, le test reste non concluant ; ne pas supposer de registre supplémentaire.",
-  "limitation": "Aucune conclusion matérielle : perte de paquet, défaut CDC et correction FPGA ne sont pas démontrés. Ne pas supposer la largeur du compteur, une horloge commune, l'absence de wrap ni des registres supplémentaires. Toute proposition reste à vérifier indépendamment."
-}

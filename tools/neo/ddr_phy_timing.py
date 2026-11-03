@@ -9,10 +9,11 @@ import collections
 import hashlib
 import json
 from pathlib import Path
+from vendor_reference import ROOT as SIPEED_REFERENCE
 import re
 
 PROFILE=Path('tang/boards/neo/ddr_phy_timing.json')
-REFERENCE=Path('/home/michael/gowin/ref/TangMega-138KPro-example/ddr_test/Hynix_400MHz/src/ddr3_1v4_hs.sdc')
+REFERENCE=SIPEED_REFERENCE / 'ddr_test/Hynix_400MHz/src/ddr3_1v4_hs.sdc'
 PREFIX='u_soc/g_ddr.u_ddr/u_ip/'
 FAST_NET='u_soc/ddr3_memory_clk'
 BLOCK='''// Vendor DDR400 PHY timing model; fabric reference/UI CDC stays bounded.

@@ -3,7 +3,7 @@
 
 Text to image, or edit of up to three reference pictures (Qwen-Image-Edit) to keep the
 identity of an existing design. Enemies are requested on a flat green screen and keyed
-by tools/build_orbital_assets.py. Prompts and seeds are kept in assets/orbital/prompts.md.
+by tools/build_orbital_assets.py. Prompts and seeds are kept in games/orbital/assets/prompts.md.
 """
 import argparse,json,time,urllib.request,urllib.parse,uuid
 from pathlib import Path
@@ -52,7 +52,7 @@ def generate(host,prompt,out,seed=1,width=1024,height=1024,references=()):
     raise TimeoutError(job)
 
 def batch(host,spec,out,only=()):
-    """Generate every picture of assets/orbital/art.json that is missing (or named in only)."""
+    """Generate every picture of games/orbital/assets/art.json that is missing (or named in only)."""
     data=json.loads(Path(spec).read_text());out=Path(out);out.mkdir(parents=True,exist_ok=True)
     for image in data['images']:
         target=out/f"{image['name']}.png"
@@ -63,5 +63,5 @@ def batch(host,spec,out,only=()):
 if __name__=='__main__':
     root=Path(__file__).resolve().parents[1]
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--host',default='gx10-1');p.add_argument('--only',nargs='*',default=[],help='regenerate these names')
-    p.add_argument('--spec',type=Path,default=root/'assets/orbital/art.json');p.add_argument('--out',type=Path,default=root/'assets/orbital/source/gen');a=p.parse_args()
+    p.add_argument('--spec',type=Path,default=root/'games/orbital/assets/art.json');p.add_argument('--out',type=Path,default=root/'games/orbital/assets/source/gen');a=p.parse_args()
     batch(a.host,a.spec,a.out,a.only)

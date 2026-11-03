@@ -12,6 +12,7 @@ fournisseur n'est forcé. Simulation numérique : pas de PHY ni de câble.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -19,7 +20,6 @@ import tempfile
 from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
-TOOLS = Path('/tmp/console-usb-sim-tools/extracted/usr')
 
 
 def sha(path):
@@ -84,9 +84,9 @@ def check_descriptors(log):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--iverilog', default=str(TOOLS / 'bin/iverilog'))
-    p.add_argument('--vvp', default=str(TOOLS / 'bin/vvp'))
-    p.add_argument('--ivl-root', type=Path, default=TOOLS / 'lib/x86_64-linux-gnu/ivl')
+    p.add_argument('--iverilog', default=os.environ.get('IVERILOG', 'iverilog'))
+    p.add_argument('--vvp', default=os.environ.get('VVP', 'vvp'))
+    p.add_argument('--ivl-root', type=Path, default=os.environ.get('IVL_ROOT'))
     p.add_argument('--controller-model-dir', type=Path,
                    default=ROOT / 'tang/impl/gpu_usb_controller33_hs_msc_model_r1',
                    help='export officiel du contrôleur avec la ROM du descripteur composite')
@@ -168,7 +168,7 @@ def main():
         (tmp / 'usb_controller_cdc_tasks.svh').write_text(
             re.sub(observer, "1'b0", (ROOT / 'TESTS/rtl/usb_controller_cdc_tasks.svh').read_text()))
         exe = tmp / 'msc.vvp'
-        cmd = [a.iverilog, '-B', str(a.ivl_root), '-g2012', '-I', str(tmp), '-I', str(ROOT / 'TESTS/rtl'),
+        cmd = [a.iverilog, *(['-B', str(a.ivl_root)] if a.ivl_root else []), '-g2012', '-I', str(tmp), '-I', str(ROOT / 'TESTS/rtl'),
                '-s', 'usb_controller_packet_tb', '-o', str(exe), str(harness),
                *map(str, sources), str(models[0]), str(PRIMITIVES)]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)

@@ -29,10 +29,10 @@ uint32_t *command_words(void){return &commands[0].words[0];}
 int fx(unsigned f,int prepare){count=0;gpu_v1_context c;gpu_v1_init(&c,emit);return (prepare?luma_fx_prepare(&c):luma_fx_render(&c,f,0)) && count<=4096;}
 '''
         (work/'scene.c').write_text(source)
-        subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),str(work/'scene.c'),str(ROOT/'fw_console/gpu_v1.c'),'-o',str(work/'scene.so')],check=True)
+        subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),'-I',str(ROOT/'games/luma/src'),str(work/'scene.c'),str(ROOT/'fw_console/gpu_v1.c'),'-o',str(work/'scene.so')],check=True)
         self.lib=ctypes.CDLL(str(work/'scene.so'));self.lib.color.restype=ctypes.c_uint32
-        self.raw=(ROOT/'assets/luma/packed/luma.bin').read_bytes()
-        self.manifest=json.loads((ROOT/'assets/luma/packed/manifest.json').read_text());self.base=self.manifest['base']
+        self.raw=(ROOT/'games/luma/assets/packed/luma.bin').read_bytes()
+        self.manifest=json.loads((ROOT/'games/luma/assets/packed/manifest.json').read_text());self.base=self.manifest['base']
         self.palette=struct.unpack('<256I',self.read(self.manifest['regions']['palette']['address'],1024))
         self.lib.command_words.restype=ctypes.POINTER(ctypes.c_uint32)
         self.fx_initial=None

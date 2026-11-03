@@ -19,7 +19,7 @@ def main():
  p.add_argument('--firmware-manifest',type=Path,help='Alternative application manifest, sharing the ASTRILLA assets')
  p.add_argument('--fpga-load-result',type=Path,help='Successful check_gpu_reloads result for an alternative FPGA')
  a=p.parse_args()
- out=a.out.resolve();out.mkdir(parents=True,exist_ok=False);pack=ROOT/'assets/astrilla/packed'
+ out=a.out.resolve();out.mkdir(parents=True,exist_ok=False);pack=ROOT/'games/astrilla/assets/packed'
  metadata=(a.firmware_manifest or pack/'firmware.json').resolve()
  meta=json.loads(metadata.read_text());assets=(pack/'astrilla.bin').read_bytes()
  binary=meta.get('binary','astrilla_fw.bin');require(Path(binary).name==binary,'Manifest binary must be a filename')

@@ -100,28 +100,11 @@ Adapt the registry to your project rather than showing those entries as live.
 - Keep project-controlled code files at most 1,000 physical lines, modular and
   commented. Existing vendor/generated/archive exceptions and historical debt
   must be visible; minification is not compliance.
-- Keep function implementations out of headers according to the owner's rule.
+- Keep function implementations in source files; headers declare interfaces.
 - Preserve protected references, source manifests, test failures and other
   sessions' work. Inventory before broad cleanup.
 - Separate RTL, mapping, timing and hardware results for each board.
-- Keep SD/USB as the normal user path; CPU JTAG is agreed diagnosis only.
+- Keep board-specific connectors and target settings documented in
+  [Debugging connections](DEBUGGING.md).
 
-The complete working instructions are in [AGENTS.md](../AGENTS.md). Historical
-files may predate these rules; their presence does not mean all debt has already
-been removed.
-
-## Delegated work and review
-
-Codex coordinates architecture, diagnosis, integration and final verification.
-Bounded Ollama work is executed through OpenCode using the currently authorized
-DeepSeek v4.1 Flash and GLM 5.3 Flash models. Model output is a proposal until
-reviewed; a generated response is not automatically an executed/tested task.
-
-Each mission records its scope, owned files, model identity, time, tools, tests
-and failure/retry outcomes. Quality is assessed against the supplied contract,
-separating model errors from missing context or tool failures. Historical other
-model results retain their actual names; they do not imply current authorization.
-
-Do not publish provider credentials or a live agent runtime to reproduce a
-review. Preserve the sanitized deliverable and the evidence for its acceptance
-or rejection instead.
+Existing historical files may predate these conventions.

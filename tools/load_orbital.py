@@ -17,7 +17,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--reload',action='store_true');p.add_argument('--firmware-only',action='store_true');p.add_argument('--fast',action='store_true',help='skip the J-Link read-back of the resources: the firmware checks their CRC32 itself before displaying anything');p.add_argument('--out',type=Path,required=True);a=p.parse_args()
     if a.reload and a.firmware_only:p.error('--reload requires asset loading')
     out=a.out.resolve();out.mkdir(parents=True,exist_ok=False)
-    pack=ROOT/'assets/orbital/packed';meta=json.loads((pack/'firmware.json').read_text());assets=pack/'orbital.bin';fw=pack/'orbital_fw.bin';fpga=ROOT/'bitstreams/console_gpu_v1_800.fs'
+    pack=ROOT/'games/orbital/assets/packed';meta=json.loads((pack/'firmware.json').read_text());assets=pack/'orbital.bin';fw=pack/'orbital_fw.bin';fpga=ROOT/'bitstreams/console_gpu_v1_800.fs'
     sha=lambda path:hashlib.sha256(path.read_bytes()).hexdigest()
     require(meta['fpga_sha256']==R31==sha(fpga),'Référence FPGA altérée')
     require(meta['sha256']==sha(fw) and meta['assets_sha256']==sha(assets),'Firmware ou ressources altérés')

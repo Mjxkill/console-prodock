@@ -141,8 +141,8 @@ change mount options or replace the root filesystem to work around an error.
 ## Persistent versus temporary changes
 
 An executable placed in `/tmp` or a RAM initramfs can disappear after power-off.
-A running game after a debugger recovery does not prove that the SD installation
-contains it. Record the executable hash and package identity when comparing runs:
+The SD installation and the running executable can be different versions.
+Record the executable hash and package identity when comparing runs:
 
 ```sh
 sha256sum /bin/luma3d-maze
@@ -163,6 +163,5 @@ represent the final autonomous-boot policy.
 5. Check the display and GPU status only through commands that do not steal the
    active application's lease.
 
-Do not automatically reload Linux via J-Link. Normal operation must be repaired
-through its SD/USB path; CPU inspection is a separate agreed diagnostic step.
-A new FPGA SRAM load also changes the running system and may destroy evidence.
+CPU debugger pins and target configuration are listed in
+[Debugging connections](DEBUGGING.md).

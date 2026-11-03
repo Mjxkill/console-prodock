@@ -19,7 +19,7 @@ def render(pose, output, hardware_log=None, cached=False):
     source='''#include <assert.h>
 #include <stdlib.h>
 #include "racer_scene.h"
-'''+brace_block(driver,'gpu_command gpu_make_command(')+'\n'+brace_block(driver,'gpu_command gpu_make_zoom(')+'\n'+brace_block((fw/'racer_demo.h').read_text(),'static void racer_pose(')+'''
+'''+brace_block(driver,'gpu_command gpu_make_command(')+'\n'+brace_block(driver,'gpu_command gpu_make_zoom(')+'\n'+brace_block((ROOT/'games/racer/src/racer_demo.h').read_text(),'static void racer_pose(')+'''
 int main(int argc,char **argv){
     racer_state s;
     race_original=argc<3 || strcmp(argv[2],"cached")!=0;
@@ -59,7 +59,7 @@ int main(int argc,char **argv){
     with tempfile.TemporaryDirectory(prefix='racer_render_') as directory:
         work=Path(directory);(work/'scene.c').write_text(source)
         subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Wno-unused-function','-Wno-unused-parameter',
-                        '-fsanitize=undefined','-fno-sanitize-recover=all','-I',str(fw),str(work/'scene.c'),'-o',str(work/'scene')],check=True)
+                        '-fsanitize=undefined','-fno-sanitize-recover=all','-I',str(fw),'-I',str(ROOT/'games/racer/src'),str(work/'scene.c'),'-o',str(work/'scene')],check=True)
         raw=subprocess.run([str(work/'scene'),str(pose),'cached' if cached else 'original'],check=True,capture_output=True).stdout
     bg_count,=struct.unpack_from('<I',raw)
     scene_offset=4+bg_count*32

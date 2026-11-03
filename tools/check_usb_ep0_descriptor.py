@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from vendor_reference import USB as SIPEED_USB
 import re
 import subprocess
 import tempfile
@@ -40,7 +41,7 @@ def main():
     model = a.stage/'wrapper_export/controller32_fs/impl/pnr/controller32_fs.vo'
     sources = [ROOT/'TESTS/rtl/usb_ep0_descriptor_tb.sv', model, PRIMITIVES]
     if a.sipeed:
-        reference = Path('/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller')
+        reference = SIPEED_USB / 'usb_device_controller'
         sources = [ROOT/'TESTS/rtl/usb_ep0_descriptor_tb.sv',
                    a.stage/'usb_ep0_controller_model.v', a.stage/'usb_descriptor.v',
                    reference/'usb_device_controller.vo', PRIMITIVES]

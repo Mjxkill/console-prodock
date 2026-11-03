@@ -97,8 +97,8 @@ with tempfile.TemporaryDirectory(prefix='nebula-test-') as tmp:
     work=Path(tmp);(work/'test.c').write_text(SOURCE)
     subprocess.run(['cc','-std=c11','-O1','-g','-Wall','-Wextra','-Werror',
                     '-fsanitize=address,undefined','-fno-omit-frame-pointer',
-                    '-I',str(ROOT/'linux/userspace'),'-I',str(ROOT/'linux/drivers'),
+                    '-I',str(ROOT/'linux/userspace'),'-I',str(ROOT/'games/nebula/src'),'-I',str(ROOT/'linux/drivers'),
                     str(work/'test.c'),'-lm','-o',str(work/'test')],check=True)
-    subprocess.run([str(work/'test'),str(ROOT/'assets/nebula/packed/nebula.bin')],check=True)
+    subprocess.run([str(work/'test'),str(ROOT/'games/nebula/assets/packed/nebula.bin')],check=True)
 
-    subprocess.run([str(work/'test'),str(ROOT/'assets/nebula/packed/nebula.bin'),'720p'],check=True)
+    subprocess.run([str(work/'test'),str(ROOT/'games/nebula/assets/packed/nebula.bin'),'720p'],check=True)

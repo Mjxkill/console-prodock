@@ -40,16 +40,16 @@ unsigned hud(unsigned f,int previous,unsigned page){hud_count=0;orbital_hud(f,pr
 uint32_t *hud_words(void){return hud_commands[0].words;}
 uint32_t palette(unsigned f,unsigned i,uint32_t c){return orbital_palette(f,i,c);}
 '''
-  (work/'scene.c').write_text(code);subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),str(work/'scene.c'),str(ROOT/'fw_console/gpu_v1.c'),'-o',str(work/'scene.so')],check=True)
+  (work/'scene.c').write_text(code);subprocess.run(['cc','-std=c11','-O2','-Wall','-Wextra','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),'-I',str(ROOT/'games/orbital/src'),str(work/'scene.c'),str(ROOT/'fw_console/gpu_v1.c'),'-o',str(work/'scene.so')],check=True)
   self.lib=ctypes.CDLL(str(work/'scene.so'));self.lib.command_words.restype=ctypes.POINTER(ctypes.c_uint32);self.lib.hud_words.restype=ctypes.POINTER(ctypes.c_uint32);self.lib.palette.restype=ctypes.c_uint32
   # The indexed 2D commands of the HUD page are drawn by reference_draw, the software reference
   # of the G2..L12 milestones in fw_console/gpu_demo.h: independent of this scene and of the RTL.
   (work/'build').mkdir();subprocess.run([sys.executable,str(ROOT/'tools/gen_gpu_font.py'),str(ROOT/'tang/rtl/video/font8x16.hex'),str(work/'build/gpu_font.h')],check=True)
   reference=(ROOT/'fw_console/gpu_demo.h').read_text().split('static int gpu_accel_demo(void)',1)[0]
   (work/'hud.c').write_text('#include <stdint.h>\n#include <string.h>\n#include "gpu.h"\nstatic uint8_t pages[16][4];\n#undef GPU_PAGE_ADDR\n#define GPU_PAGE_ADDR(p) ((uintptr_t)pages[p])\n'+brace_block(driver,'gpu_command gpu_make_command(')+'\n'+reference+'\nvoid hud_apply(const uint32_t *w,uint8_t *page){gpu_command c;memcpy(c.words,w,32);reference_draw(&c,page);}\n')
-  subprocess.run(['cc','-std=c11','-O2','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),'-I',str(work),str(work/'hud.c'),'-o',str(work/'hud.so')],check=True)
+  subprocess.run(['cc','-std=c11','-O2','-Wno-unused-function','-fsanitize=undefined','-fno-sanitize-recover=all','-shared','-fPIC','-I',str(ROOT/'fw_console'),'-I',str(ROOT/'games/orbital/src'),'-I',str(work),str(work/'hud.c'),'-o',str(work/'hud.so')],check=True)
   self.hudlib=ctypes.CDLL(str(work/'hud.so'));self.page=bytes(384000)
-  self.raw=(ROOT/'assets/orbital/packed/orbital.bin').read_bytes();self.manifest=json.loads((ROOT/'assets/orbital/packed/manifest.json').read_text());self.base=self.manifest['base'];self.palette=struct.unpack('<256I',self.read(self.manifest['regions']['palette']['address'],1024))
+  self.raw=(ROOT/'games/orbital/assets/packed/orbital.bin').read_bytes();self.manifest=json.loads((ROOT/'games/orbital/assets/packed/manifest.json').read_text());self.base=self.manifest['base'];self.palette=struct.unpack('<256I',self.read(self.manifest['regions']['palette']['address'],1024))
  HUD=0x800000+4*(1<<20)
  def read(self,a,n):
   if self.HUD<=a<=self.HUD+384000-n:return self.page[a-self.HUD:a-self.HUD+n]

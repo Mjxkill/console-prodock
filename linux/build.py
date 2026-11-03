@@ -17,6 +17,7 @@ if BOARD not in ('prodock', 'neo'): raise ValueError('Unknown CONSOLE_BOARD: ' +
 BUILD = HERE / ('build-neo' if BOARD == 'neo' else 'build')
 TOOLS = HERE / 'build'
 SOURCES = json.loads((HERE / 'sources.json').read_text())
+DOWNLOADS = Path(os.environ.get('CONSOLE_DOWNLOADS', HERE / 'downloads')).expanduser().resolve()
 EPOCH = '1791417600'
 ENV = dict(os.environ, SOURCE_DATE_EPOCH=EPOCH, KBUILD_BUILD_TIMESTAMP='2026-10-08 00:00:00 UTC',
            KBUILD_BUILD_USER='prodock', KBUILD_BUILD_HOST='builder', KBUILD_BUILD_VERSION='1')
@@ -35,8 +36,9 @@ def src(name):
 
 
 def prepare():
+    DOWNLOADS.mkdir(parents=True, exist_ok=True)
     for name, item in SOURCES.items():
-        archive = Path(item['archive'])
+        archive = DOWNLOADS / item['archive']
         if not archive.exists():
             run(['curl', '-fL', item['url'], '-o', archive])
         if hashlib.sha256(archive.read_bytes()).hexdigest() != item['sha256']:
@@ -111,10 +113,12 @@ def rootfs():
          HERE / 'userspace/prodock-runtime.c', '-o', root / 'bin/prodock-runtime'])
     run(['python3', HERE.parent / 'tools/build_nebula_assets.py'])
     (root / 'usr/share/nebula').mkdir(parents=True, exist_ok=True)
-    shutil.copy2(HERE.parent / 'assets/nebula/packed/nebula.bin', root / 'usr/share/nebula/nebula.bin')
+    shutil.copy2(HERE.parent / 'games/nebula/assets/packed/nebula.bin', root / 'usr/share/nebula/nebula.bin')
     for name in ['prodock-terminal', 'prodock-game', 'prodock-text-test', 'nebula']:
+        application = (HERE.parent / 'games/nebula/src/nebula.c' if name == 'nebula'
+                       else HERE / f'userspace/{name}.c')
         run([str(USER_TC) + 'gcc', '-O2', '-static', '-Wall', '-Wextra', '-Werror',
-             '-I', HERE / 'drivers', HERE / f'userspace/{name}.c', '-lm', '-o', root / f'bin/{name}'])
+             '-I', HERE / 'drivers', '-I', HERE / 'userspace', application, '-lm', '-o', root / f'bin/{name}'])
     # gen_init_cpio describes device nodes without requiring mknod/root.
     listing = ['dir /dev 755 0 0', 'nod /dev/console 600 0 0 c 5 1',
                'nod /dev/null 666 0 0 c 1 3']

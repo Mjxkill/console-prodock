@@ -9,9 +9,10 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from vendor_reference import USB as SIPEED_USB
 import re
 
-MODEL = Path('/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb2_0_softphy/usb2_0_softphy.vo')
+MODEL = SIPEED_USB / 'usb2_0_softphy/usb2_0_softphy.vo'
 
 
 def digest(path):

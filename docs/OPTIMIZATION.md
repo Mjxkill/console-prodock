@@ -7,9 +7,9 @@ setup slack alone is not a complete qualification.
 
 This page covers the FPGA workbench and the reasoning needed to use it. The
 current Neo outcome and outstanding hardware diagnosis are documented in
-[NEO_PORT.md](NEO_PORT.md). Routine Linux/game deployment is through SD autoboot
-and SOFT-USB; JTAG is reserved for explicitly agreed diagnostics, not an
-optimization loop that repeatedly reloads Linux or games.
+[NEO_PORT.md](NEO_PORT.md). Package installation is covered by
+[INSTALLATION.md](INSTALLATION.md); CPU debugger wiring and target settings
+are in [DEBUGGING.md](DEBUGGING.md).
 
 ## 1. Two complementary implementation flows
 

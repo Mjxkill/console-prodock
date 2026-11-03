@@ -184,7 +184,7 @@ def prepare(out):
     shutil.copy2(GOLDEN / 'prodock-linux.dtb', out / 'prodock-linux.dtb')
     # Launchers use the retained repository sources and their original SDK.
     launch_names = ['fw_console/Makefile', 'fw_console/gpu.c', 'fw_console/gpu.h',
-                    'fw_console/gpu_v1.c', 'fw_console/gpu_v1.h', 'fw_console/orbital.ld',
+                    'fw_console/gpu_v1.c', 'fw_console/gpu_v1.h', 'games/orbital/src/orbital.ld',
                     'linux/boot/launch.c', 'linux/boot/unpack.h']
     for name in launch_names:
         destination = out / 'launcher-source' / name

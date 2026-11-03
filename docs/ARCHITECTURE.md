@@ -125,10 +125,10 @@ not independently measured clock-frequency results for every peripheral.
 SD uses the native AE350 SPI adapter in the current Linux implementation;
 USB device/host and board pin/clock/reset integration have their own contracts.
 
-Normal operation is intended to use SD boot and SOFT-USB. J-Link is a
-diagnostic tool used only with explicit agreement, not the routine installation
-path. A successful diagnostic RAM boot does not qualify autonomous boot or a
-complete USB software-installation workflow.
+The R6 resident bootstrap has started U-Boot, Linux and the SD game autostart
+on Pro Dock. See [SD boot evidence](SD_SPI.md#observed-sd-boot-chain) for the
+measured scope, [installation](INSTALLATION.md) for packages, and
+[debugger connections](DEBUGGING.md) for CPU JTAG pins and configuration.
 
 ## What MAZE uses and what remains separate
 

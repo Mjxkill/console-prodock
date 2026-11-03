@@ -85,8 +85,8 @@ performance result.
 The two boards require separate results. A working Pro Dock does not qualify
 Neo; a Neo experiment must not replace the protected Pro Dock reference.
 Before hardware access, identify the board, bitstream and software, obtain
-exclusive ownership, and preserve another active board. J-Link is now restricted
-to explicitly agreed diagnosis, not routine loading.
+exclusive ownership, and preserve another active board. The board-specific
+CPU JTAG pins and target settings are in [Debugging connections](DEBUGGING.md).
 
 ## Test record format
 

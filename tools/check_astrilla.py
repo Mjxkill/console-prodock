@@ -25,7 +25,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--expected',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--seconds',type=int,default=305,help='the clock-driven loop lasts exactly 300 s');p.add_argument('--min-fps',type=float,default=54.5,help='LCD refresh is 55.04 Hz; diagnostic echoes cost a few frames');p.add_argument('--max-cycles',type=int,default=13700000,help='800 MHz cycles per frame; one LCD period is 14.53 M');p.add_argument('--sample-seconds',type=float,default=3,help='Delay between UART probes; longer status lines need a larger interval to limit their rendering cost');p.add_argument('--show-poses',action='store_true',help='Display diagnostic poses; default keeps LOADING visible and checks RGB565 offscreen');a=p.parse_args();a.out.mkdir(parents=True,exist_ok=False)
     require(a.seconds > 0 and a.min_fps > 0 and a.max_cycles > 0 and 0<a.sample_seconds<=10, 'Paramètres de mesure invalides')
     poses=json.loads(a.expected.read_text());require(isinstance(poses,list) and poses, 'Aucune pose de référence')
-    pack=Path(__file__).resolve().parents[1]/'assets/astrilla/packed'
+    pack=Path(__file__).resolve().parents[1]/'games/astrilla/assets/packed'
     manifest=json.loads((pack/'manifest.json').read_text());raw=(pack/'astrilla.bin').read_bytes()
     regions=manifest['regions'];palette=struct.unpack_from('<256I',raw,regions['palette']['offset'])
     label=raw[regions['loading']['offset']:regions['loading']['offset']+640*128]

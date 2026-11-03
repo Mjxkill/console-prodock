@@ -1,219 +1,107 @@
-> **Current English manual:** [Linux installation and normal SD/SOFT-USB operation](../docs/INSTALLATION.md).
-> This document describes earlier milestones. Historical JTAG procedures are
-> diagnostic records, not the normal user loading workflow.
+# Linux on the Pro Dock and Neo console
 
-# Linux sur la console Pro Dock
+This directory contains the pinned **Linux 6.12.112, OpenSBI 1.6, BusyBox 1.37.0
+and musl 1.2.5** port for the console's Andes AE350/A25 CPU. The shared GPU,
+text-console and SPI drivers serve the board profiles; display wiring, device
+trees and Neo controller input remain profile-specific.
 
-Le port Tang Mega Neo / Console en HDMI 720p est décrit dans
-[les profils de carte](../ARCHI/PORT_NEO_720P.md), avec son
-[rapport de validation](../TESTS/NEO_720P_20261012.md).
+Start with the English manual:
 
-Évolution du 11 octobre : terminal natif fbcon en **tuiles matérielles**, jeu
-400×240 + terminal 50×15 + diagnostics 100×15, modes plein écran et shell
-permettant de lancer `prodock-game`. Voir
-[la description du mode partagé](../ARCHI/LINUX_AFFICHAGE_PARTAGE.md) et
-[les essais associés](../TESTS/LINUX_DESKTOP_20261011.md). Les paragraphes R12
-ci-dessous décrivent le port initial et ses preuves historiques ; l’interface
-actuelle réserve 2 Mio à l’affichage et laisse 86 Mio aux applications.
-L'affichage Linux R12 du 11 octobre est validé sur **G22r0** : 51,92 FPS
-sur le jeu d'intégration, puis 131 s d'endurance à 51,09 FPS sans erreur.
-Le chargement actuel utilise J-Link compact (`--packed --jtag-speed 4000`) ;
-les gros transferts MSC décrits plus bas ont rencontré des échecs et restent
-à fiabiliser. Le terminal CDC HS est testé séparément.
+| Topic | Guide |
+|---|---|
+| Prerequisites, builds and SD packages | [Installation](../docs/INSTALLATION.md) |
+| SOFT-USB login, layouts and launching games | [Linux console](../docs/LINUX_CONSOLE.md) |
+| GPU interfaces and memory ownership | [API reference](../docs/API_REFERENCE.md) |
+| SPI implementation and measured performance | [SD and SPI](../docs/SD_SPI.md) |
+| Neo hardware qualification | [Neo port](../docs/NEO_PORT.md) |
+| CPU debugger wiring and target settings | [Debugging connections](../docs/DEBUGGING.md) |
+| Versions, upstream archives and notices | [Provenance](PROVENANCE.md), [sources.json](sources.json) |
 
-Le jeu natif **NEBULA — Rift Raiders** ajoute une campagne spatiale jouable,
-des boss, des sprites matériels, des tuiles et des effets lumineux additifs.
-Voir [les commandes et les détails du jeu](NEBULA.md) et
-[les résultats de validation](../TESTS/NEBULA_20261012.md).
+## What has run on hardware
 
-Port expérimental de **Linux 6.12.112, OpenSBI 1.6, BusyBox 1.37.0 et
-musl 1.2.5**, pour le matériel C37. Le cœur reste à **800 MHz** et les
-horloges bus/GPU/LCD restent à **80/75/35 MHz**.
+Pro Dock runs Linux, its hardware text console, the GPU dashboard and native
+games. The R6 test of 30 October 2026 demonstrated **resident ROM → U-Boot from
+SD → Linux from SD → game autostart**, with graphics and telemetry observed
+without CPU program injection or UART launch commands. The FPGA was loaded into
+SRAM for that test; flash programming and FPGA power-on configuration were not
+part of it. SD transfer speed remains under investigation. See the exact
+[boot receipt](../TESTS/prodock_new_20261028/sd_update_20261030_01/boot_observation.json).
 
-**Linux R12 qualifié sur C37** : shell, threads/mémoire virtuelle, rendu GPU
-(384 000 pixels comparés, 2 430 commandes, aucune sous-alimentation LCD),
-lectures SD répétées et montage FAT32 en lecture seule. Le démarrage SD à deux
-modes reste à installer et à qualifier. Preuves et limites :
-`TESTS/LINUX_PRODOCK_20261009.md`. Un passage QEMU ne qualifie pas le matériel.
+The Neo 720p profile shares the software interface, but the complete DDR-backed
+GPU path is still under hardware diagnosis. Host simulation or Pro Dock results
+do not qualify that board. [Current status](../docs/STATUS.md) separates these
+results from historical versions.
 
-## Deux modes conservés
+## Runtime interfaces
 
-Le menu U-Boot propose Linux, LUMA sans Linux, ORBITAL sans Linux. Le menu
-a démarré en RAM et lu un fichier SD avec CRC ; les images sont préparées
-dans ce dossier. Le bitstream C37 existant
-conserve son firmware de diagnostic au démarrage électrique. Le premier étage
-SD peut être chargé en ILM pour essayer le menu. Son intégration permanente
-dans l'initialisation ITCM du FPGA demande encore un build/timing/essai dédié.
+| Function | Interface |
+|---|---|
+| Serial console | CPU `/dev/ttyS0` over FPGA CDC; host `/dev/ttyACM*`, 115200 baud |
+| SD | `/dev/mmcblk0`, native ATCSPI200 plus Linux `mmc_spi` |
+| Text console | `/dev/tty1`, framebuffer tileblit with hardware glyph composition |
+| Layout and dashboard | `/dev/prodock-display`, `prodockctl layout` / `display` |
+| Rendering accelerator | `/dev/prodock-gpu`, ioctl/mmap, one rendering owner |
+| Geometry | G3D1 commands 31–34 and `PRODOCK_GEOMETRY_INFO` in compatible kernels |
+| Applications | `prodock-game`, [NEBULA](NEBULA.md), [LUMA3D / MAZE](../docs/GAMES.md) |
 
-Linux prend seul possession du GPU, du SPI et de la SD. Les applications
-bare-metal ne tournent pas en parallèle du noyau. Les ressources graphiques
-historiques restent hors de la mémoire allouée à Linux.
+Pro Dock split mode has a 400×240 game view at the upper left, text at the upper
+right and diagnostic tables below. Full-screen game and console modes are
+available. Linux reserves composition layers 12–15 and a separate display memory
+area; applications use the exposed GPU window. The driver validates descriptors,
+waits for completion and presents at vertical blank. The interface is for trusted
+games; it is not a DRM/Mesa/OpenGL stack or hardware isolation for untrusted code.
 
-## Interfaces livrées dans les sources
+Linux and bare-metal demonstrations are separate boot modes. The U-Boot menu
+provides `prodockboot linux`, `prodockboot luma` and `prodockboot orbital` for
+corresponding installed images. Linux does not run those bare-metal programs
+concurrently with the kernel.
 
-| Fonction | Interface | Contrat |
-|---|---|---|
-| Console série | `/dev/ttyS0` | UART2 via CDC FPGA HS 480 Mbit/s, UART à 115200 |
-| SD | `/dev/mmcblk0` | ATCSPI200 et `mmc_spi` amont ; mode SPI 0, jusqu'à 20 MHz |
-| Terminal Linux | `/dev/tty1`, fbcon tileblit | Glyphes composés par le FPGA ; fb0 réservé au noyau |
-| Disposition et diagnostics | `/dev/prodock-display` | Écran partagé, jeu ou terminal plein écran ; texte de diagnostic |
-| Accélérateur | `/dev/prodock-gpu` | Un propriétaire, accès root/CAP_SYS_RAWIO, ioctl et mmap |
-| Contrôle utilisateur | `prodockctl` | `selftest`, `info`, `demo`, `display`, `layout` |
-| Jeu Linux | `prodock-game` | Casse-briques GPU, clavier ou `--demo`, lancé depuis le shell |
-| Jeu spatial Linux | `nebula` | Trois secteurs, boss, novas ; clavier ou `--demo`, plein écran ou partagé |
-| Test du système | `prodock-runtime` | Threads/mutex, fork, mmap, mprotect, copie à l'écriture |
+## Build and local checks
 
-Le GPU conserve ses opcodes 1–30, 16 couches, 64 sprites, tuiles, palette,
-police, rasterisation RGB565, textures, profondeur et composition V1.
-Sous Linux, quatre couches appartiennent aux consoles et douze au jeu.
-L'ABI géométrie G3D1 de G22r0 n'est pas encore exposée par ce pilote Linux.
-Le pilote vérifie les plages mémoire, attend la fin des commandes et présente
-au retour vertical. Un dépassement de délai verrouille le pilote en erreur :
-il ne rejoue pas automatiquement une commande dont l'issue est inconnue.
-La composition reste activée avec des descripteurs vides même sans surcouche :
-sur C37, cela sélectionne le lecteur RGB capable de maintenir plusieurs
-lectures DDR en vol. Le mode direct historique a manqué des lignes pendant
-le rendu et n'est pas utilisé par ce pilote.
-
-L'interface est destinée à des jeux de confiance. Ce pilote n'est pas un pilote
-DRM/Mesa/OpenGL ; l'accès brut n'est pas une isolation matérielle d'applications
-non fiables. GPIO, I2C/ADS1115, audio et gadget USB MSC sous Linux
-ne sont pas encore portés. Le profil Neo ajoute deux hôtes USB2 réservés
-aux manettes 081f:e401, un pilote evdev et leur utilisation dans NEBULA ;
-leur qualification sur carte reste à faire. Le profil Pro Dock ne possède
-pas encore ce pilote de manette dans son arbre de périphériques. Le CDC FPGA
-continue à transporter l'UART ; Linux ne transforme pas ce port en hôte USB.
-
-## Particularités de cet A25
-
-Les diagnostics réels identifient `mvendorid=0x31e`, `marchid=0x80000a25`,
-`mimpid=0x160`. Une AMO en DDR bloque après invalidation du cache ; elle
-réussit après une lecture préalable. Le port utilise :
-
-- atomiques noyau génériques, protégées des interruptions, **un seul cœur** ;
-- préchargement/barrière des cibles atomiques OpenSBI et musl ;
-- caches actifs, BRPE désactivé, bit de conformité RISC-V activé ;
-- synchronisation PTE/PMD pour le parcours des tables mémoire Andes ;
-- absence d'accès à `mstatush`, non implémenté par cette révision ;
-- service SBI privé de maintenance L1D pour les échanges CPU/GPU.
-
-Le noyau active `STRICT_KERNEL_RWX`. L'alignement des grandes pages Sv32
-agrandit l'image embarquée à environ 25 Mio ; le transit USB accepte 32 Mio.
-
-Les binaires RV32IMA précompilés quelconques ne sont pas pris en charge.
-Compiler les programmes fournis avec le wrapper `build/userbin/` reconstruit
-par le port. L'API C11 `libatomic` générale n'est pas encore intégrée ; le
-correctif amont est conservé en référence. Ne pas utiliser une AMO assembleur
-brute en DDR dans un programme ajouté.
-
-`pgprot_noncached()` ne suffit pas à rendre la mémoire GPU non cachée sur
-ce RV32 sans PMA programmable. La synchronisation SBI fait explicitement
-l'écriture et l'invalidation du cache avant et après les commandes GPU.
-Une application ne doit pas écrire concurremment une surface utilisée par
-le GPU. La lecture CPU d'une surface rendue intervient après le retour de
-`PRODOCK_SUBMIT`. Le framebuffer Linux passe par une mémoire ombre distincte.
-
-## Construction
-
-Dépendances hôte : make, GCC hôte, Python 3.12+, patch, curl, dtc, QEMU RV32,
-flex, bison et outils usuels de construction Linux. Le lanceur ILM emploie
-le SDK Gowin AE350 déjà configuré dans `fw_console/Makefile`.
+Prepare the dependencies and selected board profile using the installation guide.
+From the repository root, a development build uses:
 
 ```sh
-make -C linux all JOBS=4
-make -C linux/uboot all JOBS=4
-make -C linux sd-boot
+make -C linux BOARD=prodock BUILD_ARGS=--candidate all JOBS=4
 make -C linux test
 python3 linux/tests/test_boot_images.py
 python3 linux/tests/test_orbital_api.py
 python3 linux/tests/test_atomic_code.py
-python3 linux/sd_package.py
 ```
 
-Archives et SHA-256 : `sources.json`, `uboot/prepare.py`. Les sources extraites,
-outils et binaires restent dans `linux/build/`, ignoré par Git. Les correctifs
-ont leur provenance dans `PROVENANCE.md`. Une modification d'un correctif
-appliqué arrête la construction : réextraire la source concernée dans un
-répertoire propre au lieu de cumuler des patches différents.
-
-La toolchain Bootlin compile le noyau. Le wrapper `build/userbin/` compile
-les programmes RV32IMFDC/ILP32D avec la musl adaptée, sans génération
-spontanée d'AMO. Le contrôle des exécutables liés vérifie les préchargements.
-
-## Essai volatile depuis ax15
-
-Copier `build/manifest.json`, `launch.bin`, `launch_usb.bin` et le fichier
-`opensbi/platform/generic/firmware/fw_payload.bin` dans un dossier de paquet
-sur ax15, en gardant cette arborescence. Copier les outils Python associés.
-
-Le chargement direct, plus lent, utilise J-Link pour tout le paquet :
+U-Boot and SD image preparation are separate steps:
 
 ```sh
-python3 tools/load_linux.py --pack linux/runtime_rN --out TESTS/linux_boot_rN
+make -C linux/uboot all JOBS=4
+make -C linux sd-boot
+python3 linux/sd_package.py --candidate
 ```
 
-Le chemin rapide exige le firmware **USBDISK R4/C4b** déjà qualifié :
+The SD packager writes local files under `linux/build/sd/PRODOCK/`; it does not
+format or mount a physical card. It consumes the built U-Boot/Linux payloads
+and prepared LUMA/ORBITAL assets. Its `PDCKBOOT` headers carry image type,
+addresses, length, capabilities and CRC32; manifests add SHA-256. These checks
+detect corruption, not an authenticated secure-boot signature. Package contents
+and installation prerequisites are detailed in [Installation](../docs/INSTALLATION.md).
 
-```sh
-python3 tools/load_ilm.py --bin linux/usbdisk_c4b.bin --entry 0xa000000c \
-  --expect 'USBDISK READY R4' --out TESTS/linux_disk_rN
-python3 tools/stage_linux.py --pack linux/runtime_rN --out TESTS/linux_stage_rN
-python3 tools/load_linux.py --pack linux/runtime_rN --staged --out TESTS/linux_boot_rN
-```
+Sources, toolchains and outputs are kept under `linux/build/`. Archives are
+pinned by SHA-256. The project compiler wrapper under `build/userbin/` uses the
+adapted musl and RV32 ILP32D configuration; an arbitrary precompiled RISC-V
+executable is not an equivalent test of this platform.
 
-Pour les essais successifs après un noyau Linux, le rechargement SRAM de
-C37 doit précéder le nouveau firmware bare-metal. Le script de qualification
-`TESTS/linux_20261009/fresh_load.py` applique les mêmes contrôles de
-`load_ilm.py`, puis détache uniquement l'interface PC `usb-storage` avant le
-chargement. Exemple sur l'arbre de validation d'ax15 :
+## AE350-specific integration
 
-```sh
-python3 TESTS/linux_20261009/fresh_load.py \
-  --fs tang/impl/gpu_sdusb_c37/impl/pnr/console_gpu_sdusb_c37.fs \
-  --bin linux/usbdisk_c4b.bin --entry 0xa000000c \
-  --expect 'USBDISK READY R4' --out TESTS/linux_fresh_rN
-```
+The port includes adaptations for this A25 configuration: single-core kernel
+atomics, OpenSBI/musl atomic preloads, PTE/PMD synchronization and an SBI service
+for CPU/GPU cache maintenance. The detailed origins are in [PROVENANCE.md](PROVENANCE.md).
+`pgprot_noncached()` alone does not establish an uncached GPU window on this
+configuration; the driver performs explicit synchronization at ownership
+boundaries. Applications must keep surfaces and mesh data stable while used by
+the accelerator. Cache/DMA integration is still a separate development topic.
 
-L'interface MSC du PC reste volontairement détachée pendant Linux ; le CDC
-reste lié à `cdc_acm` en HS. Un rebranchement USB ou une nouvelle énumération
-la réattachera côté PC. Linux ne sert pas encore la SD par USB MSC. Les essais
-avec des resets USB répétés dans l'ancienne énumération ont perdu des données
-CDC ; le rechargement propre a rétabli les transferts et leurs comparaisons.
-Ce résultat ne constitue pas une qualification d'endurance des resets USB.
-
-Le transfert rapide sélectionne explicitement la **DDR 32 Mio**, vérifie
-le support et la capacité avant toute écriture, relit intégralement le
-paquet puis libère le disque. Le lanceur copie depuis `0x08000000` et
-recalcule le CRC. Aucun fichier de SD physique et aucune flash ne sont écrits.
-Les deux chargeurs refusent de remplacer un firmware qui n'acquitte pas sa
-pause/libération. Un noyau Linux en cours ne répond pas à ce protocole : ne
-pas contourner ce contrôle pour le remplacer en marche.
-
-## Paquet SD
-
-`build/sd/PRODOCK/` contient `UBOOT.BIN`, `LINUX.BIN`, `LUMA.BIN`, `LUMA.DAT`,
-`ORBITAL.BIN`, `ORBITAL.DAT`. Les images ont un en-tête de 40 octets avec
-version, type, adresse/entrée, longueur, capacités GPU et deux CRC32.
-U-Boot vérifie les types, plages et CRC avant chaque saut. CRC et SHA détectent
-la corruption ; ce mécanisme n'est pas un démarrage signé.
-
-Le script prépare seulement les fichiers locaux. Il ne formate et ne monte
-aucun disque. Une copie sur SD physique reste une étape distincte.
-U-Boot lit la FAT et la SD en lecture seule : initialisation à 400 kHz,
-puis horloge choisie par MMC jusqu'à 20 MHz, avec transferts groupés par
-blocs de 512 octets et accès FIFO de quatre octets pour les données.
-La sélection peut aussi se faire au prompt avec `prodockboot linux`,
-`prodockboot luma` ou `prodockboot orbital`.
-
-Le premier étage téléchargeable est
-`fw_console/build/linux_sd_boot/console_test.bin`, entrée `0xa000000c`.
-Le compiler ne l'installe pas dans le FPGA. Ce premier étage réutilise le
-transport SD bare-metal existant, dont certaines attentes matérielles ne
-sont pas bornées ; une SD défaillante peut empêcher d'atteindre le menu.
-Les nouveaux pilotes SPI Linux et U-Boot possèdent des délais bornés.
-
-`sd_package.py` génère aussi `build/sd/uboot_ram.bin` et son manifeste pour
-essayer U-Boot en RAM, avant toute installation de fichiers sur la SD :
-`python3 tools/load_uboot.py --pack linux/build/sd --out TESTS/uboot_ram_rN`.
-Le firmware résident doit acquitter sa pause ; ce chargeur ne remplace pas
-un noyau Linux en cours sans rechargement préalable du FPGA.
+The earlier C37/R12 and G22r0 desktop tests remain in
+[Linux validation](../TESTS/LINUX_PRODOCK_20261009.md),
+[shared display validation](../TESTS/LINUX_DESKTOP_20261011.md) and
+[NEBULA validation](../TESTS/NEBULA_20261012.md). They record their own versions
+and limits; the [current test guide](../docs/TESTING.md) describes the ongoing
+qualification process.

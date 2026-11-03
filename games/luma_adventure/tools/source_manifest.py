@@ -13,7 +13,7 @@ campaign=json.loads((root/'content/campaign.json').read_text());files += [root/'
 world_files=[root/'content'/(w['file'] if isinstance(w,dict) else w) for w in campaign['worlds']];files.extend(world_files);files.extend(f.parent/'solutions.json' for f in world_files if (f.parent/'solutions.json').exists())
 for manifest in ['art/atlas.json','art/terrain.json']:
  f=root/manifest;files.append(f);files.append(f.parent/json.loads(f.read_text())['image'])
-files += [root/'audio/manifest.json',root/'audio/luma_audio.c',root/'audio/luma_audio.h',repo/'assets/luma/source/hero.png',repo/'assets/luma/source/enemies.png',repo/'linux/drivers/prodock-uapi.h',repo/'linux/drivers/prodock-validate.h',repo/'linux/userspace/neo-gamepad-input.h']
+files += [root/'audio/manifest.json',root/'audio/luma_audio.c',root/'audio/luma_audio.h',repo/'games/luma/assets/source/hero.png',repo/'games/luma/assets/source/enemies.png',repo/'linux/drivers/prodock-uapi.h',repo/'linux/drivers/prodock-validate.h',repo/'linux/userspace/neo-gamepad-input.h']
 files += [build/'world.c',build/'assets.h',build/'music.h',build/'luma',build/'luma-riscv',build/'luma.pak',build/'luma.lz4']
 files.extend(build/f'world_{i:02d}.lz4' for i in range(len(campaign['worlds'])))
 sha=lambda f:hashlib.sha256(f.read_bytes()).hexdigest()

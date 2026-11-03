@@ -16,7 +16,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--reload',action='store_true');p.add_argument('--firmware-only',action='store_true');p.add_argument('--out',type=Path,required=True);a=p.parse_args()
     if a.reload and a.firmware_only:p.error('--reload requires asset loading')
     out=a.out.resolve();out.mkdir(parents=True,exist_ok=False)
-    pack=ROOT/'assets/luma/packed';meta=json.loads((pack/'firmware.json').read_text());assets=pack/'luma.bin';fw=pack/'luma_fw.bin';fpga=ROOT/'bitstreams/console_gpu_v1_800.fs'
+    pack=ROOT/'games/luma/assets/packed';meta=json.loads((pack/'firmware.json').read_text());assets=pack/'luma.bin';fw=pack/'luma_fw.bin';fpga=ROOT/'bitstreams/console_gpu_v1_800.fs'
     sha=lambda path:hashlib.sha256(path.read_bytes()).hexdigest()
     assert meta['fpga_sha256']==R31==sha(fpga)
     assert meta['sha256']==sha(fw) and meta['assets_sha256']==sha(assets)

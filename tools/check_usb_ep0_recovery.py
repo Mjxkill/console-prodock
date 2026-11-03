@@ -10,13 +10,14 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from vendor_reference import USB as SIPEED_USB
 import subprocess
 import tempfile
 import time
 from gowin_toolchain import PRIMITIVES
 
 ROOT = Path(__file__).resolve().parents[1]
-REF = Path('/home/michael/gowin/ref/TangMega-138KPro-example/usb2_soft/usb_uart_loopback/src/usb_device_controller')
+REF = SIPEED_USB / 'usb_device_controller'
 IVBASE = Path('/tmp/console-usb-sim-tools/extracted/usr')
 CASES = {'normal': 0, 'retry7': 1, 'retry32': 2, 'preempt_wait': 3, 'preempt_sent': 4}
 

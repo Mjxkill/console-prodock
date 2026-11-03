@@ -8,6 +8,14 @@ from board_contract import before_build, record_build
 ROOT=Path(__file__).resolve().parents[1]
 BASE=ROOT/'tang/impl/gpu_sdusb_c37'
 TEMPLATE=ROOT/'tang/impl/gpu_sdusb_c28'
+def relocate_template(text, stage):
+ # Frozen source hashes stay intact. Only the build recipe's filesystem
+ # locations change when a checkout is installed on another workstation.
+ marker=re.search(r'add_file \{(.+)/source/tang/rtl/console_gpu\.v\}',text)
+ if not marker:raise ValueError('Missing baseline top-level path in Tcl recipe')
+ original=Path(marker[1])
+ old_root=original.parents[2]
+ return text.replace(str(original),str(stage)).replace(str(old_root/'tools/build_gpu.py'),str(ROOT/'tools/build_gpu.py'))
 def nonplacement_constraints(text):
  # INS_LOC is consumed by P&R, not synthesis. All pin/bank/clock records
  # must remain byte-for-byte identical after whitespace/comment stripping.
@@ -80,7 +88,7 @@ INS_LOC "u_soc/u_bridge/n50_s0" R4C150[1][B];
   constraint_text+='\n'+supplemental
   shutil.copy2(usb_placements,stage/'source/tang/constr/prodock_softusb_placement.cst')
  constraint_source.write_text(constraint_text)
- tcl=(TEMPLATE/'build.tcl').read_text().replace(str(TEMPLATE),str(stage)).replace('console_gpu_sdusb_c28','console_'+a.name)
+ tcl=relocate_template((TEMPLATE/'build.tcl').read_text(),stage).replace('console_gpu_sdusb_c28','console_'+a.name)
  for option,value in [('place_option',a.place_option),('route_option',a.route_option),('replicate_resources',a.replicate_resources)]:
   tcl,count=re.subn(r'(?m)^set_option -'+option+r' \d+$',f'set_option -{option} {value}',tcl)
   if count!=1:raise RuntimeError('Expected one placement setting: '+option)

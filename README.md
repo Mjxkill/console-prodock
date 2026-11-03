@@ -14,9 +14,9 @@ text console and a developing exploration game with multiple activities.
 The Pro Dock runs the demonstrations and Linux games. Neo support and the
 complete SD/USB installation experience are still being developed.
 
-| Board | Display | Status — 3 November 2026 |
+| Board | Display | Status — 4 November 2026 |
 |---|---|---|
-| **Tang Mega Pro Dock 138K** | **800 × 480 LCD** | Runs graphics demonstrations and Linux games; automatic SD startup and USB installation remain in development |
+| **Tang Mega Pro Dock 138K** | **800 × 480 LCD** | R6: LCD graphics, Linux, games and SD boot work; SD loading is slow; USB software installation is in development |
 | **Tang Neo / Console 138K** | **1280 × 720 HDMI** | Displays HDMI test patterns; graphics debugging is ongoing and games are not ready to use |
 
 ## Documentation
@@ -35,26 +35,27 @@ complete SD/USB installation experience are still being developed.
 | Regressions and hardware qualification | [Testing](docs/TESTING.md) |
 | Sources, archives, third-party material and contribution | [Repository](docs/REPOSITORY.md) |
 
-These English guides describe the current project. Older French documents in
-[`ARCHI/`](ARCHI) and dated test reports remain design history; an old PASS
-does not qualify a later build.
+## Download, program and rebuild
 
-## Intended user experience: SD boot and SOFT-USB
+| Board | Selected FPGA | What to expect | Downloads and exact build recipe |
+|---|---|---|---|
+| **Pro Dock** | **R6** | LCD, GPU, Linux from SD and automatic game startup; slow SD loading | [R6 FPGA](releases/fpga/prodock_r6/README.md) · [SD files](releases/prodock-sd/README.md) |
+| **Neo** | **REJECT R1 diagnostic** | HDMI test pattern and GPU diagnostic access; the graphics port is unfinished | [Neo diagnostic FPGA](releases/fpga/neo_reject_r1/README.md) |
 
-The normal workflow is **power on → boot Linux from SD → launch a game**, with
-**SOFT-USB for the terminal, software transfer and updates**. Users should not
-need a CPU debugger to load or run games.
+Start with the **[board release and programming guide](docs/RELEASES.md)**.
+It explains temporary SRAM loading, persistent flash programming, checksums and
+rebuilding each selected version. Earlier experimental bitstreams are retained
+in Git history rather than presented as competing downloads.
 
-SOFT-USB is an **USB 2.0 High-Speed device connection (480 Mbit/s link rate)**.
-The CDC terminal exists, and experimental checked application/DDR transfers
-exist. A complete reliable USB loading/update workflow is **not yet qualified**;
-its remaining work is documented rather than presented as a finished installer.
+The **Pro Dock SD boot works**: the resident loader reads U-Boot, U-Boot reads
+Linux, and Linux starts the game automatically. Loading is currently slow.
+The published SD boot observation used the R6 configuration loaded into FPGA
+SRAM; persistent FPGA flash startup is listed separately in the release guide.
 
-**J-Link is a development/debugging tool, not the normal loading path.** Some
-historical demonstrations were restored through CPU JTAG; that proves execution,
-not autonomous boot or successful USB deployment. Routine J-Link loading has
-been stopped. A blank FPGA still needs its initial configuration before its
-own SOFT-USB logic can enumerate.
+Connect **SOFT-USB** for the Linux terminal. Its link runs in USB 2.0 High-Speed
+mode (480 Mbit/s link rate). Software transfer support exists experimentally;
+the complete USB installation/update workflow is still in development.
+[USB details](docs/USB_TRANSPORT.md) · [Debugger pinout](docs/DEBUGGING.md)
 
 ## Graphics implemented
 
@@ -114,11 +115,11 @@ development version.
 
 | Name | Experience |
 |---|---|
-| **LUMA** | Forest adventure, animated hero, combat, portal and luminous finale |
-| **ORBITAL** | First-person corridor, drones, shooting and effects |
-| **ASTRILLA** | Space voyage, hardware 3D ships, black-hole effects, battle and landing |
-| **NEBULA** | Linux space shooter with sectors, explosions and bosses |
-| **LUMA3D / MAZE** | Developing 3D exploration world and a festival of puzzle, board and arcade activities |
+| **[LUMA](games/luma/README.md)** | Forest adventure, animated hero, combat, portal and luminous finale |
+| **[ORBITAL](games/orbital/README.md)** | First-person corridor, drones, shooting and effects |
+| **[ASTRILLA](games/astrilla/README.md)** | Space voyage, hardware 3D ships, black-hole effects, battle and landing |
+| **[NEBULA](games/nebula/README.md)** | Linux space shooter with sectors, explosions and bosses |
+| **[LUMA3D / MAZE](games/luma3d/README.md)** | Developing 3D exploration world and a festival of puzzle, board and arcade activities |
 
 The game aims for varied locations and hours of play. This is a content goal,
 not a completed campaign claim. Performance varies substantially by scene;
@@ -126,24 +127,29 @@ the latest hardware log contains windows from **5.55 to 32.91 FPS**, not a
 uniform 30/60 FPS guarantee. See [the game guide](docs/GAMES.md) for scope,
 controls, assets and outstanding work.
 
-## Reproduce carefully
+## Build from source
 
-The [installation guide](docs/INSTALLATION.md) explains tool versions and
-remaining workstation-specific dependencies. This is **not yet a one-command,
-fresh-clone FPGA distribution**: protected reference archives, vendor tools/IP
-and some baseline build snapshots are external or local.
-
-Useful software-only checks after installing their dependencies:
+The [installation guide](docs/INSTALLATION.md) gives the dependencies and complete
+commands for firmware, FPGA, Linux, U-Boot and SD packages. Build paths are
+relative to the checkout; external tools are selected through configuration.
+No separate logic-analyser project is required.
 
 ```sh
-make -C games/luma3d test
+# Install the pinned baseline inputs supplied with this repository.
+python3 tools/bootstrap_build.py
+
+# Configure your installed Gowin IDE, then run the local regression suite.
+export GOWIN_IDE="$HOME/gowin/IDE"
 python3 tools/run_board_regressions.py --out TESTS/dual_board/my_check_01
+
+# Rebuild Linux for the Pro Dock from the current sources.
+make -C linux BOARD=prodock BUILD_ARGS=--candidate all JOBS=4
 ```
 
-The second command also requires protected reference material; its integrity
-checks must not be bypassed. The publication campaign passed **15 local test
-groups**, with hardware validation explicitly false. Routing, timing closure
-and testing on each board remain separate steps.
+To reconstruct a selected FPGA version from its frozen inputs, use its linked
+release recipe above. Rebuilding current development sources and rebuilding a
+published version are separate commands. [Testing](docs/TESTING.md) explains
+simulation, timing and board checks.
 
 Gowin performs full-console synthesis and routing. The
 [optimization workbench](optimizer/README.md) adds report analysis and bounded
@@ -152,8 +158,8 @@ flow for this design.
 
 ## What remains to finish
 
-- **Installation:** complete and test automatic startup from SD and software
-  installation through SOFT-USB.
+- **Installation:** qualify persistent FPGA startup and complete software
+  installation through SOFT-USB; SD-to-Linux/game startup already works.
 - **Loading and performance:** speed up SD access and improve frame pacing in
   the larger game scenes.
 - **Neo support:** resolve the graphics problems before offering a usable game
@@ -167,8 +173,8 @@ build results and measurements are linked from that page.
 ## Sources and distribution
 
 `tang/` contains RTL and board profiles; `fw_console/` contains bare-metal code;
-`linux/` contains OS integration, drivers and user APIs; `games/` and `assets/`
-contain game code and artwork; `tools/`, `optimizer/`, `TESTS/` and `docs/`
+`linux/` contains OS integration, drivers and user APIs; `games/` contains
+all games, demonstrations and their artwork; `tools/`, `optimizer/`, `TESTS/` and `docs/`
 contain tooling, evidence and documentation.
 
 Shared Pro Dock/Neo sources remain shared. Board-specific adaptations are
