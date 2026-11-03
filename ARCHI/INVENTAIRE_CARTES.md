@@ -5,7 +5,7 @@ ou de construction doit y être classé avant un build. `shared` inclut les pilo
 Linux nommés `prodock-*` employés par les deux profils. Les fichiers générés
 dans les builds et caches ne sont pas des sources communes.
 
-## Communs — 247 fichiers
+## Communs — 266 fichiers
 
 | Fichier | Rôle |
 |---|---|
@@ -19,6 +19,7 @@ dans les builds et caches ne sont pas des sources communes.
 | `fw_console/gpu.h` | source |
 | `fw_console/gpu_geometry.c` | source |
 | `fw_console/gpu_geometry.h` | source |
+| `fw_console/gpu_raster_commands.c` | source |
 | `fw_console/gpu_v1.c` | source |
 | `fw_console/gpu_v1.h` | source |
 | `fw_console/sd.c` | source |
@@ -44,6 +45,8 @@ dans les builds et caches ne sont pas des sources communes.
 | `linux/drivers/prodock-cache.h` | source |
 | `linux/drivers/prodock-gpu.c` | source |
 | `linux/drivers/prodock-kunit.c` | source |
+| `linux/drivers/prodock-spi-pio.c` | source |
+| `linux/drivers/prodock-spi-pio.h` | source |
 | `linux/drivers/prodock-spi.c` | source |
 | `linux/drivers/prodock-text-model.h` | source |
 | `linux/drivers/prodock-text.h` | source |
@@ -52,6 +55,7 @@ dans les builds et caches ne sont pas des sources communes.
 | `linux/overlay/opensbi/platform/generic/prodock.c` | source |
 | `linux/package.py` | build |
 | `linux/patches/linux/0001-riscv-support-gowin-ae350.patch` | source |
+| `linux/patches/linux/0002-mmc-spi-clock-before-power-on.patch` | source |
 | `linux/patches/musl/0001-riscv32-prime-ae350-lrsc.patch` | source |
 | `linux/patches/opensbi/0001-prodock-a25-atomics.patch` | source |
 | `linux/patches/opensbi/0002-prodock-legacy-mstatus.patch` | source |
@@ -61,16 +65,24 @@ dans les builds et caches ne sont pas des sources communes.
 | `linux/rootfs/init` | source |
 | `linux/sd_package.py` | build |
 | `linux/sources.json` | source |
+| `linux/tests/spi_pio_model.c` | test |
+| `linux/tests/spi_register_model.c` | test |
+| `linux/tests/spi_register_model.h` | test |
+| `linux/tests/spi_uboot_model.c` | test |
 | `linux/tests/test_atomic_code.py` | test |
 | `linux/tests/test_boot.py` | test |
 | `linux/tests/test_boot_images.py` | test |
 | `linux/tests/test_dashboard.py` | test |
 | `linux/tests/test_geometry_uapi.py` | test |
+| `linux/tests/test_mmc_spi_init.py` | test |
 | `linux/tests/test_nebula.py` | test |
 | `linux/tests/test_nebula_scanout.py` | test |
 | `linux/tests/test_orbital_api.py` | test |
 | `linux/tests/test_package.py` | test |
 | `linux/tests/test_packed_boot.py` | test |
+| `linux/tests/test_spi_linux.py` | test |
+| `linux/tests/test_spi_pio.py` | test |
+| `linux/tests/test_spi_uboot.py` | test |
 | `linux/tests/test_text_model.py` | test |
 | `linux/tests/test_uboot_config.py` | test |
 | `linux/uboot/Makefile` | build |
@@ -84,6 +96,7 @@ dans les builds et caches ne sont pas des sources communes.
 | `linux/uboot/overlay/include/configs/prodock-console.h` | source |
 | `linux/uboot/patches/0001-prodock-atomic-lottery.patch` | source |
 | `linux/uboot/patches/0002-prodock-mmc-spi-clock.patch` | source |
+| `linux/uboot/patches/0003-prodock-mmc-spi-errors.patch` | source |
 | `linux/uboot/prepare.py` | source |
 | `linux/userspace/nebula-assets.h` | source |
 | `linux/userspace/nebula.c` | source |
@@ -236,6 +249,12 @@ dans les builds et caches ne sont pas des sources communes.
 | `tools/orbital_art.py` | build |
 | `tools/play_racer.py` | build |
 | `tools/preview_nebula.py` | build |
+| `tools/project_dashboard/collector.py` | build |
+| `tools/project_dashboard/server.py` | build |
+| `tools/project_dashboard/test_collector.py` | build |
+| `tools/project_dashboard/test_server.py` | build |
+| `tools/project_dashboard/test_workers.py` | build |
+| `tools/project_dashboard/workers.py` | build |
 | `tools/racer_web.py` | build |
 | `tools/read_nebula_scene.py` | build |
 | `tools/render_astra.py` | build |

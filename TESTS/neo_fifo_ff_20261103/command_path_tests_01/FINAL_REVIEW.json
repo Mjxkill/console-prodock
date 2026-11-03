@@ -1,0 +1,190 @@
+{
+  "passed": true,
+  "status": "accepted_after_supervisor_test_edits",
+  "native_replay": "supervisor_replay/project/owned/RESULTS.json",
+  "scope": "Unmodified R19 gpu_accel source pipeline plus two qualified banked-FF source shadows, not substituted full mapped application.",
+  "hardware": false,
+  "Gowin": false,
+  "STA": false,
+  "sources_sha256": {
+    "snapshot/gpu_accel.v": "0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e",
+    "snapshot/blitter.v": "c2f17b9944b83b667c2e06e59b5d2c4244b606c42fce46a769ca99da64f5833c",
+    "snapshot/gpu_blit_dma.v": "2118e643422cc732d3e8f52afb6115baeb81683f999df0affbc482a09113f20d",
+    "snapshot/font_ram.v": "46bc4a89e4fb1321d3e1357b481d33beb303e21a74e57ad8b09cac1adec82edc",
+    "snapshot/gpu_raster.v": "d54f68ec19b92cdde9364651b5c1c0e7ed6113549aa485124b89dbc669542bab",
+    "snapshot/gpu_geometry.v": "9f0b3183fdb6a856ccf15ff17dc87c7f008e3906edc7ece0c64f615beb4b5ca8",
+    "snapshot/gpu_v1.v": "2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71",
+    "snapshot/gpu_copy565.v": "c0cbb102eb701ae861cc389b30827b7ac856e3b4b3ff341cda092fd61ecd0741",
+    "snapshot/gpu_triangle.v": "992dda01586192f7bd8c031f897e5a0810f61d4500879a807b7c6953f49126a1",
+    "snapshot/gpu_texture_cache.v": "1b6e2c46f0335f5741e321327881770d4690b4956641beaea1be6a6e031292b6",
+    "snapshot/gpu_geom_div.v": "d1c6206a9c32e0315263739a6ece4dc76398fe533ef5524799745d82c9499b7b",
+    "snapshot/gpu_perspective.v": "a3c98ba32adc408a1c855d47a802d7ffb0c105744746a018cdafe30f0504681c",
+    "snapshot/ddr_dcfifo.v": "449b5d7e65d3290f0b9cc1d5e574e09191d40bbfe8960f45374d9690e965103b",
+    "snapshot/cdc_word.v": "6f2caebf6680fe1ffbf8bbbbf4e600c25181789cf8269bb5e2e54db23b12c848",
+    "primitives/luts.v": "81cea9d2f4b7426ebdecf19245818d6c76cb1f75de00fa4e82851d17f3fdf4d5",
+    "banked/banked_words32.v": "4e8df3bd4101fc0ceb1a0f85ed8de7ea73e03c182fde07fdaf5b88ce4cf34788",
+    "owned/bench.sv": "724aeabc0c73ebba398f5890bac3c83f4692f896ddc8ddafdd52456d09461d87",
+    "owned/helpers.sv": "26a0477fbff2dbd5aec01960ce5b6842c5696efacc7992e26a6c80b17b7d3fb6"
+  },
+  "bench_sha256": "724aeabc0c73ebba398f5890bac3c83f4692f896ddc8ddafdd52456d09461d87",
+  "cases": [
+    {
+      "id": "positive_80_75",
+      "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667",
+      "returncode": 0,
+      "pass": true,
+      "elapsed_seconds": 0.007239,
+      "output_tail": "POSITIVE_PASS reads=2 writes=2 max_queue=6 ext=3 cmd_shadow=24 cmem_shadow=24\nSENTINEL_REJECT_PASS reads=0 writes=0 rejected=1 cmd_shadow=24 cmem_shadow=24\nINTEGRATION_PASS\n- bench.sv:735: Verilog $finish\n"
+    },
+    {
+      "id": "positive_125_124p9",
+      "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=4000 +HALF_M=4003",
+      "returncode": 0,
+      "pass": true,
+      "elapsed_seconds": 0.006912,
+      "output_tail": "POSITIVE_PASS reads=2 writes=2 max_queue=6 ext=3 cmd_shadow=24 cmem_shadow=24\nSENTINEL_REJECT_PASS reads=0 writes=0 rejected=1 cmd_shadow=24 cmem_shadow=24\nINTEGRATION_PASS\n- bench.sv:735: Verilog $finish\n"
+    },
+    {
+      "id": "positive_125_125p2",
+      "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=4000 +HALF_M=3994",
+      "returncode": 0,
+      "pass": true,
+      "elapsed_seconds": 0.006925,
+      "output_tail": "POSITIVE_PASS reads=2 writes=2 max_queue=6 ext=3 cmd_shadow=24 cmem_shadow=24\nSENTINEL_REJECT_PASS reads=0 writes=0 rejected=1 cmd_shadow=24 cmem_shadow=24\nINTEGRATION_PASS\n- bench.sv:735: Verilog $finish\n"
+    },
+    {
+      "id": "stress_80_75",
+      "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667 +STRESS",
+      "returncode": 0,
+      "pass": true,
+      "elapsed_seconds": 0.033952,
+      "output_tail": "STRESS_FAULT_COUNTER_PASS done=42 lost=0/0 bad=0 rejected=0 drained=1\nSTRESS_PASS done=42 accepts=336 reads=80 writes=80 max_queue=128 ahb_stall=11 qfull=551 cmdfull=2232 gate_stall=253 cmd_shadow=336 cmem_shadow=336 ext=42 geom=42\n- bench.sv:690: Verilog $finish\n"
+    },
+    {
+      "id": "sentinel_w7_80_75",
+      "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667",
+      "returncode": 0,
+      "pass": true,
+      "elapsed_seconds": 0.006027,
+      "output_tail": "POSITIVE_PASS reads=2 writes=2 max_queue=6 ext=3 cmd_shadow=24 cmem_shadow=24\nSENTINEL_REJECT_PASS reads=0 writes=0 rejected=1 cmd_shadow=24 cmem_shadow=24\nINTEGRATION_PASS\n- bench.sv:735: Verilog $finish\n"
+    },
+    {
+      "id": "mutant_swap_dims_80_75",
+      "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667 +MUT_SWAP",
+      "returncode": -6,
+      "pass": true,
+      "elapsed_seconds": 0.063704,
+      "output_tail": "MUTANT_DETECTED ext_command mismatch index=2\n[2126773] %Fatal: bench.sv:269: Assertion failed in TOP.tb: EXT_CMD_WORD2 got=00020010 exp=00100002 idx=2\n%Error: bench.sv:269: Verilog $stop\nAborting...\n"
+    },
+    {
+      "id": "mutant_duplicate_word_80_75",
+      "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667 +MUT_DUP",
+      "returncode": -6,
+      "pass": true,
+      "elapsed_seconds": 0.067137,
+      "output_tail": "MUTANT_DETECTED ext_command mismatch index=2\n[2126773] %Fatal: bench.sv:271: Assertion failed in TOP.tb: EXT_CMD_WORD3 got=00100002 exp=00000020 idx=2\n%Error: bench.sv:271: Verilog $stop\nAborting...\n"
+    },
+    {
+      "id": "mutant_swap_dims_stress_80_75",
+      "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667 +MUT_SWAP +STRESS",
+      "returncode": -6,
+      "pass": true,
+      "elapsed_seconds": 0.062448,
+      "output_tail": "MUTANT_DETECTED ext_command mismatch index=2\n[1446739] %Fatal: bench.sv:269: Assertion failed in TOP.tb: EXT_CMD_WORD2 got=00020010 exp=00100002 idx=2\n%Error: bench.sv:269: Verilog $stop\nAborting...\n"
+    }
+  ],
+  "supervisor_changes": [
+    "Assert exact done42, lost0/0, bad0, rejected0 and drained queues after40COPY.",
+    "Remove unused MUT_ADVANCE flag/bypasses and unused Python duplicate of executable bench mutants."
+  ],
+  "limits": [
+    "No physical clock/CDC/metastability/SDF/card qualification; Verilator2state and DFFRE functional shim.",
+    "Source banked shadows check registered data at real memory boundaries; no full mapped netlist substitution in this bench.",
+    "Forty COPY packets are identical; order among wholly identical packets cannot be discriminated. Word transport, counts and field equality are checked.",
+    "The pressure-mode mutation is detected at first COPY before FIFO saturation; it is not a mutation of AHB hold during an already-full state.",
+    "ahb_stall11 counts only the initial DDR-held gate window, not total AHB stalls; qfull551/cmdfull2232 are sampled clock-cycle counts, not distinct transitions.",
+    "Dedicated sentinel runner invocation repeats positive+sentinel already exercised at each clockratio."
+  ],
+  "model_attempts": [
+    {
+      "run_id": "neo_command_path_deepseek_20261103_r1",
+      "status": "FAILED",
+      "elapsed_seconds": 0.056521161925047636,
+      "model_requests": 0,
+      "tool_calls": 0,
+      "agent_test_runs": null,
+      "agent_test_failures": null,
+      "response_models_observed": []
+    },
+    {
+      "run_id": "neo_command_path_deepseek_20261103_r2",
+      "status": "FAILED",
+      "elapsed_seconds": 0.011377176968380809,
+      "model_requests": 0,
+      "tool_calls": 0,
+      "agent_test_runs": null,
+      "agent_test_failures": null,
+      "response_models_observed": []
+    },
+    {
+      "run_id": "neo_command_path_deepseek_20261103_r3",
+      "status": "FAILED",
+      "elapsed_seconds": 475.5052802970167,
+      "model_requests": 117,
+      "tool_calls": 185,
+      "agent_test_runs": 9,
+      "agent_test_failures": 3,
+      "response_models_observed": [
+        "deepseek-v4.1-flash"
+      ]
+    },
+    {
+      "run_id": "neo_command_path_deepseek_20261103_r4",
+      "status": "INCOMPLETE_LENGTH",
+      "elapsed_seconds": 174.5680301580578,
+      "model_requests": 23,
+      "tool_calls": 34,
+      "agent_test_runs": 0,
+      "agent_test_failures": 0,
+      "response_models_observed": [
+        "deepseek-v4.1-flash"
+      ]
+    },
+    {
+      "run_id": "neo_command_path_deepseek_20261103_r5",
+      "status": "COMPLETED_REVIEW_PENDING_VALIDATION",
+      "elapsed_seconds": 849.4606864829548,
+      "model_requests": 93,
+      "tool_calls": 103,
+      "agent_test_runs": 6,
+      "agent_test_failures": 2,
+      "response_models_observed": [
+        "deepseek-v4.1-flash"
+      ]
+    },
+    {
+      "run_id": "neo_command_pressure_deepseek_20261103_r6",
+      "status": "INCOMPLETE_LENGTH",
+      "elapsed_seconds": 273.1471887091175,
+      "model_requests": 16,
+      "tool_calls": 34,
+      "agent_test_runs": 3,
+      "agent_test_failures": 0,
+      "response_models_observed": [
+        "deepseek-v4.1-flash"
+      ]
+    },
+    {
+      "run_id": "neo_command_pressure_deepseek_20261103_r7",
+      "status": "COMPLETED_REVIEW_PENDING_VALIDATION",
+      "elapsed_seconds": 926.8983743269928,
+      "model_requests": 47,
+      "tool_calls": 75,
+      "agent_test_runs": 15,
+      "agent_test_failures": 1,
+      "response_models_observed": [
+        "deepseek-v4.1-flash"
+      ]
+    }
+  ]
+}

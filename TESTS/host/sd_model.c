@@ -2,6 +2,7 @@
 // Il vérifie ce qu'une vraie carte exige : horloges de réveil, CRC7 des commandes, CRC16 des blocs
 // écrits, sélection maintenue pendant une séquence. Il peut injecter des erreurs.
 #include <stdint.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,7 @@ static struct { int present, selected, idle, crc_on, wake, acmd, app, hz; unsign
     int streaming; uint32_t stream_sector;
     int writing, multi; uint32_t write_sector; uint8_t block[515]; unsigned block_filled; int collecting;
     unsigned corrupt_reads, reject_writes, violations, commands, reads, writes;
+    unsigned transport_length, transport_after, transport_left, transport_hits;
     unsigned programming_errors, r2, cmd13, stops, busy_block, busy_length; unsigned long bytes; } m;
 void model_load(uint8_t *data, uint32_t count) { image=data; sectors=count; memset(&m,0,sizeof m); m.present=1; m.idle=1; }
 void model_present(int present) { m.present=present; }
@@ -26,6 +28,12 @@ unsigned model_cmd13(void) { return m.cmd13; }
 unsigned model_stops(void) { return m.stops; }
 unsigned model_writing(void) { return m.writing; }
 unsigned model_violations(void) { return m.violations; }
+// Fail the selected transfer size after a bounded prefix. This models a
+// partial transport failure, independently of SD token/CRC/protocol errors.
+void model_transport_fault(unsigned length, unsigned after, unsigned failures)
+{ m.transport_length=length; m.transport_after=after; m.transport_left=failures; m.transport_hits=0; }
+unsigned model_transport_hits(void) { return m.transport_hits; }
+unsigned model_selected(void) { return (unsigned)m.selected; }
 unsigned model_speed(void) { return (unsigned)m.hz; }
 static void push(unsigned value) { if (m.count<sizeof m.out) m.out[(m.head+m.count++)%sizeof m.out]=(uint8_t)value; else ++m.violations; }
 static void push_block(const uint8_t *data, unsigned count, int corrupt)
@@ -104,7 +112,14 @@ static uint8_t model_byte(uint8_t in)
 // Les quatre fonctions attendues par sd.c.
 void sd_port_speed(unsigned hz) { m.hz=(int)hz; }
 void sd_port_select(int selected) { if (m.filled) ++m.violations; m.selected=selected; if (!selected) m.streaming=0; }
-void sd_port_exchange(const uint8_t *tx, uint8_t *rx, unsigned count)
-{ for (unsigned i=0;i<count;++i) { uint8_t value=model_byte(tx ? tx[i] : 0xff); if (rx) rx[i]=value; } m.clock_ms+=1+count/64; }
+int sd_port_exchange(const uint8_t *tx, uint8_t *rx, unsigned count)
+{
+    int fail=m.transport_left && count==m.transport_length;
+    unsigned done=fail && m.transport_after<count ? m.transport_after : count;
+    for (unsigned i=0;i<done;++i) { uint8_t value=model_byte(tx ? tx[i] : 0xff); if (rx) rx[i]=value; }
+    m.clock_ms+=1+done/64;
+    if (fail) { --m.transport_left; ++m.transport_hits; return -ETIMEDOUT; }
+    return 0;
+}
 unsigned sd_port_ms(void) { return m.clock_ms++; }
 int sd_port_present(void) { return m.present; }

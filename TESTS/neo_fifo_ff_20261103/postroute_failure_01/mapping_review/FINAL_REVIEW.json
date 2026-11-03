@@ -1,0 +1,65 @@
+{
+  "status": "NUMERIC_ANALYSIS_REPLAY_PASS_REPORT_REJECTED",
+  "hardware_access": false,
+  "new_pnr": false,
+  "model_run": "neo_banked_route_failure_glm_20261103_r2",
+  "elapsed_seconds": 646.3787573049776,
+  "requests": 111,
+  "tool_calls": 129,
+  "native_input_audit": "NATIVE_CHECKS.json",
+  "independent_replay": {
+    "command": "python3 -B run_02/isolation/tree/owned/analyze.py --inputs run_02/isolation/tree --result supervisor_replay/RESULT.json --test",
+    "returncode": 0,
+    "self_tests": 9
+  },
+  "accepted": [
+    "Raw resource counts, two PR0004 totals, current CST/SDC equality and Tcl settings match independently replayed and host checked.",
+    "No named failed nets or physical placement information in available text evidence."
+  ],
+  "rejected_findings": [
+    {
+      "claim": "No SDF/TR artifact exists for any build.",
+      "reason": "HOST_INVENTORY cases.reference.artifacts explicitly contains sdf=true,tr=true,fs=true. Route-stage hardware_access=false/loaded=false is not a complete subsequent hardware history."
+    },
+    {
+      "claim": "Equal clock-resource counts imply clocks were never binding.",
+      "reason": "Occupancy equality cannot rule out distribution/resource topology or identify which nets failed."
+    },
+    {
+      "claim": "E2 leaves u_commands FF and also changes cmem.",
+      "reason": "This is the already-failed two-memory candidate, not a second independent one-memory experiment required by contract."
+    },
+    {
+      "claim": "A decrease/increase in aggregate unrouted count supports/falsifies the memory-specific hypothesis.",
+      "reason": "No per-net matching or control of full placement exists; count alone does not isolate that hypothesis."
+    },
+    {
+      "claim": "Sentinel mask6014 proves w7 reached the first FIFO output.",
+      "reason": "Only the separate received32/last_word1 capture establishes that boundary; mask6014 alone does not."
+    }
+  ],
+  "authoritative_interpretation": "SUPERVISOR_REVIEW.md and docs/NEO_PORT.md; raw model report retained without edits",
+  "code_scope": "Packet-local parser; no production integration. Its nine tests are not proof of physical claims.",
+  "observed_direct_tests": {
+    "calls": 16,
+    "failures": 10,
+    "canonical_metrics_unchanged": true
+  },
+  "quality": {
+    "correctness": 2,
+    "relevance": 3,
+    "completeness": 2,
+    "actionability": 2,
+    "weighted_score_100": 45
+  },
+  "files": {
+    "SUPERVISOR_REVIEW.md": "338ffe2e93f7f74629a16ef2dae672e2a68eea00210f993305b817b0eb796c2e",
+    "NATIVE_CHECKS.json": "dd578ed70238a10ef8e1f47c6cc855b7c7d47c6ab3e75d5576dc3427045ce888",
+    "OBSERVED_ANALYSIS_ACTIVITY.json": "86f619ce0c8f4e470ab83878423d164be0ef814bc7d1490eca155dad83459040",
+    "supervisor_replay/RESULT.json": "140963af0e90ae3940a58098d2e6cbd79df0824fcbd0f360e5af59b55c1f31c3",
+    "run_02/metrics.json": "7834d6d68d8cd2793b4754f92b0760942cf00fb28e26e2f9fb8dd962f8339ccd",
+    "run_02/isolation/tree/owned/REPORT.md": "7e92d045ddd49769c321ba535f37c9ece6d1db1e65a29ae07a0ccdf2f5e90ca9",
+    "run_02/isolation/tree/owned/analyze.py": "0a659763d032bba20af6ea1735a8cfe095ea49f127819349a6c8cd75a6060a1d",
+    "run_02/isolation/tree/owned/RESULT.json": "140963af0e90ae3940a58098d2e6cbd79df0824fcbd0f360e5af59b55c1f31c3"
+  }
+}

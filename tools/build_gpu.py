@@ -448,7 +448,7 @@ def main():
         replicate_resources=args.replicate_resources), indent=2) + '\n')
     snapshot(build_options, 'diagnostics/build_options.json')
     (stage / 'build.tcl').write_text('\n'.join(lines) + '\n')
-    for name in ('gpu_diag.c', 'gpu_v1.c', 'gpu_v1.h', 'gpu_v1_scene.h', 'gpu_v1_demo.h', 'gpu_v1_expected.h', 'gpu_demo.h', 'gpu.c', 'gpu.h', 'gpu_palette.h', 'gpu_layers_demo.h', 'gpu_sprites_demo.h', 'gpu_3d_scene.h', 'gpu_3d_demo.h', 'racer_scene.h', 'racer_demo.h', 'gpu_tiles_scene.h', 'gpu_tiles_demo.h', 'gpu_affine_scene.h', 'gpu_affine_demo.h', 'gpu_raster_scene.h', 'gpu_raster_reference.h', 'gpu_raster_demo.h', 'gpu_rgb_overlay_scene.h', 'build/gpu_font.h',
+    for name in ('gpu_diag.c', 'gpu_v1.c', 'gpu_v1.h', 'gpu_v1_scene.h', 'gpu_v1_demo.h', 'gpu_v1_expected.h', 'gpu_demo.h', 'gpu.c', 'gpu_raster_commands.c', 'gpu.h', 'gpu_palette.h', 'gpu_layers_demo.h', 'gpu_sprites_demo.h', 'gpu_3d_scene.h', 'gpu_3d_demo.h', 'racer_scene.h', 'racer_demo.h', 'gpu_tiles_scene.h', 'gpu_tiles_demo.h', 'gpu_affine_scene.h', 'gpu_affine_demo.h', 'gpu_raster_scene.h', 'gpu_raster_reference.h', 'gpu_raster_demo.h', 'gpu_rgb_overlay_scene.h', 'build/gpu_font.h',
                  'itcm.ld', 'Makefile', 'build/console_test.elf', 'build/console_test.bin'):
         snapshot(ROOT / 'fw_console' / name)
     # $readmemh paths are resolved relative to the Gowin working directory.

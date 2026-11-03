@@ -9,16 +9,17 @@ typedef struct {
     unsigned high_capacity;// 1 : adressage par bloc (SDHC/SDXC), 0 : par octet (SDSC)
     unsigned version2;     // 1 : carte SD 2.0 ou plus
     uint32_t sectors;      // capacité en blocs de 512 octets, 0 si le CSD n'est pas compris
-    unsigned hz;           // fréquence SPI de régime actuelle
+    unsigned hz;           // fréquence SPI de régime demandée à sd_init, conservée après erreur
     unsigned crc_errors;   // blocs relus à cause d'un CRC16 faux
     unsigned retries;      // commandes ou blocs rejoués
-    unsigned downshifts;   // réductions de fréquence après erreurs répétées
 } sd_card;
 // Le matériel fournit : fréquence d'horloge, sélection, échange d'octets (tx NULL : envoie 0xFF,
 // rx NULL : ignore), temps en millisecondes pour les délais, présence de la carte.
 void sd_port_speed(unsigned hz);
 void sd_port_select(int selected);
-void sd_port_exchange(const uint8_t *tx, uint8_t *rx, unsigned count);
+// 0 on complete exchange; negative errno on transport failure. Partial RX
+// contents are invalid on failure. count=0 checks any preceding setup error.
+int sd_port_exchange(const uint8_t *tx, uint8_t *rx, unsigned count);
 unsigned sd_port_ms(void);
 int sd_port_present(void);
 

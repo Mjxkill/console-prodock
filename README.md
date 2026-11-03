@@ -1,186 +1,179 @@
-# Console FPGA · Pro Dock & Neo
+# Console FPGA — Tang Mega Pro Dock & Tang Neo
 
-**Un GPU matériel, Linux sur RISC-V, des jeux rendus en temps réel.**
+**A hardware graphics engine, Linux on RISC-V, and games rendered on a Gowin FPGA.**
 
-Ce projet construit une console de jeux autour du Gowin **GW5AST-138** et de
-son processeur **AE350/A25 à 800 MHz** : composition de couches, sprites,
-tuiles, accélération 2D, triangles texturés et géométrie 3D matérielle.
-Linux permet de lancer les jeux comme des exécutables et de conserver un
-terminal et un tableau de diagnostic à l'écran.
+An Electrosens R&D project for the Gowin **GW5AST-138** family and Sipeed boards.
+The AE350/A25 processor runs game logic at **800 MHz**; FPGA logic accelerates
+rendering, reads shared DDR3 and composes the display. This is real-time
+rendering on the board, **not playback of a generated video**.
 
-| Plateforme | Affichage | État au 31 octobre 2026 |
+The project combines bare-metal demonstrations, Linux applications, a hardware
+text console and a developing exploration game with multiple activities.
+It is a development platform, with working Pro Dock demonstrations and an
+unfinished Neo port. The distinction matters when reproducing a video.
+
+| Board | Display | Status — 3 November 2026 |
 |---|---|---|
-| **Tang Mega Pro Dock 138K** | LCD **800 × 480** | Référence fonctionnelle **G22r0 / NEBULA R17**, conservée avec ses limites historiques |
-| **Tang Neo / Console 138K** | HDMI **1280 × 720** | Portage en diagnostic ; mire observée, GPU complet non validé |
+| **Tang Mega Pro Dock 138K** | **800 × 480 LCD** | Graphics and Linux games demonstrated; SD boot and USB deployment still being completed |
+| **Tang Neo / Console 138K** | **1280 × 720 HDMI** | Test patterns demonstrated; GPU command path under diagnosis; no qualified Linux game release |
 
-> Un résultat appartient à un **bitstream, un logiciel et une carte précis**.
-> Une simulation ou un timing positif ne remplace pas un essai matériel.
-> La référence G22r0 conserve notamment neuf violations setup, dont −0,564 ns,
-> et des duplications CDC occasionnelles documentées.
+## Documentation
 
-[Description du projet](ARCHI/PROJET.md) ·
-[Construire et tester](ARCHI/DEMARRAGE_ET_TESTS.md) ·
-[Compatibilité des cartes](ARCHI/COMPATIBILITE_CARTES.md) ·
-[Organisation et nettoyage](ARCHI/CLEANUP.md)
-
-## Architecture
-
-```mermaid
-flowchart LR
-    CPU[AE350 / A25 · RV32 · 800 MHz]
-    APP[Linux et jeux<br/>ou applications bare-metal]
-    GPU[GPU<br/>2D · raster · géométrie 3D]
-    DDR[DDR3 partagée]
-    CMP[Compositeur<br/>16 couches · 64 sprites]
-    LCD[Pro Dock<br/>LCD 800 × 480]
-    HDMI[Neo<br/>HDMI 720p]
-    IO[USB 2 HS · SD SPI · entrées]
-    APP --> CPU
-    CPU -->|commandes| GPU
-    CPU <--> DDR
-    GPU <--> DDR
-    DDR --> CMP
-    CMP --> LCD
-    CMP --> HDMI
-    CPU <--> IO
-```
-
-Le CPU gère le jeu, les collisions, la caméra et les matrices des objets.
-Le FPGA transforme les maillages, projette et dessine les triangles, puis
-compose l'affichage. Les images sont **calculées en direct**, sans lecture
-d'un film. Les textures, les maillages et certaines animations sont préparés
-en amont ; cela ne remplace pas le rendu sur la carte.
-
-Les sources communes restent uniques. Les différences de brochage,
-d'horloges, de mémoire et d'intégration sont définies par les profils de
-carte et leur [inventaire](tang/boards/ownership.json).
-
-## Capacités graphiques
-
-| Bloc | Fonctions |
+| Purpose | Guide |
 |---|---|
-| **Composition** | Fond RGB565, 16 couches indexées ou tuilées, fenêtres, priorités et défilement au pixel |
-| **Sprites 2D** | 64 sprites matériels, jusqu'à 32 × 32 pixels, retournements et transparence par index zéro |
-| **Décors / texte** | Tuiles 8, 16 ou 32 pixels ; terminal Linux utilisant les glyphes matériels |
-| **Dessin 2D** | Primitives, copies, texte, zoom et transformations affines dans les surfaces de dessin |
-| **Raster** | Triangles RGB565, textures corrigées en perspective, Z-buffer 16 bits, scissor |
-| **Effets** | Alpha ARGB4444, mélange additif, modulation, brouillard et mipmaps préparées à l'avance |
-| **Géométrie G3D1** | Lecture des maillages DDR, matrices, clipping, projection, élimination des faces arrière, éclairage directionnel |
-| **Présentation** | Double tampon et application atomique des descripteurs au retour vertical |
+| What works, what does not, and the evidence | [Current status](docs/STATUS.md) |
+| Tools, configuration, installation and builds | [Installation](docs/INSTALLATION.md) |
+| Linux connection, commands, layouts and games | [Linux console](docs/LINUX_CONSOLE.md) |
+| Loading through the normal PC connection | [SOFT-USB transport](docs/USB_TRANSPORT.md) |
+| Graphics, clocks, memory and software responsibilities | [Architecture](docs/ARCHITECTURE.md) |
+| Libraries, interfaces and application development | [API reference](docs/API_REFERENCE.md) · [Development](docs/SOFTWARE_DEVELOPMENT.md) |
+| Games, demonstrations, controls and content | [Games](docs/GAMES.md) |
+| Neo differences and current investigation | [Neo port](docs/NEO_PORT.md) |
+| Performance and its measurement | [Optimization](docs/OPTIMIZATION.md) · [SD/SPI](docs/SD_SPI.md) |
+| Regressions and hardware qualification | [Testing](docs/TESTING.md) |
+| Sources, archives, third-party material and contribution | [Repository](docs/REPOSITORY.md) |
 
-Les « sprites 3D » sont des quadrilatères texturés utilisant G3D1, distincts
-des 64 sprites du compositeur. La rotation affine dessine dans une surface :
-elle ne fait pas tourner directement les sprites du compositeur.
+These English guides describe the current project. Older French documents in
+[`ARCHI/`](ARCHI) and dated test reports remain design history; an old PASS
+does not qualify a later build.
 
-L'alpha appartient au moteur de dessin RGB565 ; les couches indexées
-utilisent une clé de transparence. Les capacités des tables ne garantissent
-pas que 16 couches plein écran tiennent simultanément dans le budget DDR.
-Il n'y a pas de shaders programmables ni de filtrage bilinéaire.
+## Intended user experience: SD boot and SOFT-USB
 
-Voir les contrats [GPU V1](ARCHI/GPU_V1.md),
-[géométrie G3D1](ARCHI/GPU_GEOMETRY.md) et
-[composition](ARCHI/GPU_PERSPECTIVE_COMPOSITION.md).
+The normal workflow is **power on → boot Linux from SD → launch a game**, with
+**SOFT-USB for the terminal, software transfer and updates**. Users should not
+need a CPU debugger to load or run games.
 
-## Linux et affichage partagé
+SOFT-USB is an **USB 2.0 High-Speed device connection (480 Mbit/s link rate)**.
+The CDC terminal exists, and experimental checked application/DDR transfers
+exist. A complete reliable USB loading/update workflow is **not yet qualified**;
+its remaining work is documented rather than presented as a finished installer.
+
+**J-Link is a development/debugging tool, not the normal loading path.** Some
+historical demonstrations were restored through CPU JTAG; that proves execution,
+not autonomous boot or successful USB deployment. Routine J-Link loading has
+been stopped. A blank FPGA still needs its initial configuration before its
+own SOFT-USB logic can enumerate.
+
+## Graphics implemented
+
+| Engine | Capabilities |
+|---|---|
+| **Composition** | RGB565 background; 16 indexed/tiled layers; priorities, windows and pixel scrolling |
+| **2D sprites** | 64 hardware sprites, up to 32 × 32 pixels, flips and transparent index zero |
+| **Tiles and text** | 8/16/32-pixel tiles; hardware glyph rendering for the Linux terminal |
+| **2D drawing** | Rectangles, copies, text, scaling and affine drawing into render surfaces |
+| **Rasterization** | Perspective-correct textured triangles, RGB565 targets, 16-bit depth, scissor |
+| **Effects** | ARGB4444 alpha, additive blending, modulation, fog and prepared mip levels |
+| **G3D1 geometry** | DDR mesh fetch, matrices, clipping, projection, back-face culling and directional lighting |
+| **Presentation** | Double buffering and vertical-blank descriptor commit |
+
+The CPU handles gameplay, camera decisions, collisions and object matrices.
+Hardware geometry avoids projecting every mesh vertex on the CPU. Textures,
+meshes and some cinematic trajectories are prepared beforehand; the display
+is rendered at runtime.
+
+“3D sprites” are textured quads submitted to geometry/rasterization, separate
+from the 64 compositor sprites. Indexed layers use a transparent color key;
+per-pixel alpha belongs to the raster drawing path. Affine drawing is not a
+rotation control on compositor sprites. There are no programmable shaders or
+qualified OpenGL/Vulkan drivers. Sixteen layer descriptors do not guarantee
+sixteen full-screen layers at every resolution or bandwidth.
+
+## Linux alongside the game
 
 ```text
-                  Pro Dock · 800 × 480
-┌──────────────────────────┬──────────────────────────┐
-│ Jeu graphique 400 × 240   │ Terminal Linux           │
-├──────────────────────────┴──────────────────────────┤
-│ Diagnostic GPU / USB / SD : tableaux et compteurs   │
-└─────────────────────────────────────────────────────┘
+                 Pro Dock LCD: 800 × 480
+┌─────────────────────────┬─────────────────────────┐
+│ Game: 400 × 240         │ Linux text terminal     │
+├─────────────────────────┴─────────────────────────┤
+│ GPU / USB / SD dashboard: tables, lights, counters │
+└───────────────────────────────────────────────────┘
 ```
 
-Le jeu ou le terminal peut occuper tout l'écran. Les couches 12–15 et une
-partie de la palette restent réservées aux consoles Linux. Un pilote unique
-sérialise les commandes GPU et protège les ressources d'affichage.
-
-Sur une Pro Dock déjà démarrée avec le paquet logiciel adapté :
+Switch to a full-screen game, full-screen terminal or the shared layout.
+Applications are ordinary RISC-V executables using project-specific GPU
+interfaces. On an already booted compatible package:
 
 ```sh
 prodockctl layout split
 prodockctl layout game
 prodockctl layout console
-nebula --demo
+prodockctl display
+# If installed in the selected package:
+luma3d-maze --festival
 ```
 
-Le chargement initial FPGA, le chargement CPU/JTAG et la console SOFT-USB
-sont des opérations distinctes. Voir le
-[guide Linux](linux/README.md) et le
-[contrat d'affichage partagé](ARCHI/LINUX_AFFICHAGE_PARTAGE.md).
+The latest MAZE demonstration is a frozen candidate, not the older default
+`games/luma3d` Makefile output. See [its source and executable snapshot](releases/luma3d-maze-20261103/README.md).
 
-## Jeux et démonstrations
+## Games and demonstrations
 
-| Projet | Expérience | Documentation |
-|---|---|---|
-| **LUMA** | Aventure automatique en forêt, héros animé, portail, cristal et final lumineux | [LUMA](assets/luma/README.md) |
-| **ORBITAL** | Démonstration de tir à la première personne, drones, textures et effets | [ORBITAL](assets/orbital/README.md) |
-| **ASTRILLA** | Voyage spatial, vaisseaux 3D, trous noirs, combat et atterrissage | [ASTRILLA](ARCHI/ASTRILLA.md) |
-| **NEBULA** | Jeu spatial sous Linux, trois secteurs, tirs, explosions et boss | [NEBULA](linux/NEBULA.md) |
-| **LUMA3D** | Exploration 3D, régions et activités : puzzles, jeux de plateau, Simon, shooter… | [Moteur et jeu](games/luma3d/README.md) |
-
-LUMA3D vise un monde riche et une campagne longue. Le contenu actuel et les
-candidats en préparation ne constituent pas encore plusieurs heures de jeu
-qualifiées. Les ressources visuelles sont travaillées avec ComfyUI, puis
-converties vers les formats supportés par le GPU.
-
-## Avancement vérifié
-
-| Sujet | Résultat et limite |
+| Name | Experience |
 |---|---|
-| **Pro Dock de référence** | G22r0 / NEBULA R17 restaurée et testée ; référence protégée, distincte des nouveaux candidats |
-| **Seconde Pro Dock / SD** | Démarrage U-Boot puis Linux depuis la SD observé avec le FPGA chargé en SRAM ; autonomie après coupure non qualifiée |
-| **Débit SD** | Problème ouvert : 27 lectures CRC/volume correctes ; 64 Kio autour de 1,47 s sans chronométrage détaillé, avec un noyau de diagnostic plus lent que l'ancien |
-| **Jeux de plateau** | A/B/A : Solitaire 5,85 → 20,91 → 5,91 FPS ; Chroma 5,81 → 17,50 → 5,68 ; Othello 4,95 → 11,10 → 4,98 ; Pendu 5,12 → 12,09 → 4,92 |
-| **Fluidité restante** | Ces gains concernent quatre activités ; des images prennent encore 217–275 ms. Ils ne prouvent pas un gain sur l'exploration 3D |
-| **Parcours 3D** | Dernier A/B/A à pose fixe : 6,86 → 6,73 → 6,69 FPS, aucun gain démontré ; 475 commandes et huit lots par image |
-| **Nouveau monde Serres** | Candidat compilé et testé localement ; 26 étapes automatiques, environ 15 min simulées ; essai matériel encore à faire |
-| **Neo** | R19 accepte TARGET et SCISSOR, rejette COPY même injectée par AHB avec CPU volontairement arrêté ; cause encore inconnue |
+| **LUMA** | Forest adventure, animated hero, combat, portal and luminous finale |
+| **ORBITAL** | First-person corridor, drones, shooting and effects |
+| **ASTRILLA** | Space voyage, hardware 3D ships, black-hole effects, battle and landing |
+| **NEBULA** | Linux space shooter with sectors, explosions and bosses |
+| **LUMA3D / MAZE** | Developing 3D exploration world and a festival of puzzle, board and arcade activities |
 
-Les mesures ci-dessus sont datées du **31 octobre 2026**. Les résultats et
-leurs limites sont détaillés dans [PROJET.md](ARCHI/PROJET.md).
-La démo ORBITAL R6 atteignait **54,81 images/s** sur C37 lors de sa campagne
-historique ; ce chiffre ne décrit pas les performances de LUMA3D.
-Le diagnostic [SD / SPI High Speed](ARCHI/SD_SPI_HIGH_SPEED.md) distingue
-le mode de la carte, les plafonds du pilote et l'horloge effectivement produite.
+The game aims for varied locations and hours of play. This is a content goal,
+not a completed campaign claim. Performance varies substantially by scene;
+the latest hardware log contains windows from **5.55 to 32.91 FPS**, not a
+uniform 30/60 FPS guarantee. See [the game guide](docs/GAMES.md) for scope,
+controls, assets and outstanding work.
 
-## Construire et vérifier
+## Reproduce carefully
 
-Depuis la racine du dépôt, avec les prérequis du
-[guide de construction](ARCHI/DEMARRAGE_ET_TESTS.md) :
+The [installation guide](docs/INSTALLATION.md) explains tool versions and
+remaining workstation-specific dependencies. This is **not yet a one-command,
+fresh-clone FPGA distribution**: protected reference archives, vendor tools/IP
+and some baseline build snapshots are external or local.
+
+Useful software-only checks after installing their dependencies:
 
 ```sh
-# Tests du jeu sur le poste ; aucun chargement de carte.
 make -C games/luma3d test
-
-# Rapport local dans un nouveau dossier.
-python3 tools/run_board_regressions.py --out TESTS/dual_board/ma_verification_01
-
-# Construction Linux candidate, après validation des entrées.
-make -C linux BOARD=prodock BUILD_ARGS=--candidate all JOBS=4
+python3 tools/run_board_regressions.py --out TESTS/dual_board/my_check_01
 ```
 
-La console complète utilise **Gowin** pour la synthèse et le routage.
-Le [Workbench](optimizer/README.md) ajoute analyse, recherche de placement
-et essais Yosys/nextpnr/Apicula sur des sous-ensembles ; la chaîne libre ne
-remplace pas actuellement Gowin pour la console complète.
+The second command also requires protected reference material; its integrity
+checks must not be bypassed. The publication campaign passed **15 local test
+groups**, with hardware validation explicitly false. Routing, timing closure
+and testing on each board remain separate steps.
 
-## Organisation du dépôt
+Gowin performs full-console synthesis and routing. The
+[optimization workbench](optimizer/README.md) adds report analysis and bounded
+experiments; nextpnr/Yosys/Apicula do not currently replace the complete vendor
+flow for this design.
 
-| Répertoire | Rôle |
-|---|---|
-| [`tang/`](tang) | RTL, IP fournisseur, contraintes et profils des cartes |
-| [`fw_console/`](fw_console) | Applications bare-metal et API GPU |
-| [`linux/`](linux) | Noyau, pilotes, OpenSBI, U-Boot et applications Linux |
-| [`games/`](games) / [`assets/`](assets) | Jeux et ressources graphiques |
-| [`tools/`](tools) / [`optimizer/`](optimizer) | Construction, analyse, chargement et diagnostics |
-| [`ARCHI/`](ARCHI) | Architecture, interfaces et procédures |
-| [`TESTS/`](TESTS) | Fiches, bancs et preuves ; certains artefacts restent locaux |
-| [`bitstreams/`](bitstreams) | Fiches et empreintes des versions conservées ; archives locales protégées |
+## Known limitations
 
-Les règles de contribution sont dans [AGENTS.md](AGENTS.md) : diagnostic
-avant correction, un propriétaire par ressource matérielle, modules commentés
-d'au plus 1 000 lignes pour le code maîtrisé, tests traçables et préservation
-des références. Un dossier ignoré par Git n'est jamais, à lui seul, une
-autorisation de suppression.
+- The protected historical Pro Dock G22r0 reference runs demonstrations, but
+  has documented setup violations (worst −0.564 ns) and historical occasional
+  CDC duplicates. It is not described as timing-closed.
+- SD boot has reached Linux on the second Pro Dock; the complete persistent
+  cold-boot-to-game path and high-throughput USB updates remain unqualified.
+- The native AE350 SPI path is exercised but too slow. Controller, MMC and
+  application timings are distinguished; DMA integration is unfinished.
+- Neo COPY commands are rejected in the current diagnosis. Flip-flop FIFO
+  experiments pass local tests but the latest full design failed routing.
+  Neither a silicon FIFO erratum nor the complete root cause is established.
+
+See [current status](docs/STATUS.md) for versions and evidence.
+
+## Sources and distribution
+
+`tang/` contains RTL and board profiles; `fw_console/` contains bare-metal code;
+`linux/` contains OS integration, drivers and user APIs; `games/` and `assets/`
+contain game code and artwork; `tools/`, `optimizer/`, `TESTS/` and `docs/`
+contain tooling, evidence and documentation.
+
+Shared Pro Dock/Neo sources remain shared. Board-specific adaptations are
+classified in [`tang/boards/ownership.json`](tang/boards/ownership.json).
+
+Third-party code and vendor-generated material carry different notices.
+**No repository-wide license has been selected.** Public visibility does not
+grant a blanket license to vendor IP, artwork or every historical archive.
+Read [distribution notes](docs/REPOSITORY.md) and preserve applicable notices.
+The project is independent; this documentation claims no certification or
+endorsement by Gowin or Sipeed.

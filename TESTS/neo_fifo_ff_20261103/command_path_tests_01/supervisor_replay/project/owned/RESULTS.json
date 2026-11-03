@@ -1,0 +1,193 @@
+{
+ "task": "command transport coverage 2026-11-03",
+ "started_utc": "2026-11-03T21:48:52.743846+00:00",
+ "finished_utc": "2026-11-03T21:49:28.784501+00:00",
+ "build": {
+  "dir": "/tmp/gpuaccel-integ-blsh0k4y",
+  "generation_command": "verilator --cc --timing --main --exe -Wno-fatal -j 2 --output-split 400 --output-split-cfuncs 400 --top-module tb --Mdir /tmp/gpuaccel-integ-blsh0k4y/obj -o tb_sim gpu_accel.v blitter.v gpu_blit_dma.v font_ram.v gpu_raster.v gpu_geometry.v gpu_v1.v gpu_copy565.v gpu_triangle.v gpu_texture_cache.v gpu_geom_div.v gpu_perspective.v ddr_dcfifo.v cdc_word.v luts.v banked_words32.v bench.sv helpers.sv",
+  "compile_command": "make -j 16 -f Bench.mk",
+  "link_command": "g++ -o tb_sim <objects> -pthread -lpthread -latomic",
+  "compile_jobs": 16,
+  "translation_units": 739,
+  "verilator": "Verilator 5.020 2024-01-01 rev (Debian 5.020-1)",
+  "inputs": {
+   "snapshot/gpu_accel.v": "0addf800c5dcb39fcd72b4ceea642ede8bb3891852ed891098c2b3b98acd7e6e",
+   "snapshot/blitter.v": "c2f17b9944b83b667c2e06e59b5d2c4244b606c42fce46a769ca99da64f5833c",
+   "snapshot/gpu_blit_dma.v": "2118e643422cc732d3e8f52afb6115baeb81683f999df0affbc482a09113f20d",
+   "snapshot/font_ram.v": "46bc4a89e4fb1321d3e1357b481d33beb303e21a74e57ad8b09cac1adec82edc",
+   "snapshot/gpu_raster.v": "d54f68ec19b92cdde9364651b5c1c0e7ed6113549aa485124b89dbc669542bab",
+   "snapshot/gpu_geometry.v": "9f0b3183fdb6a856ccf15ff17dc87c7f008e3906edc7ece0c64f615beb4b5ca8",
+   "snapshot/gpu_v1.v": "2079e15bd41986a3a9535e3d16e93269bb42d2dafd10ac277d9a115e8cc28d71",
+   "snapshot/gpu_copy565.v": "c0cbb102eb701ae861cc389b30827b7ac856e3b4b3ff341cda092fd61ecd0741",
+   "snapshot/gpu_triangle.v": "992dda01586192f7bd8c031f897e5a0810f61d4500879a807b7c6953f49126a1",
+   "snapshot/gpu_texture_cache.v": "1b6e2c46f0335f5741e321327881770d4690b4956641beaea1be6a6e031292b6",
+   "snapshot/gpu_geom_div.v": "d1c6206a9c32e0315263739a6ece4dc76398fe533ef5524799745d82c9499b7b",
+   "snapshot/gpu_perspective.v": "a3c98ba32adc408a1c855d47a802d7ffb0c105744746a018cdafe30f0504681c",
+   "snapshot/ddr_dcfifo.v": "449b5d7e65d3290f0b9cc1d5e574e09191d40bbfe8960f45374d9690e965103b",
+   "snapshot/cdc_word.v": "6f2caebf6680fe1ffbf8bbbbf4e600c25181789cf8269bb5e2e54db23b12c848",
+   "primitives/luts.v": "81cea9d2f4b7426ebdecf19245818d6c76cb1f75de00fa4e82851d17f3fdf4d5",
+   "banked/banked_words32.v": "4e8df3bd4101fc0ceb1a0f85ed8de7ea73e03c182fde07fdaf5b88ce4cf34788",
+   "owned/bench.sv": "724aeabc0c73ebba398f5890bac3c83f4692f896ddc8ddafdd52456d09461d87",
+   "owned/helpers.sv": "26a0477fbff2dbd5aec01960ce5b6842c5696efacc7992e26a6c80b17b7d3fb6"
+  },
+  "font_sha256": "4846bbd5a627479a58a6fc2f7aec106c7566812f8340d82febd21dd8c63d879f",
+  "log": "/tmp/gpuaccel-integ-blsh0k4y/build.log"
+ },
+ "cases": [
+  {
+   "id": "positive_80_75",
+   "clock_half_ps": [
+    6250,
+    6667
+   ],
+   "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667",
+   "extra_args": [],
+   "expected": "zero + POSITIVE_PASS",
+   "returncode": 0,
+   "elapsed_seconds": 0.007239,
+   "watchdog_timeout": false,
+   "marker_seen": true,
+   "mutant_detected": false,
+   "pass": true,
+   "output_tail": "POSITIVE_PASS reads=2 writes=2 max_queue=6 ext=3 cmd_shadow=24 cmem_shadow=24\nSENTINEL_REJECT_PASS reads=0 writes=0 rejected=1 cmd_shadow=24 cmem_shadow=24\nINTEGRATION_PASS\n- bench.sv:735: Verilog $finish\n"
+  },
+  {
+   "id": "positive_125_124p9",
+   "clock_half_ps": [
+    4000,
+    4003
+   ],
+   "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=4000 +HALF_M=4003",
+   "extra_args": [],
+   "expected": "zero + POSITIVE_PASS",
+   "returncode": 0,
+   "elapsed_seconds": 0.006912,
+   "watchdog_timeout": false,
+   "marker_seen": true,
+   "mutant_detected": false,
+   "pass": true,
+   "output_tail": "POSITIVE_PASS reads=2 writes=2 max_queue=6 ext=3 cmd_shadow=24 cmem_shadow=24\nSENTINEL_REJECT_PASS reads=0 writes=0 rejected=1 cmd_shadow=24 cmem_shadow=24\nINTEGRATION_PASS\n- bench.sv:735: Verilog $finish\n"
+  },
+  {
+   "id": "positive_125_125p2",
+   "clock_half_ps": [
+    4000,
+    3994
+   ],
+   "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=4000 +HALF_M=3994",
+   "extra_args": [],
+   "expected": "zero + POSITIVE_PASS",
+   "returncode": 0,
+   "elapsed_seconds": 0.006925,
+   "watchdog_timeout": false,
+   "marker_seen": true,
+   "mutant_detected": false,
+   "pass": true,
+   "output_tail": "POSITIVE_PASS reads=2 writes=2 max_queue=6 ext=3 cmd_shadow=24 cmem_shadow=24\nSENTINEL_REJECT_PASS reads=0 writes=0 rejected=1 cmd_shadow=24 cmem_shadow=24\nINTEGRATION_PASS\n- bench.sv:735: Verilog $finish\n"
+  },
+  {
+   "id": "stress_80_75",
+   "clock_half_ps": [
+    6250,
+    6667
+   ],
+   "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667 +STRESS",
+   "extra_args": [
+    "+STRESS"
+   ],
+   "expected": "zero + STRESS_PASS",
+   "returncode": 0,
+   "elapsed_seconds": 0.033952,
+   "watchdog_timeout": false,
+   "marker_seen": true,
+   "mutant_detected": false,
+   "pass": true,
+   "output_tail": "STRESS_FAULT_COUNTER_PASS done=42 lost=0/0 bad=0 rejected=0 drained=1\nSTRESS_PASS done=42 accepts=336 reads=80 writes=80 max_queue=128 ahb_stall=11 qfull=551 cmdfull=2232 gate_stall=253 cmd_shadow=336 cmem_shadow=336 ext=42 geom=42\n- bench.sv:690: Verilog $finish\n"
+  },
+  {
+   "id": "sentinel_w7_80_75",
+   "clock_half_ps": [
+    6250,
+    6667
+   ],
+   "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667",
+   "extra_args": [],
+   "expected": "zero + SENTINEL_REJECT_PASS",
+   "returncode": 0,
+   "elapsed_seconds": 0.006027,
+   "watchdog_timeout": false,
+   "marker_seen": true,
+   "mutant_detected": false,
+   "pass": true,
+   "output_tail": "POSITIVE_PASS reads=2 writes=2 max_queue=6 ext=3 cmd_shadow=24 cmem_shadow=24\nSENTINEL_REJECT_PASS reads=0 writes=0 rejected=1 cmd_shadow=24 cmem_shadow=24\nINTEGRATION_PASS\n- bench.sv:735: Verilog $finish\n"
+  },
+  {
+   "id": "mutant_swap_dims_80_75",
+   "clock_half_ps": [
+    6250,
+    6667
+   ],
+   "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667 +MUT_SWAP",
+   "extra_args": [
+    "+MUT_SWAP"
+   ],
+   "expected": "nonzero + MUTANT_DETECTED",
+   "returncode": -6,
+   "elapsed_seconds": 0.063704,
+   "watchdog_timeout": false,
+   "marker_seen": false,
+   "mutant_detected": true,
+   "pass": true,
+   "output_tail": "MUTANT_DETECTED ext_command mismatch index=2\n[2126773] %Fatal: bench.sv:269: Assertion failed in TOP.tb: EXT_CMD_WORD2 got=00020010 exp=00100002 idx=2\n%Error: bench.sv:269: Verilog $stop\nAborting...\n"
+  },
+  {
+   "id": "mutant_duplicate_word_80_75",
+   "clock_half_ps": [
+    6250,
+    6667
+   ],
+   "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667 +MUT_DUP",
+   "extra_args": [
+    "+MUT_DUP"
+   ],
+   "expected": "nonzero + MUTANT_DETECTED",
+   "returncode": -6,
+   "elapsed_seconds": 0.067137,
+   "watchdog_timeout": false,
+   "marker_seen": false,
+   "mutant_detected": true,
+   "pass": true,
+   "output_tail": "MUTANT_DETECTED ext_command mismatch index=2\n[2126773] %Fatal: bench.sv:271: Assertion failed in TOP.tb: EXT_CMD_WORD3 got=00100002 exp=00000020 idx=2\n%Error: bench.sv:271: Verilog $stop\nAborting...\n"
+  },
+  {
+   "id": "mutant_swap_dims_stress_80_75",
+   "clock_half_ps": [
+    6250,
+    6667
+   ],
+   "command": "/tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim +HALF_H=6250 +HALF_M=6667 +MUT_SWAP +STRESS",
+   "extra_args": [
+    "+MUT_SWAP",
+    "+STRESS"
+   ],
+   "expected": "nonzero + MUTANT_DETECTED",
+   "returncode": -6,
+   "elapsed_seconds": 0.062448,
+   "watchdog_timeout": false,
+   "marker_seen": false,
+   "mutant_detected": true,
+   "pass": true,
+   "output_tail": "MUTANT_DETECTED ext_command mismatch index=2\n[1446739] %Fatal: bench.sv:269: Assertion failed in TOP.tb: EXT_CMD_WORD2 got=00020010 exp=00100002 idx=2\n%Error: bench.sv:269: Verilog $stop\nAborting...\n"
+  }
+ ],
+ "passed": true,
+ "limits": [
+  "Transaction-level testbench; DDR ports are a deterministic transaction driver, not a DRAM/PHY/board model.",
+  "Two banked neo_command_ff128 instances are pin-level shadows driven from real RTL pins; equality of their registered DO with consumed words is NOT a full substituted mapped-application proof.",
+  "The banked helper is compiled with owned/helpers.sv DFFRE INIT/RESET/CE shim because Verilator 5.020 rejects the vendor extract deassign; GSR timing and the vendor primitive are not qualified.",
+  "No synthesis, place-and-route, static timing, CDC/metastability proof, card programming, hardware mask6014 or firstFIFO cause claim is made.",
+  "Clock ratios are simulation half-periods (80/75, 125/124.9, 125/125.2 MHz equivalents); no physical jitter or clock-tree skew is modelled.",
+  "Mutants alter only the bench command source; immutable RTL is unchanged. They prove scoreboard sensitivity, not a hardware defect.",
+  "The stress case uses a finite test-side DDR not-ready gate and a bounded 40-command backlog; it is not an infinite or random traffic test."
+ ]
+}

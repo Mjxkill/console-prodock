@@ -17,7 +17,8 @@ REFERENCE = 'tang/boards/prodock/reference.json'
 CACHE = 'TESTS/dual_board/latest.json'
 SCOPES = ('tang/rtl/', 'tang/constr/', 'tang/boards/', 'fw_console/', 'linux/', 'tools/')
 REQUIRED_TESTS = ('contract', 'bridge', 'ddr_prodock', 'ddr_neo', 'usb_msc', 'geometry',
-                  'scanout_prodock', 'scanout_neo', 'text_both', 'dashboard_both', 'nebula_both')
+                  'scanout_prodock', 'scanout_neo', 'text_both', 'dashboard_both', 'nebula_both',
+                  'spi_pio', 'spi_uboot', 'spi_linux', 'mmc_spi_init')
 
 
 def sha(path):

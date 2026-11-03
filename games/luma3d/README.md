@@ -1,3 +1,7 @@
+> **Current English manual:** [Games, current MAZE release and its reproducible source package](../../docs/GAMES.md).
+> This document describes earlier milestones. Historical JTAG procedures are
+> diagnostic records, not the normal user loading workflow.
+
 # LUMA 3D — Le Val des Courriers
 
 Première vallée en véritable 3D pour le GPU G3D1 de la console. Cette tranche

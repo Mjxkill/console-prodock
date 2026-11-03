@@ -16,7 +16,7 @@ def main():
     (out/'luma_fw.bin').write_bytes(binary.read_bytes())
     sources=['TESTS/test_luma_bloom.py','tools/build_luma.py','tools/build_luma_assets.py','tools/load_luma.py','tools/render_luma.py','tools/check_luma.py',
              'fw_console/luma_main.c','fw_console/luma_scene.h','fw_console/luma_fx_scene.h','fw_console/luma_assets.h',
-             'fw_console/luma.ld','fw_console/gpu.c','fw_console/gpu.h','fw_console/gpu_v1.c','fw_console/gpu_v1.h','fw_console/Makefile']
+             'fw_console/luma.ld','fw_console/gpu.c','fw_console/gpu_raster_commands.c','fw_console/gpu.h','fw_console/gpu_v1.c','fw_console/gpu_v1.h','fw_console/Makefile']
     m=dict(entry=entry,load=0xa0000000,bytes=binary.stat().st_size,sha256=sha(binary),assets_sha256=sha(out/'luma.bin'),
            fpga_sha256=sha(ROOT/'bitstreams/console_gpu_v1_800.fs'),sources={p:sha(ROOT/p) for p in sources})
     (out/'firmware.json').write_text(json.dumps(m,indent=2)+'\n');print('Luma: downloadable ILM firmware ready')

@@ -1,0 +1,13 @@
+BUILD_DIR /tmp/gpuaccel-integ-blsh0k4y
+GEN_COMMAND verilator --cc --timing --main --exe -Wno-fatal -j 2 --output-split 400 --output-split-cfuncs 400 --top-module tb --Mdir /tmp/gpuaccel-integ-blsh0k4y/obj -o tb_sim gpu_accel.v blitter.v gpu_blit_dma.v font_ram.v gpu_raster.v gpu_geometry.v gpu_v1.v gpu_copy565.v gpu_triangle.v gpu_texture_cache.v gpu_geom_div.v gpu_perspective.v ddr_dcfifo.v cdc_word.v luts.v banked_words32.v bench.sv helpers.sv
+MAKE_COMMAND make -j 16 -f Bench.mk 739 units
+BUILD_OK /tmp/gpuaccel-integ-blsh0k4y/obj/tb_sim
+positive_80_75                 rc=  0 PASS (0.007s)
+positive_125_124p9             rc=  0 PASS (0.007s)
+positive_125_125p2             rc=  0 PASS (0.007s)
+stress_80_75                   rc=  0 PASS (0.034s)
+sentinel_w7_80_75              rc=  0 PASS (0.006s)
+mutant_swap_dims_80_75         rc= -6 PASS (0.064s)
+mutant_duplicate_word_80_75    rc= -6 PASS (0.067s)
+mutant_swap_dims_stress_80_75  rc= -6 PASS (0.062s)
+RESULTS PASS /home/michael/console/TESTS/neo_fifo_ff_20261103/command_path_tests_01/supervisor_replay/project/owned/RESULTS.json

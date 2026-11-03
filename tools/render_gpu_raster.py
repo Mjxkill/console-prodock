@@ -61,7 +61,7 @@ int main(int argc,char **argv) {
 ''')
     exe=out/'render'
     subprocess.run(['cc','-O2','-std=c11','-fsanitize=undefined','-fno-sanitize-recover=all',
-        f'-DRASTER_PERSPECTIVE={int(args.perspective)}',f'-DRASTER_OVERLAY={int(args.overlay)}','-I',str(ROOT/'fw_console'),str(source),'-o',str(exe)],check=True)
+        f'-DRASTER_PERSPECTIVE={int(args.perspective)}',f'-DRASTER_OVERLAY={int(args.overlay)}','-I',str(ROOT/'fw_console'),str(source), str(ROOT/'fw_console/gpu_raster_commands.c'),'-o',str(exe)],check=True)
     if args.sweep:subprocess.run([str(exe),'sweep'],check=True)
     subprocess.run([str(exe),str(args.angle),str(args.reverse),str(out/'commands.bin'),str(out/'color.bin'),str(out/'depth.bin'),str(out/'lcd.bin')],check=True)
     pixels=(out/'color.bin').read_bytes();rgb=bytearray()

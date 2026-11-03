@@ -1,128 +1,120 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* Pro Dock C37 ATCSPI200 + GPIO0 CS. Protocol belongs to upstream mmc_spi. */
+/* Linux SPI adapter for the shared AE350 engine. SD protocol belongs to mmc_spi.
+ * GPIO0 holds CS across the message; the engine never changes chip selection.
+ */
 #include <linux/io.h>
-#include <linux/iopoll.h>
-#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>
-#include <linux/unaligned.h>
-struct prodock_spi { void __iomem *base, *gpio; u32 hz; };
-#define S_CTRL 0x30
-#define S_STATUS 0x34
-static int idle(struct prodock_spi *s)
-{
-    u32 status;
-    return readl_poll_timeout(s->base + S_STATUS, status, !(status & 1), 1, 100000);
-}
-static int reset_fifos(struct prodock_spi *s, u32 bits)
-{
-    u32 state;
-    writel(bits, s->base + S_CTRL);
-    return readl_poll_timeout(s->base + S_CTRL, state, !(state & bits), 1, 20000);
-}
+#include "prodock-spi-pio.h"
+
+struct prodock_spi {
+    struct atcspi200 engine;
+    void __iomem *gpio;
+    unsigned int configured_hz;
+    int setup_error;
+};
+
+enum { GPIO_DIRECTION = 0x28, GPIO_CLEAR = 0x2c, GPIO_SET = 0x30 };
+
 static void prodock_cs(struct spi_device *spi, bool inactive)
 {
     struct prodock_spi *s = spi_controller_get_devdata(spi->controller);
-    writel(1, s->gpio + (inactive ? 0x30 : 0x2c));
+
+    /* SPI core has already converted CS polarity to the physical pin level. */
+    writel(1, s->gpio + (inactive ? GPIO_SET : GPIO_CLEAR));
 }
+
 static void prodock_error(struct spi_controller *ctlr, struct spi_message *msg)
 {
     struct prodock_spi *s = spi_controller_get_devdata(ctlr);
-    writel(1, s->gpio + 0x30);
-    reset_fifos(s, 7);
+    int ret;
+
+    writel(1, s->gpio + GPIO_SET);
+    ret = atcspi200_recover(&s->engine);
+    if (ret)
+        dev_err(&ctlr->dev, "SPI recovery failed: %d\n", ret);
+    /* Preserve msg->status: recovery must never turn a failed message into OK. */
 }
-static int exchange(struct prodock_spi *s, const u8 *tx, u8 *rx, unsigned n)
+
+static int prodock_setup(struct spi_device *spi)
 {
-    unsigned step = n >= 16 ? 4 : 1, sent = 0, got = 0;
-    bool started = false;
-    ktime_t until = ktime_add_ms(ktime_get(), 1000);
-    int ret = idle(s);
-    if (ret) return ret;
-    ret = reset_fifos(s, 6);
-    if (ret) return ret;
-    writel((7 << 8) | (step == 4 ? BIT(7) : 0), s->base + 0x10);
-    /* Full duplex even for RX-only: MOSI MUST be 0xff, never hardware zero. */
-    writel(((n - 1) << 12) | (n - 1), s->base + 0x20);
-    while (sent < n || got < n) {
-        u32 status = readl(s->base + S_STATUS), word = ~0U;
-        if (sent < n && !(status & BIT(23))) {
-            if (tx) word = step == 4 ? get_unaligned_le32(tx + sent) : tx[sent];
-            writel(word, s->base + 0x2c);
-            sent += step;
-        } else if (!started) {
-            writel(0, s->base + 0x24); started = true;
-        }
-        if (sent == n && !started) { writel(0, s->base + 0x24); started = true; }
-        if (started && got < n && !(status & BIT(14))) {
-            word = readl(s->base + 0x2c);
-            if (rx) {
-                if (step == 4) put_unaligned_le32(word, rx + got);
-                else rx[got] = word;
-            }
-            got += step;
-        }
-        if (ktime_after(ktime_get(), until)) return -ETIMEDOUT;
-        cpu_relax();
-    }
-    return idle(s);
+    struct prodock_spi *s = spi_controller_get_devdata(spi->controller);
+
+    /* mmc_spi sets the identification/operating clock through set_ios/setup.
+     * It also calls setup just to release CS: keep that path free of MMIO.
+     * The SPI core holds io_mutex, excluding an active transfer here.
+     */
+    if (s->configured_hz == spi->max_speed_hz && !s->setup_error)
+        return 0;
+    s->setup_error = atcspi200_set_speed(&s->engine, spi->max_speed_hz);
+    if (!s->setup_error)
+        s->configured_hz = spi->max_speed_hz;
+    return s->setup_error;
 }
+
 static int prodock_transfer(struct spi_controller *ctlr, struct spi_device *spi,
                             struct spi_transfer *xfer)
 {
     struct prodock_spi *s = spi_controller_get_devdata(ctlr);
-    const u8 *tx = xfer->tx_buf;
-    u8 *rx = xfer->rx_buf;
-    unsigned offset = 0, divider;
-    int ret;
-    if (!xfer->speed_hz || (xfer->bits_per_word && xfer->bits_per_word != 8)) return -EINVAL;
-    divider = DIV_ROUND_UP_ULL(s->hz, 2ULL * xfer->speed_hz);
-    if (!divider || divider > 255) return -ERANGE;
-    ret = idle(s);
-    if (ret) return ret;
-    writel((readl(s->base + 0x40) & ~255U) | (divider - 1), s->base + 0x40);
-    xfer->effective_speed_hz = s->hz / (2 * divider);
-    while (offset < xfer->len) {
-        unsigned n = min(512U, xfer->len - offset);
-        if (n >= 16) n &= ~3U;
-        ret = exchange(s, tx ? tx + offset : NULL, rx ? rx + offset : NULL, n);
-        if (ret) return ret;
-        offset += n;
-        cond_resched();
-    }
-    return 0;
+
+    if (xfer->bits_per_word && xfer->bits_per_word != 8)
+        return -EINVAL;
+    if (s->setup_error)
+        return s->setup_error;
+    /* Dedicated SD bus: the setup clock remains fixed throughout exchanges.
+     * Reused mmc_spi transfers can retain old speed metadata. They must not
+     * restore the identification divider after the card is initialized.
+     * Per-transfer clock overrides are not supported by this adapter.
+     */
+    xfer->effective_speed_hz = s->engine.actual_hz;
+    return SPI_Master_send_receive(&s->engine, xfer->tx_buf, xfer->rx_buf,
+                                   xfer->len);
 }
+
 static int prodock_spi_probe(struct platform_device *pdev)
 {
-    struct spi_controller *ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(struct prodock_spi));
+    struct spi_controller *ctlr;
     struct prodock_spi *s;
+    void __iomem *base;
+    u32 clock_hz;
     int ret;
-    if (!ctlr) return -ENOMEM;
+
+    ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*s));
+    if (!ctlr)
+        return -ENOMEM;
     s = spi_controller_get_devdata(ctlr);
-    s->base = devm_platform_ioremap_resource(pdev, 0);
-    if (IS_ERR(s->base)) return PTR_ERR(s->base);
+    base = devm_platform_ioremap_resource(pdev, 0);
+    if (IS_ERR(base))
+        return PTR_ERR(base);
     s->gpio = devm_platform_ioremap_resource(pdev, 1);
-    if (IS_ERR(s->gpio)) return PTR_ERR(s->gpio);
-    if (device_property_read_u32(&pdev->dev, "clock-frequency", &s->hz) || s->hz != 80000000)
+    if (IS_ERR(s->gpio))
+        return PTR_ERR(s->gpio);
+    ret = device_property_read_u32(&pdev->dev, "clock-frequency", &clock_hz);
+    if (ret || clock_hz != 80000000)
         return -EINVAL;
-    writel(1, s->gpio + 0x30);
-    writel(readl(s->gpio + 0x28) | 1, s->gpio + 0x28);
-    ret = reset_fifos(s, 7);
-    if (ret) return ret;
-    writel(0, s->base + 0x38);
-    writel(7 << 8, s->base + 0x10);
+
+    writel(1, s->gpio + GPIO_SET);
+    writel(readl(s->gpio + GPIO_DIRECTION) | 1, s->gpio + GPIO_DIRECTION);
+    ret = atcspi200_init(&s->engine, (void __force *)base, clock_hz, 400000);
+    if (ret)
+        return ret;
+    s->configured_hz = 400000;
+
     ctlr->num_chipselect = 1;
     ctlr->dev.of_node = pdev->dev.of_node;
     ctlr->mode_bits = SPI_CS_HIGH;
     ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
-    ctlr->min_speed_hz = DIV_ROUND_UP(s->hz, 510);
+    ctlr->min_speed_hz = DIV_ROUND_UP(clock_hz, 510);
     ctlr->max_speed_hz = 20000000;
+    ctlr->setup = prodock_setup;
     ctlr->set_cs = prodock_cs;
     ctlr->transfer_one = prodock_transfer;
     ctlr->handle_err = prodock_error;
     return devm_spi_register_controller(&pdev->dev, ctlr);
 }
+
 static const struct of_device_id prodock_spi_match[] = {
     { .compatible = "mjx,prodock-atcspi200" }, { }
 };

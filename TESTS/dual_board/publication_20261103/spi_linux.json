@@ -1,0 +1,86 @@
+{
+  "passed": true,
+  "hardware": false,
+  "scope": "Linux adapter with mocked kernel and engine",
+  "inputs": {
+    "/home/michael/console/linux/tests/test_spi_linux.py": "d61e5c464a8bc6ed20d88b74c425f6e2417b64563fcc2562082ecb31815f26c7",
+    "/home/michael/console/linux/drivers/prodock-spi.c": "8279f7983bf9395622762db118d3475ac34b851dbc33c79ed16658b882f58c95",
+    "/home/michael/console/linux/drivers/prodock-spi-pio.h": "8dc6b287d639ece84af34d25b7a9ebe3308f34e9a57fa2b582c4cee9412cffa8"
+  },
+  "steps": [
+    {
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-unused-parameter",
+        "-fsanitize=undefined",
+        "-fno-sanitize-recover=all",
+        "-I/tmp/console-spi-linux-0jek0vlo",
+        "-I/home/michael/console/linux/drivers",
+        "-c",
+        "/home/michael/console/linux/drivers/prodock-spi.c",
+        "-o",
+        "/tmp/console-spi-linux-0jek0vlo/driver.o"
+      ],
+      "rc": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-unused-parameter",
+        "-fsanitize=undefined",
+        "-fno-sanitize-recover=all",
+        "-I/tmp/console-spi-linux-0jek0vlo",
+        "-I/home/michael/console/linux/drivers",
+        "-c",
+        "/tmp/console-spi-linux-0jek0vlo/model.c",
+        "-o",
+        "/tmp/console-spi-linux-0jek0vlo/model.o"
+      ],
+      "rc": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-unused-parameter",
+        "-fsanitize=undefined",
+        "-fno-sanitize-recover=all",
+        "-I/tmp/console-spi-linux-0jek0vlo",
+        "-I/home/michael/console/linux/drivers",
+        "/tmp/console-spi-linux-0jek0vlo/driver.o",
+        "/tmp/console-spi-linux-0jek0vlo/model.o",
+        "-o",
+        "/tmp/console-spi-linux-0jek0vlo/test"
+      ],
+      "rc": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/tmp/console-spi-linux-0jek0vlo/test"
+      ],
+      "rc": 0,
+      "stdout": "PASS: Linux SD adapter setup, fixed-rate exchanges, reinitialization and errors\n",
+      "stderr": ""
+    }
+  ]
+}

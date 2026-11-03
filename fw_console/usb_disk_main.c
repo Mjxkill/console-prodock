@@ -67,7 +67,7 @@ static void state(void)
     printf("USBDISK MEDIA=%s SERVING=%d TAKEOVERS=%u ONLINE=%d HS=%d COMMANDS=%u FAILED=%u READ=%u WRITTEN=%u RESETS=%u RESYNCS=%u TIMEOUTS=%u LOSSES=%u LAST=%02X PORT=%08X\r\n",
         on_sd?"SD":"DDR",usb_msc_serving(),(unsigned)s->takeovers,online,hs,(unsigned)s->commands,(unsigned)s->failed,(unsigned)s->read_blocks,(unsigned)s->written_blocks,
         (unsigned)s->resets,(unsigned)s->resyncs,(unsigned)s->timeouts,(unsigned)s->losses,s->last_opcode,(unsigned)usb_msc_reg_read(4));
-    if(on_sd)printf("USBDISK SD CRC_ERRORS=%u RETRIES=%u DOWNSHIFTS=%u HZ=%u\r\n",card.crc_errors,card.retries,card.downshifts,card.hz);
+    if(on_sd)printf("USBDISK SD CRC_ERRORS=%u RETRIES=%u HZ=%u\r\n",card.crc_errors,card.retries,card.hz);
 }
 int main(void)
 {

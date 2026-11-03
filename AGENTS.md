@@ -1,8 +1,66 @@
 # Console Pro Dock et Neo
 
+## Chargement normal et J-Link — décision du 3 novembre 2026
+
+Le parcours utilisateur est le démarrage autonome sur SD et le chargement des
+logiciels/jeux par SOFT-USB. Ne plus charger ni lancer normalement Linux ou un
+jeu avec le J-Link pour contourner un échec de ce parcours. Le J-Link reste
+réservé au diagnostic explicitement accepté par Michael. Distinguer les anciens
+essais JTAG des validations du boot SD et du transport USB ; ne pas présenter
+ces dernières comme acquises tant qu'elles ne sont pas vérifiées.
+
 La Pro Dock fonctionnelle doit être conservée pendant le portage Neo.
 Lire `ARCHI/COMPATIBILITE_CARTES.md` et `tang/boards/ownership.json` avant
 toute modification de source ou de constructeur.
+
+## Diagnostic avant correction — règle impérative de Michael
+
+- Avant toute correction, diagnostiquer avec les moyens disponibles pertinents :
+  documentation, sources et paramètres exacts, simulations, compteurs, mesures
+  temporelles, JTAG et observations matérielles. Ne pas attribuer une panne au
+  timing, au routage ou à une IP sans éléments qui discriminent les causes.
+- Séparer explicitement faits mesurés, hypothèses et conclusions. Chaque essai
+  indique la cible/version, les conditions, les unités, les résultats attendus,
+  les résultats observés, les preuves et les limites. Une mesure inconnue reste
+  inconnue ; une simulation réussie ne qualifie pas le matériel.
+- Concevoir des expériences qui permettent de départager les hypothèses, en
+  contrôlant les variables et les effets de l'instrumentation. Pour les E/S,
+  distinguer volume demandé, volume réellement transféré, cache, anticipation,
+  métadonnées, reprises et temps passé dans chaque étape pertinente.
+- L'instrumentation diagnostique doit être bornée et réversible, conserver les
+  preuves et les références, et respecter les verrous matériels. Ne pas la
+  présenter comme une correction. Les correctifs candidats restent hors carte
+  tant que le diagnostic ne justifie pas le changement proposé.
+
+## Règle d’or — simplicité, responsabilités et cause démontrée
+
+Cette règle s’applique à tout le projet : RTL FPGA, pilotes, firmware, Linux,
+jeux, outils, tests, constructions et travaux délégués.
+
+- Une fonction remplit son contrat et sa responsabilité explicite. Séparer
+  configuration, travail normal, diagnostic et récupération ; aucun effet de
+  bord caché pour compenser une erreur située ailleurs.
+- **Pas de correctif pour une erreur dont la cause n’est pas établie.**
+  Identifier le défaut par la documentation, une observation discriminante ou
+  une reproduction ; expliquer le mécanisme causal et prévoir un test qui
+  échoue avant la correction et réussit après. Une hypothèse seule ne suffit pas.
+- Quand la cause reste inconnue, poursuivre le diagnostic. Ne pas empiler des
+  conditions, états mémorisés, délais, reprises, resets ou verrous pour donner
+  l’apparence d’un succès. Pour la Neo notamment, changer le placement/routage
+  ou multiplier les bitstreams sans hypothèse testable n’est pas une correction.
+- Une instrumentation expérimentale doit annoncer la question qu’elle tranche,
+  ses effets et ses limites. La conserver distincte d’un correctif. Une amélioration
+  observée sans cause démontrée reste un résultat de diagnostic, pas une résolution.
+- Propager les erreurs avec leur contexte. Ne pas transformer un échec en succès,
+  ignorer silencieusement un paramètre, masquer un résultat négatif ou contourner
+  un test. Refuser explicitement ce que l’interface ne prend pas en charge.
+- Choisir le code le plus simple qui respecte le contrat. Toute synchronisation,
+  reprise ou protection doit répondre à une nécessité identifiée ; supprimer
+  les mécanismes et abstractions inutiles après vérification de leurs usages.
+- La revue évalue séparément fonctionnement et qualité de conception. Des tests
+  PASS ne suffisent pas si le contrat est contourné ou la cause reste inexpliquée.
+
+## Compatibilité et validation
 
 - `shared` signifie utilisé ou destiné aux deux cartes : le nom `prodock-*`
   d'un pilote Linux ne le rend pas spécifique à la Pro Dock.
@@ -28,3 +86,17 @@ toute modification de source ou de constructeur.
 Les fichiers communs restent uniques ; l'inventaire et les profils définissent
 leur utilisation. Les différences d'un snapshot expérimental doivent être
 documentées sans prétendre que les deux cartes emploient déjà le même RTL.
+
+## Interfaces C et pilotes SPI
+
+- Règle de Michael : les `.h` du code développé exposent types, constantes et
+  prototypes ; aucune implémentation de fonction, même `static` ou `inline`.
+  Compiler les implémentations `.c` séparément, sans inclure un `.c` dans un
+  autre. Les bibliothèques fournisseur et archives de preuve restent identifiées.
+- Séparer initialisation/configuration, transfert normal et récupération après
+  erreur. Ne pas réinitialiser ou reconfigurer systématiquement un périphérique
+  sans exigence documentée. Utiliser des noms explicites pour registres et bits.
+- Pour le SPI AE350 : l'implémentation commune maintenue est
+  `linux/drivers/prodock-spi-pio.c`. Les anciens snapshots de diagnostic ne
+  constituent pas une autre source courante. Un constructeur doit identifier
+  exactement le pilote et le cœur effectivement compilés.

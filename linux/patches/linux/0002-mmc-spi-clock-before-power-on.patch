@@ -1,0 +1,35 @@
+--- a/drivers/mmc/host/mmc_spi.c
++++ b/drivers/mmc/host/mmc_spi.c
+@@ -1035,6 +1035,16 @@
+ {
+ 	struct mmc_spi_host *host = mmc_priv(mmc);
+ 
++	/* Set the identification clock before issuing the power-on clocks. */
++	if (host->spi->max_speed_hz != ios->clock && ios->clock != 0) {
++		int		status;
++
++		host->spi->max_speed_hz = ios->clock;
++		status = spi_setup(host->spi);
++		dev_dbg(&host->spi->dev, "  clock to %d Hz, %d\n",
++			host->spi->max_speed_hz, status);
++	}
++
+ 	if (host->power_mode != ios->power_mode) {
+ 		int		canpower;
+ 
+@@ -1107,15 +1117,6 @@
+ 
+ 		host->power_mode = ios->power_mode;
+ 	}
+-
+-	if (host->spi->max_speed_hz != ios->clock && ios->clock != 0) {
+-		int		status;
+-
+-		host->spi->max_speed_hz = ios->clock;
+-		status = spi_setup(host->spi);
+-		dev_dbg(&host->spi->dev, "  clock to %d Hz, %d\n",
+-			host->spi->max_speed_hz, status);
+-	}
+ }
+ 
+ static const struct mmc_host_ops mmc_spi_ops = {

@@ -44,9 +44,9 @@ int main(int argc, char **argv)
     while (f_readdir(&dir,&info)==FR_OK && info.fname[0]) { printf("dir %-12s %lu\n",info.fname,(unsigned long)info.fsize); ++files; }
     CHECK(files==4); f_closedir(&dir);
     compare("SMALL.TXT",argv[2]); compare("BLOCK.BIN",argv[2]); compare("BIG.BIN",argv[2]); compare("SUB/DEEP.BIN",argv[2]);
-    // Bloc corrompu deux fois : relu, compté, sans changer de fréquence ; quatre fois : fréquence réduite.
-    model_corrupt_reads(2); compare("BLOCK.BIN",argv[2]); CHECK(disk_card()->crc_errors==2 && disk_card()->downshifts==0);
-    model_corrupt_reads(4); compare("BLOCK.BIN",argv[2]); CHECK(disk_card()->crc_errors==6 && disk_card()->downshifts==1 && model_speed()==10000000);
+    // Bloc corrompu deux fois : relu, compté, sans changer de fréquence ; quatre fois : même régime demandé.
+    model_corrupt_reads(2); compare("BLOCK.BIN",argv[2]); CHECK(disk_card()->crc_errors==2 && disk_card()->hz==20000000 && model_speed()==20000000);
+    model_corrupt_reads(4); compare("BLOCK.BIN",argv[2]); CHECK(disk_card()->crc_errors==6 && disk_card()->hz==20000000 && model_speed()==20000000);
     // Écriture, refus injecté une fois, puis relecture.
     static uint8_t out[70001], back[70001]; for (unsigned i=0;i<sizeof out;++i) out[i]=(uint8_t)(i*131+i/251);
     model_reject_writes(1);
@@ -57,6 +57,6 @@ int main(int argc, char **argv)
     model_present(0); CHECK(sd_init(&card,20000000)==SD_NO_CARD); model_present(1);
     CHECK(model_violations()==0);
     FILE *f=fopen(argv[1],"wb"); fwrite(image,1,size,f); fclose(f);      // l'image modifiée est relue par mtools
-    printf(failures ? "SD HOST FAIL %d\n" : "SD HOST PASS crc_errors=%u retries=%u downshifts=%u\n",failures ? (unsigned)failures : disk_card()->crc_errors,disk_card()->retries,disk_card()->downshifts);
+    printf(failures ? "SD HOST FAIL %d\n" : "SD HOST PASS crc_errors=%u retries=%u hz=%u\n",failures ? (unsigned)failures : disk_card()->crc_errors,disk_card()->retries,model_speed());
     return failures!=0;
 }

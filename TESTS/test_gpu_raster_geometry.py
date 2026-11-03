@@ -91,7 +91,7 @@ int main(void) {
     exe = args.out / 'geometry'
     subprocess.run(['cc', '-O2', '-std=c11', '-fsanitize=undefined',
                     '-fno-sanitize-recover=all', f'-DPERSPECTIVE={int(args.perspective)}', '-I', str(ROOT/'fw_console'),
-                    str(source), '-o', str(exe)], check=True)
+                    str(source), str(ROOT/'fw_console/gpu_raster_commands.c'), '-o', str(exe)], check=True)
     result = subprocess.run([str(exe)], capture_output=True, text=True)
     (args.out/'result.txt').write_text(result.stdout + result.stderr)
     print(result.stdout + result.stderr, end='')

@@ -50,16 +50,42 @@ static struct pd_sd_stats sd_stats(void)
     }
     return s;
 }
-static int debug_update(int display,struct prodock_display_info *previous,struct pd_sd_stats *old_sd,double dt)
+struct dashboard_state {
+    struct prodock_display_info previous;
+    struct pd_sd_stats previous_sd;
+    double sample_time;
+    int valid, warned;
+};
+static int debug_update(int display,struct dashboard_state *state,double sample_time)
 {
     struct prodock_display_info s;
     struct prodock_debug_text text;
-    struct pd_sd_stats sd=sd_stats();
-    if(ioctl(display,PRODOCK_DISPLAY_INFO,&s))return -1;
-    pd_dashboard_geometry(&text,&s,previous,&sd,old_sd,dt,&geometry);
-    if(ioctl(display,PRODOCK_DEBUG_TEXT,&text))return -1;
-    *previous=s;*old_sd=sd;
+    struct pd_sd_stats sd;
+    double dt;
+    /* ABI 1 has no mode-only getter/event. Keep one INFO poll per second to
+     * detect return from fullscreen, but do no SD/render/text work in GAME.
+     * This decision is based on the mode snapshot, not an atomic layout lock. */
+    if(ioctl(display,PRODOCK_DISPLAY_INFO,&s)) { state->valid=0;return -1; }
+    if(s.mode==PRODOCK_GAME) { state->valid=0;return 0; }
+    if(s.mode>PRODOCK_TERMINAL) { state->valid=0;errno=EPROTO;return -1; }
+    sd=sd_stats();
+    /* A pause or failed sample must not be included in the next rate. The
+     * first visible sample is an untimed baseline; rates resume one tick later. */
+    dt=state->valid ? sample_time-state->sample_time : 0;
+    if(!(dt>0 && dt<3600))dt=0;
+    pd_dashboard_geometry(&text,&s,&state->previous,&sd,&state->previous_sd,dt,&geometry);
+    if(ioctl(display,PRODOCK_DEBUG_TEXT,&text)) { state->valid=0;return -1; }
+    state->previous=s;state->previous_sd=sd;state->sample_time=sample_time;state->valid=1;
     return 0;
+}
+static void dashboard_refresh(int display,struct dashboard_state *state,double sample_time)
+{
+    /* Monitoring failure must not take down the keyboard/PTY/UART bridge.
+     * Called only on the existing 1 Hz schedule; log once per failure streak. */
+    if(debug_update(display,state,sample_time)) {
+        if(!state->warned)perror("dashboard temporarily unavailable");
+        state->warned=1;
+    } else state->warned=0;
 }
 int main(void)
 {
@@ -92,10 +118,9 @@ int main(void)
     signal(SIGTERM,stop); signal(SIGHUP,stop); signal(SIGINT,stop); signal(SIGPIPE,stop);
     raw=saved; cfmakeraw(&raw);
     if(tcsetattr(STDIN_FILENO,TCSANOW,&raw)) { kill(child,SIGHUP); return 1; }
-    struct prodock_display_info previous={0};
-    if(ioctl(display,PRODOCK_DISPLAY_INFO,&previous)) stopping=1;
-    struct pd_sd_stats previous_sd=sd_stats();
+    struct dashboard_state dashboard={0};
     double last=now(); int status=0, failed=0;
+    dashboard_refresh(display,&dashboard,last);
     while(!stopping) {
         struct pollfd fds[2]={{STDIN_FILENO,POLLIN,0},{master,POLLIN,0}};
         int n=poll(fds,2,100);
@@ -119,7 +144,7 @@ int main(void)
         }
         double t=now();
         if(t-last>=1.) {
-            if(debug_update(display,&previous,&previous_sd,t-last)) { failed=1;break; }
+            dashboard_refresh(display,&dashboard,t);
             last=t;
         }
         if(waitpid(child,&status,WNOHANG)==child) { child=-1;break; }

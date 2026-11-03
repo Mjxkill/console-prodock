@@ -24,6 +24,11 @@ def prepare(archive, destination):
             source.extractall(destination.parent, filter='data')
         (destination.parent / ('u-boot-' + VERSION)).rename(destination)
     shutil.copytree(HERE/'overlay', destination, dirs_exist_ok=True)
+    # One maintained pump for Linux and U-Boot. This is a build snapshot,
+    # not a second implementation to keep synchronized by hand.
+    for suffix in ('h', 'c'):
+        name = 'prodock-spi-pio.' + suffix
+        shutil.copy2(HERE.parent/'drivers'/name, destination/'drivers/spi'/name)
     for patch in sorted((HERE / 'patches').glob('*.patch')):
         stamp = destination / ('.prodock-' + patch.name + '.sha256')
         digest = hashlib.sha256(patch.read_bytes()).hexdigest()
@@ -48,6 +53,13 @@ def prepare(archive, destination):
         original = path.read_text()
         if addition not in original:
             path.write_text(original+addition)
+
+    path = destination/'drivers/spi/Makefile'
+    common = ('\nobj-$(CONFIG_PRODOCK_SPI) += prodock-spi-pio.o\n'
+              'CFLAGS_prodock-spi-pio.o += -DPRODOCK_SPI_UBOOT\n')
+    original = path.read_text()
+    if common not in original:
+        path.write_text(original+common)
 
     board = destination / 'board/prodock/console'
     (board / 'image.h').write_text((HERE.parent / 'boot/image.h').read_text().replace(

@@ -5,7 +5,11 @@ MAIN ?= main.c
 LD    = /home/michael/console/fw_console/itcm.ld
 # EXTRA_SRCS : sources propres à une application téléchargée (par exemple la carte SD et FatFs).
 EXTRA_SRCS ?=
-SRCS  = $(MAIN) gpu.c gpu_v1.c $(EXTRA_SRCS) $(filter-out $(AE350_SDK)/bsp/lib/read.c,$(BSP_SRCS))
+SRCS  = $(MAIN) gpu.c gpu_v1.c gpu_raster_commands.c $(EXTRA_SRCS) $(filter-out $(AE350_SDK)/bsp/lib/read.c,$(BSP_SRCS))
+# The native SD adapter links the same SPI engine as Linux and U-Boot.
+ifneq ($(filter %sd_ae350.c sd_ae350.c,$(EXTRA_SRCS)),)
+SRCS += ../linux/drivers/prodock-spi-pio.c
+endif
 OBJS  = $(patsubst %.c,$(BUILD)/%.o,$(notdir $(SRCS))) $(BUILD)/start.o
 CFLAGS += -Os -DCFG_XIP   # Le BSP copie les données initialisées de l'ITCM vers l'ILM.
 vpath %.c $(sort $(dir $(SRCS)))   # seulement les .c : sinon make trouve les .o d'un autre dossier build
@@ -14,6 +18,7 @@ all: $(BUILD)/$(APP).bin $(BUILD)/itcm/itcm0
 $(BUILD)/%.o: %.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 $(BUILD)/gpu.o: gpu.h gpu_v1.h
+$(BUILD)/gpu_raster_commands.o: gpu.h
 $(BUILD)/gpu_v1.o: gpu.h gpu_v1.h
 $(BUILD)/gpu_geometry.o: gpu_geometry.h gpu_v1.h gpu.h
 $(BUILD)/luma_main.o: luma_scene.h luma_fx_scene.h luma_assets.h gpu.h gpu_v1.h
@@ -22,6 +27,7 @@ $(BUILD)/astra_main.o: astra_scene.h astra_assets.h gpu.h gpu_v1.h
 $(BUILD)/astrilla_main.o: astrilla_geometry.h gpu_geometry.h astrilla_hud.h astrilla_hud_font.h astrilla_scene.h astrilla_assets.h astrilla_meshes.h astrilla_3d.h astrilla_flight.h gpu.h gpu_v1.h
 $(BUILD)/world3d_main.o: world3d_scene.h astrilla_geometry.h gpu_geometry.h astrilla_hud.h astrilla_hud_font.h astrilla_scene.h astrilla_assets.h astrilla_meshes.h astrilla_3d.h astrilla_flight.h gpu.h gpu_v1.h
 $(BUILD)/sd.o $(BUILD)/sd_ae350.o $(BUILD)/sd_test_main.o $(BUILD)/diskio.o $(BUILD)/usb_disk_main.o: sd.h
+$(BUILD)/sd_ae350.o $(BUILD)/prodock-spi-pio.o: ../linux/drivers/prodock-spi-pio.h
 $(BUILD)/usb_msc.o $(BUILD)/usb_disk_main.o: usb_msc.h
 $(BUILD)/ff.o $(BUILD)/diskio.o $(BUILD)/sd_test_main.o: fatfs/ff.h fatfs/ffconf.h fatfs/diskio.h fatfs/integer.h
 $(BUILD)/gpu_diag.o: gpu_v1.h gpu_v1_scene.h gpu_v1_demo.h gpu_v1_expected.h

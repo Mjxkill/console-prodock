@@ -53,30 +53,16 @@ int gpu_raster_supported(void);
 int gpu_perspective_supported(void);
 unsigned gpu_raster_rejected(void);
 int gpu_rgb565_present(unsigned page);
-static inline gpu_command gpu_make_raster_state(unsigned page,unsigned zpage,unsigned flags,unsigned alpha,unsigned color)
-{
-    gpu_command c={{GPU_RASTER_STATE<<24,page|(zpage<<4),flags,alpha,color,0,0,0}};
-    if(page>15 || zpage>15)c.words[1]=~0U;
-    return c;
-}
-static inline gpu_command gpu_make_texture(unsigned page,unsigned x,unsigned y,unsigned width,unsigned height,unsigned mode_u,unsigned mode_v)
-{
-    gpu_command c={{GPU_TEXTURE<<24,page,(x<<16)|y,(width<<16)|height,mode_u|(mode_v<<2),0,0,0}};
-    if(x>65535 || y>65535 || width>65535 || height>65535 || mode_u>2 || mode_v>2)c.words[4]=~0U;
-    return c;
-}
-static inline gpu_command gpu_make_plane(unsigned op,const gpu_raster_plane *p)
-{
-    gpu_command c={{op<<24,(uint32_t)p->origin,(uint32_t)p->dx,(uint32_t)p->dy,
-        0x10000U|((uint32_t)((uint64_t)p->origin>>32)&65535),0,0,0}};
-    if(p->origin<-(1LL<<47) || p->origin>=(1LL<<47))c.words[4]=~0U;
-    return c;
-}
-static inline gpu_command gpu_make_raster_clear(unsigned flags,unsigned color,unsigned depth)
-{
-    gpu_command c={{GPU_RASTER_CLEAR<<24,flags,color,depth,0,0,0,0}};
-    return c;
-}
+// Pure legacy raster packet builders, implemented in gpu_raster_commands.c.
+// They do not submit commands or access MMIO. Unencodable fields retain the
+// invalid-packet marker so the GPU rejects them instead of silently clipping.
+gpu_command gpu_make_raster_state(unsigned page,unsigned zpage,unsigned flags,
+                                  unsigned alpha,unsigned color);
+gpu_command gpu_make_texture(unsigned page,unsigned x,unsigned y,unsigned width,
+                             unsigned height,unsigned mode_u,unsigned mode_v);
+// Plane origin is signed 48-bit; dx/dy are signed 32-bit fixed-point values.
+gpu_command gpu_make_plane(unsigned op,const gpu_raster_plane *p);
+gpu_command gpu_make_raster_clear(unsigned flags,unsigned color,unsigned depth);
 
 typedef struct { uint32_t words[8]; } gpu_layer;
 enum { GPU_LAYER_ENABLE=1, GPU_LAYER_KEY_ZERO=2, GPU_LAYER_TILES=4,

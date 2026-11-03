@@ -48,7 +48,7 @@ static int test(unsigned hz)
         for(unsigned i=0;same&&i<262144;++i)same=BUFFER[i]==(uint8_t)(i*131+i/251);
         printf("SDTEST write bytes=262144 ms=%u read_ms=%u same=%d\r\n",wms,ms,same);if(!same)++errors;}
     card=disk_card();
-    printf("SDTEST %s errors=%d crc_errors=%u retries=%u downshifts=%u hz=%u\r\n",errors?"FAIL":"PASS",errors,card->crc_errors,card->retries,card->downshifts,card->hz);
+    printf("SDTEST %s errors=%d crc_errors=%u retries=%u hz=%u\r\n",errors?"FAIL":"PASS",errors,card->crc_errors,card->retries,card->hz);
     return errors;
 }
 int main(void)

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111725">
+  <title>Console · Suivi du projet</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#overview"><span class="brand-icon">C</span><span>CONSOLE<small>LABORATOIRE 138K</small></span></a>
+    <div class="nav-label">PILOTAGE DU PROJET</div>
+    <nav aria-label="Navigation principale">
+      <a class="active" href="#overview" data-view="overview">Vue d’ensemble</a>
+      <a href="#features" data-view="features">Fonctionnalités & tests</a>
+      <a href="#workers" data-view="workers">Workers & modèles <span id="workerCount">—</span></a>
+      <a href="#activity" data-view="activity">Journal & compilations</a>
+    </nav>
+    <div class="sidebar-bottom"><span class="dot neutral"></span> Lecture seule<br><small>Preuves du dépôt · aucune action sur les cartes</small></div>
+  </aside>
+  <main>
+    <header>
+      <div><div class="eyebrow">PRO DOCK / NEO / LUMA</div><h1 id="pageTitle">Vue d’ensemble</h1></div>
+      <div class="refresh"><span id="connection" class="badge neutral">Connexion…</span><button id="refresh" type="button">Actualiser ↻</button><small id="updated">En attente des données</small></div>
+    </header>
+    <div id="error" class="error" role="alert" hidden></div>
+    <section id="overview" class="view">
+      <div class="intro"><div><strong>Une compilation n’est pas une validation.</strong><p>Ce qui est livré, ce qui est testé, et ce qui reste à démontrer — séparément pour chaque carte.</p></div><span class="pill">FLUX EN DIRECT · OBSERVATION 1 S</span></div>
+      <div id="totals" class="totals"></div>
+      <div id="topics" class="topics"></div>
+      <section class="panel"><div class="section-heading"><h2>Travaux des modèles</h2><a href="#workers">Voir le détail →</a></div><div id="workersPreview"></div></section>
+    </section>
+    <section id="features" class="view" hidden>
+      <div class="panel"><div class="section-heading"><div><h2>Fonctionnalités et preuves</h2><p>Un résultat porte sur une version et un périmètre précis.</p></div></div>
+        <div class="filters"><label>Sujet<select id="topicFilter"><option value="all">Tous les sujets</option></select></label><label>État<select id="stateFilter"><option value="all">Tous les états</option><option value="pass">Validé / réussi</option><option value="fail">Échec / bloqué</option><option value="pending">À faire / en attente</option><option value="running">En cours</option></select></label><label class="search">Recherche<input id="search" type="search" placeholder="USB, SD, sprites, reset, cartes…"></label></div>
+        <div id="featureList"></div><p id="empty" hidden>Aucune fonctionnalité ne correspond à ce filtre.</p>
+      </div>
+    </section>
+    <section id="workers" class="view" hidden>
+      <div class="panel"><div class="section-heading"><div><h2>Workers et modèles</h2><p>Activité vérifiée par processus. Une réponse produite reste à revoir avant intégration.</p></div></div><div id="modelSummary" class="model-summary"></div><div class="table-scroll"><table><thead><tr><th>Modèle / tâche</th><th>État</th><th>Durée</th><th>Requêtes / outils</th><th>Tests / échecs</th><th>Dernière activité</th><th>Preuve</th></tr></thead><tbody id="workerRows"></tbody></table></div><p class="footnote">« Inconnu » signifie que la preuve manque. Les nombres de requêtes, d’outils et de tests sont des mesures distinctes ; aucun compteur n’est inventé.</p></div>
+    </section>
+    <section id="activity" class="view" hidden>
+      <div class="panel"><h2>Compilations et opérations</h2><div id="builds"></div></div>
+      <div class="panel"><h2>Journal des résultats</h2><div id="events" class="timeline"></div></div>
+    </section>
+    <footer><span>Console · Suivi technique</span><span>Simulation, timing, matériel et appréciation visuelle sont des validations distinctes.</span></footer>
+  </main>
+  <dialog id="evidenceDialog"><div class="dialog-head"><h2>Preuve</h2><button id="closeEvidence" type="button" aria-label="Fermer la preuve">Fermer ✕</button></div><p id="evidencePath" class="mono"></p><p id="evidenceMeta"></p><pre id="evidenceText"></pre></dialog>
+</body>
+</html>

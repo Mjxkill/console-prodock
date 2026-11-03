@@ -13,8 +13,8 @@ restaurée et revalidée sur carte ; les résultats sont dans
 les modifications ultérieures des sources communes pour la Pro Dock.
 
 La liste exhaustive est dans [INVENTAIRE_CARTES.md](INVENTAIRE_CARTES.md).
-Sa source machine est `tang/boards/ownership.json` : 511 fichiers classés,
-247 communs, 161 propres à Pro Dock, 103 à Neo. Cette classification inclut
+Sa source machine est `tang/boards/ownership.json` ; les effectifs et les fichiers
+sont détaillés dans l’inventaire. Cette classification inclut
 les constructeurs et les fichiers historiques ; ce n'est pas le nombre de
 modules simultanément synthétisés. Chaque build conserve sa liste réelle
 dans `sources.json`.

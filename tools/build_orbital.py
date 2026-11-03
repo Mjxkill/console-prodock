@@ -16,7 +16,7 @@ def main():
     (out/'orbital_fw.bin').write_bytes(binary.read_bytes())
     sources=['tools/build_orbital.py','tools/build_orbital_assets.py','tools/load_orbital.py','tools/render_orbital.py','tools/check_orbital.py',
              'fw_console/orbital_main.c','fw_console/orbital_scene.h','fw_console/orbital_assets.h',
-             'fw_console/orbital.ld','fw_console/gpu.c','fw_console/gpu.h','fw_console/gpu_v1.c','fw_console/gpu_v1.h','fw_console/Makefile']
+             'fw_console/orbital.ld','fw_console/gpu.c','fw_console/gpu_raster_commands.c','fw_console/gpu.h','fw_console/gpu_v1.c','fw_console/gpu_v1.h','fw_console/Makefile']
     m=dict(entry=entry,load=0xa0000000,bytes=binary.stat().st_size,sha256=sha(binary),assets_sha256=sha(out/'orbital.bin'),
            fpga_sha256=sha(ROOT/'bitstreams/console_gpu_v1_800.fs'),sources={p:sha(ROOT/p) for p in sources})
     (out/'firmware.json').write_text(json.dumps(m,indent=2)+'\n');print('Orbital: downloadable ILM firmware ready')

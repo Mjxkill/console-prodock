@@ -495,7 +495,6 @@ module gpu_v1(
                     tex_u<=addressed_u[8:0];tex_v<=addressed_v[8:0];state<=58'b1<<PIX_OFFSET;
                 end else begin
                     pixel<=solid;
-                    if(flags[0])pixel_visible<=0;
                     state<=58'b1<<PIX_UNPACK;
                 end
             end
@@ -526,7 +525,7 @@ module gpu_v1(
                 state<=58'b1<<(alpha_product[16:8]==0 ? PIX_NEXT:fast_shade ? PIX_BLEND:flags[7] ? PIX_FOG:PIX_FOG_MIX);
             end
             state[PIX_FOG]:begin
-                fog_factor<=!flags[7] ? 9'd0:fog_product>=42'd16777216 ? 9'd256:fog_product[24:16];
+                fog_factor<=fog_product>=42'd16777216 ? 9'd256:fog_product[24:16];
                 state<=58'b1<<PIX_FOG_MIX;
             end
             state[PIX_FOG_MIX]:begin

@@ -29,7 +29,7 @@ def main():
         if sha(ROOT/source) != sha(stage/'source'/source):
             raise RuntimeError('FPGA snapshot predates the current RTL: '+source)
     args.out.mkdir(parents=True, exist_ok=True)
-    sources = ['fw_console/'+name for name in ('gpu.c', 'gpu.h', 'gpu_v1.c', 'gpu_v1.h',
+    sources = ['fw_console/'+name for name in ('gpu.c', 'gpu_raster_commands.c', 'gpu.h', 'gpu_v1.c', 'gpu_v1.h',
                'gpu_geometry.c', 'gpu_geometry.h', 'astrilla_geometry.h', 'astrilla_3d.h',
                'astrilla_scene.h', 'astrilla_assets.h', 'astrilla_meshes.h', 'astrilla_flight.h',
                'astrilla_hud.h', 'astrilla_hud_font.h', 'astrilla.ld', 'Makefile')]

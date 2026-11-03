@@ -32,6 +32,10 @@ def commands(out):
         ('text_both', [py, 'linux/tests/test_text_model.py']),
         ('dashboard_both', [py, 'linux/tests/test_dashboard.py']),
         ('nebula_both', [py, 'linux/tests/test_nebula.py']),
+        ('spi_pio', [py, 'linux/tests/test_spi_pio.py', '--out', str(out/'spi_pio.json')]),
+        ('spi_uboot', [py, 'linux/tests/test_spi_uboot.py', '--out', str(out/'spi_uboot.json')]),
+        ('spi_linux', [py, 'linux/tests/test_spi_linux.py', '--out', str(out/'spi_linux.json')]),
+        ('mmc_spi_init', [py, 'linux/tests/test_mmc_spi_init.py', '--out', str(out/'mmc_spi_init.json')]),
     ]
 
 

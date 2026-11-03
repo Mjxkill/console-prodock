@@ -49,8 +49,8 @@ Logiciel (`fw_console/`) :
 
 - `sd.c`/`sd.h` : protocole SD en mode SPI (CMD0, 8, 59, ACMD41, 58, 16, 9, 17, 18,
   24, 25, 12, 13), CRC7 et CRC16 vérifiés, statut de programmation contrôlé,
-  reprises, division de la fréquence par deux
-  après trois échecs. Indépendant du matériel par quatre fonctions `sd_port_*`.
+  reprises bornées sans repli de fréquence : l'identification se fait à 400 kHz
+  puis le régime demandé reste fixe. Indépendant du matériel par quatre fonctions `sd_port_*`.
 - `sd_ae350.c` : ces fonctions sur l'ATCSPI200 et le GPIO.
 - `fatfs/` : FatFs R0.11a repris du SDK AE350 (voir `tang/rtl/PROVENANCE.md`),
   configuré pour un volume, secteurs de 512 octets, noms courts.

@@ -1,0 +1,139 @@
+--- a/drivers/mmc/mmc_spi.c
++++ b/drivers/mmc/mmc_spi.c
+@@ -189,6 +189,9 @@
+ 	u8 *buf = xbuf, r1;
+ 	int i, ret = 0;
+ 
++	if (!bcnt || !bsize)
++		return -EINVAL;
++
+ 	while (bcnt--) {
+ 		for (i = 0; i < READ_TIMEOUT; i++) {
+ 			ret = dm_spi_xfer(dev, 1 * 8, NULL, &r1, 0);
+@@ -245,21 +248,32 @@
+ {
+ 	const u8 *buf = xbuf;
+ 	u8 r1, tok[2];
+-	u16 crc;
++	u16 crc = 0xffff; /* CRC disabled still transmits defined FF bytes. */
+ 	int i, ret = 0;
+ 
+ 	tok[0] = 0xff;
+ 	tok[1] = multi ? SPI_TOKEN_MULTI_WRITE : SPI_TOKEN_SINGLE;
++
++	if (!bcnt || !bsize)
++		return -EINVAL;
+ 
+ 	while (bcnt--) {
+ #ifdef CONFIG_MMC_SPI_CRC_ON
+ 		crc = cpu_to_be16(crc16_ccitt(0, (u8 *)buf, bsize));
+ #endif
+-		dm_spi_xfer(dev, 2 * 8, tok, NULL, 0);
+-		dm_spi_xfer(dev, bsize * 8, buf, NULL, 0);
+-		dm_spi_xfer(dev, 2 * 8, &crc, NULL, 0);
++		ret = dm_spi_xfer(dev, 2 * 8, tok, NULL, 0);
++		if (ret)
++			return ret;
++		ret = dm_spi_xfer(dev, bsize * 8, buf, NULL, 0);
++		if (ret)
++			return ret;
++		ret = dm_spi_xfer(dev, 2 * 8, &crc, NULL, 0);
++		if (ret)
++			return ret;
+ 		for (i = 0; i < CMD_TIMEOUT; i++) {
+-			dm_spi_xfer(dev, 1 * 8, NULL, &r1, 0);
++			ret = dm_spi_xfer(dev, 1 * 8, NULL, &r1, 0);
++			if (ret)
++				return ret;
+ 			if ((r1 & 0x10) == 0) /* response token */
+ 				break;
+ 		}
+@@ -267,7 +281,9 @@
+ 		if (SPI_MMC_RESPONSE_CODE(r1) == SPI_RESPONSE_ACCEPTED) {
+ 			debug("%s: data accepted\n", __func__);
+ 			for (i = 0; i < WRITE_TIMEOUT; i++) { /* wait busy */
+-				dm_spi_xfer(dev, 1 * 8, NULL, &r1, 0);
++				ret = dm_spi_xfer(dev, 1 * 8, NULL, &r1, 0);
++				if (ret)
++					return ret;
+ 				if (i && r1 == 0xff) {
+ 					r1 = 0;
+ 					break;
+@@ -288,9 +304,13 @@
+ 	}
+ 	if (multi && bcnt == -1) { /* stop multi write */
+ 		tok[1] = SPI_TOKEN_STOP_TRAN;
+-		dm_spi_xfer(dev, 2 * 8, tok, NULL, 0);
++		ret = dm_spi_xfer(dev, 2 * 8, tok, NULL, 0);
++		if (ret)
++			return ret;
+ 		for (i = 0; i < WRITE_TIMEOUT; i++) { /* wait busy */
+-			dm_spi_xfer(dev, 1 * 8, NULL, &r1, 0);
++			ret = dm_spi_xfer(dev, 1 * 8, NULL, &r1, 0);
++			if (ret)
++				return ret;
+ 			if (i && r1 == 0xff) {
+ 				r1 = 0;
+ 				break;
+@@ -325,13 +345,15 @@
+ static int dm_mmc_spi_request(struct udevice *dev, struct mmc_cmd *cmd,
+ 			      struct mmc_data *data)
+ {
+-	int i, multi, ret = 0;
++	int i, multi, ret = 0, end_ret;
+ 	u8 *resp = NULL;
+ 	u32 resp_size = 0;
+ 	bool resp_match = false, r1b = false;
+ 	u8 resp8 = 0, resp16[2] = { 0 }, resp40[5] = { 0 }, resp_match_value = 0;
+ 
+-	dm_spi_claim_bus(dev);
++	ret = dm_spi_claim_bus(dev);
++	if (ret)
++		return ret;
+ 
+ 	for (i = 0; i < 4; i++)
+ 		cmd->response[i] = 0;
+@@ -390,6 +412,16 @@
+ 		break;
+ 	};
+ 
++	/* Startup clocks are a card-protocol operation, never a generic claim.
++	 * Repeating CMD0 at the same cached bus speed must repeat these clocks.
++	 * claim leaves CS high; sendcmd below asserts it with SPI_XFER_BEGIN.
++	 */
++	if (cmd->cmdidx == MMC_CMD_GO_IDLE_STATE) {
++		ret = dm_spi_xfer(dev, 80, NULL, NULL, 0);
++		if (ret)
++			goto done;
++	}
++
+ 	ret = mmc_spi_sendcmd(dev, cmd->cmdidx, cmd->cmdarg, cmd->resp_type,
+ 			      resp, resp_size, resp_match, resp_match_value, r1b);
+ 	if (ret)
+@@ -417,7 +449,7 @@
+ 	case MMC_CMD_SEND_CSD:
+ 		ret = mmc_spi_readdata(dev, cmd->response, 1, 16);
+ 		if (ret)
+-			return ret;
++			goto done;
+ 		for (i = 0; i < 4; i++)
+ 			cmd->response[i] =
+ 				cpu_to_be32(cmd->response[i]);
+@@ -445,11 +477,13 @@
+ 	}
+ 
+ done:
+-	dm_spi_xfer(dev, 0, NULL, NULL, SPI_XFER_END);
+-
++	/* Release exactly once after a successful claim, even if END fails.
++	 * Preserve the primary transfer error over a secondary cleanup error.
++	 * dm_spi_release_bus is void in the U-Boot driver-model API.
++	 */
++	end_ret = dm_spi_xfer(dev, 0, NULL, NULL, SPI_XFER_END);
+ 	dm_spi_release_bus(dev);
+-
+-	return ret;
++	return ret ? ret : end_ret;
+ }
+ 
+ static int mmc_spi_probe(struct udevice *dev)

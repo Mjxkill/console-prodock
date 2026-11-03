@@ -6,7 +6,12 @@
 void model_load(uint8_t *,uint32_t);
 void model_programming_errors(unsigned);
 void model_busy_after(unsigned,unsigned);
+void model_corrupt_reads(unsigned);
+void model_reject_writes(unsigned);
 unsigned model_cmd13(void), model_stops(void), model_writing(void);
+void model_transport_fault(unsigned,unsigned,unsigned);
+unsigned model_transport_hits(void),model_selected(void);
+unsigned model_speed(void);
 #define CHECK(c) do { if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);return 1;} } while(0)
 int main(void)
 {
@@ -43,6 +48,63 @@ int main(void)
     CHECK(sd_init(&card,20000000)==SD_OK);
     CHECK(sd_write(&card,23,data,2)==SD_OK && !model_writing());
     CHECK(sd_read(&card,23,readback,2)==SD_OK && memcmp(data,readback,1024)==0);
+    // Transport failures must not be mistaken for successful SD responses or
+    // for CRC failures. Each RX buffer may contain only a prefix on failure.
+    model_load(media,4096); model_transport_fault(4,2,1);
+    CHECK(sd_init(&card,20000000)==SD_TIMEOUT);
+    CHECK(!card.ready && model_transport_hits()==1 && !model_selected());
+    for (unsigned length=2; length<=512; length+=510) {
+        model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+        memset(readback,0xcc,sizeof readback);
+        model_transport_fault(length,length==512 ? 63 : 1,20);
+        CHECK(sd_read(&card,23,readback,1)==SD_TIMEOUT);
+        CHECK(card.retries==9 && card.crc_errors==0 && !model_selected());
+        CHECK(model_transport_hits()>=1 && model_transport_hits()<=9);
+        printf("SD transport RX size=%u bounded retry PASS\n",length);
+    }
+    model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+    model_transport_fault(512,63,1);
+    CHECK(sd_write(&card,23,data,1)==SD_TIMEOUT);
+    CHECK(!card.ready && !model_selected() && model_transport_hits()==1);
+    // Régression du régime fixe : les reprises bornées après CRC ou TIMEOUT
+    // restent visibles, mais aucune erreur ne rappelle sd_port_speed. Les
+    // lectures et écritures simples et multibloc gardent donc la fréquence
+    // demandée à sd_init et rendent des données exactes après récupération.
+    for (unsigned blocks=1; blocks<=2; ++blocks) {
+        model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+        model_corrupt_reads(blocks==1 ? 3 : 5);
+        CHECK(sd_read(&card,23,readback,blocks)==SD_OK);
+        CHECK(card.retries==3 && card.crc_errors==3 && model_speed()==20000000);
+        CHECK(memcmp(media+23*512,readback,blocks*512)==0);
+        model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+        model_corrupt_reads(40);
+        CHECK(sd_read(&card,23,readback,blocks)==SD_CRC);
+        CHECK(card.retries==9 && card.crc_errors==9 && model_speed()==20000000);
+        model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+        model_reject_writes(3);
+        CHECK(sd_write(&card,23,data,blocks)==SD_OK);
+        CHECK(card.retries==3 && card.crc_errors==3 && model_speed()==20000000);
+        CHECK(memcmp(media+23*512,data,blocks*512)==0);
+        model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+        model_reject_writes(40);
+        CHECK(sd_write(&card,23,data,blocks)==SD_CRC);
+        CHECK(card.retries==9 && card.crc_errors==9 && model_speed()==20000000);
+        model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+        model_transport_fault(512,63,20);
+        CHECK(sd_read(&card,23,readback,blocks)==SD_TIMEOUT);
+        CHECK(card.retries==9 && card.crc_errors==0 && model_speed()==20000000);
+        CHECK(model_transport_hits()>=1 && model_transport_hits()<=9 && !model_selected());
+        model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+        model_transport_fault(512,63,1);
+        CHECK(sd_write(&card,23,data,blocks)==SD_TIMEOUT);
+        CHECK(!card.ready && card.crc_errors==0 && model_speed()==20000000);
+        CHECK(model_transport_hits()==1 && !model_selected());
+        printf("SD fixed-rate CRC/TIMEOUT blocks=%u PASS\n",blocks);
+    }
+    // Successful reinitialisation explicitly clears the operation error latch.
+    model_load(media,4096); CHECK(sd_init(&card,20000000)==SD_OK);
+    CHECK(sd_write(&card,23,data,1)==SD_OK);
+    CHECK(sd_read(&card,23,readback,1)==SD_OK && !memcmp(data,readback,512));
     puts("SD FAULT PASS : aucune erreur tardive ni terminaison manquante annoncée comme succès");
     return 0;
 }

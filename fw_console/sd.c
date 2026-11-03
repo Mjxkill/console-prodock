@@ -1,6 +1,6 @@
 // Carte SD en mode SPI : initialisation, lecture et écriture de blocs de 512 octets.
 // Les CRC sont activés (CMD59) : CRC7 sur chaque commande, CRC16 vérifié sur chaque bloc lu.
-// Un bloc au CRC faux est relu ; après trois échecs consécutifs la fréquence est divisée par deux.
+// Un bloc au CRC faux est relu par les reprises bornées ; la fréquence demandée reste fixe.
 #include "sd.h"
 #include <stddef.h>
 enum { CMD0=0, CMD8=8, CMD9=9, CMD12=12, CMD13=13, CMD16=16, CMD17=17, CMD18=18, CMD24=24, CMD25=25,
@@ -31,12 +31,21 @@ uint16_t sd_crc16(const uint8_t *data, unsigned count)
     }
     return (uint16_t)crc;
 }
-static uint8_t receive(void) { uint8_t value; sd_port_exchange(NULL,&value,1); return value; }
+// This synchronous single-controller protocol retains the first transport
+// error until the public operation (or its bounded retry) starts again. Once
+// failed, no further bytes are sent on that attempt; deselection still works.
+static int transport_error;
+static void exchange(const uint8_t *tx, uint8_t *rx, unsigned count)
+{
+    if (!transport_error) transport_error=sd_port_exchange(tx,rx,count);
+}
+static int result(int status) { return transport_error ? SD_TIMEOUT : status; }
+static uint8_t receive(void) { uint8_t value=0xff; exchange(NULL,&value,1); return value; }
 // La carte tient la ligne de données basse tant qu'elle est occupée.
 static int wait_ready(unsigned ms)
 {
     unsigned start=sd_port_ms();
-    do { if (receive()==0xff) return 1; } while (sd_port_ms()-start<ms);
+    do { unsigned value=receive(); if (transport_error) return 0; if (value==0xff) return 1; } while (sd_port_ms()-start<ms);
     return 0;
 }
 static void release(void) { sd_port_select(0); (void)receive(); }
@@ -46,9 +55,10 @@ static unsigned command(unsigned index, uint32_t argument)
     uint8_t frame[6]={(uint8_t)(0x40|index),(uint8_t)(argument>>24),(uint8_t)(argument>>16),(uint8_t)(argument>>8),(uint8_t)argument,0};
     frame[5]=sd_crc7(frame,5);
     if (index!=CMD0 && index!=CMD12 && !wait_ready(500)) return 0xff;
-    sd_port_exchange(frame,NULL,6);
+    exchange(frame,NULL,6);
+    if (transport_error) return 0xff;
     if (index==CMD12) (void)receive();      // octet de bourrage après l'arrêt d'une lecture multiple
-    for (unsigned i=0;i<10;++i) { unsigned r=receive(); if (!(r&0x80)) return r; }
+    for (unsigned i=0;i<10;++i) { unsigned r=receive(); if (transport_error) return 0xff; if (!(r&0x80)) return r; }
     return 0xff;
 }
 static unsigned app_command(unsigned index, uint32_t argument)
@@ -60,21 +70,22 @@ static unsigned app_command(unsigned index, uint32_t argument)
 static int receive_block(uint8_t *data, unsigned count)
 {
     uint8_t crc[2]; unsigned token, start=sd_port_ms();
-    do token=receive(); while (token==0xff && sd_port_ms()-start<300);
+    do token=receive(); while (!transport_error && token==0xff && sd_port_ms()-start<300);
     if (token!=TOKEN_BLOCK) return SD_TIMEOUT;
-    sd_port_exchange(NULL,data,count);
-    sd_port_exchange(NULL,crc,2);
+    exchange(NULL,data,count);
+    exchange(NULL,crc,2);
+    if (transport_error) return SD_TIMEOUT;
     return sd_crc16(data,count)==(((unsigned)crc[0]<<8)|crc[1]) ? SD_OK : SD_CRC;
 }
 static int send_block(const uint8_t *data, unsigned token)
 {
     unsigned check=sd_crc16(data,512); uint8_t head=(uint8_t)token, crc[2]={(uint8_t)(check>>8),(uint8_t)check};
     if (!wait_ready(500)) return SD_TIMEOUT;
-    sd_port_exchange(&head,NULL,1);
-    sd_port_exchange(data,NULL,512);
-    sd_port_exchange(crc,NULL,2);
+    exchange(&head,NULL,1);
+    exchange(data,NULL,512);
+    exchange(crc,NULL,2);
     unsigned response=receive()&0x1f;       // xxx0sss1 : 00101 accepté, 01011 CRC refusé, 01101 erreur d'écriture
-    return response==0x05 ? SD_OK : response==0x0b ? SD_CRC : SD_REJECTED;
+    return result(response==0x05 ? SD_OK : response==0x0b ? SD_CRC : SD_REJECTED);
 }
 static uint32_t capacity(const uint8_t csd[16])
 {
@@ -93,47 +104,54 @@ int sd_init(sd_card *card, unsigned hz)
 {
     uint8_t reply[4], csd[16]; unsigned r=0xff, start;
     *card=(sd_card){0};
-    if (!hz) return SD_PARAMETER;
-    if (!sd_port_present()) return SD_NO_CARD;
+    transport_error=0;
+    if (!hz) return result(SD_PARAMETER);
+    if (!sd_port_present()) return result(SD_NO_CARD);
     sd_port_speed(400000);
     sd_port_select(0);
     for (unsigned i=0;i<10;++i) (void)receive();      // au moins 74 fronts d'horloge, carte non sélectionnée
     for (unsigned i=0;i<10 && r!=R1_IDLE;++i) { sd_port_select(1); r=command(CMD0,0); release(); }
-    if (r!=R1_IDLE) return SD_TIMEOUT;
+    if (r!=R1_IDLE) return result(SD_TIMEOUT);
     sd_port_select(1);
     r=command(CMD8,0x1aa);                             // 2,7 à 3,6 V, motif de contrôle 0xaa
     if (r==R1_IDLE) {
-        sd_port_exchange(NULL,reply,4);
-        if (reply[2]!=1 || reply[3]!=0xaa) { release(); return SD_REJECTED; }
+        exchange(NULL,reply,4);
+        if (transport_error) { release(); return SD_TIMEOUT; }
+        if (reply[2]!=1 || reply[3]!=0xaa) { release(); return result(SD_REJECTED); }
         card->version2=1;
-    } else if (!(r&R1_ILLEGAL)) { release(); return SD_REJECTED; }
+    } else if (!(r&R1_ILLEGAL)) { release(); return result(SD_REJECTED); }
     release();
     sd_port_select(1); r=command(CMD59,1); release();  // CRC exigés et produits par la carte
-    if (r>1) return SD_REJECTED;
+    if (r>1) return result(SD_REJECTED);
     start=sd_port_ms();
     do { sd_port_select(1); r=app_command(ACMD41,card->version2 ? 0x40000000U : 0); release(); }
     while (r==R1_IDLE && sd_port_ms()-start<2000);
-    if (r) return r==R1_IDLE ? SD_TIMEOUT : SD_REJECTED;
+    if (r) return result(r==R1_IDLE ? SD_TIMEOUT : SD_REJECTED);
     sd_port_select(1);
-    if (command(CMD58,0)) { release(); return SD_REJECTED; }
-    sd_port_exchange(NULL,reply,4); release();
+    if (command(CMD58,0)) { release(); return result(SD_REJECTED); }
+    exchange(NULL,reply,4); release();
+    if (transport_error) return SD_TIMEOUT;
     card->high_capacity=card->version2 && (reply[0]&0x40);
-    if (!card->high_capacity) { sd_port_select(1); r=command(CMD16,512); release(); if (r) return SD_REJECTED; }
+    if (!card->high_capacity) { sd_port_select(1); r=command(CMD16,512); release(); if (r) return result(SD_REJECTED); }
     sd_port_select(1);
     int status=command(CMD9,0)==0 ? receive_block(csd,16) : SD_REJECTED;
     release();
-    if (status!=SD_OK) return status;
+    if (status!=SD_OK) return result(status);
     card->sectors=capacity(csd);
-    if (!card->sectors) return SD_REJECTED;
-    card->hz=hz; sd_port_speed(hz); card->ready=1;
-    return SD_OK;
+    if (!card->sectors) return result(SD_REJECTED);
+    // L'identification se fait à 400 kHz ; ensuite le régime demandé reste
+    // fixe, y compris pendant les reprises bornées après erreur.
+    card->hz=hz; sd_port_speed(hz); exchange(NULL,NULL,0);
+    if (transport_error) return result(SD_TIMEOUT);
+    card->ready=1;
+    return result(SD_OK);
 }
-// Après trois échecs de suite, la moitié de la fréquence, jusqu'à 400 kHz.
+// Compte les reprises bornées. Une erreur reste visible et ne modifie jamais
+// la fréquence demandée : sd_port_speed n'est appelé qu'à l'initialisation.
 static int failed(sd_card *card, unsigned attempt, int status)
 {
     ++card->retries;
     if (status==SD_CRC) ++card->crc_errors;
-    if (attempt%3==2 && card->hz>400000) { card->hz/=2; if(card->hz<400000)card->hz=400000; ++card->downshifts; sd_port_speed(card->hz); }
     return attempt>=8;
 }
 int sd_read(sd_card *card, uint32_t sector, uint8_t *data, unsigned count)
@@ -141,12 +159,14 @@ int sd_read(sd_card *card, uint32_t sector, uint8_t *data, unsigned count)
     if (!card->ready || !data || !count || sector>=card->sectors || count>card->sectors-sector) return SD_PARAMETER;
     if (!sd_port_present()) { card->ready=0; return SD_NO_CARD; }
     for (unsigned attempt=0;;++attempt) {
+        transport_error=0;
         int status=SD_OK; unsigned done=0;
         sd_port_select(1);
         if (command(count>1 ? CMD18 : CMD17, card->high_capacity ? sector : sector<<9)) status=SD_REJECTED;
         for (;status==SD_OK && done<count;++done) status=receive_block(data+done*512U,512);
         if (count>1) (void)command(CMD12,0);
         release();
+        status=result(status);
         if (status==SD_OK) return SD_OK;
         if (failed(card,attempt,status)) return status;
     }
@@ -156,6 +176,7 @@ int sd_write(sd_card *card, uint32_t sector, const uint8_t *data, unsigned count
     if (!card->ready || !data || !count || sector>=card->sectors || count>card->sectors-sector) return SD_PARAMETER;
     if (!sd_port_present()) { card->ready=0; return SD_NO_CARD; }
     for (unsigned attempt=0;;++attempt) {
+        transport_error=0;
         int status=SD_OK;
         sd_port_select(1);
         if (count==1) {
@@ -172,7 +193,7 @@ int sd_write(sd_card *card, uint32_t sector, const uint8_t *data, unsigned count
                     card->ready=0; release(); return SD_TIMEOUT;
                 }
                 uint8_t stop=TOKEN_STOP_WRITE;
-                sd_port_exchange(&stop,NULL,1); (void)receive();
+                exchange(&stop,NULL,1); (void)receive();
             }
         }
         // La fin de busy n'est pas une preuve de programmation réussie :
@@ -181,8 +202,9 @@ int sd_write(sd_card *card, uint32_t sector, const uint8_t *data, unsigned count
         unsigned r1=command(CMD13,0);
         unsigned r2=r1==0xff ? 0xff : receive();
         if (r1==0xff) { card->ready=0; release(); return SD_TIMEOUT; }
-        if (r1 || r2) { release(); return SD_REJECTED; }
+        if (r1 || r2) { release(); return result(SD_REJECTED); }
         release();
+        status=result(status);
         if (status==SD_OK) return SD_OK;
         if (failed(card,attempt,status)) return status;
     }

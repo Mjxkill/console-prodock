@@ -1,3 +1,7 @@
+> **Current English manual:** [Linux installation and normal SD/SOFT-USB operation](../docs/INSTALLATION.md).
+> This document describes earlier milestones. Historical JTAG procedures are
+> diagnostic records, not the normal user loading workflow.
+
 # Linux sur la console Pro Dock
 
 Le port Tang Mega Neo / Console en HDMI 720p est décrit dans
