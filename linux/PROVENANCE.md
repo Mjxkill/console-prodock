@@ -14,7 +14,12 @@ la structure OpenSBI/Linux/BusyBox sont adaptées à la Pro Dock C37.
 - Toolchain Bootlin RV32 ILP32D musl stable-2025.08-1 : licences présentes
   dans l'archive (GCC, binutils, musl et autres composants).
 - Pilotes Pro Dock : GPL-2.0-or-later ; UAPI avec Linux-syscall-note.
-- Programme utilisateur et diagnostics de démarrage : MIT.
+- Programmes utilisateur et diagnostics : licences par fichier. Les outils
+  `prodockctl.c`, `prodock-runtime.c` et plusieurs diagnostics de démarrage
+  portent MIT ; `nebula.c`, `prodock-game.c`, `prodock-terminal.c` et le
+  tableau de bord portent GPL-2.0-or-later. Ne pas les qualifier tous de MIT.
+- La licence personnelle non commerciale ajoutée à la racine ne remplace
+  pas ces licences ni leurs obligations ; voir `../LICENSE_SCOPE.md`.
 
 Le pilote SPI est écrit à partir du contrat ATCSPI200 déjà utilisé par
 `fw_console/sd_ae350.c` et des définitions du SDK Gowin AE350 1.3.

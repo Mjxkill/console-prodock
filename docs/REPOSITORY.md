@@ -38,8 +38,14 @@ a candidate flag does not substitute for running the regressions.
 
 ## Licensing and provenance
 
-No root project-wide LICENSE has been chosen. Do not interpret GitHub visibility
-as permission to redistribute everything under one license.
+The [root license](../LICENSE) now permits personal, non-commercial use of
+eligible original project development. Commercial/professional exploitation
+requires prior written permission. It is a custom source-available license.
+
+Read [the scope notice](../LICENSE_SCOPE.md): per-file/component licenses retain
+precedence, previous grants are not revoked, and existing combined GPL-dependent
+executables are not made exclusively non-commercial by this update. Third-party
+terms remain unchanged.
 
 | Material | Where to inspect terms/provenance |
 |---|---|
@@ -50,11 +56,9 @@ as permission to redistribute everything under one license.
 | Sipeed/Gowin-derived RTL and generated IP | [`tang/rtl/PROVENANCE.md`](../tang/rtl/PROVENANCE.md) and per-component sources |
 | Artwork and generated assets | Asset-specific provenance and release notes; no blanket artwork grant is asserted |
 
-Generated/encrypted vendor IP may have terms distinct from a public example
-repository. This publication review has not established a redistribution grant
-for every such file. Preserve notices and obtain the applicable vendor terms
-before repackaging. This is an engineering provenance inventory, not a legal
-certification or an endorsement by Gowin/Sipeed.
+Third-party material remains outside the project's personal-use license.
+Preserve its existing notices. This licensing update makes no new assertion
+about vendor permissions and does not change vendor files or their terms.
 
 ## Publication hygiene
 

@@ -171,9 +171,15 @@ contain tooling, evidence and documentation.
 Shared Pro Dock/Neo sources remain shared. Board-specific adaptations are
 classified in [`tang/boards/ownership.json`](tang/boards/ownership.json).
 
-Third-party code and vendor-generated material carry different notices.
-**No repository-wide license has been selected.** Public visibility does not
-grant a blanket license to vendor IP, artwork or every historical archive.
-Read [distribution notes](docs/REPOSITORY.md) and preserve applicable notices.
-The project is independent; this documentation claims no certification or
-endorsement by Gowin or Sipeed.
+**Original project development: personal, non-commercial use only**, under the
+[Electrosens R&D Personal Non-Commercial License](LICENSE). Commercial or
+professional exploitation requires prior written permission. Free sharing for
+personal use must preserve the license and notices.
+
+[License scope and exceptions](LICENSE_SCOPE.md) are essential: existing
+file/component licenses take precedence, and this update does not revoke
+previous grants or relicense third-party material. In particular, GPL/MIT
+components and combined game binaries cannot be declared exclusively
+non-commercial by adding a root license. See also
+[distribution notes](docs/REPOSITORY.md). This is a source-available project,
+not a claim of unrestricted open-source licensing or vendor endorsement.

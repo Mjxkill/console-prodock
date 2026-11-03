@@ -99,6 +99,8 @@ separately in [the Neo guide](NEO_PORT.md).
 4. Finish the discriminating Neo command experiment and routing, then test
    graphics, DDR load, USB, Linux and input on that exact board.
 5. Improve game frame pacing and content using comparable scene measurements.
-6. Package a fresh-clone build/install flow and settle redistribution terms.
+6. Package a fresh-clone build/install flow and resolve the remaining combined-
+   component licensing scope; the personal-use license for eligible original
+   development is now defined in `LICENSE` and `LICENSE_SCOPE.md`.
 
 These are acceptance criteria, not completed features.
