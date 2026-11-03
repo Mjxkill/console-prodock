@@ -5,12 +5,11 @@ and display composition in a Gowin FPGA. They are not video playback. Textures,
 meshes and some cinematic backgrounds are prepared offline; the board evaluates
 the animation and submits graphics commands while the application runs.
 
-The current Linux executable is **LUMA3D / MAZE**, restored on the second Sipeed
-Tang Mega Pro Dock on **3 November 2026** with FPGA R6. Its SHA-256 is
-`2e552dd1cc9b73756b68040b75c4c0a8f9c62c6584dbadd4fcb38e7933c4b985`.
-The [source and executable release](../releases/luma3d-maze-20261103/README.md)
-preserves that exact version. The [restoration test record](../TESTS/prodock_game_restore_20261103/TEST_RECORD.md)
-identifies what was actually checked on the board.
+The current Linux game is **LUMA3D / MAZE**, demonstrated on the Sipeed Tang Mega
+Pro Dock. Its [source and executable package](../releases/luma3d-maze-20261103/README.md)
+includes the exact version tested on **3 November 2026**, with instructions to
+rebuild it. Developers can find the binary identities and test conditions in
+the [hardware test record](../TESTS/prodock_game_restore_20261103/TEST_RECORD.md).
 
 ## LUMA3D: exploration and activities
 

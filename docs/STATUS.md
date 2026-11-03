@@ -1,106 +1,116 @@
-# Current status and evidence
+# Project status
 
-Snapshot: **3 November 2026**. “Implemented” means code exists; “tested” needs a
-scope. Simulation, timing, a photograph and a hardware endurance run answer
-different questions.
+Updated **3 November 2026**.
 
-## Board and release identities
+**The Tang Mega Pro Dock runs the project's graphics demonstrations and Linux
+games. The Tang Neo port is still in development.** The next major delivery is
+a complete installation and startup experience: boot from SD, connect through
+SOFT-USB, and load games without a CPU debugger.
 
-| Identity | Meaning | Qualification boundary |
+[Watch the demonstration video](https://youtu.be/G8LfKqb-1sY) ·
+[Explore the games](GAMES.md) · [Installation guide](INSTALLATION.md)
+
+## Which board can run it?
+
+| Board | What works today | What remains to finish |
 |---|---|---|
-| Pro Dock G22r0 / NEBULA R17 | Protected historical reference | Hardware demonstrations; timing/CDC limits retained |
-| Second Pro Dock, programmer ending **1717**, FPGA **R6** | SD boot development and latest MAZE run | SRAM-loaded FPGA and Linux game observed; not proof of persistent cold boot |
-| First Pro Dock, programmer ending **2818** | Separate working board | Untouched by the latest second-board restoration |
-| Neo REJECT R1 / D128 diagnosis | Instrumented GPU rejection investigation | Pattern/diagnostic access, not complete Linux console |
-| Neo banked flip-flop FIFO candidate | Two command memories replaced | Local tests pass; full route fails, no usable bitstream |
+| **Tang Mega Pro Dock 138K** | Real-time 2D/3D graphics and Linux games on its **800 × 480 LCD**, with a text terminal and on-screen diagnostics | Reliable automatic startup from SD, a complete USB loading/update workflow, and faster game loading |
+| **Tang Neo / Console 138K** | **720p HDMI test patterns** have been displayed | The graphics engine still needs debugging before Linux games can be offered on this board |
 
-R6/R19-style labels are not globally unique. Retain board, source manifest,
-build directory and SHA-256 with each result.
+These boards are two targets for the same console project. They use shared
+graphics and software components, with adaptations for their display, pinout
+and hardware connections. Working Pro Dock demonstrations do not mean the Neo
+port is ready to use.
 
-## Feature and delivery matrix
+## What can the console do?
 
-| Area | Available | Missing or limited |
-|---|---|---|
-| Pro Dock graphics | Hardware 2D/3D, layers, sprites, tiles, text, alpha, geometry | Every changed build needs its own hardware/timing qualification |
-| Linux graphics | Custom GPU/display drivers, userspace API, terminal/dashboard | No general desktop/OpenGL/Vulkan stack |
-| Game execution | Shell-launched executables and automatic festival mode | Complete reproducible end-user installer |
-| SD startup | U-Boot and Linux startup observed with candidate FPGA | Repeated persistent cold-power boot to game |
-| SOFT-USB | HS CDC terminal, experimental application/DDR transfers | Qualified complete software/update path and sustained throughput |
-| USB storage | Firmware CDC + optional MSC/BOT | Not a general Linux export of its mounted SD |
-| SD/SPI | Native AE350 SPI, shared PIO and failure tests | Throughput cause incomplete; production DMA not integrated |
-| Neo display | HDMI 720p patterns | Full graphics/Linux qualification |
-| Neo input | Two USB2 host ports designed for controllers | End-to-end validation with the completed console |
-| Game content | Exploration, puzzle, board and arcade activities | Frame pacing, polish, long-campaign completion |
-| Build system | Pinned Linux inputs, ownership and regression checks | Some external/local baseline dependencies remain |
+The following capabilities have been demonstrated on the **Pro Dock**:
 
-## Latest Pro Dock game observation
-
-On 3 November, the second Pro Dock ran `/bin/luma3d-maze --festival`. Recovery
-used CPU JTAG: **a historical diagnostic operation, not normal installation**.
-Routine J-Link loading has since been stopped at the owner's request.
-
-| Item | Observed result |
+| Feature | What it provides |
 |---|---|
-| R6 FPGA SHA-256 | `0a0ab081f12739767493bac8bac9247fe20d6a9cf83d54405f64d2a34015ed60` |
-| Game ELF SHA-256 | `2e552dd1cc9b73756b68040b75c4c0a8f9c62c6584dbadd4fcb38e7933c4b985` |
-| ELF bytes | 16,684,812 |
-| Linux release | `6.12.112-prodock-luma3d-g3d1-sdoptin-r1` |
-| Graphics-ready log | 4.606784 seconds |
-| Four FPS windows | 5.55, 13.36, 32.91, 28.12 |
-| GPU counters before launch | Error, fault and underflow zero |
+| Hardware 2D graphics | Scrolling backgrounds, tiles, sprites, text and image copies |
+| Hardware 3D graphics | Textured objects, depth testing, perspective and lighting |
+| Visual effects | Transparency, additive blending and fog |
+| Linux applications | Games run as executables launched from the console shell |
+| Shared display | Game, Linux terminal and GPU/USB/SD status visible together |
+| Full-screen modes | Switch between the game, terminal and shared layout |
+| USB terminal | Connect a PC to the board's SOFT-USB port to enter commands |
+| Games and demonstrations | Space shooters, cinematic demonstrations, exploration, puzzles and board-game activities |
 
-The FPS values describe different windows/scenes, not one benchmark mean.
-No post-run counters were collected because the game was left running. This
-particular recovery has no new user visual confirmation. The first board,
-SD files and nonvolatile FPGA flash were unchanged. See
-[the test record](../TESTS/prodock_game_restore_20261103/TEST_RECORD.md).
+The graphics engine supports 16 composition layers and 64 native 2D sprites.
+A particular scene may use fewer; performance depends on its drawing and memory
+workload. The [architecture guide](ARCHITECTURE.md) explains how the CPU and FPGA
+share the rendering work.
 
-The package embeds the game in a RAM root filesystem. This does not prove SD
-asset streaming. Replacing a previously silent diagnostic Linux recovered the
-console, but did not establish the cause of that silence.
+## What is still being developed?
 
-## Measurements that must not be mixed
+### Installation, startup and updates
 
-| Measurement | Scope | Result / limitation |
-|---|---|---|
-| SPI chunks | 411 internal 512-byte exchanges | PIO mean about 7.106 ms; complete chunk mean 7.394 ms, range 6.194–8.795 ms |
-| Application reads | Three complete 512-byte `pread` calls | Mean 20.576 ms, range 19.148–22.985 ms; different population/path |
-| Historic ORBITAL R6 | Older hardware/software campaign | 54.81 FPS; not MAZE performance |
-| Publication regression | Current common sources on the host | 15 groups PASS; no board access |
+Linux has booted from an SD card during development. The full sequence from
+power-on to an automatically launched game still needs to be completed and
+repeatedly tested.
 
-All 411 chunks confirmed 512 bytes transmitted/received. This does not measure
-SCK at the connector. Nominal configuration and physical frequency are distinct.
-See [SD/SPI](SD_SPI.md) and [optimization](OPTIMIZATION.md).
+SOFT-USB is intended for both the terminal and software transfers. The terminal
+exists; the complete game/kernel installation and update workflow is unfinished.
+USB2 High-Speed is the target. A CPU debugger is not part of the normal user
+experience. See [SOFT-USB](USB_TRANSPORT.md) for the implementation status.
 
-## Neo experiment result
+The repository includes source code, build tools and a reproducible snapshot
+of the demonstrated game. Some full-system build dependencies still need to be
+prepared separately, so this is not yet a download-and-play console release.
+The [installation guide](INSTALLATION.md) identifies those dependencies.
 
-The instrumented rejection snapshot reported COPY `width_zero`/`height_zero`
-despite nonzero submitted parameters. This was not an independent readback of
-the private width/height flip-flops; REJECT R1 also remains FAIL in timing.
-TARGET and SCISSOR were accepted. A shared header does not establish correct
-capture of subsequent words.
+### Loading speed and game performance
 
-Two command memories were replaced with flip-flop storage in isolated candidates.
-The banked version reduced logic relative to the first replacement but still
-finished with **4,243 unrouted connections**. No loadable bitstream or valid
-final timing result was produced. Local tests do not prove a board fix.
+SD reads are slower than expected. Work is ongoing to locate the cost in the
+controller, driver and operating-system path before changing the implementation.
+This affects boot and loading times.
 
-There is no established model-specific Gowin FIFO silicon erratum or complete
-root cause. Reset, command capture, DDR and HDMI observations are tracked
-separately in [the Neo guide](NEO_PORT.md).
+Game performance also varies by scene. Earlier compact demonstrations are
+smoother than some views in the larger exploration game. More consistent frame
+times, richer scenery and polished activities remain active development goals.
+Measurements and their conditions are in [optimization](OPTIMIZATION.md) and
+[SD performance](SD_SPI.md).
 
-## Completion priorities
+### Game content
 
-1. Finish normal Pro Dock deployment: persistent configuration, verified SD
-   Linux boot and working SOFT-USB terminal, without routine debugger loading.
-2. Qualify USB transfer/recovery, then kernel, game, asset and SD updates.
-3. Isolate SPI cost with consistent timing scopes; integrate DMA only with
-   correct ownership, completion and failure contracts.
-4. Finish the discriminating Neo command experiment and routing, then test
-   graphics, DDR load, USB, Linux and input on that exact board.
-5. Improve game frame pacing and content using comparable scene measurements.
-6. Package a fresh-clone build/install flow and resolve the remaining combined-
-   component licensing scope; the personal-use license for eligible original
-   development is now defined in `LICENSE` and `LICENSE_SCOPE.md`.
+The project includes several demonstrations and a developing exploration game
+with arcade, puzzle and board-game activities. The ambition is a varied world
+with hours of play; the current version is not a finished multi-hour campaign.
+Integrated audio, broader movement/vehicle systems and persistent saves still
+need work. See [the game guide](GAMES.md) for the actual content and controls.
 
-These are acceptance criteria, not completed features.
+### Tang Neo support
+
+HDMI test patterns work, but the full graphics engine is not yet reliable on
+the Neo. Some drawing commands are rejected, and the latest experimental FPGA
+build could not finish routing. There is no ready-to-use Neo game image at this
+stage. The investigation is documented in [the Neo port guide](NEO_PORT.md).
+
+## What can visitors try now?
+
+- Watch the video and explore the architecture, graphics API and source code.
+- Build the [published game snapshot](../releases/luma3d-maze-20261103/README.md)
+  and run its host-side checks without a board.
+- Follow the [Linux console guide](LINUX_CONSOLE.md) to launch installed games
+  on a Pro Dock already running a compatible FPGA/Linux package.
+- Use the [testing guide](TESTING.md) to reproduce the available software and
+  simulation checks, with their stated dependencies.
+
+The public code is a development platform. Demonstrated operation does not mean
+every later FPGA build, USB reconnect sequence or game scene has been tested.
+Some older working builds retain documented timing and USB issues; exact
+results belong to the technical records below.
+
+## Technical records
+
+Developers can find build identifiers, hashes, measurements and outstanding
+hardware checks in these documents:
+
+- [Detailed development snapshot](development/STATUS_20261103.md)
+- [Test coverage and results](TESTING.md)
+- [Neo investigation](NEO_PORT.md)
+- [Latest Pro Dock game test record](../TESTS/prodock_game_restore_20261103/TEST_RECORD.md)
+
+The personal non-commercial license for eligible original development and its
+component exceptions are described in [the license scope](../LICENSE_SCOPE.md).

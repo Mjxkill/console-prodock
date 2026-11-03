@@ -11,13 +11,13 @@ rendering on the board, **not playback of a generated video**.
 
 The project combines bare-metal demonstrations, Linux applications, a hardware
 text console and a developing exploration game with multiple activities.
-It is a development platform, with working Pro Dock demonstrations and an
-unfinished Neo port. The distinction matters when reproducing a video.
+The Pro Dock runs the demonstrations and Linux games. Neo support and the
+complete SD/USB installation experience are still being developed.
 
 | Board | Display | Status — 3 November 2026 |
 |---|---|---|
-| **Tang Mega Pro Dock 138K** | **800 × 480 LCD** | Graphics and Linux games demonstrated; SD boot and USB deployment still being completed |
-| **Tang Neo / Console 138K** | **1280 × 720 HDMI** | Test patterns demonstrated; GPU command path under diagnosis; no qualified Linux game release |
+| **Tang Mega Pro Dock 138K** | **800 × 480 LCD** | Runs graphics demonstrations and Linux games; automatic SD startup and USB installation remain in development |
+| **Tang Neo / Console 138K** | **1280 × 720 HDMI** | Displays HDMI test patterns; graphics debugging is ongoing and games are not ready to use |
 
 ## Documentation
 
@@ -105,8 +105,10 @@ prodockctl display
 luma3d-maze --festival
 ```
 
-The latest MAZE demonstration is a frozen candidate, not the older default
-`games/luma3d` Makefile output. See [its source and executable snapshot](releases/luma3d-maze-20261103/README.md).
+The exact MAZE version demonstrated on the board is available as a
+[source and executable package](releases/luma3d-maze-20261103/README.md),
+with instructions to rebuild it. The older game Makefile builds a different
+development version.
 
 ## Games and demonstrations
 
@@ -148,20 +150,19 @@ Gowin performs full-console synthesis and routing. The
 experiments; nextpnr/Yosys/Apicula do not currently replace the complete vendor
 flow for this design.
 
-## Known limitations
+## What remains to finish
 
-- The protected historical Pro Dock G22r0 reference runs demonstrations, but
-  has documented setup violations (worst −0.564 ns) and historical occasional
-  CDC duplicates. It is not described as timing-closed.
-- SD boot has reached Linux on the second Pro Dock; the complete persistent
-  cold-boot-to-game path and high-throughput USB updates remain unqualified.
-- The native AE350 SPI path is exercised but too slow. Controller, MMC and
-  application timings are distinguished; DMA integration is unfinished.
-- Neo COPY commands are rejected in the current diagnosis. Flip-flop FIFO
-  experiments pass local tests but the latest full design failed routing.
-  Neither a silicon FIFO erratum nor the complete root cause is established.
+- **Installation:** complete and test automatic startup from SD and software
+  installation through SOFT-USB.
+- **Loading and performance:** speed up SD access and improve frame pacing in
+  the larger game scenes.
+- **Neo support:** resolve the graphics problems before offering a usable game
+  image for this board.
+- **Hardware validation:** working demonstrations exist, but some older builds
+  still have documented timing and occasional USB terminal issues.
 
-See [current status](docs/STATUS.md) for versions and evidence.
+See [project status](docs/STATUS.md) for what visitors can use today. Detailed
+build results and measurements are linked from that page.
 
 ## Sources and distribution
 
